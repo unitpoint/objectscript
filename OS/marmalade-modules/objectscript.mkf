@@ -1,0 +1,11 @@
+includepaths
+{
+    "..\source"
+}
+
+files
+{
+    ("source")
+    objectscript.cpp
+    objectscript.h
+}
