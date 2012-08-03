@@ -2682,6 +2682,16 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 			break;
 		}
 
+	case EXP_TYPE_NEW_LOCAL_VAR:
+		{
+			OS_ASSERT(list.count == 0);
+			StringInternal info = StringInternal::format(allocator, OS_TEXT("(%d %d%s)"),
+				local_var.up_count, local_var.index,
+				local_var.is_param ? OS_TEXT(" param") : OS_TEXT(""));
+			out += StringInternal::format(allocator, OS_TEXT("%snew local var %s %s\n"), spaces, token->str.toChar(), info.toChar());
+			break;
+		}
+
 	case EXP_TYPE_GET_LOCAL_VAR:
 		{
 			OS_ASSERT(list.count == 0);
@@ -3287,6 +3297,14 @@ void OS::Compiler::Scope::addLocalVar(const StringInternal& name)
 	getAllocator()->vectorAddItem(locals, LocalVar(name, locals.count));
 }
 
+void OS::Compiler::Scope::addLocalVar(const StringInternal& name, LocalVarDesc& local_var)
+{
+	local_var.index = locals.count;
+	local_var.up_count = 0;
+	local_var.is_param = false;
+	addLocalVar(name);
+}
+
 // =====================================================================
 
 OS::Compiler::Compiler(Tokenizer * p_tokenizer)
@@ -3342,6 +3360,10 @@ bool OS::Compiler::compile()
 
 		case ERROR_SYNTAX:
 			dump += OS::StringInternal(allocator, " SYNTAX");
+			break;
+
+		case ERROR_VAR_ALREADY_EXIST:
+			dump += OS::StringInternal(allocator, " VAR_ALREADY_EXIST");
 			break;
 
 		case ERROR_EXPECT_TOKEN_TYPE:
@@ -4058,8 +4080,8 @@ OS::Compiler::Expression * OS::Compiler::processExpressionSecondPass(Scope * sco
 				return exp;
 
 			case EXP_TYPE_GET_LOCAL_VAR:
-				OS_ASSERT(false);
-				break;
+				// OS_ASSERT(false);
+				// break;
 
 			default:
 				exp->type = EXP_TYPE_GET_DIM;
@@ -4132,7 +4154,7 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression(int ret_values)
 		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
 			exp = expectCodeExpression(scope, 0);
 		}else{
-			exp = expectSingleExpression(scope, true, true);
+			exp = expectSingleExpression(scope, true, true, true);
 		}
 		if(!exp){
 			break;
@@ -4202,7 +4224,7 @@ OS::Compiler::Scope * OS::Compiler::expectCodeExpression(Scope * parent, int ret
 		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
 			exp = expectCodeExpression(scope, 0);
 		}else{
-			exp = expectSingleExpression(scope, true, true);
+			exp = expectSingleExpression(scope, true, true, true);
 		}
 		if(!exp){
 			break;
@@ -4309,7 +4331,7 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 		if(name_token->getType() == Tokenizer::BEGIN_ARRAY_BLOCK){
 			readToken();
 			TokenData * save_token = recent_token;
-			exp = expectSingleExpression(scope, true, false);
+			exp = expectSingleExpression(scope, true, false, false);
 			if(!exp){
 				return lib.error();
 			}
@@ -4327,7 +4349,7 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 				return lib.error(Tokenizer::OPERATOR_COLON, recent_token);
 			}
 			save_token = readToken();
-			Expression * exp2 = expectSingleExpression(scope, true, false);
+			Expression * exp2 = expectSingleExpression(scope, true, false, false);
 			if(!exp2){
 				return isError() ? lib.error() : lib.error(ERROR_EXPECT_EXPRESSION, save_token);
 			}
@@ -4357,14 +4379,14 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 			}
 			readToken(); // skip OPERATOR_COLON
 			TokenData * save_token = readToken();
-			exp = expectSingleExpression(scope, true, false);
+			exp = expectSingleExpression(scope, true, false, false);
 			if(!exp){
 				return isError() ? lib.error() : lib.error(ERROR_EXPECT_EXPRESSION, save_token);
 			}
 			exp = expectExpressionValues(exp, 1);
 			exp = new (malloc(sizeof(Expression))) Expression(exp_type, name_token, exp);
 		}else{
-			exp = expectSingleExpression(scope, true, false);
+			exp = expectSingleExpression(scope, true, false, false);
 			if(!exp){
 				return isError() ? lib.error() : lib.error(ERROR_EXPECT_EXPRESSION, name_token);
 			}
@@ -4390,7 +4412,7 @@ OS::Compiler::Expression * OS::Compiler::expectArrayExpression(Scope * scope)
 	Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_ARRAY, recent_token);
 	readToken();
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, true, false);
+		Expression * exp = expectSingleExpression(scope, true, false, false);
 		if(!exp){
 			if(isError()){
 				allocator->deleteObj(params);
@@ -4441,7 +4463,7 @@ OS::Compiler::Expression * OS::Compiler::expectParamsExpression(Scope * scope)
 	TokenType end_exp_type = is_dim ? Tokenizer::END_ARRAY_BLOCK : Tokenizer::END_BRACKET_BLOCK;
 	readToken();
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, true, false);
+		Expression * exp = expectSingleExpression(scope, true, false, false);
 		if(!exp){
 			if(isError()){
 				allocator->deleteObj(params);
@@ -4479,7 +4501,7 @@ OS::Compiler::Expression * OS::Compiler::expectParamsExpression(Scope * scope, E
 	params->ret_values = 1;
 	readToken();
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, false, false);
+		Expression * exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			if(isError()){
 				allocator->deleteObj(params);
@@ -4557,6 +4579,64 @@ OS::Compiler::Scope * OS::Compiler::expectFunctionExpression(Scope * parent)
 	return expectCodeExpression(scope, -1);
 }
 
+OS::Compiler::Expression * OS::Compiler::expectVarExpression(Scope * scope)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->strings->syntax_var);
+	if(!expectToken(Tokenizer::NAME)){
+		return NULL;
+	}
+	// ungetToken();
+	Expression * exp = expectSingleExpression(scope, true, true, false);
+	Expression * ret_exp = exp;
+	while(exp){
+		switch(exp->type){
+		case EXP_TYPE_SET_LOCAL_VAR:
+			if(exp->local_var.up_count == 0){
+				setError(ERROR_VAR_ALREADY_EXIST, exp->token);
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, 0));
+			scope->addLocalVar(exp->token->str, exp->local_var);
+			return ret_exp;
+
+		case EXP_TYPE_SET_AUTO_VAR:
+			for(;;){
+				OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, 0));
+				scope->addLocalVar(exp->token->str, exp->local_var);
+				exp->type = EXP_TYPE_SET_LOCAL_VAR;
+				OS_ASSERT(exp->list.count == 1);
+				exp = exp->list[0];
+				switch(exp->type){
+				case EXP_TYPE_SET_AUTO_VAR:
+				case EXP_TYPE_SET_LOCAL_VAR:
+					break;
+
+				default:
+					return ret_exp;
+				}
+				break;
+			}
+			break;
+
+		case EXP_TYPE_NAME:
+			if(findLocalVar(exp->local_var, scope, exp->token->str, 0)){
+				setError(ERROR_VAR_ALREADY_EXIST, exp->token);
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			scope->addLocalVar(exp->token->str, exp->local_var);
+			exp->type = EXP_TYPE_NEW_LOCAL_VAR;
+			exp->ret_values = 0;
+			return ret_exp;
+
+		default:
+			return ret_exp;
+		}
+	}
+	return ret_exp;
+}
+
 OS::Compiler::Expression * OS::Compiler::expectReturnExpression(Scope * scope)
 {
 	Expression * ret_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_RETURN, recent_token);
@@ -4579,7 +4659,7 @@ OS::Compiler::Expression * OS::Compiler::expectReturnExpression(Scope * scope)
 		return ret_exp;
 	}
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, true, false);
+		Expression * exp = expectSingleExpression(scope, true, false, false);
 		if(!exp){
 			allocator->deleteObj(ret_exp);
 			return NULL;
@@ -4803,7 +4883,7 @@ OS::Compiler::Expression * OS::Compiler::newBinaryExpression(Scope * scope, Expr
 	return exp;
 }
 
-bool OS::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const StringInternal& name)
+bool OS::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const StringInternal& name, int max_up_count)
 {
 	OS_ASSERT(scope);
 	for(int up_count = 0;;){
@@ -4818,6 +4898,9 @@ bool OS::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const StringI
 		}
 		if(scope->parent){
 			if(scope->type == EXP_TYPE_FUNCTION){
+				if(up_count >= max_up_count){
+					return false;
+				}
 				up_count++;
 			}
 			scope = scope->parent;
@@ -4971,7 +5054,7 @@ OS::Compiler::Expression * OS::Compiler::finishBinaryOperator(Scope * scope, Opc
 	TokenData * binary_operator = recent_token;
 	OS_ASSERT(binary_operator->isTypeOf(Tokenizer::BINARY_OPERATOR));
 	readToken();
-	Expression * exp2 = expectSingleExpression(scope, false, allow_param);
+	Expression * exp2 = expectSingleExpression(scope, false, allow_param, false);
 	if(!exp2){
 		allocator->deleteObj(exp);
 		return NULL;
@@ -5178,7 +5261,7 @@ OS::Compiler::Expression * OS::Compiler::finishValueExpression(Scope * scope, Ex
 	return NULL; // shut up compiler
 }
 
-OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, bool allow_binary_operator, bool allow_param)
+OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, bool allow_binary_operator, bool allow_param, bool allow_var)
 {
 	TokenData * token = recent_token; // readToken();
 	if(!token){
@@ -5190,7 +5273,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 	switch(token_type){
 	// begin unary operators
 	case Tokenizer::OPERATOR_ADD:
-		exp = expectSingleExpression(scope, false, false);
+		exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			return NULL;
 		}
@@ -5200,7 +5283,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_SUB:
-		exp = expectSingleExpression(scope, false, false);
+		exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			return NULL;
 		}
@@ -5210,7 +5293,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_BIN_NOT:
-		exp = expectSingleExpression(scope, false, false);
+		exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			return NULL;
 		}
@@ -5220,7 +5303,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_LOGIC_NOT:
-		exp = expectSingleExpression(scope, false, false);
+		exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			return NULL;
 		}
@@ -5253,7 +5336,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 
 	case Tokenizer::BEGIN_BRACKET_BLOCK:
 		readToken();
-		exp = expectSingleExpression(scope, true, false);
+		exp = expectSingleExpression(scope, true, false, false);
 		if(!exp){
 			return NULL;
 		}
@@ -5303,6 +5386,13 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::NAME:
+		if(token->str == allocator->strings->syntax_var){
+			if(!allow_var){
+				setError(ERROR_SYNTAX, token);
+				return NULL;
+			}
+			return expectVarExpression(scope);
+		}
 		if(token->str == allocator->strings->syntax_function){
 			exp = expectFunctionExpression(scope);
 			if(!exp){
@@ -6543,6 +6633,7 @@ OS::Strings::Strings(OS * allocator)
 	__div(allocator, OS_TEXT("__div")),
 	__mod(allocator, OS_TEXT("__mod")),
 
+	syntax_var(allocator, OS_TEXT("var")),
 	syntax_function(allocator, OS_TEXT("function")),
 	syntax_null(allocator, OS_TEXT("null")),
 	syntax_true(allocator, OS_TEXT("true")),

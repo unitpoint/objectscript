@@ -788,6 +788,7 @@ namespace ObjectScript
 			enum ExpressionType {
 				EXP_TYPE_UNKNOWN,
 				EXP_TYPE_NOP,
+				EXP_TYPE_NEW_LOCAL_VAR,
 				EXP_TYPE_SCOPE,
 				EXP_TYPE_CODE_LIST,
 				EXP_TYPE_NAME, // temp
@@ -998,11 +999,13 @@ namespace ObjectScript
 				virtual ~Scope();
 
 				void addLocalVar(const StringInternal& name);
+				void addLocalVar(const StringInternal& name, LocalVarDesc&);
 			};
 
 			enum ErrorType {
 				ERROR_NOTHING,
 				ERROR_SYNTAX,
+				ERROR_VAR_ALREADY_EXIST,
 				ERROR_EXPECT_TOKEN_TYPE,
 				ERROR_EXPECT_TOKEN_STR,
 				ERROR_EXPECT_TOKEN,
@@ -1090,7 +1093,8 @@ namespace ObjectScript
 			Scope * expectTextExpression(int ret_values);
 			Scope * expectCodeExpression(Scope*, int ret_values);
 			Scope * expectFunctionExpression(Scope*);
-			Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param);
+			Expression * expectVarExpression(Scope*);
+			Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param, bool allow_var);
 			Expression * expectObjectExpression(Scope*);
 			Expression * expectArrayExpression(Scope*);
 			Expression * finishParamsExpression(Expression * params);
@@ -1101,7 +1105,7 @@ namespace ObjectScript
 			Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 			Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
-			bool findLocalVar(LocalVarDesc&, Scope * scope, const StringInternal& name);
+			bool findLocalVar(LocalVarDesc&, Scope * scope, const StringInternal& name, int max_up_count = 127);
 			
 			StringInternal debugPrintSourceLine(TokenData*);
 			static const OS_CHAR * getExpName(ExpressionType);
@@ -1331,6 +1335,7 @@ namespace ObjectScript
 			StringInternal __div;
 			StringInternal __mod;
 
+			StringInternal syntax_var;
 			StringInternal syntax_function;
 			StringInternal syntax_null;
 			StringInternal syntax_true;
