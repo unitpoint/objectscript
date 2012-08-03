@@ -223,7 +223,7 @@ namespace ObjectScript
 			}
 		};
 
-		class StringLocal // doesn't retain OS, strings inside of OS mush use StringLocal instead of String
+		class StringInternal // doesn't retain OS, strings inside of OS mush use StringInternal instead of String
 		{
 		protected:
 
@@ -232,26 +232,26 @@ namespace ObjectScript
 
 		public:
 
-			StringLocal(OS*);
-			StringLocal(OS*, const OS_CHAR*);
-			StringLocal(OS*, OS_CHAR, int count);
-			StringLocal(OS*, const void*, int size);
-			StringLocal(OS*, const void * buf1, int len1, const void * buf2, int len2);
-			StringLocal(const StringLocal&);
-			StringLocal(StringData*);
-			StringLocal(OS*, OS_INT value);
-			StringLocal(OS*, OS_FLOAT value, int precision = OS_DEF_PRECISION);
-			~StringLocal();
+			StringInternal(OS*);
+			StringInternal(OS*, const OS_CHAR*);
+			StringInternal(OS*, OS_CHAR, int count);
+			StringInternal(OS*, const void*, int size);
+			StringInternal(OS*, const void * buf1, int len1, const void * buf2, int len2);
+			StringInternal(const StringInternal&);
+			StringInternal(StringData*);
+			StringInternal(OS*, OS_INT value);
+			StringInternal(OS*, OS_FLOAT value, int precision = OS_DEF_PRECISION);
+			~StringInternal();
 
-			static StringLocal format(OS*, int temp_buf_size, const OS_CHAR * fmt, ...);
-			static StringLocal format(OS*, int temp_buf_size, const OS_CHAR * fmt, va_list);
-			static StringLocal format(OS*, const OS_CHAR * fmt, ...);
-			static StringLocal format(OS*, const OS_CHAR * fmt, va_list);
+			static StringInternal format(OS*, int temp_buf_size, const OS_CHAR * fmt, ...);
+			static StringInternal format(OS*, int temp_buf_size, const OS_CHAR * fmt, va_list);
+			static StringInternal format(OS*, const OS_CHAR * fmt, ...);
+			static StringInternal format(OS*, const OS_CHAR * fmt, va_list);
 
-			StringLocal& setFormat(int temp_buf_size, const OS_CHAR * fmt, ...);
-			StringLocal& setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list);
-			StringLocal& setFormat(const OS_CHAR * fmt, ...);
-			StringLocal& setFormat(const OS_CHAR * fmt, va_list);
+			StringInternal& setFormat(int temp_buf_size, const OS_CHAR * fmt, ...);
+			StringInternal& setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list);
+			StringInternal& setFormat(const OS_CHAR * fmt, ...);
+			StringInternal& setFormat(const OS_CHAR * fmt, va_list);
 
 			StringData * toData() const { return StringData::toData(str); }
 			StringData * toData(){ return StringData::toData(str); }
@@ -272,49 +272,49 @@ namespace ObjectScript
 			OS_INT toInt() const;
 			OS_FLOAT toFloat() const;
 
-			StringLocal& operator=(const StringLocal&);
-			StringLocal& operator=(const OS_CHAR*);
+			StringInternal& operator=(const StringInternal&);
+			StringInternal& operator=(const OS_CHAR*);
 
-			StringLocal& operator+=(const StringLocal&);
-			StringLocal& operator+=(const OS_CHAR*);
-			StringLocal& append(const void*, int size);
-			StringLocal& append(const OS_CHAR*);
+			StringInternal& operator+=(const StringInternal&);
+			StringInternal& operator+=(const OS_CHAR*);
+			StringInternal& append(const void*, int size);
+			StringInternal& append(const OS_CHAR*);
 
-			StringLocal operator+(const StringLocal&);
-			StringLocal operator+(const OS_CHAR*);
+			StringInternal operator+(const StringInternal&);
+			StringInternal operator+(const OS_CHAR*);
 
-			bool operator==(const StringLocal&);
+			bool operator==(const StringInternal&);
 			bool operator==(const OS_CHAR*);
 
-			bool operator!=(const StringLocal&);
+			bool operator!=(const StringInternal&);
 			bool operator!=(const OS_CHAR*);
 
-			bool operator<=(const StringLocal&);
+			bool operator<=(const StringInternal&);
 			bool operator<=(const OS_CHAR*);
 
-			bool operator<(const StringLocal&);
+			bool operator<(const StringInternal&);
 			bool operator<(const OS_CHAR*);
 
-			bool operator>=(const StringLocal&);
+			bool operator>=(const StringInternal&);
 			bool operator>=(const OS_CHAR*);
 
-			bool operator>(const StringLocal&);
+			bool operator>(const StringInternal&);
 			bool operator>(const OS_CHAR*);
 
-			StringLocal trim(bool trim_left = true, bool trim_right = true) const;
+			StringInternal trim(bool trim_left = true, bool trim_right = true) const;
 
-			int cmp(const StringLocal&) const;
+			int cmp(const StringInternal&) const;
 			int cmp(const OS_CHAR*) const;
 			int hash() const;
 
-			StringLocal clone() const;
+			StringInternal clone() const;
 		};
 
 	public:
 
-		class String: public StringLocal // retains os, external strings must use String instead of StringLocal
+		class String: public StringInternal // retains os, external strings must use String instead of StringInternal
 		{
-			typedef StringLocal super;
+			typedef StringInternal super;
 
 		public:
 
@@ -323,19 +323,19 @@ namespace ObjectScript
 			String(OS*, OS_CHAR, int count);
 			String(OS*, const void*, int size);
 			String(OS*, const void * buf1, int len1, const void * buf2, int len2);
-			String(const StringLocal&);
+			String(const StringInternal&);
 			String(const String&);
 			String(StringData*);
 			String(OS*, OS_INT value);
 			String(OS*, OS_FLOAT value, int precision);
 			~String();
 
-			// operator const StringLocal&() const { return *this; }
+			// operator const StringInternal&() const { return *this; }
 
-			String& operator=(const StringLocal&);
+			String& operator=(const StringInternal&);
 			String& operator=(const OS_CHAR*);
 
-			String& operator+=(const StringLocal&);
+			String& operator+=(const StringInternal&);
 			String& operator+=(const OS_CHAR*);
 			String& append(const void*, int size);
 			String& append(const OS_CHAR*);
@@ -475,8 +475,8 @@ namespace ObjectScript
 
 			public:
 
-				StringLocal filename;
-				Vector<StringLocal> lines;
+				StringInternal filename;
+				Vector<StringInternal> lines;
 				
 				int ref_count;
 
@@ -505,7 +505,7 @@ namespace ObjectScript
 
 				TextData * text_data;
 
-				StringLocal str;
+				StringInternal str;
 				int line, pos;
 				int ref_count;
 
@@ -516,7 +516,7 @@ namespace ObjectScript
 				const OS_FLOAT * getVec3() const;
 				const OS_FLOAT * getVec4() const;
 
-				TokenData(TextData * text_data, const StringLocal& p_str, TokenType p_type, int p_line, int p_pos);
+				TokenData(TextData * text_data, const StringInternal& p_str, TokenType p_type, int p_line, int p_pos);
 
 				TokenData * retain();
 				void release();
@@ -526,7 +526,7 @@ namespace ObjectScript
 				void setFloat(OS_FLOAT value);
 				void setInt(OS_INT value);
 
-				operator const StringLocal& () const { return str; }
+				operator const StringInternal& () const { return str; }
 
 				bool isTypeOf(TokenType tokenType) const;
 			};
@@ -568,7 +568,7 @@ namespace ObjectScript
 			static int __cdecl CompareOperatorDesc(const void * a, const void * b);
 			static void initOperatorTable();
 
-			TokenData * addToken(const StringLocal& token, TokenType type, int line, int pos);
+			TokenData * addToken(const StringInternal& token, TokenType type, int line, int pos);
 
 			TokenType parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_INT& ival, bool parse_end_spaces);
 			bool parseLines();
@@ -595,8 +595,8 @@ namespace ObjectScript
 
 			static const OS_CHAR * getTokenTypeName(TokenType tokenType);
 
-			StringLocal getFilename() const { return text_data->filename; }
-			StringLocal getLineString(int i) const { return text_data->lines[i]; }
+			StringInternal getFilename() const { return text_data->filename; }
+			StringInternal getLineString(int i) const { return text_data->lines[i]; }
 			int getNumLines() const { return text_data->lines.count; }
 
 			bool getSettingParseVector() const { return settings.parseVector; }
@@ -611,7 +611,7 @@ namespace ObjectScript
 			bool getSettingSaveComment() const { return settings.saveComment; }
 			void setSettingSaveComment(bool value){ settings.saveComment = value; }
 
-			bool parseText(const StringLocal& text);
+			bool parseText(const StringInternal& text);
 
 			int getNumTokens() const { return tokens.count; }
 			TokenData * getToken(int i) const { return tokens[i]; }
@@ -629,7 +629,7 @@ namespace ObjectScript
 			/*
 			struct LocalVarDecl
 			{
-				StringLocal name;
+				StringInternal name;
 				int start;
 				int end;
 
@@ -659,14 +659,14 @@ namespace ObjectScript
 
 		struct VariableIndex
 		{
-			StringLocal string_index;
+			StringInternal string_index;
 			OS_INT int_index;
 			int hash_value;
 			bool is_string_index;
 			bool int_valid;
 
 			VariableIndex(const VariableIndex& index);
-			VariableIndex(const StringLocal& index);
+			VariableIndex(const StringInternal& index);
 			VariableIndex(StringData * index);
 			VariableIndex(OS*, const OS_CHAR * index);
 			VariableIndex(OS*, OS_INT index);
@@ -679,7 +679,7 @@ namespace ObjectScript
 			int cmp(const VariableIndex& b) const;
 			int hash() const;
 
-			StringLocal toString() const;
+			StringInternal toString() const;
 
 			bool checkIntIndex() const;
 			void fixName();
@@ -696,7 +696,7 @@ namespace ObjectScript
 				Variable * prev, * next;
 
 				Variable(const VariableIndex& index);
-				Variable(const StringLocal& index);
+				Variable(const StringInternal& index);
 				Variable(OS*, const OS_CHAR * index);
 				Variable(OS*, OS_INT index);
 				Variable(OS*, int index);
@@ -940,7 +940,7 @@ namespace ObjectScript
 
 				OS_FLOAT toNumber();
 				OS_INT toInt();
-				StringLocal toString();
+				StringInternal toString();
 
 				bool isConstValue() const;
 				bool isValue() const;
@@ -952,7 +952,7 @@ namespace ObjectScript
 				bool isAssignOperator() const;
 				bool isLogicOperator() const;
 
-				StringLocal debugPrint(OS::Compiler * compiler, int depth);
+				StringInternal debugPrint(OS::Compiler * compiler, int depth);
 			};
 
 			struct Scope: public Expression
@@ -969,7 +969,7 @@ namespace ObjectScript
 
 				struct LocalVar
 				{
-					StringLocal name;
+					StringInternal name;
 					int start_pos;
 					int end_pos;
 				};
@@ -1017,12 +1017,12 @@ namespace ObjectScript
 			ErrorType error;
 			TokenData * error_token;
 			TokenType expect_token_type;
-			StringLocal expect_token;
+			StringInternal expect_token;
 
 			TokenData * recent_token;
 			int next_token_index;
 
-			// StringLocal recent_printed_filename;
+			// StringInternal recent_printed_filename;
 			TextData * recent_printed_text_data;
 			int recent_printed_line;
 
@@ -1036,7 +1036,7 @@ namespace ObjectScript
 			void setError();
 			void setError(ErrorType value, TokenData * error_token);
 			void setError(TokenType expect_token_type, TokenData * error_token);
-			void setError(const StringLocal& str, TokenData * error_token);
+			void setError(const StringInternal& str, TokenData * error_token);
 
 			void * malloc(int size);
 
@@ -1081,12 +1081,12 @@ namespace ObjectScript
 			Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 			Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
-			int findLocalVarIndex(Scope * scope, const StringLocal& name);
+			int findLocalVarIndex(Scope * scope, const StringInternal& name);
 			
-			StringLocal debugPrintSourceLine(TokenData*);
+			StringInternal debugPrintSourceLine(TokenData*);
 			static const OS_CHAR * getExpName(ExpressionType);
 
-			int getCachedStringIndex(const StringLocal& str);
+			int getCachedStringIndex(const StringInternal& str);
 			int getCachedNumberIndex(OS_FLOAT);
 			bool generateOpcodes(Expression*, Program*);
 			bool generateOpcodes(Expression*);
@@ -1137,8 +1137,8 @@ namespace ObjectScript
 			};
 
 			OS * allocator;
-			StringLocal filename;
-			Vector<StringLocal> strings;
+			StringInternal filename;
+			Vector<StringInternal> strings;
 			Vector<OS_FLOAT> numbers;
 			Vector<OS_BYTE> opcodes;
 
@@ -1297,37 +1297,37 @@ namespace ObjectScript
 
 		struct Strings
 		{
-			StringLocal __get;
-			StringLocal __set;
-			StringLocal __construct;
-			StringLocal __destruct;
-			StringLocal __cmp;
-			StringLocal __tostring;
-			StringLocal __tobool;
-			StringLocal __add;
-			StringLocal __sub;
-			StringLocal __mul;
-			StringLocal __div;
-			StringLocal __mod;
+			StringInternal __get;
+			StringInternal __set;
+			StringInternal __construct;
+			StringInternal __destruct;
+			StringInternal __cmp;
+			StringInternal __tostring;
+			StringInternal __tobool;
+			StringInternal __add;
+			StringInternal __sub;
+			StringInternal __mul;
+			StringInternal __div;
+			StringInternal __mod;
 
-			StringLocal syntax_function;
-			StringLocal syntax_null;
-			StringLocal syntax_true;
-			StringLocal syntax_false;
-			StringLocal syntax_return;
-			StringLocal syntax_class;
-			StringLocal syntax_enum;
-			StringLocal syntax_switch;
-			StringLocal syntax_case;
-			StringLocal syntax_default;
-			StringLocal syntax_if;
-			StringLocal syntax_else;
-			StringLocal syntax_elseif;
-			StringLocal syntax_for;
-			StringLocal syntax_do;
-			StringLocal syntax_while;
-			StringLocal syntax_break;
-			StringLocal syntax_continue;
+			StringInternal syntax_function;
+			StringInternal syntax_null;
+			StringInternal syntax_true;
+			StringInternal syntax_false;
+			StringInternal syntax_return;
+			StringInternal syntax_class;
+			StringInternal syntax_enum;
+			StringInternal syntax_switch;
+			StringInternal syntax_case;
+			StringInternal syntax_default;
+			StringInternal syntax_if;
+			StringInternal syntax_else;
+			StringInternal syntax_elseif;
+			StringInternal syntax_for;
+			StringInternal syntax_do;
+			StringInternal syntax_while;
+			StringInternal syntax_break;
+			StringInternal syntax_continue;
 
 			int __dummy__;
 
@@ -1393,7 +1393,7 @@ namespace ObjectScript
 		
 		Value * pushBoolValue(bool);
 		Value * pushNumberValue(OS_FLOAT);
-		Value * pushStringValue(const StringLocal&);
+		Value * pushStringValue(const StringInternal&);
 		Value * pushStringValue(const OS_CHAR*);
 		Value * pushCFunctionValue(OS_CFunction func, void * user_param);
 		Value * pushUserdataValue(int data_size, OS_UserDataDtor dtor);
@@ -1408,7 +1408,7 @@ namespace ObjectScript
 		Value * setValue(Value*, bool);
 		Value * setValue(Value*, int);
 		Value * setValue(Value*, OS_FLOAT);
-		Value * setValue(Value*, const StringLocal&);
+		Value * setValue(Value*, const StringInternal&);
 		*/
 
 		/*
@@ -1423,10 +1423,10 @@ namespace ObjectScript
 
 		int valueToInt(Value * val);
 		OS_FLOAT valueToNumber(Value * val);
-		StringLocal valueToString(Value * val);
+		StringInternal valueToString(Value * val);
 
 		bool isValueNumber(Value * val, OS_FLOAT * out = NULL);
-		bool isValueString(Value * val, StringLocal * out = NULL);
+		bool isValueString(Value * val, StringInternal * out = NULL);
 		bool isValueInstanceOf(Value * val, Value * prototype_val);
 
 		Value::Table * newTable();
@@ -1466,7 +1466,7 @@ namespace ObjectScript
 		void pushFloat(double);
 		void pushBool(bool);
 		void pushString(const OS_CHAR*);
-		void pushString(const StringLocal&);
+		void pushString(const StringInternal&);
 		void pushCFunction(OS_CFunction func, void * user_param);
 		void * pushUserdata(int data_size, OS_UserDataDtor dtor = NULL);
 		void * pushUserPointer(void * data, OS_UserDataDtor dtor = NULL);
@@ -1504,7 +1504,7 @@ namespace ObjectScript
 		int compile(int offs = -1);
 		int call(int params = 0);
 		int eval(OS_CHAR * str);
-		int eval(const StringLocal& str);
+		int eval(const StringInternal& str);
 	};
 
 } // namespace OS
