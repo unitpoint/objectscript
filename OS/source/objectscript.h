@@ -178,7 +178,7 @@ namespace ObjectScript
 			static StringData * toData(const OS_CHAR * s){ return (StringData*)s-1; }
 			void * toMemory() const { return (void*)(this + 1); }
 
-			int allocatedBytes() const { return allocated_bytes; }
+			int getAllocatedBytes() const { return allocated_bytes; }
 			int getDataSize() const { return data_size; }
 
 			const OS_CHAR * toCharSafely() const { return this ? (OS_CHAR*)(this + 1) : OS_TEXT(""); }
@@ -264,7 +264,7 @@ namespace ObjectScript
 			// operator StringData*() { return data; }
 
 			// bool isNull() const { return data == NULL; }
-			int allocatedBytes() const { return toData()->allocated_bytes; }
+			int getAllocatedBytes() const { return toData()->allocated_bytes; }
 			int getDataSize() const { return toData()->data_size; }
 
 			void clear();

@@ -2,3 +2,5 @@
 /ipch/
 /*.vcxproj.user
 /*.opensdf
+/enc_temp_folder/
+/*.suo
