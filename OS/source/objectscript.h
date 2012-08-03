@@ -280,26 +280,26 @@ namespace ObjectScript
 			StringInternal& append(const void*, int size);
 			StringInternal& append(const OS_CHAR*);
 
-			StringInternal operator+(const StringInternal&);
-			StringInternal operator+(const OS_CHAR*);
+			StringInternal operator+(const StringInternal&) const;
+			StringInternal operator+(const OS_CHAR*) const;
 
-			bool operator==(const StringInternal&);
-			bool operator==(const OS_CHAR*);
+			bool operator==(const StringInternal&) const;
+			bool operator==(const OS_CHAR*) const;
 
-			bool operator!=(const StringInternal&);
-			bool operator!=(const OS_CHAR*);
+			bool operator!=(const StringInternal&) const;
+			bool operator!=(const OS_CHAR*) const;
 
-			bool operator<=(const StringInternal&);
-			bool operator<=(const OS_CHAR*);
+			bool operator<=(const StringInternal&) const;
+			bool operator<=(const OS_CHAR*) const;
 
-			bool operator<(const StringInternal&);
-			bool operator<(const OS_CHAR*);
+			bool operator<(const StringInternal&) const;
+			bool operator<(const OS_CHAR*) const;
 
-			bool operator>=(const StringInternal&);
-			bool operator>=(const OS_CHAR*);
+			bool operator>=(const StringInternal&) const;
+			bool operator>=(const OS_CHAR*) const;
 
-			bool operator>(const StringInternal&);
-			bool operator>(const OS_CHAR*);
+			bool operator>(const StringInternal&) const;
+			bool operator>(const OS_CHAR*) const;
 
 			StringInternal trim(bool trim_left = true, bool trim_right = true) const;
 
@@ -399,7 +399,7 @@ namespace ObjectScript
 
 				OPERATOR_INDIRECT,    // .
 				OPERATOR_CONCAT,    // ..
-				OPERATOR_ANY_PARAMS,  // ...
+				OPERATOR_REST_PARAMS,  // ...
 
 				// OPERATOR_PRECOMP,   // #
 				// OPERATOR_DOLLAR,    // $
@@ -794,7 +794,7 @@ namespace ObjectScript
 				EXP_TYPE_POST_IF,
 				EXP_TYPE_POP_VALUE,
 				EXP_TYPE_CALL,
-				EXP_TYPE_CALL_DIM,
+				EXP_TYPE_CALL_DIM, // temp
 				EXP_TYPE_VALUE,
 				EXP_TYPE_PARAMS,
 				EXP_TYPE_FUNCTION,
@@ -813,13 +813,23 @@ namespace ObjectScript
 				EXP_TYPE_SET_AUTO_VAR,
 
 				EXP_TYPE_INDIRECT, // temp
+
 				EXP_TYPE_GET_PROPERTY,
 				EXP_TYPE_SET_PROPERTY,
 
 				EXP_TYPE_GET_PROPERTY_DIM,
 				EXP_TYPE_SET_PROPERTY_DIM,
 
+				// EXP_TYPE_GET_LOCAL_VAR_DIM,
+				EXP_TYPE_GET_AUTO_VAR_DIM,
+				
+				EXP_TYPE_GET_DIM,
+				EXP_TYPE_SET_DIM,
+
 				EXP_TYPE_CALL_PROPERTY,
+
+				EXP_TYPE_SET_LOCAL_VAR_DIM,
+				EXP_TYPE_SET_AUTO_VAR_DIM,
 
 				// EXP_CONST_STRING,
 				// EXP_CONST_FLOAT,
@@ -921,12 +931,21 @@ namespace ObjectScript
 				void swap(ExpressionList&);
 			};
 
+			struct LocalVarDesc
+			{
+				OS_BYTE up_count;
+				OS_BYTE index;
+				bool is_param;
+
+				LocalVarDesc();
+			};
+
 			struct Expression
 			{
 				TokenData * token;
 				ExpressionType type;
-				int ret_values;
-				// bool is_value;
+				OS_BYTE ret_values;
+				LocalVarDesc local_var;
 				
 				ExpressionList list;
 
@@ -958,26 +977,27 @@ namespace ObjectScript
 			struct Scope: public Expression
 			{
 				Scope * parent;
-
-				enum Type {
-					// LIBRARY,
-					TEXT,
-					FUNCTION,
-					BLOCK,
-					SWITCH,
-				} type;
+				Scope * function;
 
 				struct LocalVar
 				{
 					StringInternal name;
-					int start_pos;
-					int end_pos;
+					int index;
+					int start_code_pos;
+					int end_code_pos;
+
+					LocalVar(const StringInternal& name, int index);
 				};
 
+				// used by function scope
 				Vector<LocalVar> locals;
+				int num_params;
+				bool parser_started;
 
-				Scope(Type, TokenData*);
+				Scope(Scope * parent, ExpressionType, TokenData*);
 				virtual ~Scope();
+
+				void addLocalVar(const StringInternal& name);
 			};
 
 			enum ErrorType {
@@ -1065,29 +1085,30 @@ namespace ObjectScript
 			Expression * newAssingExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
 			// Expression * newIndirectExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
 			Expression * newSingleValueExpression(Expression * exp);
-			Expression * secondPhaseExpression(Expression * exp);
+			Expression * processExpressionSecondPass(Scope * scope, Expression * exp);
 
-			Expression * expectTextExpression(Scope*, int ret_values);
-			Expression * expectCodeExpression(Scope*, int ret_values);
+			Scope * expectTextExpression(int ret_values);
+			Scope * expectCodeExpression(Scope*, int ret_values);
+			Scope * expectFunctionExpression(Scope*);
 			Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param);
 			Expression * expectObjectExpression(Scope*);
 			Expression * expectArrayExpression(Scope*);
 			Expression * finishParamsExpression(Expression * params);
 			Expression * expectParamsExpression(Scope*);
 			Expression * expectParamsExpression(Scope*, Expression * first_param);
-			Expression * expectFunctionExpression(Scope*);
 			Expression * expectReturnExpression(Scope*);
 			Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param);
 			Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 			Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
-			int findLocalVarIndex(Scope * scope, const StringInternal& name);
+			bool findLocalVar(LocalVarDesc&, Scope * scope, const StringInternal& name);
 			
 			StringInternal debugPrintSourceLine(TokenData*);
 			static const OS_CHAR * getExpName(ExpressionType);
 
 			int getCachedStringIndex(const StringInternal& str);
 			int getCachedNumberIndex(OS_FLOAT);
+
 			bool generateOpcodes(Expression*, Program*);
 			bool generateOpcodes(Expression*);
 
@@ -1096,7 +1117,7 @@ namespace ObjectScript
 			Compiler(Tokenizer*);
 			virtual ~Compiler();
 
-			bool compile(); // push compiled function
+			bool compile(); // push compiled text as function
 		};
 
 		class Program
@@ -1197,7 +1218,7 @@ namespace ObjectScript
 			}
 		}
 
-		template<class T> void addVectorItem(Vector<T>& vec, const T& val)
+		template<class T> void vectorAddItem(Vector<T>& vec, const T& val)
 		{
 			if(vec.count >= vec.capacity){
 				vectorReserve(vec, vec.capacity > 0 ? vec.capacity*2 : 4);
@@ -1205,7 +1226,7 @@ namespace ObjectScript
 			new (vec.buf + vec.count++) T(val);
 		}
 
-		template<class T> void clearVector(Vector<T>& vec)
+		template<class T> void vectorClear(Vector<T>& vec)
 		{
 			for(int i = 0; i < vec.count; i++){
 				vec.buf[i].~T();
@@ -1216,7 +1237,7 @@ namespace ObjectScript
 			vec.count = 0;
 		}
 
-		template<class T> void releaseVectorItems(Vector<T>& vec)
+		template<class T> void vectorReleaseItems(Vector<T>& vec)
 		{
 			for(int i = 0; i < vec.count; i++){
 				vec.buf[i]->release();
@@ -1227,14 +1248,14 @@ namespace ObjectScript
 			vec.count = 0;
 		}
 
-		template<class T> void releaseVectorValues(Vector<T>& vec)
+		template<class T> void vectorReleaseValues(Vector<T>& vec)
 		{
 			while(vec.count > 0){
 				releaseValue(vec.buf[--vec.count]);
 			}
 		}
 
-		template<class T> void deleteVectorItems(Vector<T*>& vec)
+		template<class T> void vectorDeleteItems(Vector<T*>& vec)
 		{
 			for(int i = 0; i < vec.count; i++){
 				T * item = vec.buf[i];
@@ -1261,17 +1282,17 @@ namespace ObjectScript
 			vec.count++;
 		}
 
-		template<class T> T vectorRemoveAtIndex(Vector<T>& vec, int i)
+		template<class T> void vectorRemoveAtIndex(Vector<T>& vec, int i)
 		{
 			OS_ASSERT(i >= 0 && i < vec.count);
-			T val = vec.buf[i];
+			// T val = vec.buf[i];
 			vec.buf[i].~T();
 			for(i++; i < vec.count; i++){
 				new (vec.buf+i-1) T(vec.buf[i]);
 				vec.buf[i].~T();
 			}
 			vec.count--;
-			return val;
+			// return val;
 		}
 
 		template<class T> void releaseObj(T *& obj)

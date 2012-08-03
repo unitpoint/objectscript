@@ -18,15 +18,21 @@ struct __test_os__
 		// os->eval("abc, x = 5, 37676  hjhj = y-7;");
 		// os->eval("1 + {x:9*u, \"y\":9*u, 12:9*u, 12.1:9*u, [9*u]: 9*u, 9*u} * 8");
 		os->eval(
-			"a.b.c;\n"
-			"a.b.c[q];\n"
-			"a.b.c[a, b.v] = (5 * b, a.b(a, b)) * 5;\n"
+			"a[b][c] = a[b][c];\n"
+			"a,b = a.b.c;\n"
+			"a.b.c.d[a, b.v].a = a.b.c.d.e(a, b) * 5;\n"
+			"a.b.c.d[a, b.v] = a.b.c.d.e(a, b) * 5;\n"
 			"a.b[a, b] = (5 * b, a.b[a, b]) * 5;\n"
 			"a.b.c = a.b.c * 5;\n"
 			"a.b = a.b * 5;\n"
 			"a, b = 4, 5, 6;\n"
 			"a, b = 5;\n"
-			"a, b = ((function(x, y, z){ return x + y*z, y ** 2; })(a(),2,3));\n"
+			"a, b = ((\n"
+			"function(x, y, z)\n"
+			"{\n"
+			"	return x + y*z,\n"
+			"			y ** 2;\n"
+			"})(a(),2,3));\n"
 			"b(); 5, t, 6, a(), 6;");
 		os->pushInt(123);
 		os->pushObject();
