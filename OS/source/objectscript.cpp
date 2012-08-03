@@ -611,19 +611,19 @@ OS_FLOAT OS::StringData::toFloat() const
 
 // =====================================================================
 
-OS::StringLocal::StringLocal(OS * allocator)
+OS::StringInternal::StringInternal(OS * allocator)
 {
 	// allocator->retain();
 	str = allocator->empty_string_data->retain()->toChar();
 }
 
-OS::StringLocal::StringLocal(OS * allocator, const OS_CHAR * s)
+OS::StringInternal::StringInternal(OS * allocator, const OS_CHAR * s)
 {
 	// allocator->retain();
 	str = StringData::alloc(allocator, s, OS_STRLEN(s))->toChar();
 }
 
-OS::StringLocal::StringLocal(OS * allocator, OS_CHAR c, int count)
+OS::StringInternal::StringInternal(OS * allocator, OS_CHAR c, int count)
 {
 	StringData * data = StringData::alloc(allocator, sizeof(c)*count, NULL, 0);
 	str = data->toChar();
@@ -636,33 +636,33 @@ OS::StringLocal::StringLocal(OS * allocator, OS_CHAR c, int count)
 	}
 }
 
-OS::StringLocal::StringLocal(OS * allocator, const void * buf, int size)
+OS::StringInternal::StringInternal(OS * allocator, const void * buf, int size)
 {
 	// allocator->retain();
 	str = StringData::alloc(allocator, buf, size)->toChar();
 }
 
-OS::StringLocal::StringLocal(OS * allocator, const void * buf1, int len1, const void * buf2, int len2)
+OS::StringInternal::StringInternal(OS * allocator, const void * buf1, int len1, const void * buf2, int len2)
 {
 	// allocator->retain();
 	int size = len1 + len2;
 	str = StringData::alloc(allocator, size, buf1, len1, buf2, len2)->toChar();
 }
 
-OS::StringLocal::StringLocal(const StringLocal& b)
+OS::StringInternal::StringInternal(const StringInternal& b)
 {
 	StringData * data = b.toData();
 	// data->allocator->retain();
 	str = data->retain()->toChar();
 }
 
-OS::StringLocal::StringLocal(StringData * b)
+OS::StringInternal::StringInternal(StringData * b)
 {
 	// b->allocator->retain();
 	str = b->retain()->toChar();
 }
 
-OS::StringLocal::StringLocal(OS * allocator, OS_INT value)
+OS::StringInternal::StringInternal(OS * allocator, OS_INT value)
 {
 	// allocator->retain();
 	OS_CHAR buf[64];
@@ -670,7 +670,7 @@ OS::StringLocal::StringLocal(OS * allocator, OS_INT value)
 	str = StringData::alloc(allocator, buf, OS_STRLEN(buf))->toChar();
 }
 
-OS::StringLocal::StringLocal(OS * allocator, OS_FLOAT value, int precision)
+OS::StringInternal::StringInternal(OS * allocator, OS_FLOAT value, int precision)
 {
 	// allocator->retain();
 	OS_CHAR buf[128];
@@ -678,7 +678,7 @@ OS::StringLocal::StringLocal(OS * allocator, OS_FLOAT value, int precision)
 	str = StringData::alloc(allocator, buf, OS_STRLEN(buf))->toChar();
 }
 
-OS::StringLocal::~StringLocal()
+OS::StringInternal::~StringInternal()
 {
 	if(str){ // str is cleared by String due to OS release properly
 		StringData * data = toData();
@@ -702,33 +702,33 @@ struct OS_VaListDtor
 	}
 };
 
-OS::StringLocal OS::StringLocal::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, ...)
+OS::StringInternal OS::StringInternal::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
-	return StringLocal(allocator).setFormat(temp_buf_size, fmt, va);
+	return StringInternal(allocator).setFormat(temp_buf_size, fmt, va);
 }
 
-OS::StringLocal OS::StringLocal::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, va_list va)
+OS::StringInternal OS::StringInternal::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, va_list va)
 {
-	return StringLocal(allocator).setFormat(temp_buf_size, fmt, va);
+	return StringInternal(allocator).setFormat(temp_buf_size, fmt, va);
 }
 
-OS::StringLocal OS::StringLocal::format(OS * allocator, const OS_CHAR * fmt, ...)
+OS::StringInternal OS::StringInternal::format(OS * allocator, const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
-	return StringLocal(allocator).setFormat(fmt, va);
+	return StringInternal(allocator).setFormat(fmt, va);
 }
 
-OS::StringLocal OS::StringLocal::format(OS * allocator, const OS_CHAR * fmt, va_list va)
+OS::StringInternal OS::StringInternal::format(OS * allocator, const OS_CHAR * fmt, va_list va)
 {
-	return StringLocal(allocator).setFormat(fmt, va);
+	return StringInternal(allocator).setFormat(fmt, va);
 }
 
-OS::StringLocal& OS::StringLocal::setFormat(int temp_buf_size, const OS_CHAR * fmt, ...)
+OS::StringInternal& OS::StringInternal::setFormat(int temp_buf_size, const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
@@ -736,14 +736,14 @@ OS::StringLocal& OS::StringLocal::setFormat(int temp_buf_size, const OS_CHAR * f
 	return setFormat(temp_buf_size, fmt, va);
 }
 
-OS::StringLocal& OS::StringLocal::setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list va)
+OS::StringInternal& OS::StringInternal::setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list va)
 {
-	StringLocal buf(getAllocator(), OS_CHAR(0), temp_buf_size);
+	StringInternal buf(getAllocator(), OS_CHAR(0), temp_buf_size);
 	OS_VSNPRINTF((OS_CHAR*)buf.toChar(), sizeof(OS_CHAR)*temp_buf_size, fmt, va);
 	return *this = buf.toChar();
 }
 
-OS::StringLocal& OS::StringLocal::setFormat(const OS_CHAR * fmt, ...)
+OS::StringInternal& OS::StringInternal::setFormat(const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
@@ -751,19 +751,19 @@ OS::StringLocal& OS::StringLocal::setFormat(const OS_CHAR * fmt, ...)
 	return setFormat(OS_DEF_FMT_BUF_SIZE, fmt, va);
 }
 
-OS::StringLocal& OS::StringLocal::setFormat(const OS_CHAR * fmt, va_list va)
+OS::StringInternal& OS::StringInternal::setFormat(const OS_CHAR * fmt, va_list va)
 {
 	return setFormat(OS_DEF_FMT_BUF_SIZE, fmt, va);
 }
 
-void OS::StringLocal::clear()
+void OS::StringInternal::clear()
 {
 	StringData * data = toData();
 	str = data->allocator->empty_string_data->retain()->toChar();
 	data->release();
 }
 
-OS::StringLocal OS::StringLocal::trim(bool left_trim, bool right_trim) const
+OS::StringInternal OS::StringInternal::trim(bool left_trim, bool right_trim) const
 {
 	const OS_CHAR * start = toChar();
 	const OS_CHAR * end = start + getDataSize();
@@ -782,11 +782,11 @@ OS::StringLocal OS::StringLocal::trim(bool left_trim, bool right_trim) const
 		}
 	}
 
-	return real_sub ? StringLocal(getAllocator(), (void*)start, (int)end - (int)start) : *this;
+	return real_sub ? StringInternal(getAllocator(), (void*)start, (int)end - (int)start) : *this;
 }
 
 
-OS::StringLocal& OS::StringLocal::operator=(const StringLocal& b)
+OS::StringInternal& OS::StringInternal::operator=(const StringInternal& b)
 {
 	StringData * old_data = toData();
 	str = b.toData()->retain()->toChar();
@@ -794,7 +794,7 @@ OS::StringLocal& OS::StringLocal::operator=(const StringLocal& b)
 	return *this;
 }
 
-OS::StringLocal& OS::StringLocal::operator=(const OS_CHAR * b)
+OS::StringInternal& OS::StringInternal::operator=(const OS_CHAR * b)
 {
 	StringData * data = toData();
 	OS * allocator = data->allocator;
@@ -803,35 +803,35 @@ OS::StringLocal& OS::StringLocal::operator=(const OS_CHAR * b)
 	return *this;
 }
 
-OS::StringLocal& OS::StringLocal::operator+=(const StringLocal& b)
+OS::StringInternal& OS::StringInternal::operator+=(const StringInternal& b)
 {
 	str = StringData::append(toData(), b.toData())->toChar();
 	return *this;
 }
 
-OS::StringLocal& OS::StringLocal::operator+=(const OS_CHAR * b)
+OS::StringInternal& OS::StringInternal::operator+=(const OS_CHAR * b)
 {
 	int len = OS_STRLEN(b);
 	str = StringData::append(toData(), b, len)->toChar();
 	return *this;
 }
 
-OS::StringLocal& OS::StringLocal::append(const void * buf, int size)
+OS::StringInternal& OS::StringInternal::append(const void * buf, int size)
 {
 	str = StringData::append(toData(), buf, size)->toChar();
 	return *this;
 }
 
-OS::StringLocal& OS::StringLocal::append(const OS_CHAR * b)
+OS::StringInternal& OS::StringInternal::append(const OS_CHAR * b)
 {
 	return append(b, OS_STRLEN(b));
 }
 
-OS::StringLocal OS::StringLocal::operator+(const StringLocal& b)
+OS::StringInternal OS::StringInternal::operator+(const StringInternal& b)
 {
 	StringData * data = toData(), * b_data = b.toData();
 	if(data->data_size && b_data->data_size){
-		return StringLocal(data->allocator, data->toMemory(), data->data_size, b_data->toMemory(), b_data->data_size);
+		return StringInternal(data->allocator, data->toMemory(), data->data_size, b_data->toMemory(), b_data->data_size);
 	}
 	if(data->data_size){
 		return *this;
@@ -839,102 +839,102 @@ OS::StringLocal OS::StringLocal::operator+(const StringLocal& b)
 	return b;
 }
 
-OS::StringLocal OS::StringLocal::operator+(const OS_CHAR * b)
+OS::StringInternal OS::StringInternal::operator+(const OS_CHAR * b)
 {
 	StringData * data = toData();
 	int len = OS_STRLEN(b);
 	if(data->data_size && len > 0){
-		return StringLocal(data->allocator, data->toMemory(), data->data_size, b, len);
+		return StringInternal(data->allocator, data->toMemory(), data->data_size, b, len);
 	}
 	if(data->data_size){
 		return *this;
 	}
-	return StringLocal(data->allocator, b, len);
+	return StringInternal(data->allocator, b, len);
 }
 
-bool OS::StringLocal::operator==(const StringLocal& b)
+bool OS::StringInternal::operator==(const StringInternal& b)
 {
 	return cmp(b) == 0;
 }
 
-bool OS::StringLocal::operator==(const OS_CHAR * b)
+bool OS::StringInternal::operator==(const OS_CHAR * b)
 {
 	return cmp(b) == 0;
 }
 
-bool OS::StringLocal::operator!=(const StringLocal& b)
+bool OS::StringInternal::operator!=(const StringInternal& b)
 {
 	return cmp(b) != 0;
 }
 
-bool OS::StringLocal::operator!=(const OS_CHAR * b)
+bool OS::StringInternal::operator!=(const OS_CHAR * b)
 {
 	return cmp(b) != 0;
 }
 
-bool OS::StringLocal::operator<=(const StringLocal& b)
+bool OS::StringInternal::operator<=(const StringInternal& b)
 {
 	return cmp(b) <= 0;
 }
 
-bool OS::StringLocal::operator<=(const OS_CHAR * b)
+bool OS::StringInternal::operator<=(const OS_CHAR * b)
 {
 	return cmp(b) <= 0;
 }
 
-bool OS::StringLocal::operator<(const StringLocal& b)
+bool OS::StringInternal::operator<(const StringInternal& b)
 {
 	return cmp(b) < 0;
 }
 
-bool OS::StringLocal::operator<(const OS_CHAR * b)
+bool OS::StringInternal::operator<(const OS_CHAR * b)
 {
 	return cmp(b) < 0;
 }
 
-bool OS::StringLocal::operator>=(const StringLocal& b)
+bool OS::StringInternal::operator>=(const StringInternal& b)
 {
 	return cmp(b) >= 0;
 }
 
-bool OS::StringLocal::operator>=(const OS_CHAR * b)
+bool OS::StringInternal::operator>=(const OS_CHAR * b)
 {
 	return cmp(b) >= 0;
 }
 
-bool OS::StringLocal::operator>(const StringLocal& b)
+bool OS::StringInternal::operator>(const StringInternal& b)
 {
 	return cmp(b) > 0;
 }
 
-bool OS::StringLocal::operator>(const OS_CHAR * b)
+bool OS::StringInternal::operator>(const OS_CHAR * b)
 {
 	return cmp(b) > 0;
 }
 
-int OS::StringLocal::cmp(const StringLocal& b) const
+int OS::StringInternal::cmp(const StringInternal& b) const
 {
 	// StringData * data = toData(), * b_data = b.toData();
 	// return Utils::cmp(data->toChar(), data->data_size, b_data->toChar(), b_data->data_size);
 	return toData()->cmp(b.toData());
 }
 
-int OS::StringLocal::cmp(const OS_CHAR * b) const
+int OS::StringInternal::cmp(const OS_CHAR * b) const
 {
 	return toData()->cmp(b, OS_STRLEN(b));
 }
 
-int OS::StringLocal::hash() const
+int OS::StringInternal::hash() const
 {
 	return toData()->hash();
 }
 
-OS_INT OS::StringLocal::toInt() const
+OS_INT OS::StringInternal::toInt() const
 {
 	return toData()->toInt();
 }
 
-OS_FLOAT OS::StringLocal::toFloat() const
+OS_FLOAT OS::StringInternal::toFloat() const
 {
 	return toData()->toFloat();
 }
@@ -968,7 +968,7 @@ OS::String::String(OS * os, const void * buf1, int len1, const void * buf2, int 
 	os->retain();
 }
 
-OS::String::String(const StringLocal& str): super(str)
+OS::String::String(const StringInternal& str): super(str)
 {
 	str.getAllocator()->retain();
 }
@@ -1003,9 +1003,9 @@ OS::String::~String()
 }
 
 
-// operator const StringLocal&() const { return *this; }
+// operator const StringInternal&() const { return *this; }
 
-OS::String& OS::String::operator=(const StringLocal& str)
+OS::String& OS::String::operator=(const StringInternal& str)
 {
 	super::operator=(str);
 	return *this;
@@ -1018,7 +1018,7 @@ OS::String& OS::String::operator=(const OS_CHAR * str)
 }
 
 
-OS::String& OS::String::operator+=(const StringLocal& str)
+OS::String& OS::String::operator+=(const StringInternal& str)
 {
 	super::operator+=(str);
 	return *this;
@@ -1156,7 +1156,7 @@ const OS_CHAR * OS::Tokenizer::getTokenTypeName(TokenType token_type)
 	return OS_TEXT("TOKENTYPE !!!");
 }
 
-OS::Tokenizer::TokenData::TokenData(TextData * p_text_data, const StringLocal& p_str, TokenType p_type, int p_line, int p_pos): str(p_str)
+OS::Tokenizer::TokenData::TokenData(TextData * p_text_data, const StringInternal& p_str, TokenType p_type, int p_line, int p_pos): str(p_str)
 {
 	text_data = p_text_data->retain();
 	ref_count = 1;
@@ -1532,7 +1532,7 @@ void OS::Tokenizer::PrintTokens()
 }
 */
 
-bool OS::Tokenizer::parseText(const StringLocal& text)
+bool OS::Tokenizer::parseText(const StringInternal& text)
 {
 	OS * allocator = getAllocator();
 
@@ -1546,10 +1546,10 @@ bool OS::Tokenizer::parseText(const StringLocal& text)
 	{
 		const OS_CHAR * line_end = OS_STRCHR(str, OS_TEXT('\n'));
 		if(line_end){
-			allocator->addVectorItem(text_data->lines, StringLocal(allocator, str, line_end - str).trim(false, true));
+			allocator->addVectorItem(text_data->lines, StringInternal(allocator, str, line_end - str).trim(false, true));
 			str = line_end+1;
 		}else{
-			allocator->addVectorItem(text_data->lines, StringLocal(allocator, str).trim(false, true));
+			allocator->addVectorItem(text_data->lines, StringInternal(allocator, str).trim(false, true));
 			break;
 		}
 	}
@@ -1592,7 +1592,7 @@ void OS::Tokenizer::TokenData::setInt(OS_INT value)
 	int_value = value;
 }
 
-OS::Tokenizer::TokenData * OS::Tokenizer::addToken(const StringLocal& str, TokenType type, int line, int pos)
+OS::Tokenizer::TokenData * OS::Tokenizer::addToken(const StringInternal& str, TokenType type, int line, int pos)
 {
 	OS * allocator = getAllocator();
 	TokenData * token = new (allocator->malloc(sizeof(TokenData))) TokenData(text_data, str, type, line, pos);
@@ -1640,7 +1640,7 @@ bool OS::Tokenizer::parseLines()
 			}
 
 			if(*str == OS_TEXT('"') || (!settings.parseVector && *str == OS_TEXT('\''))){ // begin string
-				StringLocal s(allocator);
+				StringInternal s(allocator);
 				OS_CHAR closeChar = *str;
 				const OS_CHAR * tokenStart = str;
 				for(str++; *str && *str != closeChar;){
@@ -1723,7 +1723,7 @@ bool OS::Tokenizer::parseLines()
 					return false;
 				}
 				str++;
-				TokenData * vecToken = addToken(StringLocal(allocator, tokenStart, str - tokenStart), i < 4 ? NUM_VECTOR_3 : NUM_VECTOR_4, cur_line, tokenStart - line_start);
+				TokenData * vecToken = addToken(StringInternal(allocator, tokenStart, str - tokenStart), i < 4 ? NUM_VECTOR_3 : NUM_VECTOR_4, cur_line, tokenStart - line_start);
 				if(i < 4){
 					vecToken->setVec3(values);
 				}else{
@@ -1735,12 +1735,12 @@ bool OS::Tokenizer::parseLines()
 			if(*str == OS_TEXT('/')){
 				if(str[1] == OS_TEXT('/')){ // begin line comment
 					if(settings.saveComment){
-						addToken(StringLocal(allocator, str), COMMENT_LINE, cur_line, str - line_start);
+						addToken(StringInternal(allocator, str), COMMENT_LINE, cur_line, str - line_start);
 					}
 					break;
 				}
 				if(str[1] == OS_TEXT('*')){ // begin multi line comment
-					StringLocal comment(allocator, str, sizeof(OS_CHAR)*2);
+					StringInternal comment(allocator, str, sizeof(OS_CHAR)*2);
 					int startLine = cur_line;
 					int startPos = str - line_start;
 					for(str += 2;;){
@@ -1781,7 +1781,7 @@ bool OS::Tokenizer::parseLines()
 					}
 					break;
 				}
-				StringLocal name = StringLocal(allocator, nameStart, str - nameStart);
+				StringInternal name = StringInternal(allocator, nameStart, str - nameStart);
 				TokenType type = NAME;
 				if(settings.parseStringOperator){
 					if(name == OS_TEXT("dot")){
@@ -1811,7 +1811,7 @@ bool OS::Tokenizer::parseLines()
 				size_t len = OS_STRLEN(operator_desc[i].name);
 				if(OS_STRNCMP(str, operator_desc[i].name, len) == 0)
 				{
-					addToken(StringLocal(allocator, str, (int)len), operator_desc[i].type, cur_line, str - line_start);
+					addToken(StringInternal(allocator, str, (int)len), operator_desc[i].type, cur_line, str - line_start);
 					str += len;
 					break;
 				}
@@ -1826,7 +1826,7 @@ bool OS::Tokenizer::parseLines()
 				const OS_CHAR * tokenStart = str;
 				TokenType type = parseNum(str, val, ival, true);
 				if(type != ERROR_TOKEN){
-					TokenData * token = addToken(StringLocal(allocator, tokenStart, str - tokenStart).trim(false, true), type, cur_line, tokenStart - line_start);
+					TokenData * token = addToken(StringInternal(allocator, tokenStart, str - tokenStart).trim(false, true), type, cur_line, tokenStart - line_start);
 					if(type == NUM_INT){
 						token->setInt(ival);
 					}else{
@@ -2178,33 +2178,33 @@ static void fillSpaces(OS_CHAR * s, int len)
 }
 */
 
-OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, int depth)
+OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, int depth)
 {
 	OS * allocator = getAllocator();
-	StringLocal out = compiler->debugPrintSourceLine(token);
+	StringInternal out = compiler->debugPrintSourceLine(token);
 
 	// OS_CHAR * spaces = (OS_CHAR*)alloca(sizeof(OS_CHAR)*(depth+1));
 	// fillSpaces(spaces, depth);
-	StringLocal spaces_buf(allocator, OS_TEXT(' '), depth*2);
+	StringInternal spaces_buf(allocator, OS_TEXT(' '), depth*2);
 	const OS_CHAR * spaces = spaces_buf;
 
 	int i;
 	const OS_CHAR * type_name;
 	switch(type){
 	case EXP_TYPE_NOP:
-		out += StringLocal::format(allocator, OS_TEXT("%snop\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%snop\n"), spaces);
 		break;
 
 	case EXP_TYPE_CODE_LIST:
 		type_name = OS::Compiler::getExpName(type);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, type_name);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, type_name);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
 				out += OS_TEXT("\n");
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, type_name);
+		out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, type_name);
 		break;
 
 	case EXP_TYPE_CONST_NUMBER:
@@ -2220,101 +2220,101 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 			case Tokenizer::NAME: type_name = OS_TEXT("string "); break;
 			default: type_name = OS_TEXT("???"); break;
 			}
-			out += StringLocal::format(allocator, OS_TEXT("%sconst %s%s\n"), spaces, type_name, token->str);
+			out += StringInternal::format(allocator, OS_TEXT("%sconst %s%s\n"), spaces, type_name, token->str);
 		}
 		break;
 
 	case EXP_TYPE_CONST_NULL:
 	case EXP_TYPE_CONST_TRUE:
 	case EXP_TYPE_CONST_FALSE:
-		out += StringLocal::format(allocator, OS_TEXT("%s%s\n"), spaces, getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%s%s\n"), spaces, getExpName(type));
 		break;
 
 	case EXP_TYPE_NAME:
-		out += StringLocal::format(allocator, OS_TEXT("%sname %s\n"), spaces, token->str);
+		out += StringInternal::format(allocator, OS_TEXT("%sname %s\n"), spaces, token->str);
 		break;
 
 	case EXP_TYPE_PARAMS:
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin params %d\n"), spaces, list.count);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin params %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringLocal::format(allocator, OS_TEXT("%send params ret values %d\n"), spaces, ret_values);
+		out += StringInternal::format(allocator, OS_TEXT("%send params ret values %d\n"), spaces, ret_values);
 		break;
 
 	case EXP_TYPE_ARRAY:
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin array %d\n"), spaces, list.count);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin array %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringLocal::format(allocator, OS_TEXT("%send array\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send array\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT:
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin object %d\n"), spaces, list.count);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin object %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringLocal::format(allocator, OS_TEXT("%send object\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send object\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%sset by name: [%s]\n"), spaces, token->str.toChar());
+		out += StringInternal::format(allocator, OS_TEXT("%sset by name: [%s]\n"), spaces, token->str.toChar());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%sset by index: [%d]\n"), spaces, token->getInt());
+		out += StringInternal::format(allocator, OS_TEXT("%sset by index: [%d]\n"), spaces, token->getInt());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
 		OS_ASSERT(list.count == 2);
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_AUTO:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%sset like array\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sset like array\n"), spaces);
 		break;
 
 	case EXP_TYPE_FUNCTION:
 		OS_ASSERT(list.count >= 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin function %d\n"), spaces, list.count-1);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin function %d\n"), spaces, list.count-1);
 		for(i = 0; i < list.count-1; i++){
 			if(i > 0){
-				out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
 		out += list[list.count-1]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send function\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send function\n"), spaces);
 		break;
 
 	case EXP_TYPE_RETURN:
 		if(list.count > 0){
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin return values %d\n"), spaces, list.count);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin return values %d\n"), spaces, list.count);
 			for(i = 0; i < list.count; i++){
 				if(i > 0){
-					out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+					out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 				}
 				out += list[i]->debugPrint(compiler, depth+1);
 			}
-			out += StringLocal::format(allocator, OS_TEXT("%send return values %d\n"), spaces, list.count);
+			out += StringInternal::format(allocator, OS_TEXT("%send return values %d\n"), spaces, list.count);
 		}else{
 			out += OS_TEXT("return\n");
 		}
@@ -2326,192 +2326,192 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 	case EXP_TYPE_GET_PROPERTY:
 	case EXP_TYPE_GET_PROPERTY_DIM:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin %s ret values %d\n"), spaces, OS::Compiler::getExpName(type), ret_values);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s ret values %d\n"), spaces, OS::Compiler::getExpName(type), ret_values);
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Compiler::getExpName(type), ret_values);
+		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Compiler::getExpName(type), ret_values);
 		break;
 
 	case EXP_TYPE_VALUE:
 		OS_ASSERT(list.count == 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_POP_VALUE:
 		OS_ASSERT(list.count == 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin %s ret values %d\n"), spaces, OS::Compiler::getExpName(type), ret_values);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s ret values %d\n"), spaces, OS::Compiler::getExpName(type), ret_values);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Compiler::getExpName(type), ret_values);
+		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Compiler::getExpName(type), ret_values);
 		break;
 
 	/*
 	case EXP_TYPE_THREAD:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin thread call\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin thread call\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send thread call\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send thread call\n"), spaces);
 		break;
 
 	case EXP_TYPE_FOR:
 		OS_ASSERT(list.count == 4);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin for\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin for\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin init\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin init\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end init\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end init\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin step\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin step\n"), spaces);
 		out += list[2]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end step\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end step\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[3]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-		out += StringLocal::format(allocator, OS_TEXT("%send for\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send for\n"), spaces);
 		break;
 
 	case EXP_TYPE_DO_WHILE:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin do while\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin do while\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send do while\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send do while\n"), spaces);
 		break;
 
 	case EXP_TYPE_WHILE_DO:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin while do\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin while do\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send while do\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send while do\n"), spaces);
 		break;
 
 	case EXP_TYPE_SWITCH:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin switch\n"), spaces);
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin switch\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
-		out += StringLocal::format(allocator, OS_TEXT("%send switch\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send switch\n"), spaces);
 		break;
 
 	case EXP_TYPE_SWITCH_CASE:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send case\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send case\n"), spaces);
 		break;
 
 	case EXP_TYPE_SWITCH_CASE_INTERVAL:
 		OS_ASSERT(list.count == 3);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[2]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
 		break;
 
 	case EXP_TYPE_SWITCH_DEFAULT:
 		OS_ASSERT(list.count == 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin default code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin default code\n"), spaces);
 
-		// out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		// out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+1);
-		// out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		// out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send default code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send default code\n"), spaces);
 		break;
 
 	case EXP_TYPE_BREAK:
 	case EXP_TYPE_CONTINUE:
 		{
 			OS_ASSERT(!list.count || (list.count == 1 && list[0]->macro == EXP_TYPE_LABEL));
-			out += StringLocal::format(allocator, OS_TEXT("%s%s%s\n"), spaces, OS::Compiler::getExpName(type), list.count ? OS_TEXT(" ") + list[0]->token->str : OS_TEXT(""));
+			out += StringInternal::format(allocator, OS_TEXT("%s%s%s\n"), spaces, OS::Compiler::getExpName(type), list.count ? OS_TEXT(" ") + list[0]->token->str : OS_TEXT(""));
 			break;
 		}
 
 	case EXP_TYPE_IN:
 		{
 			OS_ASSERT(list.count >= 2);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin operator in\n"), spaces);
-			out += StringLocal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin operator in\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
 			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end value\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
 			for(int i = 1; i < list.count; i++)
 			{
 				OS_ASSERT(list[i]->macro == EXP_TYPE_IN_CASE || list[i]->macro == EXP_TYPE_IN_CASE_INTERVAL);
 				out += list[i]->debugPrint(compiler, depth+2);
 			}
-			out += StringLocal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
-			out += StringLocal::format(allocator, OS_TEXT("%send operator in\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%send operator in\n"), spaces);
 		}
 		break;
 
 	case EXP_TYPE_IN_CASE:
 		OS_ASSERT(list.count == 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send case\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send case\n"), spaces);
 		break;
 
 	case EXP_TYPE_IN_CASE_INTERVAL:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
 		break;
 
 		//   case EXP_TYPE_SET_LOCAL:
@@ -2525,28 +2525,28 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 	case EXP_TYPE_POST_IF:
 		{
 			OS_ASSERT(list.count == 2 || list.count == 3);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
 			out += list[1]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end then\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end then\n"), spaces);
 
 			if(list.count == 3)
 			{
-				out += StringLocal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
 				out += list[2]->debugPrint(compiler, depth+2);
-				out += StringLocal::format(allocator, OS_TEXT("%s end else\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s end else\n"), spaces);
 			}
-			out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
+			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
 			break;
 		}
 
 	case EXP_TYPE_WAIT_FRAME:
-		out += StringLocal::format(allocator, OS_TEXT("%s%s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%s%s\n"), spaces, OS::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_WAIT_APP_TIME_MS:
@@ -2555,9 +2555,9 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 	case EXP_TYPE_CLONE:
 	case EXP_TYPE_VALID:
 		OS_ASSERT(list.count == 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
 		break;
 	*/
 
@@ -2572,9 +2572,9 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 		{
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
-			out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
 
@@ -2583,21 +2583,21 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 		{
 			OS_ASSERT(list.count == 3);
 			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
 			out += list[1]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end then\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end then\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
 			out += list[2]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end else\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end else\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
 	*/
@@ -2650,10 +2650,10 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 		{
 			OS_ASSERT(list.count == 2);
 			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
 			out += list[1]->debugPrint(compiler, depth+1);
-			out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
 
@@ -2662,7 +2662,7 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 		{
 			OS_ASSERT(list.count == 0);
 			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringLocal::format(allocator, OS_TEXT("%s%s %s\n"), spaces, exp_name, token->str);
+			out += StringInternal::format(allocator, OS_TEXT("%s%s %s\n"), spaces, exp_name, token->str);
 			break;
 		}
 	case EXP_TYPE_SET_LOCAL_VAR:
@@ -2670,9 +2670,9 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 		{
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s %s\n"), spaces, exp_name, token->str);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s %s\n"), spaces, exp_name, token->str);
 			out += list[0]->debugPrint(compiler, depth+1);
-			out += StringLocal::format(allocator, OS_TEXT("%send %s %s\n"), spaces, exp_name, token->str);
+			out += StringInternal::format(allocator, OS_TEXT("%send %s %s\n"), spaces, exp_name, token->str);
 			break;
 		}
 
@@ -2681,11 +2681,11 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 		{
 			OS_ASSERT(list.count == 3);
 			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
 			out += list[1]->debugPrint(compiler, depth+1);
 			out += list[2]->debugPrint(compiler, depth+1);
-			out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
 
@@ -2695,7 +2695,7 @@ OS::StringLocal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler, in
 
 // =====================================================================
 
-int OS::Compiler::getCachedStringIndex(const StringLocal& str)
+int OS::Compiler::getCachedStringIndex(const StringInternal& str)
 {
 	VariableIndex index(str);
 	Value::Variable * var = strings_cache->get(index);
@@ -2787,86 +2787,86 @@ bool OS::Compiler::generateOpcodes(Expression * exp)
 
 	/*
 	case EXP_TYPE_PARAMS:
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin params %d\n"), spaces, list.count);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin params %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringLocal::format(allocator, OS_TEXT("%send params\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send params\n"), spaces);
 		break;
 
 	case EXP_TYPE_ARRAY:
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin array %d\n"), spaces, list.count);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin array %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringLocal::format(allocator, OS_TEXT("%send array\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send array\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT:
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin object %d\n"), spaces, list.count);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin object %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringLocal::format(allocator, OS_TEXT("%send object\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send object\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%sset by name: [%s]\n"), spaces, token->str.toChar());
+		out += StringInternal::format(allocator, OS_TEXT("%sset by name: [%s]\n"), spaces, token->str.toChar());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%sset by index: [%d]\n"), spaces, token->getInt());
+		out += StringInternal::format(allocator, OS_TEXT("%sset by index: [%d]\n"), spaces, token->getInt());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
 		OS_ASSERT(list.count == 2);
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_AUTO:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%sset like array\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sset like array\n"), spaces);
 		break;
 
 	case EXP_TYPE_FUNCTION:
 		OS_ASSERT(list.count >= 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin function %d\n"), spaces, list.count-1);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin function %d\n"), spaces, list.count-1);
 		for(i = 0; i < list.count-1; i++){
 			if(i > 0){
-				out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
 		out += list[list.count-1]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send function\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send function\n"), spaces);
 		break;
 
 	case EXP_TYPE_RETURN:
 		if(list.count > 0){
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin return %d\n"), spaces, list.count);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin return %d\n"), spaces, list.count);
 			for(i = 0; i < list.count; i++){
 				if(i > 0){
-					out += StringLocal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+					out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
 				}
 				out += list[i]->debugPrint(compiler, depth+1);
 			}
-			out += StringLocal::format(allocator, OS_TEXT("%send return\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%send return\n"), spaces);
 		}else{
 			out += OS_TEXT("return\n");
 		}
@@ -2875,179 +2875,179 @@ bool OS::Compiler::generateOpcodes(Expression * exp)
 	case EXP_TYPE_CALL:
 	case EXP_TYPE_CALL_DIM:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
 		break;
 	*/
 
 	/*
 	case EXP_TYPE_THREAD:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin thread call\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin thread call\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send thread call\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send thread call\n"), spaces);
 		break;
 
 	case EXP_TYPE_FOR:
 		OS_ASSERT(list.count == 4);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin for\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin for\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin init\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin init\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end init\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end init\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin step\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin step\n"), spaces);
 		out += list[2]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end step\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end step\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[3]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-		out += StringLocal::format(allocator, OS_TEXT("%send for\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send for\n"), spaces);
 		break;
 
 	case EXP_TYPE_DO_WHILE:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin do while\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin do while\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send do while\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send do while\n"), spaces);
 		break;
 
 	case EXP_TYPE_WHILE_DO:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin while do\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin while do\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send while do\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send while do\n"), spaces);
 		break;
 
 	case EXP_TYPE_SWITCH:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin switch\n"), spaces);
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin switch\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
-		out += StringLocal::format(allocator, OS_TEXT("%send switch\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send switch\n"), spaces);
 		break;
 
 	case EXP_TYPE_SWITCH_CASE:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send case\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send case\n"), spaces);
 		break;
 
 	case EXP_TYPE_SWITCH_CASE_INTERVAL:
 		OS_ASSERT(list.count == 3);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[2]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
 		break;
 
 	case EXP_TYPE_SWITCH_DEFAULT:
 		OS_ASSERT(list.count == 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin default code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin default code\n"), spaces);
 
-		// out += StringLocal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
+		// out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+1);
-		// out += StringLocal::format(allocator, OS_TEXT("%s end code\n"), spaces);
+		// out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send default code\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send default code\n"), spaces);
 		break;
 
 	case EXP_TYPE_BREAK:
 	case EXP_TYPE_CONTINUE:
 		{
 			OS_ASSERT(!list.count || (list.count == 1 && list[0]->macro == EXP_TYPE_LABEL));
-			out += StringLocal::format(allocator, OS_TEXT("%s%s%s\n"), spaces, OS::Compiler::getExpName(type), list.count ? OS_TEXT(" ") + list[0]->token->str : OS_TEXT(""));
+			out += StringInternal::format(allocator, OS_TEXT("%s%s%s\n"), spaces, OS::Compiler::getExpName(type), list.count ? OS_TEXT(" ") + list[0]->token->str : OS_TEXT(""));
 			break;
 		}
 
 	case EXP_TYPE_IN:
 		{
 			OS_ASSERT(list.count >= 2);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin operator in\n"), spaces);
-			out += StringLocal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin operator in\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
 			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end value\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
 			for(int i = 1; i < list.count; i++)
 			{
 				OS_ASSERT(list[i]->macro == EXP_TYPE_IN_CASE || list[i]->macro == EXP_TYPE_IN_CASE_INTERVAL);
 				out += list[i]->debugPrint(compiler, depth+2);
 			}
-			out += StringLocal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
-			out += StringLocal::format(allocator, OS_TEXT("%send operator in\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%send operator in\n"), spaces);
 		}
 		break;
 
 	case EXP_TYPE_IN_CASE:
 		OS_ASSERT(list.count == 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send case\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send case\n"), spaces);
 		break;
 
 	case EXP_TYPE_IN_CASE_INTERVAL:
 		OS_ASSERT(list.count == 2);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringLocal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
 
-		out += StringLocal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
+		out += StringInternal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
 		break;
 
 		//   case EXP_TYPE_SET_LOCAL:
@@ -3061,28 +3061,28 @@ bool OS::Compiler::generateOpcodes(Expression * exp)
 	case EXP_TYPE_POST_IF:
 		{
 			OS_ASSERT(list.count == 2 || list.count == 3);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
 			out += list[1]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end then\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end then\n"), spaces);
 
 			if(list.count == 3)
 			{
-				out += StringLocal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
 				out += list[2]->debugPrint(compiler, depth+2);
-				out += StringLocal::format(allocator, OS_TEXT("%s end else\n"), spaces);
+				out += StringInternal::format(allocator, OS_TEXT("%s end else\n"), spaces);
 			}
-			out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
+			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
 			break;
 		}
 
 	case EXP_TYPE_WAIT_FRAME:
-		out += StringLocal::format(allocator, OS_TEXT("%s%s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%s%s\n"), spaces, OS::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_WAIT_APP_TIME_MS:
@@ -3091,9 +3091,9 @@ bool OS::Compiler::generateOpcodes(Expression * exp)
 	case EXP_TYPE_CLONE:
 	case EXP_TYPE_VALID:
 		OS_ASSERT(list.count == 1);
-		out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
+		out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
 		break;
 	*/
 
@@ -3108,9 +3108,9 @@ bool OS::Compiler::generateOpcodes(Expression * exp)
 		/* {
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
-			out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		} */
 
@@ -3119,21 +3119,21 @@ bool OS::Compiler::generateOpcodes(Expression * exp)
 		{
 			OS_ASSERT(list.count == 3);
 			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
 			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
 			out += list[1]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end then\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end then\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
 			out += list[2]->debugPrint(compiler, depth+2);
-			out += StringLocal::format(allocator, OS_TEXT("%s end else\n"), spaces);
+			out += StringInternal::format(allocator, OS_TEXT("%s end else\n"), spaces);
 
-			out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
 	*/
@@ -3186,10 +3186,10 @@ bool OS::Compiler::generateOpcodes(Expression * exp)
 		/* {
 			OS_ASSERT(list.count == 2);
 			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringLocal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
 			out += list[1]->debugPrint(compiler, depth+1);
-			out += StringLocal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		} */
 		break;
@@ -3199,7 +3199,7 @@ bool OS::Compiler::generateOpcodes(Expression * exp)
 
 // =====================================================================
 /*
-OS::Compiler::VarAssingExpression::VarAssingExpression(const StringLocal& p_var_name, Expression * p_value_exp)
+OS::Compiler::VarAssingExpression::VarAssingExpression(const StringInternal& p_var_name, Expression * p_value_exp)
 	: Expression(EXP_VAR_ASSING), var_name(p_var_name)
 {
 	value_exp = p_value_exp;
@@ -3261,7 +3261,7 @@ bool OS::Compiler::compile()
 	if(exp){
 		exp = secondPhaseExpression(exp);
 
-		OS::StringLocal dump = exp->debugPrint(this, 0);
+		OS::StringInternal dump = exp->debugPrint(this, 0);
 		writeFile("debug-exp-dump.txt", dump.toChar(), dump.getDataSize());
 
 		Program * prog = new (malloc(sizeof(Program))) Program(allocator);
@@ -3271,62 +3271,62 @@ bool OS::Compiler::compile()
 		// allocator->deleteObj(prog);
 
 	}else{
-		OS::StringLocal dump = OS::StringLocal(allocator, "Error");
+		OS::StringInternal dump = OS::StringInternal(allocator, "Error");
 		switch(error){
 		default:
-			dump += OS::StringLocal(allocator, " unknown");
+			dump += OS::StringInternal(allocator, " unknown");
 			break;
 
 		case ERROR_SYNTAX:
-			dump += OS::StringLocal(allocator, " SYNTAX");
+			dump += OS::StringInternal(allocator, " SYNTAX");
 			break;
 
 		case ERROR_EXPECT_TOKEN_TYPE:
-			dump += OS::StringLocal(allocator, " EXPECT_TOKEN_TYPE ");
-			dump += OS::StringLocal(allocator, Tokenizer::getTokenTypeName(expect_token_type));
+			dump += OS::StringInternal(allocator, " EXPECT_TOKEN_TYPE ");
+			dump += OS::StringInternal(allocator, Tokenizer::getTokenTypeName(expect_token_type));
 			break;
 
 		case ERROR_EXPECT_TOKEN_STR:
-			dump += OS::StringLocal(allocator, " EXPECT_TOKEN_STR ");
+			dump += OS::StringInternal(allocator, " EXPECT_TOKEN_STR ");
 			dump += expect_token;
 			break;
 
 		case ERROR_EXPECT_TOKEN:
-			dump += OS::StringLocal(allocator, " EXPECT_TOKEN");
+			dump += OS::StringInternal(allocator, " EXPECT_TOKEN");
 			break;
 
 		case ERROR_EXPECT_VALUE:
-			dump += OS::StringLocal(allocator, " EXPECT_VALUE");
+			dump += OS::StringInternal(allocator, " EXPECT_VALUE");
 			break;
 
 		case ERROR_EXPECT_WRITEABLE:
-			dump += OS::StringLocal(allocator, " EXPECT_WRITEABLE");
+			dump += OS::StringInternal(allocator, " EXPECT_WRITEABLE");
 			break;
 
 		case ERROR_EXPECT_EXPRESSION:
-			dump += OS::StringLocal(allocator, " EXPECT_EXPRESSION");
+			dump += OS::StringInternal(allocator, " EXPECT_EXPRESSION");
 			break;
 
 		case ERROR_EXPECT_FUNCTION_SCOPE:
-			dump += OS::StringLocal(allocator, " EXPECT_FUNCTION_SCOPE");
+			dump += OS::StringInternal(allocator, " EXPECT_FUNCTION_SCOPE");
 			break;
 
 		case ERROR_EXPECT_SWITCH_SCOPE:
-			dump += OS::StringLocal(allocator, " EXPECT_SWITCH_SCOPE");
+			dump += OS::StringInternal(allocator, " EXPECT_SWITCH_SCOPE");
 			break;
 
 		case ERROR_FINISH_BIN_OP:
-			dump += OS::StringLocal(allocator, " FINISH_BIN_OP");
+			dump += OS::StringInternal(allocator, " FINISH_BIN_OP");
 			break;
 
 		case ERROR_FINISH_UNARY_OP:
-			dump += OS::StringLocal(allocator, " FINISH_UNARY_OP");
+			dump += OS::StringInternal(allocator, " FINISH_UNARY_OP");
 			break;
 		}
 		dump += OS::String(allocator, "\n");
 		if(error_token){
-			dump += OS::StringLocal::format(allocator, "token: %s\n", error_token->str.toChar());
-			dump += OS::StringLocal::format(allocator, "[%d] pos %d, %s\n", error_token->line+1, error_token->pos+1, error_token->text_data->filename.toChar());
+			dump += OS::StringInternal::format(allocator, "token: %s\n", error_token->str.toChar());
+			dump += OS::StringInternal::format(allocator, "[%d] pos %d, %s\n", error_token->line+1, error_token->pos+1, error_token->text_data->filename.toChar());
 		}
 		writeFile("debug-exp-dump.txt", dump.toChar(), dump.getDataSize());
 	}
@@ -3364,7 +3364,7 @@ void OS::Compiler::setError(TokenType expect_token_type, TokenData * error_token
 	this->expect_token_type = expect_token_type;
 }
 
-void OS::Compiler::setError(const StringLocal& str, TokenData * error_token)
+void OS::Compiler::setError(const StringInternal& str, TokenData * error_token)
 {
 	OS_ASSERT(!isError());
 	error = ERROR_EXPECT_TOKEN_STR;
@@ -3690,7 +3690,7 @@ void OS::Compiler::putNextTokenType(TokenType token_type)
 	}
 	ungetToken();
 
-	TokenData * token = new (malloc(sizeof(TokenData))) TokenData(recent_token->text_data, StringLocal(allocator), token_type, recent_token->line, recent_token->pos);
+	TokenData * token = new (malloc(sizeof(TokenData))) TokenData(recent_token->text_data, StringInternal(allocator), token_type, recent_token->line, recent_token->pos);
 	tokenizer->insertToken(next_token_index, token);
 }
 
@@ -4520,7 +4520,7 @@ OS::Compiler::Expression * OS::Compiler::newBinaryExpression(Scope * scope, Expr
 				return compiler->malloc(size);
 			}
 
-			Expression * newExpression(const StringLocal& str, Expression * left_exp, Expression * right_exp)
+			Expression * newExpression(const StringInternal& str, Expression * left_exp, Expression * right_exp)
 			{
 				token = new (malloc(sizeof(TokenData))) TokenData(token->text_data, str, Tokenizer::STRING, token->line, token->pos);
 				Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_STRING, token);
@@ -4533,7 +4533,7 @@ OS::Compiler::Expression * OS::Compiler::newBinaryExpression(Scope * scope, Expr
 
 			Expression * newExpression(OS_FLOAT val, Expression * left_exp, Expression * right_exp)
 			{
-				token = new (malloc(sizeof(TokenData))) TokenData(token->text_data, StringLocal(compiler->allocator, val), Tokenizer::NUM_FLOAT, token->line, token->pos);
+				token = new (malloc(sizeof(TokenData))) TokenData(token->text_data, StringInternal(compiler->allocator, val), Tokenizer::NUM_FLOAT, token->line, token->pos);
 				token->setFloat(val);
 				Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NUMBER, token);
 				exp->ret_values = 1;
@@ -4688,7 +4688,7 @@ OS::Compiler::Expression * OS::Compiler::newBinaryExpression(Scope * scope, Expr
 	return exp;
 }
 
-int OS::Compiler::findLocalVarIndex(Scope * scope, const StringLocal& name)
+int OS::Compiler::findLocalVarIndex(Scope * scope, const StringInternal& name)
 {
 	return -1;
 }
@@ -5175,9 +5175,9 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 	return NULL;
 }
 
-OS::StringLocal OS::Compiler::debugPrintSourceLine(TokenData * token)
+OS::StringInternal OS::Compiler::debugPrintSourceLine(TokenData * token)
 {
-	StringLocal out(allocator);
+	StringInternal out(allocator);
 	if(!token){
 		return out;
 	}
@@ -5190,15 +5190,15 @@ OS::StringLocal OS::Compiler::debugPrintSourceLine(TokenData * token)
 		filePrinted = true;
 		recent_printed_line = -1;
 		recent_printed_text_data = token->text_data->retain();
-		out += StringLocal::format(allocator, OS_TEXT("\n[FILE] %s"), token->text_data->filename.toChar());
+		out += StringInternal::format(allocator, OS_TEXT("\n[FILE] %s"), token->text_data->filename.toChar());
 	}
 	if(recent_printed_line != token->line && token->line >= 0){
 		recent_printed_line = token->line;
-		StringLocal line = token->text_data->lines[token->line].trim();
-		out += StringLocal::format(allocator, OS_TEXT("\n[%d] %s\n\n"), token->line+1, line.toChar());
+		StringInternal line = token->text_data->lines[token->line].trim();
+		out += StringInternal::format(allocator, OS_TEXT("\n[%d] %s\n\n"), token->line+1, line.toChar());
 	}
 	else if(filePrinted){
-		out += StringLocal::format(allocator, OS_TEXT("\n"));
+		out += StringInternal::format(allocator, OS_TEXT("\n"));
 	}
 	return out;
 }
@@ -5551,7 +5551,7 @@ OS::VariableIndex::VariableIndex(const VariableIndex& index): string_index(index
 	int_valid = index.int_valid;
 }
 
-OS::VariableIndex::VariableIndex(const StringLocal& index): string_index(index)
+OS::VariableIndex::VariableIndex(const StringInternal& index): string_index(index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -5604,7 +5604,7 @@ OS::VariableIndex::VariableIndex(OS * allocator, OS_FLOAT index, int precision):
 		// string_index = allocator->empty_string_data->retain();
 	}else{
 		// string_index = StringData(allocator, index, precision);
-		string_index = StringLocal(allocator, index, precision);
+		string_index = StringInternal(allocator, index, precision);
 		is_string_index = true;
 		int_valid = false;
 		hash_value = string_index.hash();
@@ -5667,9 +5667,9 @@ int OS::VariableIndex::hash() const
 	return hash_value; // int_valid ? (int)int_index : string_index.hash();
 }
 
-OS::StringLocal OS::VariableIndex::toString() const
+OS::StringInternal OS::VariableIndex::toString() const
 {
-	return is_string_index ? string_index : StringLocal(getAllocator(), int_index);
+	return is_string_index ? string_index : StringInternal(getAllocator(), int_index);
 }
 
 void OS::VariableIndex::fixName()
@@ -5715,7 +5715,7 @@ OS::Value::Variable::Variable(const VariableIndex& index): VariableIndex(index)
 	next = NULL;
 }
 
-OS::Value::Variable::Variable(const StringLocal& index): VariableIndex(index)
+OS::Value::Variable::Variable(const StringInternal& index): VariableIndex(index)
 {
 	value_id = 0;
 	hash_next = NULL;
@@ -6006,9 +6006,9 @@ OS_FLOAT OS::valueToNumber(Value * val)
 	return out;
 }
 
-OS::StringLocal OS::valueToString(Value * val)
+OS::StringInternal OS::valueToString(Value * val)
 {
-	StringLocal out(this);
+	StringInternal out(this);
 	isValueString(val, &out);
 	return out;
 }
@@ -6093,83 +6093,83 @@ bool OS::isValueNumber(Value * val, OS_FLOAT * out)
 	return false;
 }
 
-OS::StringLocal OS::Compiler::Expression::toString()
+OS::StringInternal OS::Compiler::Expression::toString()
 {
 	switch(type){
 	case EXP_TYPE_CONST_NULL:
-		return StringLocal(getAllocator());
+		return StringInternal(getAllocator());
 
 	case EXP_TYPE_CONST_STRING:
 		return token->str;
 
 	case EXP_TYPE_CONST_NUMBER:
-		return StringLocal(getAllocator(), token->getFloat());
+		return StringInternal(getAllocator(), token->getFloat());
 
 	case EXP_TYPE_CONST_TRUE:
-		return StringLocal(getAllocator(), OS_TEXT("1"));
+		return StringInternal(getAllocator(), OS_TEXT("1"));
 
 	case EXP_TYPE_CONST_FALSE:
-		return StringLocal(getAllocator());
+		return StringInternal(getAllocator());
 	}
 	OS_ASSERT(false);
-	return StringLocal(getAllocator());
+	return StringInternal(getAllocator());
 }
 
-OS::StringLocal OS::valueToString(Value * val)
+OS::StringInternal OS::valueToString(Value * val)
 {
 	switch(val->type){
 	case OS_VALUE_TYPE_NULL:
-		return StringLocal(this);
+		return StringInternal(this);
 
 	case OS_VALUE_TYPE_BOOL:
-		return val->value.number ? StringLocal(this, OS_TEXT("1")) : StringLocal(this);
+		return val->value.number ? StringInternal(this, OS_TEXT("1")) : StringInternal(this);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return StringLocal(this, val->value.number, OS_DEF_PRECISION);
+		return StringInternal(this, val->value.number, OS_DEF_PRECISION);
 
 	case OS_VALUE_TYPE_STRING:
-		return StringLocal(val->value.string_data);
+		return StringInternal(val->value.string_data);
 
 	// case OS_VALUE_TYPE_OBJECT:
 	// case OS_VALUE_TYPE_ARRAY:
-	// 	return StringLocal(this, (OS_INT)(val->value.table ? val->value.table->count : 0));
+	// 	return StringInternal(this, (OS_INT)(val->value.table ? val->value.table->count : 0));
 	}
-	return StringLocal(this);
+	return StringInternal(this);
 }
 
-bool OS::isValueString(Value * val, StringLocal * out)
+bool OS::isValueString(Value * val, StringInternal * out)
 {
 	switch(val->type){
 	case OS_VALUE_TYPE_NULL:
 		if(out){
-			*out = StringLocal(this);
+			*out = StringInternal(this);
 		}
 		return true;
 
 	case OS_VALUE_TYPE_BOOL:
 		if(out){
-			*out = StringLocal(this, val->value.number ? OS_TEXT("1") : OS_TEXT(""));
+			*out = StringInternal(this, val->value.number ? OS_TEXT("1") : OS_TEXT(""));
 		}
 		return true;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = StringLocal(this, val->value.number, OS_DEF_PRECISION);
+			*out = StringInternal(this, val->value.number, OS_DEF_PRECISION);
 		}
 		return true;
 
 	case OS_VALUE_TYPE_STRING:
 		if(out){
-			*out = StringLocal(val->value.string_data);
+			*out = StringInternal(val->value.string_data);
 		}
 		return true;
 
 	// case OS_VALUE_TYPE_OBJECT:
 	// case OS_VALUE_TYPE_ARRAY:
-	// 	return StringLocal(this, (OS_INT)(val->value.table ? val->value.table->count : 0));
+	// 	return StringInternal(this, (OS_INT)(val->value.table ? val->value.table->count : 0));
 	}
 	if(out){
-		*out = StringLocal(this);
+		*out = StringInternal(this);
 	}
 	return false;
 }
@@ -6790,7 +6790,7 @@ OS::Value * OS::pushNumberValue(OS_FLOAT val)
 	return res;
 }
 
-OS::Value * OS::pushStringValue(const StringLocal& val)
+OS::Value * OS::pushStringValue(const StringInternal& val)
 {
 	Value * res = pushNullValue();
 	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
@@ -6910,7 +6910,7 @@ void OS::pushString(const OS_CHAR * val)
 	pushStringValue(val);
 }
 
-void OS::pushString(const StringLocal& val)
+void OS::pushString(const StringInternal& val)
 {
 	pushStringValue(val);
 }
@@ -7023,7 +7023,7 @@ bool OS::isString(int offs, String * out)
 	Value * val = getOffsValue(offs);
 	if(val){
 		if(out){
-			StringLocal str(this);
+			StringInternal str(this);
 			if(isValueString(val, &str)){
 				*out = str;
 				return true;
@@ -7300,7 +7300,7 @@ int OS::compile(int offs)
 
 int OS::compile(int offs, int pop_count)
 {
-	StringLocal str(this);
+	StringInternal str(this);
 	Value * val = getOffsValue(offs);
 	if(val && isValueString(val, &str)){
 		pop(pop_count);
@@ -7327,10 +7327,10 @@ int OS::call(int params)
 
 int OS::eval(OS_CHAR * str)
 {
-	return eval(StringLocal(this, str));
+	return eval(StringInternal(this, str));
 }
 
-int OS::eval(const StringLocal& str)
+int OS::eval(const StringInternal& str)
 {
 	pushString(str);
 	compile();
