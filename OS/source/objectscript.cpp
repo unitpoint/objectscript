@@ -2274,8 +2274,8 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 			Scope * scope = dynamic_cast<Scope*>(this);
 			OS_ASSERT(scope);
 			out += StringInternal::format(allocator, OS_TEXT("%sbegin function\n"), spaces);
-			if(scope->locals.count > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s  begin locals %d\n"), spaces, scope->locals.count);
+			if(scope->num_locals > 0){
+				out += StringInternal::format(allocator, OS_TEXT("%s  begin locals, total %d\n"), spaces, scope->num_locals);
 				for(i = 0; i < scope->locals.count; i++){
 					out += StringInternal::format(allocator, OS_TEXT("%s    %d %s%s\n"), spaces, 
 						scope->locals[i].index,
@@ -3290,6 +3290,7 @@ OS::Compiler::Scope::Scope(Scope * p_parent, ExpressionType type, TokenData * to
 	parent = p_parent;
 	function = type == EXP_TYPE_FUNCTION ? NULL : parent->function;
 	num_params = 0;
+	num_locals = 0;
 	parser_started = false;
 }
 
@@ -3308,16 +3309,17 @@ OS::Compiler::Scope::LocalVar::LocalVar(const StringInternal& p_name, int p_inde
 void OS::Compiler::Scope::addLocalVar(const StringInternal& name)
 {
 	OS * allocator = getAllocator();
-	LocalVar local_var(name, function->locals.count);
+	LocalVar local_var(name, function->num_locals);
 	allocator->vectorAddItem(locals, local_var);
-	if(function != this){
-		allocator->vectorAddItem(function->locals, local_var);
-	}
+	function->num_locals++;
+	/* if(function != this){
+		allocator->vectorAddItem(locals, local_var);
+	} */
 }
 
 void OS::Compiler::Scope::addLocalVar(const StringInternal& name, LocalVarDesc& local_var)
 {
-	local_var.index = function->locals.count;
+	local_var.index = function->num_locals;
 	local_var.up_count = 0;
 	local_var.is_param = false;
 	addLocalVar(name);
@@ -4266,7 +4268,7 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 		break;
 
 	case EXP_TYPE_FUNCTION:
-		OS_ASSERT(scope->locals.count == 0);
+		OS_ASSERT(scope->num_locals == 0);
 		allocator->deleteObj(scope);
 		scope = dynamic_cast<Scope*>(exp);
 		scope->parent = NULL;
@@ -4393,7 +4395,7 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 			return error();
 		}
 		
-	} lib(this, scope->function->locals.count);
+	} lib(this, scope->function->num_locals);
 
 	// TokenData * name_token, * save_token;
 	for(readToken();;){
@@ -4433,7 +4435,7 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 			}
 			exp2 = expectExpressionValues(exp2, 1);
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_EXP, name_token, exp, exp2);
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 		}else if(isNextToken(Tokenizer::OPERATOR_COLON)){
 			ExpressionType exp_type = EXP_TYPE_OBJECT_SET_BY_NAME;
 			switch(name_token->getType()){
@@ -4464,7 +4466,7 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 			}
 			exp = expectExpressionValues(exp, 1);
 			exp = new (malloc(sizeof(Expression))) Expression(exp_type, name_token, exp);
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 		}else{
 			exp = expectSingleExpression(scope, true, false, false);
 			if(!exp){
@@ -4472,7 +4474,7 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 			}
 			exp = expectExpressionValues(exp, 1);
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_AUTO, name_token, exp);
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 		}
 		OS_ASSERT(exp);
 		lib.obj_exp->list.add(exp);
@@ -4491,7 +4493,7 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 OS::Compiler::Expression * OS::Compiler::expectArrayExpression(Scope * scope)
 {
 	Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_ARRAY, recent_token);
-	// params->active_locals = scope->function->locals.count;
+	// params->active_locals = scope->function->num_locals;
 	readToken();
 	for(;;){
 		Expression * exp = expectSingleExpression(scope, true, false, false);
@@ -4526,7 +4528,7 @@ OS::Compiler::Expression * OS::Compiler::expectArrayExpression(Scope * scope)
 
 OS::Compiler::Expression * OS::Compiler::finishParamsExpression(Scope * scope, Expression * params)
 {
-	// params->active_locals = scope->function->locals.count;
+	// params->active_locals = scope->function->num_locals;
 	if(params->list.count > 1){
 		for(int i = 0; i < params->list.count; i++){
 			params->list[i] = expectExpressionValues(params->list[i], 1);
@@ -4542,7 +4544,7 @@ OS::Compiler::Expression * OS::Compiler::expectParamsExpression(Scope * scope)
 {
 	// OS_ASSERT(recent_token->getType() == Tokenizer::PARAM_SEPARATOR);
 	Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, recent_token);
-	// params->active_locals = scope->function->locals.count;
+	// params->active_locals = scope->function->num_locals;
 	bool is_dim = recent_token->getType() == Tokenizer::BEGIN_ARRAY_BLOCK;
 	TokenType end_exp_type = is_dim ? Tokenizer::END_ARRAY_BLOCK : Tokenizer::END_BRACKET_BLOCK;
 	readToken();
@@ -4726,7 +4728,7 @@ OS::Compiler::Expression * OS::Compiler::expectVarExpression(Scope * scope)
 			scope->addLocalVar(exp->token->str, exp->local_var);
 			exp->type = EXP_TYPE_NEW_LOCAL_VAR;
 			exp->ret_values = 0;
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 			return ret_exp;
 
 		default:
@@ -4739,7 +4741,7 @@ OS::Compiler::Expression * OS::Compiler::expectVarExpression(Scope * scope)
 OS::Compiler::Expression * OS::Compiler::expectReturnExpression(Scope * scope)
 {
 	Expression * ret_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_RETURN, recent_token);
-	// ret_exp->active_locals = scope->function->locals.count;
+	// ret_exp->active_locals = scope->function->num_locals;
 	if(!readToken()){
 		setError(ERROR_SYNTAX, recent_token);
 		allocator->deleteObj(ret_exp);
@@ -4982,7 +4984,7 @@ OS::Compiler::Expression * OS::Compiler::newBinaryExpression(Scope * scope, Expr
 	right_exp = expectExpressionValues(right_exp, 1);
 	Expression * exp = new (malloc(sizeof(Expression))) Expression(exp_type, token, left_exp, right_exp);
 	exp->ret_values = 1;
-	// exp->active_locals = scope->function->locals.count;
+	// exp->active_locals = scope->function->num_locals;
 	return exp;
 }
 
@@ -5126,7 +5128,7 @@ OS::Compiler::Expression * OS::Compiler::newAssingExpression(Scope * scope, Expr
 			}
 			Expression * exp = new (malloc(sizeof(Expression))) Expression(exp_type, var_exp->token, value_exp, var_exp_left, var_exp_right);
 			exp->ret_values = value_exp->ret_values-1;
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 			allocator->vectorClear(var_exp->list);
 			allocator->deleteObj(var_exp);
 			return exp;
@@ -5225,10 +5227,10 @@ OS::Compiler::Expression * OS::Compiler::finishValueExpression(Scope * scope, Ex
 			}
 			exp2 = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, token);
 			exp2->ret_values = 1;
-			exp2->active_locals = scope->function->locals.count;
+			exp2->active_locals = scope->function->num_locals;
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_INDIRECT, exp2->token, exp, exp2);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 			readToken();
 			continue;
 
@@ -5335,10 +5337,10 @@ OS::Compiler::Expression * OS::Compiler::finishValueExpression(Scope * scope, Ex
 			OS_ASSERT(exp2->ret_values == 1);
 			exp2 = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, exp2->token, exp2);
 			exp2->ret_values = 1;
-			// exp2->active_locals = scope->function->locals.count;
+			// exp2->active_locals = scope->function->num_locals;
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL, token, exp, exp2);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 			continue;
 
 		case Tokenizer::BEGIN_BRACKET_BLOCK: // (
@@ -5349,7 +5351,7 @@ OS::Compiler::Expression * OS::Compiler::finishValueExpression(Scope * scope, Ex
 			}
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL, token, exp, exp2);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 			continue;
 
 		case Tokenizer::BEGIN_ARRAY_BLOCK: // [
@@ -5360,7 +5362,7 @@ OS::Compiler::Expression * OS::Compiler::finishValueExpression(Scope * scope, Ex
 			}
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL_DIM, token, exp, exp2);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 			if(0 && !allow_binary_operator){
 				return exp;
 			}
@@ -5392,7 +5394,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PLUS, exp->token, exp);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->locals.count;
+		// exp->active_locals = scope->function->num_locals;
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_SUB:
@@ -5403,7 +5405,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NEG, exp->token, exp);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->locals.count;
+		// exp->active_locals = scope->function->num_locals;
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_BIN_NOT:
@@ -5414,7 +5416,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_BIN_NOT, exp->token, exp);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->locals.count;
+		// exp->active_locals = scope->function->num_locals;
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_LOGIC_NOT:
@@ -5425,7 +5427,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_LOGIC_NOT, exp->token, exp);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->locals.count;
+		// exp->active_locals = scope->function->num_locals;
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_INC:
@@ -5491,7 +5493,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 	case Tokenizer::STRING:
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_STRING, token);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->locals.count;
+		// exp->active_locals = scope->function->num_locals;
 		readToken();
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
@@ -5499,7 +5501,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 	case Tokenizer::NUM_FLOAT:
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NUMBER, token);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->locals.count;
+		// exp->active_locals = scope->function->num_locals;
 		readToken();
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
@@ -5524,7 +5526,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		if(token->str == allocator->strings->syntax_null){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NULL, token);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 			readToken();
 			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 		}
@@ -5532,14 +5534,14 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 			token->setInt(1);
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_TRUE, token);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 			readToken();
 			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 		}
 		if(token->str == allocator->strings->syntax_false){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_FALSE, token);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->locals.count;
+			// exp->active_locals = scope->function->num_locals;
 			readToken();
 			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 		}
@@ -5581,7 +5583,7 @@ OS::Compiler::Expression * OS::Compiler::expectSingleExpression(Scope * scope, b
 		}
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, token);
 		exp->ret_values = 1;
-		exp->active_locals = scope->function->locals.count;
+		exp->active_locals = scope->function->num_locals;
 		readToken();
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 	}

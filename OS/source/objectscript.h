@@ -996,6 +996,7 @@ namespace ObjectScript
 				// used by function scope
 				Vector<LocalVar> locals;
 				int num_params;
+				int num_locals;
 				bool parser_started;
 
 				Scope(Scope * parent, ExpressionType, TokenData*);
