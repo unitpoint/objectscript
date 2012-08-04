@@ -4174,6 +4174,38 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 
 	Expression * exp;
 	ExpressionList list(allocator);
+
+	while(!isError()){
+		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
+			exp = expectCodeExpression(scope, 0);
+			if(!exp){
+				break;
+			}
+			list.add(exp);
+		}else{
+			exp = expectSingleExpression(scope, true, true, true);
+			if(!exp){
+				break;
+			}
+			list.add(exp);
+			if(!recent_token){
+				break;
+			}
+			switch(recent_token->getType()){
+			case Tokenizer::END_ARRAY_BLOCK:
+			case Tokenizer::END_BRACKET_BLOCK:
+			case Tokenizer::END_CODE_BLOCK:
+				break;
+
+			case Tokenizer::CODE_SEPARATOR:
+				if(!readToken()){
+					break;
+				}
+			}
+		}
+	}
+
+	/*
 	while(!isError()){
 		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
 			exp = expectCodeExpression(scope, 0);
@@ -4205,6 +4237,7 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 		}
 		break;
 	}
+	*/
 	if(isError()){
 		allocator->deleteObj(scope);
 		return NULL;
@@ -4244,50 +4277,44 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 OS::Compiler::Scope * OS::Compiler::expectCodeExpression(Scope * parent, int ret_values)
 {
 	OS_ASSERT(recent_token && recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK);
+	if(!expectToken()){
+		return NULL;
+	}
 
 	Scope * scope;
-	bool is_new_func;
+	// bool is_new_func;
 	if(parent->type == EXP_TYPE_FUNCTION && !parent->parser_started){
 		scope = parent;
-		is_new_func = true;
+		// is_new_func = true;
 		parent->parser_started = true;
 	}else{
 		scope = new (malloc(sizeof(Scope))) Scope(parent, EXP_TYPE_SCOPE, recent_token);
 		scope->function = parent->function;
-		is_new_func = false;
+		// is_new_func = false;
 	}
 
 	Expression * exp;
 	ExpressionList list(allocator);
-	while(readToken() && !isError()){
+	while(!isError()){
 		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
 			exp = expectCodeExpression(scope, 0);
+			if(!exp){
+				break;
+			}
+			list.add(exp);
 		}else{
 			exp = expectSingleExpression(scope, true, true, true);
-		}
-		if(!exp){
-			break;
-		}
-		list.add(exp);
-		if(!recent_token){
-			break;
-		}
-		switch(recent_token->getType()){
-		// case Tokenizer::END_ARRAY_BLOCK:
-		// case Tokenizer::END_BRACKET_BLOCK:
-		case Tokenizer::END_CODE_BLOCK:
-			break;
-
-		case Tokenizer::CODE_SEPARATOR:
-			/* if(!readToken()){
+			if(!exp){
 				break;
-			} */
-			continue;
-
-		default:
-			continue;
+			}
+			list.add(exp);
+			if(!recent_token || recent_token->getType() == Tokenizer::END_CODE_BLOCK){
+				break;
+			}
+			if(!expectToken()){
+				break;
+			}
 		}
-		break;
 	}
 	if(isError()){
 		allocator->deleteObj(scope);
@@ -4299,11 +4326,12 @@ OS::Compiler::Scope * OS::Compiler::expectCodeExpression(Scope * parent, int ret
 		return NULL;
 	}
 	readToken();
+	// putNextTokenType(Tokenizer::CODE_SEPARATOR);
 
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
-		if(is_new_func){
+		{ // if(is_new_func || scope->type == EXP_TYPE_SCOPE){
 			scope->list.swap(exp->list);
 			allocator->deleteObj(exp);
 			break;
@@ -4364,10 +4392,14 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 	// TokenData * name_token, * save_token;
 	for(readToken();;){
 		Expression * exp = NULL;
-		TokenData * name_token = recent_token;
-		if(!name_token){
-			return lib.error(ERROR_SYNTAX, name_token);
+		if(!recent_token){
+			return lib.error(ERROR_SYNTAX, recent_token);
 		}
+		if(recent_token->getType() == Tokenizer::END_CODE_BLOCK){
+			readToken();
+			return lib.obj_exp;
+		}
+		TokenData * name_token = recent_token;
 		if(name_token->getType() == Tokenizer::BEGIN_ARRAY_BLOCK){
 			readToken();
 			TokenData * save_token = recent_token;
@@ -4713,11 +4745,11 @@ OS::Compiler::Expression * OS::Compiler::expectReturnExpression(Scope * scope)
 		return ret_exp;
 
 	case Tokenizer::END_CODE_BLOCK:
-		if(!readToken()){
+		/* if(!readToken()){
 			setError(ERROR_SYNTAX, recent_token);
 			allocator->deleteObj(ret_exp);
 			return NULL;
-		}
+		} */
 		return ret_exp;
 	}
 	for(;;){
@@ -4741,6 +4773,8 @@ OS::Compiler::Expression * OS::Compiler::expectReturnExpression(Scope * scope)
 			return ret_exp;
 		*/
 		case Tokenizer::END_CODE_BLOCK:
+			return ret_exp;
+
 		case Tokenizer::CODE_SEPARATOR:
 			if(!readToken()){
 				setError(ERROR_SYNTAX, recent_token);
