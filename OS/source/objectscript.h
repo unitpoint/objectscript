@@ -935,6 +935,7 @@ namespace ObjectScript
 			struct LocalVarDesc
 			{
 				OS_BYTE up_count;
+				OS_BYTE up_scope_count;
 				OS_BYTE index;
 				bool is_param;
 
@@ -946,6 +947,7 @@ namespace ObjectScript
 				TokenData * token;
 				ExpressionType type;
 				OS_BYTE ret_values;
+				OS_BYTE active_locals;
 				LocalVarDesc local_var;
 				
 				ExpressionList list;
@@ -1090,14 +1092,14 @@ namespace ObjectScript
 			Expression * newSingleValueExpression(Expression * exp);
 			Expression * processExpressionSecondPass(Scope * scope, Expression * exp);
 
-			Scope * expectTextExpression(int ret_values);
+			Scope * expectTextExpression();
 			Scope * expectCodeExpression(Scope*, int ret_values);
 			Scope * expectFunctionExpression(Scope*);
 			Expression * expectVarExpression(Scope*);
 			Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param, bool allow_var);
 			Expression * expectObjectExpression(Scope*);
 			Expression * expectArrayExpression(Scope*);
-			Expression * finishParamsExpression(Expression * params);
+			Expression * finishParamsExpression(Scope*, Expression * params);
 			Expression * expectParamsExpression(Scope*);
 			Expression * expectParamsExpression(Scope*, Expression * first_param);
 			Expression * expectReturnExpression(Scope*);
@@ -1105,7 +1107,7 @@ namespace ObjectScript
 			Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 			Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
-			bool findLocalVar(LocalVarDesc&, Scope * scope, const StringInternal& name, int max_up_count = 127);
+			bool findLocalVar(LocalVarDesc&, Scope * scope, const StringInternal& name, int active_locals, int max_up_count = 127);
 			
 			StringInternal debugPrintSourceLine(TokenData*);
 			static const OS_CHAR * getExpName(ExpressionType);

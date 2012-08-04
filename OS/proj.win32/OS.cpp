@@ -6,19 +6,38 @@
 
 using namespace ObjectScript;
 
+static OS::String readFile(OS * os, const char * filename)
+{
+	FILE * f = fopen(filename, "r");
+	if(!f){
+		return OS::String(os);
+	}
+	fseek(f, 0, SEEK_END);
+	int size = ftell(f);
+	rewind(f);
+
+	OS::String data(os, OS_TEXT('\0'), size);
+	fread((void*)data.toChar(), size, 1, f);
+	fclose(f);
+
+	return data;
+}
+
 struct __test_os__
 {
 	__test_os__()
 	{
 		OS * os = OS::create();
+		OS::String test_prog = readFile(os, "test.os");
+		
 		// os->eval("abc, x, y = 5, var1*6 + var2*3  x = y-7;");
 		// os->eval("y(8, i)(i*8+j[7, 9])[7, k]");
 		// os->eval("abc, x = 5, 37676  hjhj = y-7;");
 		// os->eval("abc* (5+ 37676 * 9.4 % 17.3) * [7 + k*j, j, k]  - (hjhj + y-7);");
 		// os->eval("abc, x = 5, 37676  hjhj = y-7;");
 		// os->eval("1 + {x:9*u, \"y\":9*u, 12:9*u, 12.1:9*u, [9*u]: 9*u, 9*u} * 8");
-		os->eval(
-			"var a; var b = 0; var c, e, i = 1, 2;\n"
+		os->eval(test_prog.getDataSize() ? test_prog.toChar() :
+			"var a; var b = 0; var i, j = 1, 2;\n"
 			"a[b][c] = a[b][c];\n"
 			"a,b = a.b.c;\n"
 			"a.b.c.d[a, b.v].a = a.b.c.d.e(a, b) * 5;\n"
