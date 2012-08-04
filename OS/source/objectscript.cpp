@@ -3896,6 +3896,17 @@ OS::Compiler::Expression * OS::Compiler::expectExpressionValues(Expression * exp
 		exp->ret_values = ret_values;
 		return exp;
 
+	case EXP_TYPE_CODE_LIST:
+		if(exp->list.count > 0){
+			switch(exp->list[exp->list.count-1]->type){
+			case EXP_TYPE_RETURN:
+			case EXP_TYPE_TAIL_CALL:
+				exp->ret_values = ret_values;
+				return exp;
+			}
+		}
+		break;
+
 	case EXP_TYPE_PARAMS:
 		if(exp->ret_values > ret_values){
 			for(int i = exp->list.count-1; exp->ret_values > ret_values && i >= 0; i--){
@@ -4689,7 +4700,7 @@ OS::Compiler::Expression * OS::Compiler::expectVarExpression(Scope * scope)
 
 		case EXP_TYPE_SET_AUTO_VAR:
 			for(;;){
-				OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, 0));
+				OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals));
 				scope->addLocalVar(exp->token->str, exp->local_var);
 				exp->type = EXP_TYPE_SET_LOCAL_VAR;
 				OS_ASSERT(exp->list.count == 1);
@@ -4707,7 +4718,7 @@ OS::Compiler::Expression * OS::Compiler::expectVarExpression(Scope * scope)
 			break;
 
 		case EXP_TYPE_NAME:
-			if(findLocalVar(exp->local_var, scope, exp->token->str, 0)){
+			if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals)){
 				setError(ERROR_VAR_ALREADY_EXIST, exp->token);
 				allocator->deleteObj(ret_exp);
 				return NULL;
@@ -4771,11 +4782,11 @@ OS::Compiler::Expression * OS::Compiler::expectReturnExpression(Scope * scope)
 			return ret_exp;
 
 		case Tokenizer::CODE_SEPARATOR:
-			if(!readToken()){
+			// if(!readToken()){
 				// setError(ERROR_SYNTAX, recent_token);
 				// allocator->deleteObj(ret_exp);
 				// return NULL;
-			}
+			// }
 			return ret_exp;
 
 		case Tokenizer::PARAM_SEPARATOR:
