@@ -800,6 +800,7 @@ namespace ObjectScript
 				EXP_TYPE_PARAMS,
 				EXP_TYPE_FUNCTION,
 				EXP_TYPE_RETURN,
+				EXP_TYPE_TAIL_CALL,
 				EXP_TYPE_ARRAY,
 				EXP_TYPE_OBJECT,
 				EXP_TYPE_OBJECT_SET_BY_NAME,
@@ -1065,10 +1066,10 @@ namespace ObjectScript
 
 			void * malloc(int size);
 
-			void setNextTokenIndex(int i);
-			void setNextToken(TokenData * token);
-			void putNextTokenType(TokenType tokenType);
-			void ungetToken();
+			TokenData * setNextTokenIndex(int i);
+			TokenData * setNextToken(TokenData * token);
+			TokenData * putNextTokenType(TokenType tokenType);
+			TokenData * ungetToken();
 
 			bool isNextTokens(TokenType * list, int count);
 			bool isNextToken(TokenType t0);

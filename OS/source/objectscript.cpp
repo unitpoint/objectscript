@@ -2270,7 +2270,7 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 
 	case EXP_TYPE_FUNCTION:
 		{
-			OS_ASSERT(list.count >= 1);
+			// OS_ASSERT(list.count >= 1);
 			Scope * scope = dynamic_cast<Scope*>(this);
 			OS_ASSERT(scope);
 			out += StringInternal::format(allocator, OS_TEXT("%sbegin function\n"), spaces);
@@ -2297,7 +2297,7 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 
 	case EXP_TYPE_SCOPE:
 		{
-			OS_ASSERT(list.count >= 1);
+			// OS_ASSERT(list.count >= 1);
 			Scope * scope = dynamic_cast<Scope*>(this);
 			OS_ASSERT(scope);
 			out += StringInternal::format(allocator, OS_TEXT("%sbegin scope\n"), spaces);
@@ -2335,6 +2335,14 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 		}else{
 			out += OS_TEXT("return\n");
 		}
+		break;
+
+	case EXP_TYPE_TAIL_CALL:
+		OS_ASSERT(list.count == 2);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin tail call\n"), spaces);
+		out += list[0]->debugPrint(compiler, depth+1);
+		out += list[1]->debugPrint(compiler, depth+1);
+		out += StringInternal::format(allocator, OS_TEXT("%send tail call\n"), spaces);
 		break;
 
 	case EXP_TYPE_CALL:
@@ -3745,14 +3753,14 @@ OS::Tokenizer::TokenData * OS::Compiler::readToken()
 	return recent_token = NULL;
 }
 
-void OS::Compiler::setNextTokenIndex(int i)
+OS::Tokenizer::TokenData * OS::Compiler::setNextTokenIndex(int i)
 {
 	OS_ASSERT(tokenizer && i >= 0 && i <= tokenizer->getNumTokens());
 	next_token_index = i;
-	recent_token = next_token_index > 0 ? tokenizer->getToken(next_token_index-1) : NULL;
+	return recent_token = next_token_index > 0 ? tokenizer->getToken(next_token_index-1) : NULL;
 }
 
-void OS::Compiler::setNextToken(TokenData * token)
+OS::Tokenizer::TokenData * OS::Compiler::setNextToken(TokenData * token)
 {
 	OS_ASSERT(tokenizer);
 	int i, count = tokenizer->getNumTokens();
@@ -3768,32 +3776,31 @@ void OS::Compiler::setNextToken(TokenData * token)
 	}
 	if(i >= 0 && i < count){
 		next_token_index = i;
-		recent_token = next_token_index > 0 ? tokenizer->getToken(next_token_index-1) : NULL;
-		return;
+		return recent_token = next_token_index > 0 ? tokenizer->getToken(next_token_index-1) : NULL;
 	}
 	OS_ASSERT(false);
+	return NULL;
 }
 
-void OS::Compiler::putNextTokenType(TokenType token_type)
+OS::Tokenizer::TokenData * OS::Compiler::putNextTokenType(TokenType token_type)
 {
 	if(token_type == Tokenizer::CODE_SEPARATOR && recent_token && recent_token->getType() == token_type){
-		ungetToken();
-		return;
+		return ungetToken();
 	}
 
 	if(readToken() && recent_token->getType() == token_type){
-		ungetToken();
-		return;
+		return ungetToken();
 	}
 	ungetToken();
 
 	TokenData * token = new (malloc(sizeof(TokenData))) TokenData(recent_token->text_data, StringInternal(allocator), token_type, recent_token->line, recent_token->pos);
 	tokenizer->insertToken(next_token_index, token);
+	return token;
 }
 
-void OS::Compiler::ungetToken()
+OS::Tokenizer::TokenData * OS::Compiler::ungetToken()
 {
-	setNextTokenIndex(next_token_index-1);
+	return setNextTokenIndex(next_token_index-1);
 }
 
 bool OS::Compiler::isNextTokens(TokenType * list, int count)
@@ -3984,6 +3991,10 @@ OS::Compiler::Expression * OS::Compiler::newExpressionFromList(ExpressionList& l
 	if(list.count == 1){
 		exp = list[0];
 		list.removeIndex(0);
+	}else if(list.count == 0){
+		TokenData * cur_token = ungetToken();
+		readToken();
+		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CODE_LIST, cur_token);
 	}else{
 		/* deleteNops(list);
 		if(!list.count){
@@ -4047,6 +4058,19 @@ OS::Compiler::Expression * OS::Compiler::processExpressionSecondPass(Scope * sco
 			exp->type = EXP_TYPE_GET_AUTO_VAR;
 		}
 		break;
+
+	case EXP_TYPE_RETURN:
+		if(exp->list.count == 1){
+			Expression * exp2 = exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
+			switch(exp2->type){
+			case EXP_TYPE_CALL:
+				exp2->type = EXP_TYPE_TAIL_CALL;
+				allocator->vectorClear(exp->list);
+				allocator->deleteObj(exp);
+				return exp2;
+			}
+			return exp;
+		}
 
 	case EXP_TYPE_CALL:
 		{
@@ -4165,8 +4189,6 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 {
 	OS_ASSERT(recent_token);
 
-	int ret_values = 1;
-
 	Scope * scope = new (malloc(sizeof(Scope))) Scope(NULL, EXP_TYPE_FUNCTION, recent_token);
 	scope->function = scope;
 	scope->parser_started = true;
@@ -4205,39 +4227,6 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 		}
 	}
 
-	/*
-	while(!isError()){
-		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
-			exp = expectCodeExpression(scope, 0);
-		}else{
-			exp = expectSingleExpression(scope, true, true, true);
-		}
-		if(!exp){
-			break;
-		}
-		// exp = expectExpressionValues(exp, 0);
-		list.add(exp);
-		if(!recent_token){
-			break;
-		}
-		switch(recent_token->getType()){
-		case Tokenizer::END_ARRAY_BLOCK:
-		case Tokenizer::END_BRACKET_BLOCK:
-		case Tokenizer::END_CODE_BLOCK:
-			break;
-
-		case Tokenizer::CODE_SEPARATOR:
-			if(!readToken()){
-				break;
-			}
-			continue;
-
-		default:
-			continue;
-		}
-		break;
-	}
-	*/
 	if(isError()){
 		allocator->deleteObj(scope);
 		return NULL;
@@ -4247,6 +4236,10 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 		allocator->deleteObj(scope);
 		return NULL;
 	}
+	if(list.count == 0){
+		return scope;
+	}
+	int ret_values = list.count == 1 && list[0]->ret_values > 0 ? 1 : 0;
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
@@ -4326,8 +4319,10 @@ OS::Compiler::Scope * OS::Compiler::expectCodeExpression(Scope * parent, int ret
 		return NULL;
 	}
 	readToken();
-	// putNextTokenType(Tokenizer::CODE_SEPARATOR);
-
+	
+	if(list.count == 0){
+		return scope;
+	}
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
@@ -4777,9 +4772,9 @@ OS::Compiler::Expression * OS::Compiler::expectReturnExpression(Scope * scope)
 
 		case Tokenizer::CODE_SEPARATOR:
 			if(!readToken()){
-				setError(ERROR_SYNTAX, recent_token);
-				allocator->deleteObj(ret_exp);
-				return NULL;
+				// setError(ERROR_SYNTAX, recent_token);
+				// allocator->deleteObj(ret_exp);
+				// return NULL;
 			}
 			return ret_exp;
 
