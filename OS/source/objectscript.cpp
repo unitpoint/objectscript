@@ -2839,7 +2839,6 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		break;
 
 	case EXP_TYPE_CODE_LIST:
-	case EXP_TYPE_SCOPE:
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
@@ -2877,14 +2876,55 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 			Scope * scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
 			prog->writeOpcodeByte(Program::OP_PUSH_FUNCTION);
+			
+			int func_size_pos = prog->opcodes.count;
+			prog->writeOpcodeInt32(0); // func code size
+			
 			prog->writeOpcodeByte(scope->num_locals);
 			prog->writeOpcodeByte(scope->num_params);
-			int pos = prog->opcodes.count;
-			prog->writeOpcodeUInt32(0); // func code size
+
+			allocator->vectorReserveCapacity(scope->local_scopes, scope->num_locals);
+			scope->local_scopes.count = scope->num_locals;
+
 			if(!writeOpcodes(exp->list)){
 				return false;
 			}
-			prog->writeOpcodeUInt32AtPos(prog->opcodes.count - pos, pos);
+			// int opcodes_size = prog->opcodes.count - func_size_pos;
+			for(i = 0; i < scope->locals.count; i++){
+				Scope::LocalVar& var = scope->locals[i];
+				Scope::LocalVarScope& var_scope = scope->local_scopes[var.index];
+				var_scope.cached_name_index = cacheString(var.name);
+				var_scope.start_code_pos = func_size_pos;
+				var_scope.end_code_pos = prog->opcodes.count;
+			}
+			for(i = 0; i < scope->local_scopes.count; i++){
+				Scope::LocalVarScope& var_scope = scope->local_scopes[i];
+				OS_ASSERT(var_scope.start_code_pos >= 0);
+				OS_ASSERT(var_scope.end_code_pos >= 0);
+				prog->writeOpcodeUShort(var_scope.cached_name_index);
+				prog->writeOpcodeInt32(var_scope.start_code_pos);
+				prog->writeOpcodeInt32(var_scope.end_code_pos);
+			}
+
+			prog->writeOpcodeInt32AtPos(prog->opcodes.count - func_size_pos, func_size_pos);
+			break;
+		}
+
+	case EXP_TYPE_SCOPE:
+		{
+			Scope * scope = dynamic_cast<Scope*>(exp);
+			OS_ASSERT(scope);
+			int start_code_pos = prog->opcodes.count;
+			if(!writeOpcodes(exp->list)){
+				return false;
+			}
+			for(i = 0; i < scope->locals.count; i++){
+				Scope::LocalVar& var = scope->locals[i];
+				Scope::LocalVarScope& var_scope = scope->function->local_scopes[var.index];
+				var_scope.cached_name_index = cacheString(var.name);
+				var_scope.start_code_pos = start_code_pos;
+				var_scope.end_code_pos = prog->opcodes.count;
+			}
 			break;
 		}
 
@@ -2975,6 +3015,14 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		prog->writeOpcodeByte(Program::toOpcodeType(exp->type));
 		prog->writeOpcodeByte(exp->list[1]->ret_values); // params number
 		prog->writeOpcodeByte(exp->ret_values);
+		break;
+
+	case EXP_TYPE_GET_PROPERTY:
+		OS_ASSERT(exp->list.count == 2);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog->writeOpcodeByte(Program::OP_GET_PROPERTY);
 		break;
 
 	case EXP_TYPE_SET_PROPERTY:
@@ -3078,6 +3126,11 @@ OS::Compiler::Scope::~Scope()
 OS::Compiler::Scope::LocalVar::LocalVar(const StringInternal& p_name, int p_index): name(p_name)
 {
 	index = p_index;
+}
+
+OS::Compiler::Scope::LocalVarScope::LocalVarScope()
+{
+	cached_name_index = -1;
 	start_code_pos = -1;
 	end_code_pos = -1;
 }
@@ -5765,9 +5818,9 @@ bool OS::Program::saveToFile(const char * filename)
 		const StringInternal& str = strings[i];
 		int len = str.getDataSize();
 		writeOpcodeUShort(len);
-		for(int j = 0; j < len; j++){
-			writeOpcodeByte(str.toChar()[j]);
-		}
+		allocator->vectorReserveCapacity(opcodes, opcodes.count + len);
+		OS_MEMCPY(opcodes.buf+opcodes.count, str.toChar(), len);
+		opcodes.count += len;
 	}
 
 	fwrite(opcodes.buf, opcodes.count, 1, f);
@@ -5851,38 +5904,39 @@ void OS::Program::writeOpcodeByte(int value)
 void OS::Program::writeOpcodeByteAtPos(int value, int pos)
 {
 	OS_ASSERT(value >= 0 && value <= 0xff);
-	OS_ASSERT(pos >= 0 && pos < opcodes.count-1);
+	OS_ASSERT(pos >= 0 && pos <= opcodes.count-1);
 	opcodes[pos] = (OS_BYTE)value;
 }
 
 void OS::Program::writeOpcodeUShort(int value)
 {
 	OS_ASSERT(value >= 0 && value <= 0xffff);
-	allocator->vectorAddItem(opcodes, (OS_BYTE)value);
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> 8));
+	int pos = opcodes.count;
+	allocator->vectorReserveCapacity(opcodes, pos + sizeof(OS_BYTE)*2);
+	opcodes.count += sizeof(OS_BYTE)*2;
+	writeOpcodeUShortAtPos(value, pos);
 }
 
 void OS::Program::writeOpcodeUShortAtPos(int value, int pos)
 {
 	OS_ASSERT(value >= 0 && value <= 0xffff);
-	OS_ASSERT(pos >= 0 && pos < opcodes.count-2);
+	OS_ASSERT(pos >= 0 && pos <= opcodes.count-2);
 	opcodes[pos] = (OS_BYTE)value;
 	opcodes[pos+1] = (OS_BYTE)(value >> 8);
 }
 
-void OS::Program::writeOpcodeUInt32(int value)
+void OS::Program::writeOpcodeInt32(int value)
 {
-	OS_ASSERT(value >= 0 && value <= 0x7fffffff);
-	allocator->vectorAddItem(opcodes, (OS_BYTE)value);
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> 8));
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> 16));
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> 24));
+	int pos = opcodes.count;
+	allocator->vectorReserveCapacity(opcodes, pos + sizeof(OS_BYTE)*4);
+	opcodes.count += sizeof(OS_BYTE)*4;
+	writeOpcodeInt32AtPos(value, pos);
 }
 
-void OS::Program::writeOpcodeUInt32AtPos(int value, int pos)
+void OS::Program::writeOpcodeInt32AtPos(int value, int pos)
 {
-	OS_ASSERT(value >= 0 && value <= 0x7fffffff);
-	OS_ASSERT(pos >= 0 && pos < opcodes.count-4);
+	OS_ASSERT((int)(OS_INT32)value == value);
+	OS_ASSERT(pos >= 0 && pos <= opcodes.count-4);
 	opcodes[pos+0] = (OS_BYTE)value;
 	opcodes[pos+1] = (OS_BYTE)(value >> 8);
 	opcodes[pos+2] = (OS_BYTE)(value >> 16);
@@ -5891,19 +5945,15 @@ void OS::Program::writeOpcodeUInt32AtPos(int value, int pos)
 
 void OS::Program::writeOpcodeInt64(OS_INT value)
 {
-	allocator->vectorAddItem(opcodes, (OS_BYTE)value);
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*1)));
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*2)));
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*3)));
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*4)));
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*5)));
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*6)));
-	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*7)));
+	int pos = opcodes.count;
+	allocator->vectorReserveCapacity(opcodes, pos + sizeof(OS_BYTE)*8);
+	opcodes.count += sizeof(OS_BYTE)*8;
+	writeOpcodeInt64AtPos(value, pos);
 }
 
 void OS::Program::writeOpcodeInt64AtPos(OS_INT value, int pos)
 {
-	OS_ASSERT(pos >= 0 && pos < opcodes.count-16);
+	OS_ASSERT(pos >= 0 && pos <= opcodes.count-16);
 	opcodes[pos+0] = (OS_BYTE)value;
 	opcodes[pos+1] = (OS_BYTE)(value >> (8*1));
 	opcodes[pos+2] = (OS_BYTE)(value >> (8*2));
@@ -5916,14 +5966,15 @@ void OS::Program::writeOpcodeInt64AtPos(OS_INT value, int pos)
 
 void OS::Program::writeOpcodeFloat(OS_FLOAT value)
 {
-	for(int i = 0; i < sizeof(value); i++){
-		allocator->vectorAddItem(opcodes, ((OS_BYTE*)&value)[i]);
-	}
+	int pos = opcodes.count;
+	allocator->vectorReserveCapacity(opcodes, pos + sizeof(value));
+	opcodes.count += sizeof(value);
+	writeOpcodeFloatAtPos(value, pos);
 }
 
 void OS::Program::writeOpcodeFloatAtPos(OS_FLOAT value, int pos)
 {
-	OS_ASSERT(pos >= 0 && pos < opcodes.count-sizeof(value));
+	OS_ASSERT(pos >= 0 && pos <= opcodes.count-sizeof(value));
 	for(int i = 0; i < sizeof(value); i++){
 		opcodes[pos+i] = ((OS_BYTE*)&value)[i];
 	}

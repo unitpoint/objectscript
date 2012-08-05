@@ -117,8 +117,16 @@ namespace ObjectScript
 			{
 				OS_ASSERT(!buf && !capacity && !count);
 			}
-			T& operator [] (int i){ return buf[i]; }
-			const T& operator [] (int i) const { return buf[i]; }
+			T& operator [] (int i)
+			{
+				OS_ASSERT(i >= 0 && i < count);
+				return buf[i];
+			}
+			const T& operator [] (int i) const
+			{
+				OS_ASSERT(i >= 0 && i < count);
+				return buf[i];
+			}
 
 			bool contains(const T& val) const 
 			{
@@ -990,14 +998,22 @@ namespace ObjectScript
 				{
 					StringInternal name;
 					int index;
+					
+					LocalVar(const StringInternal& name, int index);
+				};
+
+				struct LocalVarScope
+				{
+					int cached_name_index;
 					int start_code_pos;
 					int end_code_pos;
 
-					LocalVar(const StringInternal& name, int index);
+					LocalVarScope();
 				};
 
 				// used by function scope
 				Vector<LocalVar> locals;
+				Vector<LocalVarScope> local_scopes;
 				int num_params;
 				int num_locals;
 				bool parser_started;
@@ -1170,6 +1186,7 @@ namespace ObjectScript
 				OP_CALL_PROPERTY,
 				OP_TAIL_CALL,
 
+				OP_GET_PROPERTY,
 				OP_SET_PROPERTY,
 
 				OP_RETURN,
@@ -1228,8 +1245,8 @@ namespace ObjectScript
 			void writeOpcodeUShort(int);
 			void writeOpcodeUShortAtPos(int value, int pos);
 
-			void writeOpcodeUInt32(int);
-			void writeOpcodeUInt32AtPos(int value, int pos);
+			void writeOpcodeInt32(int);
+			void writeOpcodeInt32AtPos(int value, int pos);
 
 			void writeOpcodeInt64(OS_INT);
 			void writeOpcodeInt64AtPos(OS_INT value, int pos);
@@ -1267,7 +1284,7 @@ namespace ObjectScript
 			~StackFunction();
 		};
 
-		template<class T> void vectorReserve(Vector<T>& vec, int capacity)
+		template<class T> void vectorReserveCapacity(Vector<T>& vec, int capacity)
 		{
 			if(vec.capacity < capacity){
 				vec.capacity = vec.capacity > 0 ? vec.capacity*2 : 4;
@@ -1288,7 +1305,7 @@ namespace ObjectScript
 		template<class T> void vectorAddItem(Vector<T>& vec, const T& val)
 		{
 			if(vec.count >= vec.capacity){
-				vectorReserve(vec, vec.capacity > 0 ? vec.capacity*2 : 4);
+				vectorReserveCapacity(vec, vec.capacity > 0 ? vec.capacity*2 : 4);
 			}
 			new (vec.buf + vec.count++) T(val);
 		}
@@ -1339,7 +1356,7 @@ namespace ObjectScript
 		{
 			OS_ASSERT(i >= 0 && i <= vec.count);
 			if(vec.count+1 >= vec.capacity){
-				vectorReserve(vec, vec.capacity > 0 ? vec.capacity*2 : 4);
+				vectorReserveCapacity(vec, vec.capacity > 0 ? vec.capacity*2 : 4);
 			}
 			for(int j = vec.count-1; j >= i; j--){
 				new (vec.buf+j+1) T(vec.buf[j]);
