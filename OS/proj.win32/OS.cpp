@@ -28,7 +28,9 @@ struct __test_os__
 	__test_os__()
 	{
 		OS * os = OS::create();
-		OS::String test_prog = readFile(os, "test.os");
+		const char * filename = "test-data/castlemonster.js";
+		// const char * filename = "test.os";
+		OS::String test_prog = readFile(os, filename);
 		
 		// os->eval("abc, x, y = 5, var1*6 + var2*3  x = y-7;");
 		// os->eval("y(8, i)(i*8+j[7, 9])[7, k]");

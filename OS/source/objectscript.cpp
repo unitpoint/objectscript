@@ -1463,8 +1463,8 @@ void OS::Tokenizer::TextData::release()
 OS::Tokenizer::Tokenizer(OS * allocator)
 {
 	initOperatorTable();
-	settings.parseVector = true;
-	settings.parseStringOperator = true;
+	settings.parseVector = false;
+	settings.parseStringOperator = false;
 	// settings.parsePreprocessor = true;
 	settings.saveComment = false;
 	error = ERROR_NOTHING;
@@ -1582,13 +1582,13 @@ void OS::Tokenizer::TokenData::setVec3(OS_FLOAT values[3])
 
 void OS::Tokenizer::TokenData::setFloat(OS_FLOAT value)
 {
-	OS_ASSERT(type == NUM_FLOAT); // && !float_value);
+	// OS_ASSERT(type == NUM_FLOAT); // && !float_value);
 	float_value = value;
 }
 
 void OS::Tokenizer::TokenData::setInt(OS_INT value)
 {
-	OS_ASSERT(type == NUM_INT); // && !vec3);
+	// OS_ASSERT(type == NUM_INT); // && !vec3);
 	int_value = value;
 }
 
@@ -2262,7 +2262,7 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 		out += StringInternal::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
 		break;
 
-	case EXP_TYPE_OBJECT_SET_BY_AUTO:
+	case EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += StringInternal::format(allocator, OS_TEXT("%sset like array\n"), spaces);
@@ -2767,7 +2767,7 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 
 // =====================================================================
 
-int OS::Compiler::getCachedStringIndex(const StringInternal& str)
+int OS::Compiler::cacheString(const StringInternal& str)
 {
 	VariableIndex index(str);
 	Value::Variable * var = strings_cache->get(index);
@@ -2786,7 +2786,7 @@ int OS::Compiler::getCachedStringIndex(const StringInternal& str)
 	return strings_cache->count-1;
 }
 
-int OS::Compiler::getCachedNumberIndex(OS_FLOAT num)
+int OS::Compiler::cacheNumber(OS_FLOAT num)
 {
 	VariableIndex index(allocator, num);
 	Value::Variable * var = numbers_cache->get(index);
@@ -2805,468 +2805,244 @@ int OS::Compiler::getCachedNumberIndex(OS_FLOAT num)
 	return numbers_cache->count-1;
 }
 
-bool OS::Compiler::generateOpcodes(Expression * exp, Program * prog)
+bool OS::Compiler::writeOpcodes(Expression * exp, Program * prog)
 {
 	OS_ASSERT(!this->prog && !strings_cache && !numbers_cache);
 	this->prog = prog->retain();
 	strings_cache = allocator->newTable();
 	numbers_cache = allocator->newTable();
-	return generateOpcodes(exp);
+	return writeOpcodes(exp);
 }
 
-bool OS::Compiler::generateOpcodes(Expression * exp)
+bool OS::Compiler::writeOpcodes(ExpressionList& list)
+{
+	for(int i = 0; i < list.count; i++){
+		if(!writeOpcodes(list[i])){
+			return false;
+		}
+	}
+	return true;
+}
+
+bool OS::Compiler::writeOpcodes(Expression * exp)
 {
 	int i;
 	switch(exp->type){
+	default:
+		{
+			ExpressionType exp_type = exp->type;
+			OS_ASSERT(false);
+			break;
+		}
+
 	case EXP_TYPE_NOP:
 		break;
 
 	case EXP_TYPE_CODE_LIST:
-		for(i = 0; i < exp->list.count; i++){
-			Expression * sub_exp = exp->list[i];
-			if(!generateOpcodes(sub_exp, prog)){
-				return false;
-			}
+	case EXP_TYPE_SCOPE:
+		if(!writeOpcodes(exp->list)){
+			return false;
 		}
 		break;
 
 	case EXP_TYPE_CONST_NUMBER:
-		prog->writeCodeByte(Program::OP_PUSH_NUMBER);
-		prog->writeCodeUShort(getCachedNumberIndex(exp->token->getFloat()));
+		OS_ASSERT(exp->list.count == 0);
+		prog->writeOpcodeByte(Program::OP_PUSH_NUMBER);
+		prog->writeOpcodeUShort(cacheNumber(exp->token->getFloat()));
 		break;
 
 	case EXP_TYPE_CONST_STRING:
-		prog->writeCodeByte(Program::OP_PUSH_STRING);
-		prog->writeCodeUShort(getCachedStringIndex(exp->token->str));
+		OS_ASSERT(exp->list.count == 0);
+		prog->writeOpcodeByte(Program::OP_PUSH_STRING);
+		prog->writeOpcodeUShort(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_CONST_NULL:
-		prog->writeCodeByte(Program::OP_PUSH_NULL);
+		OS_ASSERT(exp->list.count == 0);
+		prog->writeOpcodeByte(Program::OP_PUSH_NULL);
 		break;
 
 	case EXP_TYPE_CONST_TRUE:
-		prog->writeCodeByte(Program::OP_PUSH_TRUE);
+		OS_ASSERT(exp->list.count == 0);
+		prog->writeOpcodeByte(Program::OP_PUSH_TRUE);
 		break;
 
 	case EXP_TYPE_CONST_FALSE:
-		prog->writeCodeByte(Program::OP_PUSH_FALSE);
-		break;
-
-	case EXP_TYPE_NAME:
-		prog->writeCodeByte(Program::OP_PUSH_VAR_BY_NAME);
-		prog->writeCodeUShort(getCachedStringIndex(exp->token->str));
-		break;
-
-	/*
-	case EXP_TYPE_PARAMS:
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin params %d\n"), spaces, list.count);
-		for(i = 0; i < list.count; i++){
-			if(i > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
-			}
-			out += list[i]->debugPrint(compiler, depth+1);
-		}
-		out += StringInternal::format(allocator, OS_TEXT("%send params\n"), spaces);
-		break;
-
-	case EXP_TYPE_ARRAY:
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin array %d\n"), spaces, list.count);
-		for(i = 0; i < list.count; i++){
-			if(i > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
-			}
-			out += list[i]->debugPrint(compiler, depth+1);
-		}
-		out += StringInternal::format(allocator, OS_TEXT("%send array\n"), spaces);
-		break;
-
-	case EXP_TYPE_OBJECT:
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin object %d\n"), spaces, list.count);
-		for(i = 0; i < list.count; i++){
-			if(i > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
-			}
-			out += list[i]->debugPrint(compiler, depth+1);
-		}
-		out += StringInternal::format(allocator, OS_TEXT("%send object\n"), spaces);
-		break;
-
-	case EXP_TYPE_OBJECT_SET_BY_NAME:
-		OS_ASSERT(list.count == 1);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%sset by name: [%s]\n"), spaces, token->str.toChar());
-		break;
-
-	case EXP_TYPE_OBJECT_SET_BY_INDEX:
-		OS_ASSERT(list.count == 1);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%sset by index: [%d]\n"), spaces, token->getInt());
-		break;
-
-	case EXP_TYPE_OBJECT_SET_BY_EXP:
-		OS_ASSERT(list.count == 2);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
-		break;
-
-	case EXP_TYPE_OBJECT_SET_BY_AUTO:
-		OS_ASSERT(list.count == 1);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%sset like array\n"), spaces);
+		OS_ASSERT(exp->list.count == 0);
+		prog->writeOpcodeByte(Program::OP_PUSH_FALSE);
 		break;
 
 	case EXP_TYPE_FUNCTION:
-		OS_ASSERT(list.count >= 1);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin function %d\n"), spaces, list.count-1);
-		for(i = 0; i < list.count-1; i++){
-			if(i > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+		{
+			Scope * scope = dynamic_cast<Scope*>(exp);
+			OS_ASSERT(scope);
+			prog->writeOpcodeByte(Program::OP_PUSH_FUNCTION);
+			prog->writeOpcodeByte(scope->num_locals);
+			prog->writeOpcodeByte(scope->num_params);
+			int pos = prog->opcodes.count;
+			prog->writeOpcodeUInt32(0); // func code size
+			if(!writeOpcodes(exp->list)){
+				return false;
 			}
-			out += list[i]->debugPrint(compiler, depth+1);
+			prog->writeOpcodeUInt32AtPos(prog->opcodes.count - pos, pos);
+			break;
 		}
-		out += list[list.count-1]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send function\n"), spaces);
+
+	case EXP_TYPE_OBJECT:
+		// OS_ASSERT(exp->list.count >= 0);
+		prog->writeOpcodeByte(Program::OP_PUSH_NEW_OBJECT);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
 		break;
 
-	case EXP_TYPE_RETURN:
-		if(list.count > 0){
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin return %d\n"), spaces, list.count);
-			for(i = 0; i < list.count; i++){
-				if(i > 0){
-					out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
-				}
-				out += list[i]->debugPrint(compiler, depth+1);
-			}
-			out += StringInternal::format(allocator, OS_TEXT("%send return\n"), spaces);
-		}else{
-			out += OS_TEXT("return\n");
+	case EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(exp->list)){
+			return false;
 		}
+		prog->writeOpcodeByte(Program::OP_OBJECT_SET_BY_AUTO_INDEX);
+		break;
+
+	case EXP_TYPE_OBJECT_SET_BY_EXP:
+		OS_ASSERT(exp->list.count == 2);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog->writeOpcodeByte(Program::OP_OBJECT_SET_BY_EXP);
+		break;
+
+	case EXP_TYPE_OBJECT_SET_BY_INDEX:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog->writeOpcodeByte(Program::OP_OBJECT_SET_BY_INDEX);
+		// prog->writeOpcodeInt64(exp->token->getInt());
+		prog->writeOpcodeUShort(cacheNumber(exp->token->getFloat()));
+		break;
+
+	case EXP_TYPE_OBJECT_SET_BY_NAME:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog->writeOpcodeByte(Program::OP_OBJECT_SET_BY_NAME);
+		prog->writeOpcodeUShort(cacheString(exp->token->str));
+		break;
+
+	case EXP_TYPE_GET_AUTO_VAR:
+		OS_ASSERT(exp->list.count == 0);
+		prog->writeOpcodeByte(Program::OP_PUSH_AUTO_VAR);
+		prog->writeOpcodeUShort(cacheString(exp->token->str));
+		break;
+
+	case EXP_TYPE_SET_AUTO_VAR:
+		OS_ASSERT(exp->list.count > 0);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog->writeOpcodeByte(Program::OP_SET_AUTO_VAR);
+		prog->writeOpcodeUShort(cacheString(exp->token->str));
+		break;
+
+	case EXP_TYPE_GET_LOCAL_VAR:
+		OS_ASSERT(exp->list.count == 0);
+		prog->writeOpcodeByte(Program::OP_PUSH_LOCAL_VAR);
+		prog->writeOpcodeByte(exp->local_var.index);
+		prog->writeOpcodeByte(exp->local_var.up_count);
+		break;
+
+	case EXP_TYPE_SET_LOCAL_VAR:
+		OS_ASSERT(exp->list.count > 0);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog->writeOpcodeByte(Program::OP_SET_LOCAL_VAR);
+		prog->writeOpcodeByte(exp->local_var.index);
+		prog->writeOpcodeByte(exp->local_var.up_count);
 		break;
 
 	case EXP_TYPE_CALL:
-	case EXP_TYPE_CALL_DIM:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
-		break;
-	*/
-
-	/*
-	case EXP_TYPE_THREAD:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin thread call\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send thread call\n"), spaces);
-		break;
-
-	case EXP_TYPE_FOR:
-		OS_ASSERT(list.count == 4);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin for\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin init\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end init\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin step\n"), spaces);
-		out += list[2]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end step\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[3]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-		out += StringInternal::format(allocator, OS_TEXT("%send for\n"), spaces);
-		break;
-
-	case EXP_TYPE_DO_WHILE:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin do while\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send do while\n"), spaces);
-		break;
-
-	case EXP_TYPE_WHILE_DO:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin while do\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send while do\n"), spaces);
-		break;
-
-	case EXP_TYPE_SWITCH:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin switch\n"), spaces);
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
-		out += StringInternal::format(allocator, OS_TEXT("%send switch\n"), spaces);
-		break;
-
-	case EXP_TYPE_SWITCH_CASE:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send case\n"), spaces);
-		break;
-
-	case EXP_TYPE_SWITCH_CASE_INTERVAL:
-		OS_ASSERT(list.count == 3);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[2]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
-		break;
-
-	case EXP_TYPE_SWITCH_DEFAULT:
-		OS_ASSERT(list.count == 1);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin default code\n"), spaces);
-
-		// out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
-		// out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send default code\n"), spaces);
-		break;
-
-	case EXP_TYPE_BREAK:
-	case EXP_TYPE_CONTINUE:
-		{
-			OS_ASSERT(!list.count || (list.count == 1 && list[0]->macro == EXP_TYPE_LABEL));
-			out += StringInternal::format(allocator, OS_TEXT("%s%s%s\n"), spaces, OS::Compiler::getExpName(type), list.count ? OS_TEXT(" ") + list[0]->token->str : OS_TEXT(""));
-			break;
+	case EXP_TYPE_GET_DIM:
+	case EXP_TYPE_CALL_PROPERTY:
+	case EXP_TYPE_TAIL_CALL:
+		OS_ASSERT(exp->list.count == 2);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
+		if(!writeOpcodes(exp->list)){
+			return false;
 		}
+		prog->writeOpcodeByte(Program::toOpcodeType(exp->type));
+		prog->writeOpcodeByte(exp->list[1]->ret_values); // params number
+		prog->writeOpcodeByte(exp->ret_values);
+		break;
 
-	case EXP_TYPE_IN:
-		{
-			OS_ASSERT(list.count >= 2);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin operator in\n"), spaces);
-			out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
-			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
+	case EXP_TYPE_SET_PROPERTY:
+		OS_ASSERT(exp->list.count == 3);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog->writeOpcodeByte(Program::OP_SET_PROPERTY);
+		prog->writeOpcodeByte(exp->ret_values);
+		break;
 
-			out += StringInternal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
-			for(int i = 1; i < list.count; i++)
-			{
-				OS_ASSERT(list[i]->macro == EXP_TYPE_IN_CASE || list[i]->macro == EXP_TYPE_IN_CASE_INTERVAL);
-				out += list[i]->debugPrint(compiler, depth+2);
-			}
-			out += StringInternal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
-			out += StringInternal::format(allocator, OS_TEXT("%send operator in\n"), spaces);
+	case EXP_TYPE_PARAMS:
+		if(!writeOpcodes(exp->list)){
+			return false;
 		}
 		break;
 
-	case EXP_TYPE_IN_CASE:
-		OS_ASSERT(list.count == 1);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send case\n"), spaces);
-		break;
-
-	case EXP_TYPE_IN_CASE_INTERVAL:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
-		break;
-
-		//   case EXP_TYPE_SET_LOCAL:
-		//   case EXP_TYPE_SET_OBJECT_FIELD:
-
-	case EXP_TYPE_GOTO:
-		break;
-
-	case EXP_TYPE_IF:
-		// case EXP_TYPE_IF_NOT:
-	case EXP_TYPE_POST_IF:
-		{
-			OS_ASSERT(list.count == 2 || list.count == 3);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
-			out += list[1]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end then\n"), spaces);
-
-			if(list.count == 3)
-			{
-				out += StringInternal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
-				out += list[2]->debugPrint(compiler, depth+2);
-				out += StringInternal::format(allocator, OS_TEXT("%s end else\n"), spaces);
-			}
-			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
-			break;
+	case EXP_TYPE_RETURN:
+		if(!writeOpcodes(exp->list)){
+			return false;
 		}
-
-	case EXP_TYPE_WAIT_FRAME:
-		out += StringInternal::format(allocator, OS_TEXT("%s%s\n"), spaces, OS::Compiler::getExpName(type));
+		prog->writeOpcodeByte(Program::OP_RETURN);
+		prog->writeOpcodeByte(exp->ret_values);
 		break;
 
-	case EXP_TYPE_WAIT_APP_TIME_MS:
-	case EXP_TYPE_WAIT_OBJECT:
-	case EXP_TYPE_KILL:
-	case EXP_TYPE_CLONE:
-	case EXP_TYPE_VALID:
-		OS_ASSERT(list.count == 1);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Compiler::getExpName(type));
-		break;
-	*/
-
-	case EXP_TYPE_PLUS:     // +
-	case EXP_TYPE_NEG:     // -
-	case EXP_TYPE_LOGIC_NOT:     // !
-	case EXP_TYPE_BIN_NOT: // ~
-	case EXP_TYPE_PRE_INC:     // ++
-	case EXP_TYPE_PRE_DEC:     // --
-	case EXP_TYPE_POST_INC:    // ++
-	case EXP_TYPE_POST_DEC:    // --
-		/* {
-			OS_ASSERT(list.count == 1);
-			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			out += list[0]->debugPrint(compiler, depth+1);
-			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
-			break;
-		} */
-
-	/*
-	case EXP_TYPE_QUESTION:
-		{
-			OS_ASSERT(list.count == 3);
-			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
-			out += list[1]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end then\n"), spaces);
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
-			out += list[2]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end else\n"), spaces);
-
-			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
-			break;
+	case EXP_TYPE_POP_VALUE:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(exp->list)){
+			return false;
 		}
-	*/
+		prog->writeOpcodeByte(Program::OP_POP);
+		break;
 
-	case EXP_TYPE_INDIRECT:
-	case EXP_TYPE_ASSIGN:
-	case EXP_TYPE_CONCAT: // ..
-	case EXP_TYPE_LOGIC_AND: // &&
-	case EXP_TYPE_LOGIC_OR:  // ||
-	case EXP_TYPE_LOGIC_PTR_EQ:  // ===
-	case EXP_TYPE_LOGIC_PTR_NE:  // !==
-	case EXP_TYPE_LOGIC_EQ:  // ==
-	case EXP_TYPE_LOGIC_NE:  // !=
-	case EXP_TYPE_LOGIC_GE:  // >=
-	case EXP_TYPE_LOGIC_LE:  // <=
-	case EXP_TYPE_LOGIC_GREATER: // >
-	case EXP_TYPE_LOGIC_LESS:    // <
-	case EXP_TYPE_BIN_AND: // &
-	case EXP_TYPE_BIN_OR:  // |
-	case EXP_TYPE_BIN_XOR: // ^
-		// case EXP_TYPE_BIN_NOT: // ~
-	case EXP_TYPE_BIN_AND_ASSIGN: // &=
-	case EXP_TYPE_BIN_OR_ASSIGN:  // |=
-	case EXP_TYPE_BIN_XOR_ASSIGN: // ^=
-	case EXP_TYPE_BIN_NOT_ASSIGN: // ~=
-	case EXP_TYPE_ADD: // +
-	case EXP_TYPE_SUB: // -
-	case EXP_TYPE_MUL: // *
-	case EXP_TYPE_DIV: // /
-	case EXP_TYPE_MOD: // %
-	case EXP_TYPE_MUL_SHIFT: // <<
-	case EXP_TYPE_DIV_SHIFT: // >>
-	case EXP_TYPE_POW: // **
+	case EXP_TYPE_CONCAT:
 
-	case EXP_TYPE_DOT:
-	case EXP_TYPE_CROSS:
-	case EXP_TYPE_SWAP:
-	case EXP_TYPE_AS:
-	case EXP_TYPE_IS:
-		// case EXP_TYPE_IN:
+	case EXP_TYPE_LOGIC_AND:
+	case EXP_TYPE_LOGIC_OR:
+	case EXP_TYPE_LOGIC_PTR_EQ:
+	case EXP_TYPE_LOGIC_PTR_NE:
+	case EXP_TYPE_LOGIC_EQ:
+	case EXP_TYPE_LOGIC_NE:
+	case EXP_TYPE_LOGIC_GE:
+	case EXP_TYPE_LOGIC_LE:
+	case EXP_TYPE_LOGIC_GREATER:
+	case EXP_TYPE_LOGIC_LESS:
+	case EXP_TYPE_LOGIC_NOT:
 
-	case EXP_TYPE_ADD_ASSIGN: // +=
-	case EXP_TYPE_SUB_ASSIGN: // -=
-	case EXP_TYPE_MUL_ASSIGN: // *=
-	case EXP_TYPE_DIV_ASSIGN: // /=
-	case EXP_TYPE_MOD_ASSIGN: // %=
-	case EXP_TYPE_MUL_SHIFT_ASSIGN: // <<=
-	case EXP_TYPE_DIV_SHIFT_ASSIGN: // >>=
-	case EXP_TYPE_POW_ASSIGN: // **=
-		/* {
-			OS_ASSERT(list.count == 2);
-			const OS_CHAR * exp_name = OS::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			out += list[0]->debugPrint(compiler, depth+1);
-			out += list[1]->debugPrint(compiler, depth+1);
-			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
-			break;
-		} */
+	case EXP_TYPE_BIN_AND:
+	case EXP_TYPE_BIN_OR:
+	case EXP_TYPE_BIN_XOR:
+	case EXP_TYPE_BIN_NOT:
+
+	case EXP_TYPE_ADD:
+	case EXP_TYPE_SUB:
+	case EXP_TYPE_MUL:
+	case EXP_TYPE_DIV:
+	case EXP_TYPE_MOD:
+	case EXP_TYPE_MUL_SHIFT:
+	case EXP_TYPE_DIV_SHIFT:
+	case EXP_TYPE_POW:
+		// OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog->writeOpcodeByte(Program::toOpcodeType(exp->type));
 		break;
 	}
-	return false;
+	return true;
 }
 
 // =====================================================================
@@ -3342,12 +3118,25 @@ OS::Compiler::Compiler(Tokenizer * p_tokenizer)
 
 	recent_printed_text_data = NULL;
 	recent_printed_line = 0;
+
+	prog = NULL;
+	strings_cache = NULL;
+	numbers_cache = NULL;
 }
 
 OS::Compiler::~Compiler()
 {
 	if(recent_printed_text_data){
 		recent_printed_text_data->release();
+	}
+	if(prog){
+		prog->release();
+	}
+	if(strings_cache){
+		allocator->deleteTable(strings_cache);
+	}
+	if(numbers_cache){
+		allocator->deleteTable(numbers_cache);
 	}
 }
 
@@ -3363,11 +3152,12 @@ bool OS::Compiler::compile()
 		Expression * exp = processExpressionSecondPass(scope, scope);
 
 		OS::StringInternal dump = exp->debugPrint(this, 0);
-		writeFile("debug-exp-dump.txt", dump.toChar(), dump.getDataSize());
+		writeFile("test-data/debug-exp-dump.txt", dump.toChar(), dump.getDataSize());
 
 		Program * prog = new (malloc(sizeof(Program))) Program(allocator);
 		prog->filename = tokenizer->getTextData()->filename;
-		generateOpcodes(exp, prog);
+		writeOpcodes(exp, prog);
+		prog->saveToFile("test-data/test.osb");
 		prog->release();
 		// allocator->deleteObj(prog);
 
@@ -3436,7 +3226,7 @@ bool OS::Compiler::compile()
 			dump += OS::StringInternal::format(allocator, "[%d] %s\n", error_token->line+1, error_token->text_data->lines[error_token->line].toChar());
 			dump += OS::StringInternal::format(allocator, "pos %d, token: %s\n", error_token->pos+1, error_token->str.toChar());
 		}
-		writeFile("debug-exp-dump.txt", dump.toChar(), dump.getDataSize());
+		writeFile("test-data/debug-exp-dump.txt", dump.toChar(), dump.getDataSize());
 	}
 
 	allocator->deleteObj(scope);
@@ -3485,7 +3275,7 @@ bool OS::Compiler::isError()
 	return error != ERROR_NOTHING;
 }
 
-OS::Compiler::ExpressionType OS::Compiler::tokenTypeToExp(TokenType token_type)
+OS::Compiler::ExpressionType OS::Compiler::toExpressionType(TokenType token_type)
 {
 	switch(token_type){
 	case Tokenizer::OPERATOR_INDIRECT: return EXP_TYPE_INDIRECT;
@@ -3548,7 +3338,7 @@ OS::Compiler::ExpressionType OS::Compiler::tokenTypeToExp(TokenType token_type)
 	return EXP_TYPE_UNKNOWN;
 }
 
-OS::Compiler::OpcodeLevel OS::Compiler::getOpcodeLevel(ExpressionType exp_type)
+OS::Compiler::OpcodeLevel OS::Compiler::toOpcodeLevel(ExpressionType exp_type)
 {
 	switch(exp_type){
 	// case EXP_TYPE_NOP:
@@ -4217,6 +4007,9 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 				break;
 			}
 			list.add(exp);
+			if(!recent_token){
+				break;
+			}
 		}else{
 			exp = expectSingleExpression(scope, true, true, true);
 			if(!exp){
@@ -4231,8 +4024,8 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 			case Tokenizer::END_BRACKET_BLOCK:
 			case Tokenizer::END_CODE_BLOCK:
 				break;
-
-			case Tokenizer::CODE_SEPARATOR:
+			}
+			if(recent_token->getType() == Tokenizer::CODE_SEPARATOR){
 				if(!readToken()){
 					break;
 				}
@@ -4253,6 +4046,11 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 		return scope;
 	}
 	int ret_values = list.count == 1 && list[0]->ret_values > 0 ? 1 : 0;
+	if(!ret_values){
+		for(int i = 0; i < list.count; i++){
+			list[i] = expectExpressionValues(list[i], 0);
+		}
+	}
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
@@ -4313,6 +4111,7 @@ OS::Compiler::Scope * OS::Compiler::expectCodeExpression(Scope * parent, int ret
 			if(!exp){
 				break;
 			}
+			// exp = expectExpressionValues(exp, 1);
 			list.add(exp);
 			if(!recent_token || recent_token->getType() == Tokenizer::END_CODE_BLOCK){
 				break;
@@ -4335,6 +4134,9 @@ OS::Compiler::Scope * OS::Compiler::expectCodeExpression(Scope * parent, int ret
 	
 	if(list.count == 0){
 		return scope;
+	}
+	for(int i = 0; i < list.count-1; i++){
+		list[i] = expectExpressionValues(list[i], 0);
 	}
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
@@ -4473,7 +4275,7 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 				return isError() ? lib.error() : lib.error(ERROR_EXPECT_EXPRESSION, name_token);
 			}
 			exp = expectExpressionValues(exp, 1);
-			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_AUTO, name_token, exp);
+			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX, name_token, exp);
 			// exp->active_locals = scope->function->num_locals;
 		}
 		OS_ASSERT(exp);
@@ -4663,7 +4465,7 @@ OS::Compiler::Scope * OS::Compiler::expectFunctionExpression(Scope * parent)
 		return NULL;
 	}
 	
-	return expectCodeExpression(scope, -1);
+	return expectCodeExpression(scope, 0);
 }
 
 OS::Compiler::Expression * OS::Compiler::expectVarExpression(Scope * scope)
@@ -4770,9 +4572,10 @@ OS::Compiler::Expression * OS::Compiler::expectReturnExpression(Scope * scope)
 		ret_exp->list.add(exp);
 		ret_exp->ret_values++;
 		if(!recent_token){
-			setError(ERROR_SYNTAX, recent_token);
-			allocator->deleteObj(ret_exp);
-			return NULL;
+			// setError(ERROR_SYNTAX, recent_token);
+			// allocator->deleteObj(ret_exp);
+			// return NULL;
+			return ret_exp;
 		}
 		switch(recent_token->getType()){
 		/*
@@ -5169,13 +4972,13 @@ OS::Compiler::Expression * OS::Compiler::finishBinaryOperator(Scope * scope, Opc
 	}
 	// exp2 = expectExpressionValues(exp2, 1);
 	if(!recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR)){
-		// return new (malloc(sizeof(Expression))) Expression(tokenTypeToExp(binary_operator->getType()), binary_operator, exp, exp2);
-		return newBinaryExpression(scope, tokenTypeToExp(binary_operator->getType()), binary_operator, exp, exp2);
+		// return new (malloc(sizeof(Expression))) Expression(toExpressionType(binary_operator->getType()), binary_operator, exp, exp2);
+		return newBinaryExpression(scope, toExpressionType(binary_operator->getType()), binary_operator, exp, exp2);
 	}
-	ExpressionType left_exp_type = tokenTypeToExp(binary_operator->getType());
-	ExpressionType right_exp_type = tokenTypeToExp(recent_token->getType());
-	OpcodeLevel left_level = getOpcodeLevel(left_exp_type);
-	OpcodeLevel right_level = getOpcodeLevel(right_exp_type);
+	ExpressionType left_exp_type = toExpressionType(binary_operator->getType());
+	ExpressionType right_exp_type = toExpressionType(recent_token->getType());
+	OpcodeLevel left_level = toOpcodeLevel(left_exp_type);
+	OpcodeLevel right_level = toOpcodeLevel(right_exp_type);
 	if(left_level == right_level){
 		// exp = new (malloc(sizeof(Expression))) Expression(left_exp_type, binary_operator, exp, exp2);
 		exp = newBinaryExpression(scope, left_exp_type, binary_operator, exp, exp2);
@@ -5934,10 +5737,44 @@ const OS_CHAR * OS::Compiler::getExpName(ExpressionType type)
 OS::Program::Program(OS * allocator): filename(allocator)
 {
 	this->allocator = allocator;
+	ref_count = 1;
 }
 
 OS::Program::~Program()
 {
+	OS_ASSERT(ref_count == 0);
+}
+
+bool OS::Program::saveToFile(const char * filename)
+{
+	FILE * f = fopen(filename, "w");
+	if(!f){
+		return false;
+	}
+	StringInternal header(allocator, OS_TEXT("OS.BIN\n"));
+	fwrite(header.toChar(), header.getDataSize(), 1, f);
+	
+	int i, save_opcode_size = opcodes.count;
+	
+	writeOpcodeUShort(numbers.count);
+	for(i = 0; i < numbers.count; i++){
+		writeOpcodeFloat(numbers[i]);	
+	}
+	writeOpcodeUShort(strings.count);
+	for(i = 0; i < strings.count; i++){
+		const StringInternal& str = strings[i];
+		int len = str.getDataSize();
+		writeOpcodeUShort(len);
+		for(int j = 0; j < len; j++){
+			writeOpcodeByte(str.toChar()[j]);
+		}
+	}
+
+	fwrite(opcodes.buf, opcodes.count, 1, f);
+	opcodes.count = save_opcode_size;
+	
+	fclose(f);
+	return true;
 }
 
 OS::Program * OS::Program::retain()
@@ -5956,17 +5793,140 @@ void OS::Program::release()
 	}
 }
 
-void OS::Program::writeCodeByte(int value)
+OS::Program::OpcodeType OS::Program::toOpcodeType(Compiler::ExpressionType exp_type)
+{
+	switch(exp_type){
+	case Compiler::EXP_TYPE_CALL: return OP_CALL;
+	case Compiler::EXP_TYPE_GET_DIM: return OP_GET_DIM;
+	case Compiler::EXP_TYPE_CALL_PROPERTY: return OP_CALL_PROPERTY;
+	case Compiler::EXP_TYPE_TAIL_CALL: return OP_TAIL_CALL;
+
+	case Compiler::EXP_TYPE_CONCAT: return OP_CONCAT;
+
+	case Compiler::EXP_TYPE_LOGIC_AND: return OP_LOGIC_AND;
+	case Compiler::EXP_TYPE_LOGIC_OR: return OP_LOGIC_OR;
+	case Compiler::EXP_TYPE_LOGIC_PTR_EQ: return OP_LOGIC_PTR_EQ;
+	case Compiler::EXP_TYPE_LOGIC_PTR_NE: return OP_LOGIC_PTR_NE;
+	case Compiler::EXP_TYPE_LOGIC_EQ: return OP_LOGIC_EQ;
+	case Compiler::EXP_TYPE_LOGIC_NE: return OP_LOGIC_NE;
+	case Compiler::EXP_TYPE_LOGIC_GE: return OP_LOGIC_GE;
+	case Compiler::EXP_TYPE_LOGIC_LE: return OP_LOGIC_LE;
+	case Compiler::EXP_TYPE_LOGIC_GREATER: return OP_LOGIC_GREATER;
+	case Compiler::EXP_TYPE_LOGIC_LESS: return OP_LOGIC_LESS;
+	case Compiler::EXP_TYPE_LOGIC_NOT: return OP_LOGIC_NOT;
+
+	case Compiler::EXP_TYPE_BIN_AND: return OP_BIN_AND;
+	case Compiler::EXP_TYPE_BIN_OR: return OP_BIN_OR;
+	case Compiler::EXP_TYPE_BIN_XOR: return OP_BIN_XOR;
+	case Compiler::EXP_TYPE_BIN_NOT: return OP_BIN_NOT;
+
+	case Compiler::EXP_TYPE_ADD: return OP_ADD;
+	case Compiler::EXP_TYPE_SUB: return OP_SUB;
+	case Compiler::EXP_TYPE_MUL: return OP_MUL;
+	case Compiler::EXP_TYPE_DIV: return OP_DIV;
+	case Compiler::EXP_TYPE_MOD: return OP_MOD;
+	case Compiler::EXP_TYPE_MUL_SHIFT: return OP_MUL_SHIFT;
+	case Compiler::EXP_TYPE_DIV_SHIFT: return OP_DIV_SHIFT;
+	case Compiler::EXP_TYPE_POW: return OP_POW;
+
+	/*
+	case Compiler::EXP_TYPE_DOT: return OP_CONCAT;
+	case Compiler::EXP_TYPE_CROSS: return OP_CONCAT;
+	case Compiler::EXP_TYPE_SWAP: return OP_CONCAT;
+	case Compiler::EXP_TYPE_IS: return OP_CONCAT;
+	case Compiler::EXP_TYPE_AS: return OP_CONCAT;
+	case Compiler::EXP_TYPE_IN: return OP_CONCAT;
+	*/
+	}
+	OS_ASSERT(false);
+	return OP_UNKNOWN;
+}
+
+void OS::Program::writeOpcodeByte(int value)
 {
 	OS_ASSERT(value >= 0 && value <= 0xff);
 	allocator->vectorAddItem(opcodes, (OS_BYTE)value);
 }
 
-void OS::Program::writeCodeUShort(int value)
+void OS::Program::writeOpcodeByteAtPos(int value, int pos)
+{
+	OS_ASSERT(value >= 0 && value <= 0xff);
+	OS_ASSERT(pos >= 0 && pos < opcodes.count-1);
+	opcodes[pos] = (OS_BYTE)value;
+}
+
+void OS::Program::writeOpcodeUShort(int value)
 {
 	OS_ASSERT(value >= 0 && value <= 0xffff);
 	allocator->vectorAddItem(opcodes, (OS_BYTE)value);
 	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> 8));
+}
+
+void OS::Program::writeOpcodeUShortAtPos(int value, int pos)
+{
+	OS_ASSERT(value >= 0 && value <= 0xffff);
+	OS_ASSERT(pos >= 0 && pos < opcodes.count-2);
+	opcodes[pos] = (OS_BYTE)value;
+	opcodes[pos+1] = (OS_BYTE)(value >> 8);
+}
+
+void OS::Program::writeOpcodeUInt32(int value)
+{
+	OS_ASSERT(value >= 0 && value <= 0x7fffffff);
+	allocator->vectorAddItem(opcodes, (OS_BYTE)value);
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> 8));
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> 16));
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> 24));
+}
+
+void OS::Program::writeOpcodeUInt32AtPos(int value, int pos)
+{
+	OS_ASSERT(value >= 0 && value <= 0x7fffffff);
+	OS_ASSERT(pos >= 0 && pos < opcodes.count-4);
+	opcodes[pos+0] = (OS_BYTE)value;
+	opcodes[pos+1] = (OS_BYTE)(value >> 8);
+	opcodes[pos+2] = (OS_BYTE)(value >> 16);
+	opcodes[pos+3] = (OS_BYTE)(value >> 24);
+}
+
+void OS::Program::writeOpcodeInt64(OS_INT value)
+{
+	allocator->vectorAddItem(opcodes, (OS_BYTE)value);
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*1)));
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*2)));
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*3)));
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*4)));
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*5)));
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*6)));
+	allocator->vectorAddItem(opcodes, (OS_BYTE)(value >> (8*7)));
+}
+
+void OS::Program::writeOpcodeInt64AtPos(OS_INT value, int pos)
+{
+	OS_ASSERT(pos >= 0 && pos < opcodes.count-16);
+	opcodes[pos+0] = (OS_BYTE)value;
+	opcodes[pos+1] = (OS_BYTE)(value >> (8*1));
+	opcodes[pos+2] = (OS_BYTE)(value >> (8*2));
+	opcodes[pos+3] = (OS_BYTE)(value >> (8*3));
+	opcodes[pos+4] = (OS_BYTE)(value >> (8*4));
+	opcodes[pos+5] = (OS_BYTE)(value >> (8*5));
+	opcodes[pos+6] = (OS_BYTE)(value >> (8*6));
+	opcodes[pos+7] = (OS_BYTE)(value >> (8*7));
+}
+
+void OS::Program::writeOpcodeFloat(OS_FLOAT value)
+{
+	for(int i = 0; i < sizeof(value); i++){
+		allocator->vectorAddItem(opcodes, ((OS_BYTE*)&value)[i]);
+	}
+}
+
+void OS::Program::writeOpcodeFloatAtPos(OS_FLOAT value, int pos)
+{
+	OS_ASSERT(pos >= 0 && pos < opcodes.count-sizeof(value));
+	for(int i = 0; i < sizeof(value); i++){
+		opcodes[pos+i] = ((OS_BYTE*)&value)[i];
+	}
 }
 
 // =====================================================================

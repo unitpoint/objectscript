@@ -783,9 +783,10 @@ namespace ObjectScript
 		class Program;
 		class Compiler
 		{
-		protected:
+		public:
 
-			enum ExpressionType {
+			enum ExpressionType
+			{
 				EXP_TYPE_UNKNOWN,
 				EXP_TYPE_NOP,
 				EXP_TYPE_NEW_LOCAL_VAR,
@@ -806,7 +807,7 @@ namespace ObjectScript
 				EXP_TYPE_OBJECT_SET_BY_NAME,
 				EXP_TYPE_OBJECT_SET_BY_INDEX,
 				EXP_TYPE_OBJECT_SET_BY_EXP,
-				EXP_TYPE_OBJECT_SET_BY_AUTO,
+				EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX,
 
 				EXP_TYPE_GET_LOCAL_VAR,
 				EXP_TYPE_SET_LOCAL_VAR,
@@ -913,6 +914,8 @@ namespace ObjectScript
 
 				EXP_TYPE_IN,  // in
 			};
+
+		protected:
 
 			struct Expression;
 			struct ExpressionList: public Vector<Expression*>
@@ -1080,8 +1083,8 @@ namespace ObjectScript
 
 			void deleteNops(ExpressionList& list);
 
-			ExpressionType tokenTypeToExp(TokenType);
-			OpcodeLevel getOpcodeLevel(ExpressionType exp_type);
+			ExpressionType toExpressionType(TokenType);
+			OpcodeLevel toOpcodeLevel(ExpressionType exp_type);
 
 			TokenData * readToken();
 			TokenData * expectToken(TokenType);
@@ -1114,11 +1117,12 @@ namespace ObjectScript
 			StringInternal debugPrintSourceLine(TokenData*);
 			static const OS_CHAR * getExpName(ExpressionType);
 
-			int getCachedStringIndex(const StringInternal& str);
-			int getCachedNumberIndex(OS_FLOAT);
+			int cacheString(const StringInternal& str);
+			int cacheNumber(OS_FLOAT);
 
-			bool generateOpcodes(Expression*, Program*);
-			bool generateOpcodes(Expression*);
+			bool writeOpcodes(Expression*, Program*);
+			bool writeOpcodes(Expression*);
+			bool writeOpcodes(ExpressionList&);
 
 		public:
 
@@ -1138,26 +1142,66 @@ namespace ObjectScript
 
 		public:
 
-			enum {
+			enum OpcodeType
+			{
 				OP_UNKNOWN,
 				OP_PUSH_NUMBER,
 				OP_PUSH_STRING,
 				OP_PUSH_NULL,
 				OP_PUSH_TRUE,
 				OP_PUSH_FALSE,
-				OP_PUSH_VAR_BY_NAME,
 
-				OP_FUNCTION,
-				// OP_PUSH_VAR, // allow name & dim
-				// OP_PUSH_VAR_BY_NAME,
-				// OP_PUSH_VAR_BY_NAME_DIM,
-				OP_INDIRECT_BY_NAME,
-				OP_INDIRECT_BY_NAME_DIM,
-				OP_SET_VAR_BY_NAME,
-				OP_SET_VAR_BY_NAME_DIM,
-				OP_ADD,
-				OP_SUB,
-				OP_JUMP,
+				OP_PUSH_FUNCTION,
+				
+				OP_PUSH_NEW_OBJECT,
+				OP_OBJECT_SET_BY_AUTO_INDEX,
+				OP_OBJECT_SET_BY_EXP,
+				OP_OBJECT_SET_BY_INDEX,
+				OP_OBJECT_SET_BY_NAME,
+
+				OP_PUSH_AUTO_VAR,
+				OP_SET_AUTO_VAR,
+				
+				OP_PUSH_LOCAL_VAR,
+				OP_SET_LOCAL_VAR,
+
+				OP_CALL,
+				OP_GET_DIM,
+				OP_CALL_PROPERTY,
+				OP_TAIL_CALL,
+
+				OP_SET_PROPERTY,
+
+				OP_RETURN,
+				OP_POP,
+
+				OP_CONCAT, // ..
+
+				OP_LOGIC_AND,
+				OP_LOGIC_OR,
+				OP_LOGIC_PTR_EQ,
+				OP_LOGIC_PTR_NE,
+				OP_LOGIC_EQ,
+				OP_LOGIC_NE,
+				OP_LOGIC_GE,
+				OP_LOGIC_LE,
+				OP_LOGIC_GREATER,
+				OP_LOGIC_LESS,
+				OP_LOGIC_NOT,
+
+				OP_BIN_AND,
+				OP_BIN_OR,
+				OP_BIN_XOR,
+				OP_BIN_NOT,
+
+				OP_ADD, // +
+				OP_SUB, // -
+				OP_MUL, // *
+				OP_DIV, // /
+				OP_MOD, // %
+				OP_MUL_SHIFT, // <<
+				OP_DIV_SHIFT, // >>
+				OP_POW, // **
 			};
 
 			struct Opcode
@@ -1176,9 +1220,24 @@ namespace ObjectScript
 			Program * retain();
 			void release();
 
-			void writeCodeByte(int);
-			void writeCodeUShort(int);
-			// void writeCodeFloat(OS_FLOAT);
+			static OpcodeType toOpcodeType(Compiler::ExpressionType);
+
+			void writeOpcodeByte(int);
+			void writeOpcodeByteAtPos(int value, int pos);
+			
+			void writeOpcodeUShort(int);
+			void writeOpcodeUShortAtPos(int value, int pos);
+
+			void writeOpcodeUInt32(int);
+			void writeOpcodeUInt32AtPos(int value, int pos);
+
+			void writeOpcodeInt64(OS_INT);
+			void writeOpcodeInt64AtPos(OS_INT value, int pos);
+
+			void writeOpcodeFloat(OS_FLOAT);
+			void writeOpcodeFloatAtPos(OS_FLOAT value, int pos);
+
+			bool saveToFile(const char * filename);
 		};
 
 		struct Values
