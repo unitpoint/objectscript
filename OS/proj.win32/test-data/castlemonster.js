@@ -14,16 +14,17 @@
 	$.jCryption = function(el, options) {
 		var base = this;
 
-		base.$el = $(el);
-		base.el = el;
+		// base.$el = $(el);
+		// base.el = el;
 
-		base.$el.data("jCryption", base);
+		base.$el.data("jCryption", base) * 4.5;
 		base.init = function() {
 
 			base.options = $.extend({},$.jCryption.defaultOptions, options);
 
+			var a = 4.6;
 			$encryptedElement = $("<input />",{
-				type:'hidden',
+				type:'hidden' .. a,
 				name:base.options.postVariable
 			});
 

@@ -2178,6 +2178,7 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 			if(i > 0){
 				out += OS_TEXT("\n");
 			}
+			// OS_ASSERT(i+1 == list.count ? list[i]->ret_values == ret_values : list[i]->ret_values == 0);
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
 		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, type_name, ret_values);
@@ -2196,7 +2197,7 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 			case Tokenizer::NAME: type_name = OS_TEXT("string "); break;
 			default: type_name = OS_TEXT("???"); break;
 			}
-			out += StringInternal::format(allocator, OS_TEXT("%sconst %s%s\n"), spaces, type_name, token->str.toChar());
+			out += StringInternal::format(allocator, OS_TEXT("%spush const %s%s\n"), spaces, type_name, token->str.toChar());
 		}
 		break;
 
@@ -2331,7 +2332,7 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 				}
 				out += list[i]->debugPrint(compiler, depth+1);
 			}
-			out += StringInternal::format(allocator, OS_TEXT("%send return values %d\n"), spaces, list.count);
+			out += StringInternal::format(allocator, OS_TEXT("%send return values %d\n"), spaces, ret_values);
 		}else{
 			out += OS_TEXT("return\n");
 		}
@@ -3737,25 +3738,49 @@ OS::Compiler::Expression * OS::Compiler::expectExpressionValues(Expression * exp
 	case EXP_TYPE_GET_PROPERTY_DIM:
 	case EXP_TYPE_INDIRECT:
 	case EXP_TYPE_GET_AUTO_VAR_DIM:
-	// case EXP_TYPE_RETURN:
+	case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
 		exp->ret_values = ret_values;
 		return exp;
 
 	case EXP_TYPE_CODE_LIST:
 		if(exp->list.count > 0){
-			switch(exp->list[exp->list.count-1]->type){
+			Expression * last_exp = exp->list[exp->list.count-1];
+			switch(last_exp->type){
+			case EXP_TYPE_CALL:
+			case EXP_TYPE_CALL_DIM:
+			case EXP_TYPE_GET_DIM:
+			case EXP_TYPE_CALL_PROPERTY:
+			case EXP_TYPE_GET_PROPERTY:
+			case EXP_TYPE_GET_PROPERTY_DIM:
+			case EXP_TYPE_INDIRECT:
+			case EXP_TYPE_GET_AUTO_VAR_DIM:
+			case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
+				last_exp->ret_values = ret_values;
+				exp->ret_values = ret_values;
+				return exp;
+
 			case EXP_TYPE_RETURN:
-			case EXP_TYPE_TAIL_CALL:
+				last_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CODE_LIST, last_exp->token, last_exp);
+				exp->list[exp->list.count-1] = last_exp;
+				last_exp->ret_values = ret_values;
 				exp->ret_values = ret_values;
 				return exp;
 			}
 		}
 		break;
 
+	case EXP_TYPE_RETURN:
+		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CODE_LIST, exp->token, exp);
+		exp->ret_values = ret_values;		
+		return exp;
+
 	case EXP_TYPE_PARAMS:
 		if(exp->ret_values > ret_values){
 			for(int i = exp->list.count-1; exp->ret_values > ret_values && i >= 0; i--){
 				Expression * param_exp = exp->list[i];
+				OS_ASSERT(param_exp->type != EXP_TYPE_PARAMS);
+				OS_ASSERT(param_exp->type != EXP_TYPE_RETURN);
+				OS_ASSERT(param_exp->type != EXP_TYPE_CODE_LIST);
 				if(param_exp->isConstValue()){
 					exp->list.removeIndex(i);
 					exp->ret_values--;
@@ -3856,13 +3881,19 @@ OS::Compiler::Expression * OS::Compiler::newExpressionFromList(ExpressionList& l
 		if(!list.count){
 			return new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NOP, recent_token);
 		} */
+		int i;
+		for(i = 0; i < list.count-1; i++){
+			OS_ASSERT(list[i]->type != EXP_TYPE_CODE_LIST);
+			list[i] = expectExpressionValues(list[i], 0);
+		}
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CODE_LIST, list[0]->token);
 		exp->list.swap(list);
 		// exp->ret_values = 0;
 		// exp->active_locals = list[list.count-1]->active_locals;
-		for(int i = 0; i < exp->list.count; i++){
+		/* for(i = 0; i < exp->list.count; i++){
 			exp->ret_values += exp->list[i]->ret_values;
-		}
+		} */
+		exp->ret_values = exp->list[exp->list.count-1]->ret_values;
 	}
 	return expectExpressionValues(exp, ret_values);
 }
@@ -3917,13 +3948,13 @@ OS::Compiler::Expression * OS::Compiler::processExpressionSecondPass(Scope * sco
 
 	case EXP_TYPE_RETURN:
 		if(exp->list.count == 1){
-			Expression * exp2 = exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
-			switch(exp2->type){
+			Expression * sub_exp = exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
+			switch(sub_exp->type){
 			case EXP_TYPE_CALL:
-				exp2->type = EXP_TYPE_TAIL_CALL;
+				sub_exp->type = EXP_TYPE_TAIL_CALL;
 				allocator->vectorClear(exp->list);
 				allocator->deleteObj(exp);
-				return exp2;
+				return sub_exp;
 			}
 			return exp;
 		}
@@ -3942,6 +3973,7 @@ OS::Compiler::Expression * OS::Compiler::processExpressionSecondPass(Scope * sco
 				right_exp->ret_values += left_exp->list[1]->ret_values;
 				left_exp->list[1] = right_exp;
 				left_exp->type = EXP_TYPE_CALL_PROPERTY;
+				left_exp->ret_values = exp->ret_values;
 				allocator->vectorClear(exp->list);
 				allocator->deleteObj(exp);
 				return left_exp;
@@ -4099,11 +4131,11 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 		return scope;
 	}
 	int ret_values = list.count == 1 && list[0]->ret_values > 0 ? 1 : 0;
-	if(!ret_values){
+	/* if(!ret_values){
 		for(int i = 0; i < list.count; i++){
 			list[i] = expectExpressionValues(list[i], 0);
 		}
-	}
+	} */
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
@@ -4188,9 +4220,9 @@ OS::Compiler::Scope * OS::Compiler::expectCodeExpression(Scope * parent, int ret
 	if(list.count == 0){
 		return scope;
 	}
-	for(int i = 0; i < list.count-1; i++){
+	/* for(int i = 0; i < list.count-1; i++){
 		list[i] = expectExpressionValues(list[i], 0);
-	}
+	} */
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
@@ -5816,7 +5848,7 @@ bool OS::Program::saveToFile(const char * filename)
 	writeOpcodeUShort(strings.count);
 	for(i = 0; i < strings.count; i++){
 		const StringInternal& str = strings[i];
-		int len = str.getDataSize();
+		int len = str.getDataSize(); // +sizeof(OS_CHAR); // + termination char
 		writeOpcodeUShort(len);
 		allocator->vectorReserveCapacity(opcodes, opcodes.count + len);
 		OS_MEMCPY(opcodes.buf+opcodes.count, str.toChar(), len);
@@ -6544,6 +6576,8 @@ OS::StringInternal OS::Compiler::Expression::toString()
 		return token->str;
 
 	case EXP_TYPE_CONST_NUMBER:
+		// OS_ASSERT(token->str.toFloat() == token->getFloat());
+		// return token->str;
 		return StringInternal(getAllocator(), token->getFloat());
 
 	case EXP_TYPE_CONST_TRUE:
