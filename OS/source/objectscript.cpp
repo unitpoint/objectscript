@@ -4369,7 +4369,8 @@ OS::Compiler::Expression * OS::Compiler::expectObjectExpression(Scope * scope)
 			readToken();
 			return lib.obj_exp;
 		}
-		if(!recent_token || recent_token->getType() != Tokenizer::PARAM_SEPARATOR){
+		if(!recent_token || (recent_token->getType() != Tokenizer::PARAM_SEPARATOR
+				&& recent_token->getType() != Tokenizer::CODE_SEPARATOR)){
 			return lib.error(Tokenizer::PARAM_SEPARATOR, recent_token);
 		}
 		readToken();
@@ -4403,7 +4404,8 @@ OS::Compiler::Expression * OS::Compiler::expectArrayExpression(Scope * scope)
 			readToken();
 			return params;
 		}
-		if(!recent_token || recent_token->getType() != Tokenizer::PARAM_SEPARATOR){
+		if(!recent_token || (recent_token->getType() != Tokenizer::PARAM_SEPARATOR
+				&& recent_token->getType() != Tokenizer::CODE_SEPARATOR)){
 			setError(Tokenizer::PARAM_SEPARATOR, recent_token);
 			allocator->deleteObj(params);
 			return NULL;
