@@ -6,21 +6,13 @@ using namespace ObjectScript;
 // =====================================================================
 // =====================================================================
 
-int __snprintf__(char * buf, size_t num, const char * format, ...)
+static int __snprintf__(char * buf, size_t num, const char * format, ...)
 {
 	va_list va;
 	va_start(va, format);
 	int ret = OS_VSNPRINTF(buf, num, format, va);
 	va_end(va);
 	return ret;
-}
-
-void writeFile(const char * filename, const void * data, int size)
-{
-	FILE * f = fopen(filename, "wb");
-	OS_ASSERT(f);
-	fwrite(data, size, 1, f);
-	fclose(f);
 }
 
 static inline void parseSpaces(const OS_CHAR *& str)
@@ -3454,7 +3446,7 @@ bool OS::Compiler::compile()
 			dump += OS::StringInternal::format(allocator, "[%d] %s\n", error_token->line+1, error_token->text_data->lines[error_token->line].toChar());
 			dump += OS::StringInternal::format(allocator, "pos %d, token: %s\n", error_token->pos+1, error_token->str.toChar());
 		}
-		writeFile("test-data/debug-exp-dump.txt", dump.toChar(), dump.getDataSize());
+		FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 	}
 	return false;
 }
