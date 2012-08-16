@@ -37,8 +37,8 @@
 #define OS_INT32 __int32
 #define OS_INT64 __int64
 #define OS_BYTE unsigned char
-#define OS_USHORT unsigned short
-#define OS_SHORT short
+#define OS_U16 unsigned short
+#define OS_INT16 short
 
 #define OS_TEXT(s) s
 
@@ -142,6 +142,16 @@ namespace ObjectScript
 				}
 				return false;
 			}
+
+			int indexOf(const T& val) const
+			{
+				for(int i = 0; i < count; i++){
+					if(buf[i] == val){
+						return i;
+					}
+				}
+				return -1;
+			}
 		};
 
 	public:
@@ -174,6 +184,153 @@ namespace ObjectScript
 
 			static int cmp(const void * buf1, int len1, const void * buf2, int len2);
 			static int cmp(const void * buf1, int len1, const void * buf2, int len2, int maxLen);
+		};
+
+		class StreamWriter
+		{
+		public:
+
+			OS * allocator;
+
+			StreamWriter(OS*);
+			virtual ~StreamWriter();
+
+			virtual int getPos() const = 0;
+
+			virtual void writeBytes(const void*, int len) = 0;
+			virtual void writeBytesAtPos(const void*, int len, int pos) = 0;
+
+			virtual void writeByte(int);
+			virtual void writeByteAtPos(int value, int pos);
+			
+			virtual void writeU16(int);
+			virtual void writeU16AtPos(int value, int pos);
+
+			virtual void writeInt16(int);
+			virtual void writeInt16AtPos(int value, int pos);
+
+			virtual void writeInt32(int);
+			virtual void writeInt32AtPos(int value, int pos);
+
+			virtual void writeInt64(OS_INT64);
+			virtual void writeInt64AtPos(OS_INT64 value, int pos);
+
+			virtual void writeFloat(OS_FLOAT);
+			virtual void writeFloatAtPos(OS_FLOAT value, int pos);
+		};
+
+		class MemStreamWriter: public StreamWriter
+		{
+		public:
+
+			Vector<OS_BYTE> buffer;
+
+			MemStreamWriter(OS*);
+			~MemStreamWriter();
+
+			int getPos() const;
+
+			void writeBytes(const void*, int len);
+			void writeBytesAtPos(const void*, int len, int pos);
+
+			void writeByte(int);
+			void writeByteAtPos(int value, int pos);
+		};
+
+		class FileStreamWriter: public StreamWriter
+		{
+		public:
+			
+			FILE * f;
+
+			FileStreamWriter(OS*, const char * filename);
+			FileStreamWriter(OS*, FILE * f);
+			~FileStreamWriter();
+
+			int getPos() const;
+
+			void writeBytes(const void*, int len);
+			void writeBytesAtPos(const void*, int len, int pos);
+		};
+
+		class StreamReader
+		{
+		public:
+
+			OS * allocator; // if NULL then buffer will not be freed
+
+			StreamReader(OS*);
+			virtual ~StreamReader();
+
+			virtual int getPos() const = 0;
+
+			virtual void skipBytes(int len) = 0;
+			virtual bool checkBytes(void*, int len) = 0;
+
+			virtual void * readBytes(void*, int len) = 0;
+			virtual void * readBytesAtPos(void*, int len, int pos) = 0;
+
+			virtual OS_BYTE readByte();
+			virtual OS_BYTE readByteAtPos(int pos);
+			
+			virtual OS_U16 readU16();
+			virtual OS_U16 readU16AtPos(int pos);
+
+			virtual OS_INT16 readInt16();
+			virtual OS_INT16 readInt16AtPos(int pos);
+
+			virtual OS_INT32 readInt32();
+			virtual OS_INT32 readInt32AtPos(int pos);
+
+			virtual OS_INT64 readInt64();
+			virtual OS_INT64 readInt64AtPos(int pos);
+
+			virtual OS_FLOAT readFloat();
+			virtual OS_FLOAT readFloatAtPos(int pos);
+		};
+
+		class MemStreamReader: public StreamReader
+		{
+		public:
+			
+			OS_BYTE * buffer;
+			int size;
+			int pos;
+
+			// if allocator is NULL then buffer will not be freed
+			MemStreamReader(OS*, int buf_size);
+			MemStreamReader(OS*, OS_BYTE * buf, int buf_size);
+			~MemStreamReader();
+
+			int getPos() const;
+
+			void skipBytes(int len);
+			bool checkBytes(void*, int len);
+
+			void * readBytes(void*, int len);
+			void * readBytesAtPos(void*, int len, int pos);
+
+			OS_BYTE readByte();
+			OS_BYTE readByteAtPos(int pos);
+		};
+
+		class FileStreamReader: public StreamReader
+		{
+		public:
+			
+			FILE * f;
+
+			FileStreamReader(OS*, const char * filename);
+			FileStreamReader(OS*, FILE * f);
+			~FileStreamReader();
+
+			int getPos() const;
+
+			void skipBytes(int len);
+			bool checkBytes(void*, int len);
+
+			void * readBytes(void*, int len);
+			void * readBytesAtPos(void*, int len, int pos);
 		};
 
 	protected:
@@ -635,43 +792,14 @@ namespace ObjectScript
 		typedef Tokenizer::TokenData TokenData;
 		typedef Tokenizer::TextData TextData;
 
-		struct Value;
-		struct FunctionDecl
-		{
-			struct LocalVarDecl;
-			/*
-			struct LocalVarDecl
-			{
-				StringInternal name;
-				int start;
-				int end;
-
-				LocalVarDecl();
-				~LocalVarDecl();
-			};
-			*/
-
-			Value * env; // retained
-
-			FunctionDecl * parent; // retained
-			int parent_opcode_num;
-
-			int num_params;
-
-			LocalVarDecl * local_decls;
-			int num_locals;
-
-			OS_BYTE * opcodes;
-			int num_opcodes;
-
-			int ref_count;
-
-			FunctionDecl();
-			~FunctionDecl();
-		};
-
+		// struct Value;
 		struct VariableIndex
 		{
+			struct NoFixStringIndex
+			{
+				NoFixStringIndex(){}
+			};
+
 			StringInternal string_index;
 			OS_INT int_index;
 			int hash_value;
@@ -680,10 +808,12 @@ namespace ObjectScript
 
 			VariableIndex(const VariableIndex& index);
 			VariableIndex(const StringInternal& index);
+			VariableIndex(const StringInternal& index, const NoFixStringIndex&);
 			VariableIndex(StringData * index);
+			VariableIndex(StringData * index, const NoFixStringIndex&);
 			VariableIndex(OS*, const OS_CHAR * index);
-			VariableIndex(OS*, OS_INT index);
-			VariableIndex(OS*, int index);
+			VariableIndex(OS*, OS_INT32 index);
+			VariableIndex(OS*, OS_INT64 index);
 			VariableIndex(OS*, OS_FLOAT index, int precision = OS_DEF_PRECISION);
 			~VariableIndex();
 
@@ -695,9 +825,12 @@ namespace ObjectScript
 			StringInternal toString() const;
 
 			bool checkIntIndex() const;
-			void fixName();
+			void fixStringIndex();
 		};
 
+		// struct FunctionData;
+		// class Program;
+		class ProgramFunctionDecl;
 		struct Value
 		{
 			struct Variable: public VariableIndex
@@ -752,7 +885,7 @@ namespace ObjectScript
 			union {
 				// bool boolean;
 				OS_FLOAT number;
-				StringData * string_data;
+				StringData * string_data; // retained
 				Table * table;
 				Array * arr;
 
@@ -761,10 +894,10 @@ namespace ObjectScript
 					OS_UserDataDtor dtor;
 				} userdata;
 
+				// FunctionData * func;
 				struct {
-					// Value * parent_func; // retained
-					// Value * env;
-					FunctionDecl * func_decl;
+					ProgramFunctionDecl * decl; // retained
+					Value * parent_func;
 				} func;
 
 				struct {
@@ -794,8 +927,6 @@ namespace ObjectScript
 		};
 
 		class Program;
-		class MemStreamWriter;
-
 		class Compiler
 		{
 		public:
@@ -1025,10 +1156,14 @@ namespace ObjectScript
 				};
 
 				// used by function scope
+				int func_index;
 				Vector<LocalVar> locals;
 				Vector<LocalVarCompiled> locals_compiled;
 				int num_params;
 				int num_locals;
+				int opcodes_pos;
+				int opcodes_size;
+				int max_up_count;
 				
 				bool parser_started;
 
@@ -1092,7 +1227,9 @@ namespace ObjectScript
 			Value::Table * prog_strings_table;
 			Vector<OS_FLOAT> prog_numbers;
 			Vector<StringInternal> prog_strings;
-			MemStreamWriter * opcodes;
+			Vector<Scope*> prog_functions;
+			MemStreamWriter * prog_opcodes;
+			int prog_max_up_count;
 
 			bool isError();
 			void resetError();
@@ -1155,6 +1292,7 @@ namespace ObjectScript
 
 			bool writeOpcodes(Expression*);
 			bool writeOpcodes(ExpressionList&);
+			bool saveToStream(StreamWriter&);
 
 		public:
 
@@ -1164,68 +1302,60 @@ namespace ObjectScript
 			bool compile(); // push compiled text as function
 		};
 
-		class MemStreamWriter
+		/*
+		struct FunctionData
 		{
-		public:
+			struct LocalVar
+			{
+				StringInternal name;
+				int start_code_pos;
+				int end_code_pos;
+				// Value * value;
 
-			OS * allocator;
-			Vector<OS_BYTE> buffer;
+				LocalVar(OS * allocator);
+				~LocalVar();
+			};
 
-			MemStreamWriter(OS*);
-			~MemStreamWriter();
+			Program * prog; // retained
+			// LocalVar * locals;
+			int num_locals;
+			int num_params;
+			int opcodes_pos;
+			int opcodes_size;
 
-			void writeBytes(const void*, int len);
-			void writeBytesAtPos(const void*, int len, int pos);
+			Value ** up_funcs; // retained
+			int num_up_funcs;
 
-			void writeByte(int);
-			void writeByteAtPos(int value, int pos);
-			
-			void writeUShort(int);
-			void writeUShortAtPos(int value, int pos);
-
-			void writeInt32(int);
-			void writeInt32AtPos(int value, int pos);
-
-			void writeInt64(OS_INT64);
-			void writeInt64AtPos(OS_INT64 value, int pos);
-
-			void writeFloat(OS_FLOAT);
-			void writeFloatAtPos(OS_FLOAT value, int pos);
+			FunctionData();
+			~FunctionData();
 		};
+		*/
 
-		class MemStreamReader
+		struct ProgramFunctionDecl
 		{
-		public:
+			struct LocalVar
+			{
+				StringInternal name;
+				int start_code_pos;
+				int end_code_pos;
+				// Value * value;
 
-			OS * allocator; // if NULL then buffer will not be freed
-			OS_BYTE * buffer;
-			int size;
-			int pos;
-
-			MemStreamReader(OS*, int buf_size);
-			MemStreamReader(OS*, OS_BYTE * buf, int buf_size);
-			~MemStreamReader();
-
-			void skipBytes(int len);
-			bool checkBytes(void*, int len);
-
-			void * readBytes(void*, int len);
-			void * readBytesAtPos(void*, int len, int pos);
-
-			OS_BYTE readByte();
-			OS_BYTE readByteAtPos(int pos);
+				LocalVar(const StringInternal&);
+				~LocalVar();
+			};
 			
-			OS_USHORT readUShort();
-			OS_USHORT readUShortAtPos(int pos);
+			int parent_func_index;
+			LocalVar * locals;
+			int num_locals;
+			int num_params;
+			int max_up_count;
+			int opcodes_pos;
+			int opcodes_size;
 
-			OS_INT32 readInt32();
-			OS_INT32 readInt32AtPos(int pos);
+			Program * prog; // retained for value of function type
 
-			OS_INT64 readInt64();
-			OS_INT64 readInt64AtPos(int pos);
-
-			OS_FLOAT readFloat();
-			OS_FLOAT readFloatAtPos(int pos);
+			ProgramFunctionDecl(Program*);
+			~ProgramFunctionDecl();
 		};
 
 		class Program
@@ -1305,20 +1435,19 @@ namespace ObjectScript
 				OP_POW, // **
 			};
 
-			struct Opcode
-			{
-				virtual ~Opcode();
-			};
-
 			OS * allocator;
 			StringInternal filename;
 			// Vector<StringInternal> strings;
 			// Vector<OS_FLOAT> numbers;
 			// OS_BYTE * opcodes;
-			MemStreamReader * opcodes;
 			Value ** const_values;
 			int num_numbers;
 			int num_strings;
+			
+			ProgramFunctionDecl * functions;
+			int num_functions;
+			
+			MemStreamReader * opcodes;
 
 			Program(OS * allocator);
 
@@ -1327,8 +1456,7 @@ namespace ObjectScript
 
 			static OpcodeType toOpcodeType(Compiler::ExpressionType);
 
-			bool saveToFile(const char * filename, MemStreamWriter * opcodes, const Vector<OS_FLOAT>& const_numbers, const Vector<StringInternal>& const_strings);
-			bool loadFromFile(const char * filename);
+			bool loadFromStream(StreamReader&);
 
 			void start();
 		};
@@ -1365,8 +1493,23 @@ namespace ObjectScript
 			if(vec.capacity < capacity){
 				vec.capacity = vec.capacity > 0 ? vec.capacity*2 : 4;
 				if(vec.capacity < capacity){
-					vec.capacity = (capacity+3) & ~3;
+					vec.capacity = capacity; // (capacity+3) & ~3;
 				}
+				T * new_buf = (T*)malloc(sizeof(T)*vec.capacity);
+				OS_ASSERT(new_buf);
+				for(int i = 0; i < vec.count; i++){
+					new (new_buf+i) T(vec.buf[i]);
+					vec.buf[i].~T();
+				}
+				free(vec.buf);
+				vec.buf = new_buf;
+			}
+		}
+
+		template<class T> void vectorReserveCapacityExact(Vector<T>& vec, int capacity)
+		{
+			if(vec.capacity < capacity){
+				vec.capacity = capacity;
 				T * new_buf = (T*)malloc(sizeof(T)*vec.capacity);
 				OS_ASSERT(new_buf);
 				for(int i = 0; i < vec.count; i++){
@@ -1380,9 +1523,7 @@ namespace ObjectScript
 
 		template<class T> void vectorAddItem(Vector<T>& vec, const T& val)
 		{
-			if(vec.count >= vec.capacity){
-				vectorReserveCapacity(vec, vec.capacity > 0 ? vec.capacity*2 : 4);
-			}
+			vectorReserveCapacity(vec, vec.count+1);
 			new (vec.buf + vec.count++) T(val);
 		}
 
@@ -1518,9 +1659,8 @@ namespace ObjectScript
 			Strings(OS * allocator);
 		} * strings;
 
-		Vector<FunctionDecl*> func_decls;
-
 		Values values;
+		Value::Table * string_values_table;
 		Value * global_vars;
 
 		enum {
@@ -1562,8 +1702,6 @@ namespace ObjectScript
 		void * malloc(int size);
 		void * realloc(void * p, int size);
 		void free(void * p);
-
-		void releaseFuncDecl(FunctionDecl*);
 
 		void resetValue(Value*);
 		void deleteValue(Value*);

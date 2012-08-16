@@ -17,7 +17,7 @@ int __snprintf__(char * buf, size_t num, const char * format, ...)
 
 void writeFile(const char * filename, const void * data, int size)
 {
-	FILE * f = fopen(filename, "w");
+	FILE * f = fopen(filename, "wb");
 	OS_ASSERT(f);
 	fwrite(data, size, 1, f);
 	fclose(f);
@@ -370,23 +370,31 @@ int OS::Utils::cmp(const void * buf1, int len1, const void * buf2, int len2, int
 #define IS_BIG_ENDIAN    (CURRENT_BYTE_ORDER == BIG_ENDIAN_BYTE_ORDER)
 #define IS_PDP_ENDIAN    (CURRENT_BYTE_ORDER == PDP_ENDIAN_BYTE_ORDER)
 
-static inline OS_USHORT toLittleEndianByteOrder(OS_USHORT val)
+static inline OS_BYTE toLittleEndianByteOrder(OS_BYTE val)
 {
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*1);
+	return val;
+}
+
+static inline OS_U16 toLittleEndianByteOrder(OS_U16 val)
+{
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*2);
 	if(IS_LITTLE_ENDIAN){
 		return val;
 	}
-	OS_USHORT r;
+	OS_U16 r;
 	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[1];
 	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[0];
 	return r;
 }
 
-static inline OS_SHORT toLittleEndianByteOrder(OS_SHORT val)
+static inline OS_INT16 toLittleEndianByteOrder(OS_INT16 val)
 {
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*2);
 	if(IS_LITTLE_ENDIAN){
 		return val;
 	}
-	OS_SHORT r;
+	OS_INT16 r;
 	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[1];
 	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[0];
 	return r;
@@ -394,6 +402,7 @@ static inline OS_SHORT toLittleEndianByteOrder(OS_SHORT val)
 
 static inline OS_INT32 toLittleEndianByteOrder(OS_INT32 val)
 {
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*4);
 	if(IS_LITTLE_ENDIAN){
 		return val;
 	}
@@ -407,6 +416,7 @@ static inline OS_INT32 toLittleEndianByteOrder(OS_INT32 val)
 
 static inline OS_INT64 toLittleEndianByteOrder(OS_INT64 val)
 {
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*8);
 	if(IS_LITTLE_ENDIAN){
 		return val;
 	}
@@ -424,6 +434,7 @@ static inline OS_INT64 toLittleEndianByteOrder(OS_INT64 val)
 
 static inline float toLittleEndianByteOrder(float val)
 {
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*4);
 	if(IS_LITTLE_ENDIAN){
 		return val;
 	}
@@ -437,6 +448,7 @@ static inline float toLittleEndianByteOrder(float val)
 
 static inline double toLittleEndianByteOrder(double val)
 {
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*8);
 	if(IS_LITTLE_ENDIAN){
 		return val;
 	}
@@ -2875,7 +2887,7 @@ OS::StringInternal OS::Compiler::Expression::debugPrint(OS::Compiler * compiler,
 
 int OS::Compiler::cacheString(const StringInternal& str)
 {
-	VariableIndex index(str);
+	VariableIndex index(str, VariableIndex::NoFixStringIndex());
 	Value::Variable * var = prog_strings_table->get(index);
 	if(var){
 		OS_ASSERT((OS_INT)(int)var->int_index == var->int_index);
@@ -2945,70 +2957,92 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 
 	case EXP_TYPE_CONST_NUMBER:
 		OS_ASSERT(exp->list.count == 0);
-		opcodes->writeByte(Program::OP_PUSH_NUMBER);
-		opcodes->writeUShort(cacheNumber(exp->token->getFloat()));
+		prog_opcodes->writeByte(Program::OP_PUSH_NUMBER);
+		prog_opcodes->writeU16(cacheNumber(exp->token->getFloat()));
 		break;
 
 	case EXP_TYPE_CONST_STRING:
 		OS_ASSERT(exp->list.count == 0);
-		opcodes->writeByte(Program::OP_PUSH_STRING);
-		opcodes->writeUShort(cacheString(exp->token->str));
+		prog_opcodes->writeByte(Program::OP_PUSH_STRING);
+		prog_opcodes->writeU16(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_CONST_NULL:
 		OS_ASSERT(exp->list.count == 0);
-		opcodes->writeByte(Program::OP_PUSH_NULL);
+		prog_opcodes->writeByte(Program::OP_PUSH_NULL);
 		break;
 
 	case EXP_TYPE_CONST_TRUE:
 		OS_ASSERT(exp->list.count == 0);
-		opcodes->writeByte(Program::OP_PUSH_TRUE);
+		prog_opcodes->writeByte(Program::OP_PUSH_TRUE);
 		break;
 
 	case EXP_TYPE_CONST_FALSE:
 		OS_ASSERT(exp->list.count == 0);
-		opcodes->writeByte(Program::OP_PUSH_FALSE);
+		prog_opcodes->writeByte(Program::OP_PUSH_FALSE);
 		break;
 
 	case EXP_TYPE_FUNCTION:
 		{
 			Scope * scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
-			opcodes->writeByte(Program::OP_PUSH_FUNCTION);
-			
-			int func_size_pos = opcodes->buffer.count;
-			opcodes->writeInt32(0); // func size
-			opcodes->writeInt32(0); // func opcodes size
-			
-			opcodes->writeByte(scope->num_locals);
-			opcodes->writeByte(scope->num_params);
+			prog_opcodes->writeByte(Program::OP_PUSH_FUNCTION);
+#if 1
+			int func_index = prog_functions.indexOf(scope);
+			OS_ASSERT(func_index >= 0);
+			prog_opcodes->writeU16(func_index);
 
 			allocator->vectorReserveCapacity(scope->locals_compiled, scope->num_locals);
 			scope->locals_compiled.count = scope->num_locals;
 
-			int func_opcodes_pos = opcodes->buffer.count;
+			scope->opcodes_pos = prog_opcodes->buffer.count;
 			if(!writeOpcodes(exp->list)){
 				return false;
 			}
-			int opcodes_size = opcodes->buffer.count - func_opcodes_pos;
+			scope->opcodes_size = prog_opcodes->buffer.count - scope->opcodes_pos;
+
+			for(i = 0; i < scope->locals.count; i++){
+				Scope::LocalVar& var = scope->locals[i];
+				Scope::LocalVarCompiled& var_scope = scope->locals_compiled[var.index];
+				var_scope.cached_name_index = cacheString(var.name);
+				var_scope.start_code_pos = scope->opcodes_pos;
+				var_scope.end_code_pos = prog_opcodes->buffer.count;
+			}
+#else
+			int func_size_pos = prog_opcodes->buffer.count;
+			prog_opcodes->writeInt32(0); // func size
+			prog_opcodes->writeInt32(0); // func opcodes size
+			
+			prog_opcodes->writeByte(scope->num_locals);
+			prog_opcodes->writeByte(scope->num_params);
+
+			allocator->vectorReserveCapacity(scope->locals_compiled, scope->num_locals);
+			scope->locals_compiled.count = scope->num_locals;
+
+			int func_opcodes_pos = prog_opcodes->buffer.count;
+			if(!writeOpcodes(exp->list)){
+				return false;
+			}
+			int opcodes_size = prog_opcodes->buffer.count - func_opcodes_pos;
 			for(i = 0; i < scope->locals.count; i++){
 				Scope::LocalVar& var = scope->locals[i];
 				Scope::LocalVarCompiled& var_scope = scope->locals_compiled[var.index];
 				var_scope.cached_name_index = cacheString(var.name);
 				var_scope.start_code_pos = func_size_pos;
-				var_scope.end_code_pos = opcodes->buffer.count;
+				var_scope.end_code_pos = prog_opcodes->buffer.count;
 			}
 			for(i = 0; i < scope->locals_compiled.count; i++){
 				Scope::LocalVarCompiled& var_scope = scope->locals_compiled[i];
 				OS_ASSERT(var_scope.start_code_pos >= 0);
 				OS_ASSERT(var_scope.end_code_pos >= 0);
-				opcodes->writeUShort(var_scope.cached_name_index);
-				opcodes->writeInt32(var_scope.start_code_pos);
-				opcodes->writeInt32(var_scope.end_code_pos);
+				prog_opcodes->writeU16(var_scope.cached_name_index);
+				prog_opcodes->writeInt32(var_scope.start_code_pos);
+				prog_opcodes->writeInt32(var_scope.end_code_pos);
 			}
 
-			opcodes->writeInt32AtPos(opcodes->buffer.count - func_size_pos, func_size_pos);
-			opcodes->writeInt32AtPos(opcodes_size, func_size_pos + sizeof(OS_INT32));
+			prog_opcodes->writeInt32AtPos(prog_opcodes->buffer.count - func_size_pos, func_size_pos);
+			prog_opcodes->writeInt32AtPos(opcodes_size, func_size_pos + sizeof(OS_INT32));
+#endif
 			break;
 		}
 
@@ -3016,7 +3050,7 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		{
 			Scope * scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
-			int start_code_pos = opcodes->buffer.count;
+			int start_code_pos = prog_opcodes->buffer.count;
 			if(!writeOpcodes(exp->list)){
 				return false;
 			}
@@ -3025,14 +3059,14 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 				Scope::LocalVarCompiled& var_scope = scope->function->locals_compiled[var.index];
 				var_scope.cached_name_index = cacheString(var.name);
 				var_scope.start_code_pos = start_code_pos;
-				var_scope.end_code_pos = opcodes->buffer.count;
+				var_scope.end_code_pos = prog_opcodes->buffer.count;
 			}
 			break;
 		}
 
 	case EXP_TYPE_OBJECT:
 		// OS_ASSERT(exp->list.count >= 0);
-		opcodes->writeByte(Program::OP_PUSH_NEW_OBJECT);
+		prog_opcodes->writeByte(Program::OP_PUSH_NEW_OBJECT);
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
@@ -3043,7 +3077,7 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_OBJECT_SET_BY_AUTO_INDEX);
+		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_AUTO_INDEX);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
@@ -3051,7 +3085,7 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_OBJECT_SET_BY_EXP);
+		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_EXP);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
@@ -3059,9 +3093,9 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_OBJECT_SET_BY_INDEX);
-		// opcodes->writeInt64(exp->token->getInt());
-		opcodes->writeUShort(cacheNumber(exp->token->getFloat()));
+		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_INDEX);
+		// prog_opcodes->writeInt64(exp->token->getInt());
+		prog_opcodes->writeU16(cacheNumber(exp->token->getFloat()));
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
@@ -3069,14 +3103,14 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_OBJECT_SET_BY_NAME);
-		opcodes->writeUShort(cacheString(exp->token->str));
+		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_NAME);
+		prog_opcodes->writeU16(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_GET_AUTO_VAR:
 		OS_ASSERT(exp->list.count == 0);
-		opcodes->writeByte(Program::OP_PUSH_AUTO_VAR);
-		opcodes->writeUShort(cacheString(exp->token->str));
+		prog_opcodes->writeByte(Program::OP_PUSH_AUTO_VAR);
+		prog_opcodes->writeU16(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_SET_AUTO_VAR:
@@ -3084,21 +3118,21 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_SET_AUTO_VAR);
-		opcodes->writeUShort(cacheString(exp->token->str));
+		prog_opcodes->writeByte(Program::OP_SET_AUTO_VAR);
+		prog_opcodes->writeU16(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_GET_THIS:
 	case EXP_TYPE_GET_ARGUMENTS:
 	case EXP_TYPE_GET_REST_ARGUMENTS:
 		OS_ASSERT(exp->list.count == 0);
-		opcodes->writeByte(Program::toOpcodeType(exp->type));
+		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
 
 	case EXP_TYPE_GET_LOCAL_VAR:
 		OS_ASSERT(exp->list.count == 0);
-		opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR);
-		opcodes->writeByte(exp->local_var.index);
-		opcodes->writeByte(exp->local_var.up_count);
+		prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR);
+		prog_opcodes->writeByte(exp->local_var.index);
+		prog_opcodes->writeByte(exp->local_var.up_count);
 		break;
 
 	case EXP_TYPE_SET_LOCAL_VAR:
@@ -3106,9 +3140,9 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_SET_LOCAL_VAR);
-		opcodes->writeByte(exp->local_var.index);
-		opcodes->writeByte(exp->local_var.up_count);
+		prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR);
+		prog_opcodes->writeByte(exp->local_var.index);
+		prog_opcodes->writeByte(exp->local_var.up_count);
 		break;
 
 	case EXP_TYPE_CALL:
@@ -3120,9 +3154,9 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::toOpcodeType(exp->type));
-		opcodes->writeByte(exp->list[1]->ret_values); // params number
-		opcodes->writeByte(exp->ret_values);
+		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
+		prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
+		prog_opcodes->writeByte(exp->ret_values);
 		break;
 
 	case EXP_TYPE_GET_PROPERTY:
@@ -3130,7 +3164,7 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_GET_PROPERTY);
+		prog_opcodes->writeByte(Program::OP_GET_PROPERTY);
 		break;
 
 	case EXP_TYPE_SET_PROPERTY:
@@ -3138,8 +3172,8 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_SET_PROPERTY);
-		opcodes->writeByte(exp->ret_values);
+		prog_opcodes->writeByte(Program::OP_SET_PROPERTY);
+		prog_opcodes->writeByte(exp->ret_values);
 		break;
 
 	case EXP_TYPE_PARAMS:
@@ -3152,8 +3186,8 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_RETURN);
-		opcodes->writeByte(exp->ret_values);
+		prog_opcodes->writeByte(Program::OP_RETURN);
+		prog_opcodes->writeByte(exp->ret_values);
 		break;
 
 	case EXP_TYPE_POP_VALUE:
@@ -3161,7 +3195,7 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::OP_POP);
+		prog_opcodes->writeByte(Program::OP_POP);
 		break;
 
 	case EXP_TYPE_CONCAT:
@@ -3195,7 +3229,7 @@ bool OS::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		opcodes->writeByte(Program::toOpcodeType(exp->type));
+		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
 		break;
 	}
 	return true;
@@ -3220,9 +3254,11 @@ OS::Compiler::Scope::Scope(Scope * p_parent, ExpressionType type, TokenData * to
 {
 	OS_ASSERT(type == EXP_TYPE_FUNCTION || type == EXP_TYPE_SCOPE);
 	parent = p_parent;
-	function = type == EXP_TYPE_FUNCTION ? NULL : parent->function;
+	function = type == EXP_TYPE_FUNCTION ? this : parent->function;
 	num_params = 0;
 	num_locals = 0;
+	max_up_count = 0;
+	func_index = -1;
 	parser_started = false;
 }
 
@@ -3284,7 +3320,8 @@ OS::Compiler::Compiler(Tokenizer * p_tokenizer)
 	prog = NULL;
 	prog_strings_table = NULL;
 	prog_numbers_table = NULL;
-	opcodes = NULL;
+	prog_opcodes = NULL;
+	prog_max_up_count = 0;
 }
 
 OS::Compiler::~Compiler()
@@ -3306,14 +3343,14 @@ OS::Compiler::~Compiler()
 	}
 	allocator->vectorClear(prog_numbers);
 	allocator->vectorClear(prog_strings);
-	if(opcodes){
-		allocator->deleteObj(opcodes);
-	}
+	allocator->vectorClear(prog_functions);
+	allocator->deleteObj(prog_opcodes);
 }
 
 bool OS::Compiler::compile()
 {
-	OS_ASSERT(!prog && !opcodes && !prog_strings_table && !prog_numbers_table && !prog_numbers.count && !prog_strings.count);
+	OS_ASSERT(!prog && !prog_opcodes && !prog_strings_table && !prog_numbers_table);
+	OS_ASSERT(!prog_functions.count && !prog_numbers.count && !prog_strings.count);
 	
 	Scope * scope = NULL;
 	if(!readToken()){
@@ -3326,21 +3363,30 @@ bool OS::Compiler::compile()
 		OS_ASSERT(exp->type == EXP_TYPE_FUNCTION);
 
 		OS::StringInternal dump = exp->debugPrint(this, 0);
-		writeFile("test-data/debug-exp-dump.txt", dump.toChar(), dump.getDataSize());
+		FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 
-		prog = new (malloc(sizeof(Program))) Program(allocator);
-		prog->filename = tokenizer->getTextData()->filename;
 		prog_strings_table = allocator->newTable();
 		prog_numbers_table = allocator->newTable();
-		opcodes = new (malloc(sizeof(MemStreamWriter))) MemStreamWriter(allocator);
+		prog_opcodes = new (malloc(sizeof(MemStreamWriter))) MemStreamWriter(allocator);
 
 		if(!writeOpcodes(exp)){
 		
 		}
 
-		prog->saveToFile("test-data/test.osb", opcodes, prog_numbers, prog_strings);
-		prog->loadFromFile("test-data/test.osb");
+		MemStreamWriter mem_writer(allocator);
+		saveToStream(mem_writer);
+
+		FileStreamWriter(allocator, "test-data/test.osb").writeBytes(mem_writer.buffer.buf, mem_writer.buffer.count);
+		
+		Program * prog = new (malloc(sizeof(Program))) Program(allocator);
+		prog->filename = tokenizer->getTextData()->filename;
+#if 1
+		prog->loadFromStream(MemStreamReader(NULL, mem_writer.buffer.buf, mem_writer.buffer.count));
+#else
+		prog->loadFromStream(FileStreamReader(allocator, "test-data/test.osb"));
+#endif
 		prog->start();
+		prog->release();
 		
 		allocator->deleteObj(exp);
 	}else{
@@ -4028,6 +4074,16 @@ OS::Compiler::Expression * OS::Compiler::processExpressionSecondPass(Scope * sco
 {
 	switch(exp->type){
 	case EXP_TYPE_FUNCTION:
+		{
+			Scope * new_scope = dynamic_cast<Scope*>(exp);
+			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			scope = new_scope;
+			OS_ASSERT(prog_functions.indexOf(scope) < 0);
+			scope->func_index = prog_functions.count;
+			allocator->vectorAddItem(prog_functions, scope);
+			break;
+		}
+
 	case EXP_TYPE_SCOPE:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
@@ -4067,6 +4123,9 @@ OS::Compiler::Expression * OS::Compiler::processExpressionSecondPass(Scope * sco
 	case EXP_TYPE_NAME:
 		if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals)){
 			exp->type = EXP_TYPE_GET_LOCAL_VAR;
+			if(scope->function->max_up_count < exp->local_var.up_count){
+				scope->function->max_up_count = exp->local_var.up_count;
+			}
 		}else{
 			exp->type = EXP_TYPE_GET_AUTO_VAR;
 		}
@@ -4104,7 +4163,7 @@ OS::Compiler::Expression * OS::Compiler::processExpressionSecondPass(Scope * sco
 				allocator->deleteObj(exp);
 				return left_exp;
 			}
-			break;
+			return exp;
 		}
 
 	case EXP_TYPE_CALL_DIM:
@@ -4204,7 +4263,7 @@ OS::Compiler::Scope * OS::Compiler::expectTextExpression()
 	OS_ASSERT(recent_token);
 
 	Scope * scope = new (malloc(sizeof(Scope))) Scope(NULL, EXP_TYPE_FUNCTION, recent_token);
-	scope->function = scope;
+	// scope->function = scope;
 	scope->parser_started = true;
 	scope->ret_values = 1;
 
@@ -4308,7 +4367,7 @@ OS::Compiler::Scope * OS::Compiler::expectCodeExpression(Scope * parent, int ret
 		parent->parser_started = true;
 	}else{
 		scope = new (malloc(sizeof(Scope))) Scope(parent, EXP_TYPE_SCOPE, recent_token);
-		scope->function = parent->function;
+		// scope->function = parent->function;
 		// is_new_func = false;
 	}
 
@@ -5158,7 +5217,9 @@ OS::Compiler::Expression * OS::Compiler::newAssingExpression(Scope * scope, Expr
 	case EXP_TYPE_NAME:
 		if(findLocalVar(var_exp->local_var, scope, var_exp->token->str, var_exp->active_locals)){
 			var_exp->type = EXP_TYPE_SET_LOCAL_VAR;
-		}else{
+			if(scope->function->max_up_count < var_exp->local_var.up_count){
+				scope->function->max_up_count = var_exp->local_var.up_count;
+			}		}else{
 			var_exp->type = EXP_TYPE_SET_AUTO_VAR;
 		}
 		var_exp->list.add(value_exp);
@@ -5977,6 +6038,63 @@ const OS_CHAR * OS::Compiler::getExpName(ExpressionType type)
 // =====================================================================
 // =====================================================================
 // =====================================================================
+/*
+OS::FunctionData::LocalVar::LocalVar(OS * allocator): name(allocator)
+{
+	start_code_pos = -1;
+	end_code_pos = -1;
+}
+
+// =====================================================================
+
+OS::FunctionData::FunctionData()
+{
+	prog = NULL;
+	num_locals = 0;
+	num_params = 0;
+	opcodes_pos = 0;
+	opcodes_size = 0;
+	up_funcs = NULL;
+	num_up_funcs = 0;
+}
+
+OS::FunctionData::~FunctionData()
+{
+	OS_ASSERT(!prog && !up_funcs);
+}
+*/
+// =====================================================================
+// =====================================================================
+// =====================================================================
+
+OS::ProgramFunctionDecl::LocalVar::LocalVar(const StringInternal& p_name): name(p_name)
+{
+	start_code_pos = -1;
+	end_code_pos = -1;
+}
+
+OS::ProgramFunctionDecl::LocalVar::~LocalVar()
+{
+}
+
+OS::ProgramFunctionDecl::ProgramFunctionDecl(Program * p_prog)
+{
+	prog = p_prog;
+	parent_func_index = -1;
+	locals = NULL;
+	num_locals = 0;
+	num_params = 0;
+	max_up_count = 0;
+	opcodes_pos = 0;
+	opcodes_size = 0;
+}
+
+OS::ProgramFunctionDecl::~ProgramFunctionDecl()
+{
+	OS_ASSERT(!locals && !prog);
+}
+
+// =====================================================================
 
 OS::Program::Program(OS * allocator): filename(allocator)
 {
@@ -5991,86 +6109,97 @@ OS::Program::Program(OS * allocator): filename(allocator)
 OS::Program::~Program()
 {
 	OS_ASSERT(ref_count == 0);
-	for(int i = num_numbers+num_strings; i >= 0; i--){
+	int i;
+	for(i = num_numbers+num_strings-1; i >= 0; i--){
 		allocator->releaseValue(const_values[i]);
 	}
 	allocator->free(const_values);
 	const_values = NULL;
 
+	for(i = 0; i < num_functions; i++){
+		ProgramFunctionDecl * func = functions + i;
+		for(int j = 0; j < func->num_locals; j++){
+			func->locals[j].~LocalVar();
+		}
+		allocator->free(func->locals);
+		func->locals = NULL;
+		func->prog = NULL;
+		func->~ProgramFunctionDecl();
+	}
+	allocator->free(functions);
+	functions = NULL;
+
 	allocator->deleteObj(opcodes);
 }
 
-bool OS::Program::saveToFile(const char * filename, MemStreamWriter * opcodes, const Vector<OS_FLOAT>& const_numbers, const Vector<StringInternal>& const_strings)
+bool OS::Compiler::saveToStream(StreamWriter& writer)
 {
-	MemStreamWriter data(allocator);
-	data.writeBytes(OS_COMPILED_HEADER, OS_STRLEN(OS_COMPILED_HEADER));
+	writer.writeBytes(OS_COMPILED_HEADER, OS_STRLEN(OS_COMPILED_HEADER));
 
 	int i, len = OS_STRLEN(OS_COMPILED_VERSION);
-	data.writeByte(len);
-	data.writeBytes(OS_COMPILED_VERSION, len);
+	writer.writeByte(len);
+	writer.writeBytes(OS_COMPILED_VERSION, len);
 
-	data.writeUShort(const_numbers.count);
-	data.writeUShort(const_strings.count);
-	data.writeInt32(opcodes->buffer.count);
+	writer.writeU16(prog_numbers.count);
+	writer.writeU16(prog_strings.count);
+	writer.writeU16(prog_functions.count);
+	writer.writeInt32(prog_opcodes->buffer.count);
 
-	for(i = 0; i < const_numbers.count; i++){
-		data.writeFloat(const_numbers[i]);	
+	for(i = 0; i < prog_numbers.count; i++){
+		writer.writeFloat(prog_numbers[i]);	
 	}
-	for(i = 0; i < const_strings.count; i++){
-		const StringInternal& str = const_strings[i];
-		int data_size = str.getDataSize(); // +sizeof(OS_CHAR); // + termination char
-		data.writeUShort(data_size);
-		data.writeBytes(str.toChar(), data_size);
+	for(i = 0; i < prog_strings.count; i++){
+		const StringInternal& str = prog_strings[i];
+		int data_size = str.getDataSize();
+		writer.writeU16(data_size);
+		writer.writeBytes(str.toChar(), data_size);
+	}
+	for(i = 0; i < prog_functions.count; i++){
+		Compiler::Scope * func_scope = prog_functions[i];
+		writer.writeInt16(func_scope->parent ? func_scope->parent->func_index : -1); // prog_functions.indexOf(func_scope->parent));
+		writer.writeByte(func_scope->num_locals);
+		writer.writeByte(func_scope->num_params);
+		writer.writeByte(func_scope->max_up_count);
+		writer.writeInt32(func_scope->opcodes_pos);
+		writer.writeInt32(func_scope->opcodes_size);
+
+		OS_ASSERT(func_scope->locals_compiled.count == func_scope->num_locals);
+		for(int j = 0; j < func_scope->locals_compiled.count; j++){
+			Compiler::Scope::LocalVarCompiled& var_scope = func_scope->locals_compiled[j];
+			OS_ASSERT(var_scope.start_code_pos >= func_scope->opcodes_pos && var_scope.start_code_pos < func_scope->opcodes_pos+func_scope->opcodes_size);
+			OS_ASSERT(var_scope.end_code_pos > func_scope->opcodes_pos && var_scope.end_code_pos <= func_scope->opcodes_pos+func_scope->opcodes_size);
+			writer.writeU16(var_scope.cached_name_index);
+			writer.writeInt32(var_scope.start_code_pos);
+			writer.writeInt32(var_scope.end_code_pos);
+		}
 	}
 
-	FILE * f = fopen(filename, "w");
-	if(f){
-		fwrite(data.buffer.buf, data.buffer.count, 1, f);
-		fwrite(opcodes->buffer.buf, opcodes->buffer.count, 1, f);
-		fclose(f);
-		return true;
-	}
-	return false;
+	writer.writeBytes(prog_opcodes->buffer.buf, prog_opcodes->buffer.count);
+
+	return true;
 }
 
-bool OS::Program::loadFromFile(const char * filename)
+bool OS::Program::loadFromStream(StreamReader& reader)
 {
 	OS_ASSERT(!opcodes && !const_values && !num_numbers && !num_strings);
-
-	FILE * f = fopen(filename, "r");
-	if(!f){
-		return false;
-	}
-	fseek(f, 0, SEEK_END);
-	int file_size = ftell(f);
-	rewind(f);
-
-	MemStreamReader reader(allocator, file_size);
-
-	fread(reader.buffer, file_size, 1, f);
-	fclose(f);
 
 	int i, len = OS_STRLEN(OS_COMPILED_HEADER);
 	if(!reader.checkBytes(OS_COMPILED_HEADER, len)){
 		return false;
 	}
-	reader.skipBytes(len);
 
 	len = OS_STRLEN(OS_COMPILED_VERSION);
 	reader.skipBytes(1);
 	if(!reader.checkBytes(OS_COMPILED_VERSION, len)){
 		return false;
 	}
-	reader.skipBytes(len);
 
-	num_numbers = reader.readUShort();
-	num_strings = reader.readUShort();
+	num_numbers = reader.readU16();
+	num_strings = reader.readU16();
+	num_functions = reader.readU16();
 	int opcodes_size = reader.readInt32();
 
-	// opcodes = (OS_BYTE*)allocator->malloc(opcodes_size);
-	opcodes = new (allocator->malloc(sizeof(MemStreamReader))) MemStreamReader(allocator, opcodes_size);
 	const_values = (Value**)allocator->malloc(sizeof(Value*) * (num_numbers + num_strings));
-
 	for(i = 0; i < num_numbers; i++){
 		OS_FLOAT number = reader.readFloat();
 
@@ -6079,9 +6208,8 @@ bool OS::Program::loadFromFile(const char * filename)
 		const_values[i] = value;
 		allocator->pop();
 	}
-
 	for(i = 0; i < num_strings; i++){
-		int data_size = reader.readUShort();
+		int data_size = reader.readU16();
 		StringInternal str(allocator, OS_TEXT('\0'), data_size/sizeof(OS_CHAR));
 		reader.readBytes((void*)str.toChar(), data_size);
 
@@ -6091,6 +6219,30 @@ bool OS::Program::loadFromFile(const char * filename)
 		allocator->pop();
 	}
 
+	functions = (ProgramFunctionDecl*)allocator->malloc(sizeof(ProgramFunctionDecl) * num_functions);
+	for(i = 0; i < num_functions; i++){
+		ProgramFunctionDecl * func = functions + i;
+		new (func) ProgramFunctionDecl(this);
+		func->parent_func_index = reader.readInt16();
+		func->num_locals = reader.readByte();
+		func->num_params = reader.readByte();
+		func->max_up_count = reader.readByte();
+		func->opcodes_pos = reader.readInt32();
+		func->opcodes_size = reader.readInt32();
+
+		func->locals = (ProgramFunctionDecl::LocalVar*)allocator->malloc(sizeof(ProgramFunctionDecl::LocalVar) * func->num_locals);
+		for(int j = 0; j < func->num_locals; j++){
+			int cached_name_index = reader.readU16();
+			OS_ASSERT(cached_name_index >= 0 && cached_name_index < num_strings);
+			ProgramFunctionDecl::LocalVar * local_var = func->locals + j;
+			StringInternal var_name = allocator->valueToString(const_values[num_numbers + cached_name_index]);
+			new (local_var) ProgramFunctionDecl::LocalVar(var_name);
+			local_var->start_code_pos = reader.readInt32();
+			local_var->end_code_pos = reader.readInt32();
+		}
+	}
+
+	opcodes = new (allocator->malloc(sizeof(MemStreamReader))) MemStreamReader(allocator, opcodes_size);
 	reader.readBytes(opcodes->buffer, opcodes_size);
 
 	return true;
@@ -6100,9 +6252,27 @@ void OS::Program::start()
 {
 	int i, opcode = opcodes->readByte();
 	if(opcode != OP_PUSH_FUNCTION){
+		allocator->pushNullValue();
 		return;
 	}
 
+	int func_index = opcodes->readU16();
+	OS_ASSERT(func_index >= 0 && func_index < num_functions);
+	ProgramFunctionDecl * func_decl = functions + func_index;
+
+	Value * func_value = allocator->pushNullValue();
+	func_value->prototype = allocator->prototypes[PROTOTYPE_FUNCTION]->retain();
+	func_value->value.func.decl = func_decl;
+	func_value->value.func.parent_func = NULL;
+	func_value->type = OS_VALUE_TYPE_FUNCTION;
+	
+	OS_ASSERT(func_decl->prog == this);
+	retain();
+
+	OS_ASSERT(functions[func_index].opcodes_pos == opcodes->pos);
+	opcodes->skipBytes(functions[func_index].opcodes_size);
+
+	/*
 	int func_start_pos = opcodes->pos;
 	int func_size = opcodes->readInt32();
 	int func_opcodes_size = opcodes->readInt32();
@@ -6114,12 +6284,26 @@ void OS::Program::start()
 
 	for(i = 0; i < num_locals; i++){
 		Compiler::Scope::LocalVarCompiled var;
-		var.cached_name_index = opcodes->readUShort();
+		var.cached_name_index = opcodes->readU16();
 		var.start_code_pos = opcodes->readInt32();
 		var.end_code_pos = opcodes->readInt32();
 	}
 
 	OS_ASSERT(func_start_pos + func_size == opcodes->pos);
+
+	FunctionData * func = new (allocator->malloc(sizeof(FunctionData))) FunctionData();
+	func->prog = retain();
+
+	func->num_locals = num_locals;
+	func->num_params = num_params;
+	func->opcodes_pos = func_opcodes_pos;
+	func->opcodes_size = func_opcodes_size;
+
+	Value * func_value = allocator->pushNullValue();
+	func_value->prototype = allocator->prototypes[PROTOTYPE_FUNCTION]->retain();
+	func_value->value.func = func;
+	func_value->type = OS_VALUE_TYPE_FUNCTION;
+	*/
 }
 
 OS::Program * OS::Program::retain()
@@ -6195,14 +6379,108 @@ OS::Program::OpcodeType OS::Program::toOpcodeType(Compiler::ExpressionType exp_t
 // =====================================================================
 // =====================================================================
 
-OS::MemStreamWriter::MemStreamWriter(OS * p_allocator)
+OS::StreamWriter::StreamWriter(OS * p_allocator)
 {
 	allocator = p_allocator;
+}
+
+OS::StreamWriter::~StreamWriter()
+{
+}
+
+void OS::StreamWriter::writeByte(int value)
+{
+	OS_ASSERT(value >= 0 && value <= 0xff);
+	OS_BYTE le_value = toLittleEndianByteOrder((OS_BYTE)value);
+	writeBytes(&le_value, sizeof(le_value));
+}
+
+void OS::StreamWriter::writeByteAtPos(int value, int pos)
+{
+	OS_ASSERT(value >= 0 && value <= 0xff);
+	OS_BYTE le_value = toLittleEndianByteOrder((OS_BYTE)value);
+	writeBytesAtPos(&le_value, sizeof(le_value), pos);
+}
+
+void OS::StreamWriter::writeU16(int value)
+{
+	OS_ASSERT(value >= 0 && value <= 0xffff);
+	OS_U16 le_value = toLittleEndianByteOrder((OS_U16)value);
+	writeBytes(&le_value, sizeof(le_value));
+}
+
+void OS::StreamWriter::writeU16AtPos(int value, int pos)
+{
+	OS_ASSERT(value >= 0 && value <= 0xffff);
+	OS_U16 le_value = toLittleEndianByteOrder((OS_U16)value);
+	writeBytesAtPos(&le_value, sizeof(le_value), pos);
+}
+
+void OS::StreamWriter::writeInt16(int value)
+{
+	OS_ASSERT((int)(OS_INT16)value == value);
+	OS_INT16 le_value = toLittleEndianByteOrder((OS_INT16)value);
+	writeBytes(&le_value, sizeof(le_value));
+}
+
+void OS::StreamWriter::writeInt16AtPos(int value, int pos)
+{
+	OS_ASSERT((int)(OS_INT16)value == value);
+	OS_INT16 le_value = toLittleEndianByteOrder((OS_INT16)value);
+	writeBytesAtPos(&le_value, sizeof(le_value), pos);
+}
+
+void OS::StreamWriter::writeInt32(int value)
+{
+	OS_INT32 le_value = toLittleEndianByteOrder((OS_INT32)value);
+	writeBytes(&le_value, sizeof(le_value));
+}
+
+void OS::StreamWriter::writeInt32AtPos(int value, int pos)
+{
+	OS_ASSERT((int)(OS_INT32)value == value);
+	OS_INT32 le_value = toLittleEndianByteOrder((OS_INT32)value);
+	writeBytesAtPos(&le_value, sizeof(le_value), pos);
+}
+
+void OS::StreamWriter::writeInt64(OS_INT64 value)
+{
+	OS_INT64 le_value = toLittleEndianByteOrder((OS_INT64)value);
+	writeBytes(&le_value, sizeof(le_value));
+}
+
+void OS::StreamWriter::writeInt64AtPos(OS_INT64 value, int pos)
+{
+	OS_INT64 le_value = toLittleEndianByteOrder((OS_INT64)value);
+	writeBytesAtPos(&le_value, sizeof(le_value), pos);
+}
+
+void OS::StreamWriter::writeFloat(OS_FLOAT value)
+{
+	OS_FLOAT le_value = toLittleEndianByteOrder((OS_FLOAT)value);
+	writeBytes(&le_value, sizeof(le_value));
+}
+
+void OS::StreamWriter::writeFloatAtPos(OS_FLOAT value, int pos)
+{
+	OS_FLOAT le_value = toLittleEndianByteOrder((OS_FLOAT)value);
+	writeBytesAtPos(&le_value, sizeof(le_value), pos);
+}
+
+// =====================================================================
+
+OS::MemStreamWriter::MemStreamWriter(OS * allocator): StreamWriter(allocator)
+{
 }
 
 OS::MemStreamWriter::~MemStreamWriter()
 {
 	allocator->vectorClear(buffer);
+}
+
+int OS::MemStreamWriter::getPos() const
+{
+	return buffer.count;
 }
 
 void OS::MemStreamWriter::writeBytes(const void * buf, int len)
@@ -6232,133 +6510,155 @@ void OS::MemStreamWriter::writeByteAtPos(int value, int pos)
 	buffer[pos] = (OS_BYTE)value;
 }
 
-void OS::MemStreamWriter::writeUShort(int value)
+// =====================================================================
+
+OS::FileStreamWriter::FileStreamWriter(OS * allocator, const char * filename): StreamWriter(allocator)
 {
-	OS_ASSERT(value >= 0 && value <= 0xffff);
-#if 1
-	OS_USHORT le_value = toLittleEndianByteOrder((OS_USHORT)value);
-	writeBytes(&le_value, sizeof(le_value));
-#else
-	int pos = buffer.count;
-	allocator->vectorReserveCapacity(buffer, pos + sizeof(OS_BYTE)*2);
-	buffer.count += sizeof(OS_BYTE)*2;
-	writeUShortAtPos(value, pos);
-#endif
+	f = fopen(filename, "wb");
+	OS_ASSERT(f);
 }
 
-void OS::MemStreamWriter::writeUShortAtPos(int value, int pos)
+OS::FileStreamWriter::FileStreamWriter(OS * allocator, FILE * f): StreamWriter(allocator)
 {
-	OS_ASSERT(value >= 0 && value <= 0xffff);
-#if 1
-	OS_USHORT le_value = toLittleEndianByteOrder((OS_USHORT)value);
-	writeBytesAtPos(&le_value, sizeof(le_value), pos);
-#else
-	OS_ASSERT(pos >= 0 && pos <= buffer.count-2);
-	buffer[pos] = (OS_BYTE)value;
-	buffer[pos+1] = (OS_BYTE)(value >> 8);
-#endif
+	this->f = f;
+	OS_ASSERT(f);
 }
 
-void OS::MemStreamWriter::writeInt32(int value)
+OS::FileStreamWriter::~FileStreamWriter()
 {
-#if 1
-	OS_INT32 le_value = toLittleEndianByteOrder((OS_INT32)value);
-	writeBytes(&le_value, sizeof(le_value));
-#else
-	int pos = buffer.count;
-	allocator->vectorReserveCapacity(buffer, pos + sizeof(OS_BYTE)*4);
-	buffer.count += sizeof(OS_BYTE)*4;
-	writeInt32AtPos(value, pos);
-#endif
-}
-
-void OS::MemStreamWriter::writeInt32AtPos(int value, int pos)
-{
-	OS_ASSERT((int)(OS_INT32)value == value);
-#if 1
-	OS_INT32 le_value = toLittleEndianByteOrder((OS_INT32)value);
-	writeBytesAtPos(&le_value, sizeof(le_value), pos);
-#else
-	OS_ASSERT(pos >= 0 && pos <= buffer.count-4);
-	buffer[pos+0] = (OS_BYTE)value;
-	buffer[pos+1] = (OS_BYTE)(value >> 8);
-	buffer[pos+2] = (OS_BYTE)(value >> 16);
-	buffer[pos+3] = (OS_BYTE)(value >> 24);
-#endif
-}
-
-void OS::MemStreamWriter::writeInt64(OS_INT64 value)
-{
-#if 1
-	OS_INT64 le_value = toLittleEndianByteOrder((OS_INT64)value);
-	writeBytes(&le_value, sizeof(le_value));
-#else
-	int pos = buffer.count;
-	allocator->vectorReserveCapacity(buffer, pos + sizeof(OS_BYTE)*16);
-	buffer.count += sizeof(OS_BYTE)*8;
-	writeInt64AtPos(value, pos);
-#endif
-}
-
-void OS::MemStreamWriter::writeInt64AtPos(OS_INT64 value, int pos)
-{
-#if 1
-	OS_INT64 le_value = toLittleEndianByteOrder((OS_INT64)value);
-	writeBytesAtPos(&le_value, sizeof(le_value), pos);
-#else
-	OS_ASSERT(pos >= 0 && pos <= buffer.count-8);
-	buffer[pos+0] = (OS_BYTE)value;
-	buffer[pos+1] = (OS_BYTE)(value >> (8*1));
-	buffer[pos+2] = (OS_BYTE)(value >> (8*2));
-	buffer[pos+3] = (OS_BYTE)(value >> (8*3));
-	buffer[pos+4] = (OS_BYTE)(value >> (8*4));
-	buffer[pos+5] = (OS_BYTE)(value >> (8*5));
-	buffer[pos+6] = (OS_BYTE)(value >> (8*6));
-	buffer[pos+7] = (OS_BYTE)(value >> (8*7));
-#endif
-}
-
-void OS::MemStreamWriter::writeFloat(OS_FLOAT value)
-{
-#if 1
-	OS_FLOAT le_value = toLittleEndianByteOrder((OS_FLOAT)value);
-	writeBytes(&le_value, sizeof(le_value));
-#else
-	int pos = buffer.count;
-	allocator->vectorReserveCapacity(buffer, pos + sizeof(value));
-	buffer.count += sizeof(value);
-	writeFloatAtPos(value, pos);
-#endif
-}
-
-void OS::MemStreamWriter::writeFloatAtPos(OS_FLOAT value, int pos)
-{
-#if 1
-	OS_FLOAT le_value = toLittleEndianByteOrder((OS_FLOAT)value);
-	writeBytesAtPos(&le_value, sizeof(le_value), pos);
-#else
-	OS_ASSERT(pos >= 0 && pos <= buffer.count-sizeof(value));
-	for(int i = 0; i < sizeof(value); i++){
-		buffer[pos+i] = ((OS_BYTE*)&value)[i];
+	if(f){
+		fclose(f);
 	}
-#endif
+}
+
+int OS::FileStreamWriter::getPos() const
+{
+	return f ? ftell(f) : 0;
+}
+
+void OS::FileStreamWriter::writeBytes(const void * buf, int len)
+{
+	if(f){
+		fwrite(buf, len, 1, f);
+	}
+}
+
+void OS::FileStreamWriter::writeBytesAtPos(const void * buf, int len, int pos)
+{
+	int save_pos = getPos();
+	fseek(f, pos, SEEK_SET);
+	writeBytes(buf, len);
+	fseek(f, save_pos, SEEK_SET);
 }
 
 // =====================================================================
 // =====================================================================
 // =====================================================================
 
-OS::MemStreamReader::MemStreamReader(OS * p_allocator, int buf_size)
+OS::StreamReader::StreamReader(OS * p_allocator)
 {
 	allocator = p_allocator;
+}
+
+OS::StreamReader::~StreamReader()
+{
+}
+
+OS_BYTE OS::StreamReader::readByte()
+{
+	OS_BYTE le_value;
+	readBytes(&le_value, sizeof(le_value));
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_BYTE OS::StreamReader::readByteAtPos(int pos)
+{
+	OS_BYTE le_value;
+	readBytesAtPos(&le_value, sizeof(le_value), pos);
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_U16 OS::StreamReader::readU16()
+{
+	OS_U16 le_value;
+	readBytes(&le_value, sizeof(le_value));
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_U16 OS::StreamReader::readU16AtPos(int pos)
+{
+	OS_U16 le_value;
+	readBytesAtPos(&le_value, sizeof(le_value), pos);
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_INT16 OS::StreamReader::readInt16()
+{
+	OS_INT16 le_value;
+	readBytes(&le_value, sizeof(le_value));
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_INT16 OS::StreamReader::readInt16AtPos(int pos)
+{
+	OS_INT16 le_value;
+	readBytesAtPos(&le_value, sizeof(le_value), pos);
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_INT32 OS::StreamReader::readInt32()
+{
+	OS_INT32 le_value;
+	readBytes(&le_value, sizeof(le_value));
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_INT32 OS::StreamReader::readInt32AtPos(int pos)
+{
+	OS_INT32 le_value;
+	readBytesAtPos(&le_value, sizeof(le_value), pos);
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_INT64 OS::StreamReader::readInt64()
+{
+	OS_INT64 le_value;
+	readBytes(&le_value, sizeof(le_value));
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_INT64 OS::StreamReader::readInt64AtPos(int pos)
+{
+	OS_INT64 le_value;
+	readBytesAtPos(&le_value, sizeof(le_value), pos);
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_FLOAT OS::StreamReader::readFloat()
+{
+	OS_FLOAT le_value;
+	readBytes(&le_value, sizeof(le_value));
+	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_FLOAT OS::StreamReader::readFloatAtPos(int pos)
+{
+	OS_FLOAT le_value;
+	readBytesAtPos(&le_value, sizeof(le_value), pos);
+	return fromLittleEndianByteOrder(le_value);
+}
+
+// =====================================================================
+
+OS::MemStreamReader::MemStreamReader(OS * allocator, int buf_size): StreamReader(allocator)
+{
 	buffer = (OS_BYTE*)allocator->malloc(buf_size);
 	size = buf_size;
 	pos = 0;
 }
 
-OS::MemStreamReader::MemStreamReader(OS * p_allocator, OS_BYTE * buf, int buf_size)
+OS::MemStreamReader::MemStreamReader(OS * allocator, OS_BYTE * buf, int buf_size): StreamReader(allocator)
 {
-	allocator = p_allocator;
 	buffer = buf;
 	size = buf_size;
 	pos = 0;
@@ -6371,6 +6671,11 @@ OS::MemStreamReader::~MemStreamReader()
 	}
 }
 
+int OS::MemStreamReader::getPos() const
+{
+	return pos;
+}
+
 void OS::MemStreamReader::skipBytes(int len)
 {
 	OS_ASSERT(pos >= 0 && pos+len <= size);
@@ -6380,7 +6685,9 @@ void OS::MemStreamReader::skipBytes(int len)
 bool OS::MemStreamReader::checkBytes(void * src, int len)
 {
 	OS_ASSERT(pos >= 0 && pos+len <= size);
-	return OS_MEMCMP(buffer+pos, src, len) == 0;
+	bool r = OS_MEMCMP(buffer+pos, src, len) == 0;
+	pos += len;
+	return r;
 }
 
 void * OS::MemStreamReader::readBytes(void * dst, int len)
@@ -6409,61 +6716,64 @@ OS_BYTE OS::MemStreamReader::readByteAtPos(int pos)
 	OS_ASSERT(pos >= 0 && pos+sizeof(OS_BYTE) <= size);
 	return buffer[pos];
 }
-			
-OS_USHORT OS::MemStreamReader::readUShort()
+
+// =====================================================================
+
+OS::FileStreamReader::FileStreamReader(OS * allocator, const char * filename): StreamReader(allocator)
 {
-	OS_USHORT le_value;
-	readBytes(&le_value, sizeof(le_value));
-	return fromLittleEndianByteOrder(le_value);
+	f = fopen(filename, "rb");
+	OS_ASSERT(f);
 }
 
-OS_USHORT OS::MemStreamReader::readUShortAtPos(int pos)
+OS::FileStreamReader::FileStreamReader(OS * allocator, FILE * f): StreamReader(allocator)
 {
-	OS_USHORT le_value;
-	readBytesAtPos(&le_value, sizeof(le_value), pos);
-	return fromLittleEndianByteOrder(le_value);
+	this->f = f;
+	OS_ASSERT(f);
 }
 
-OS_INT32 OS::MemStreamReader::readInt32()
+OS::FileStreamReader::~FileStreamReader()
 {
-	OS_INT32 le_value;
-	readBytes(&le_value, sizeof(le_value));
-	return fromLittleEndianByteOrder(le_value);
+	if(f){
+		fclose(f);
+	}
 }
 
-OS_INT32 OS::MemStreamReader::readInt32AtPos(int pos)
+int OS::FileStreamReader::getPos() const
 {
-	OS_INT32 le_value;
-	readBytesAtPos(&le_value, sizeof(le_value), pos);
-	return fromLittleEndianByteOrder(le_value);
+	return f ? ftell(f) : 0;
 }
 
-OS_INT64 OS::MemStreamReader::readInt64()
+void OS::FileStreamReader::skipBytes(int len)
 {
-	OS_INT64 le_value;
-	readBytes(&le_value, sizeof(le_value));
-	return fromLittleEndianByteOrder(le_value);
+	if(f){
+		fseek(f, len, SEEK_CUR);
+	}
 }
 
-OS_INT64 OS::MemStreamReader::readInt64AtPos(int pos)
+bool OS::FileStreamReader::checkBytes(void * src, int len)
 {
-	OS_INT64 le_value;
-	readBytesAtPos(&le_value, sizeof(le_value), pos);
-	return fromLittleEndianByteOrder(le_value);
+	void * buf = alloca(len);
+	readBytes(buf, len);
+	return OS_MEMCMP(buf, src, len) == 0;
 }
 
-OS_FLOAT OS::MemStreamReader::readFloat()
+void * OS::FileStreamReader::readBytes(void * buf, int len)
 {
-	OS_FLOAT le_value;
-	readBytes(&le_value, sizeof(le_value));
-	return fromLittleEndianByteOrder(le_value);
+	if(f){
+		fread(buf, len, 1, f);
+	}else{
+		OS_MEMSET(buf, 0, len);
+	}
+	return buf;
 }
 
-OS_FLOAT OS::MemStreamReader::readFloatAtPos(int pos)
+void * OS::FileStreamReader::readBytesAtPos(void * buf, int len, int pos)
 {
-	OS_FLOAT le_value;
-	readBytesAtPos(&le_value, sizeof(le_value), pos);
-	return fromLittleEndianByteOrder(le_value);
+	int save_pos = getPos();
+	fseek(f, pos, SEEK_SET);
+	readBytes(buf, len);
+	fseek(f, save_pos, SEEK_SET);
+	return buf;
 }
 
 // =====================================================================
@@ -6484,7 +6794,16 @@ OS::VariableIndex::VariableIndex(const StringInternal& index): string_index(inde
 	hash_value = 0; // set by fix
 	is_string_index = true;
 	int_valid = false;
-	fixName();
+	fixStringIndex();
+}
+
+OS::VariableIndex::VariableIndex(const StringInternal& index, const NoFixStringIndex&): string_index(index)
+{
+	int_index = 0;
+	hash_value = 0; // set by fix
+	is_string_index = true;
+	int_valid = false;
+	hash_value = string_index.hash();
 }
 
 OS::VariableIndex::VariableIndex(StringData * index): string_index(index)
@@ -6493,7 +6812,16 @@ OS::VariableIndex::VariableIndex(StringData * index): string_index(index)
 	hash_value = 0; // set by fix
 	is_string_index = true;
 	int_valid = false;
-	fixName();
+	fixStringIndex();
+}
+
+OS::VariableIndex::VariableIndex(StringData * index, const NoFixStringIndex&): string_index(index)
+{
+	int_index = 0;
+	hash_value = 0; // set by fix
+	is_string_index = true;
+	int_valid = false;
+	hash_value = string_index.hash();
 }
 
 OS::VariableIndex::VariableIndex(OS * allocator, const OS_CHAR * index): string_index(allocator, index)
@@ -6502,20 +6830,20 @@ OS::VariableIndex::VariableIndex(OS * allocator, const OS_CHAR * index): string_
 	hash_value = 0; // set by fix
 	is_string_index = true;
 	int_valid = false;
-	fixName();
+	fixStringIndex();
 }
 
-OS::VariableIndex::VariableIndex(OS * allocator, OS_INT index): string_index(allocator)
+OS::VariableIndex::VariableIndex(OS * allocator, OS_INT64 index): string_index(allocator)
 {
-	int_index = index;
+	int_index = (OS_INT)index;
 	hash_value = (int)int_index;
 	is_string_index = false;
 	int_valid = true;
 }
 
-OS::VariableIndex::VariableIndex(OS * allocator, int index): string_index(allocator)
+OS::VariableIndex::VariableIndex(OS * allocator, OS_INT32 index): string_index(allocator)
 {
-	int_index = index;
+	int_index = (OS_INT)index;
 	hash_value = (int)int_index;
 	is_string_index = false;
 	int_valid = true;
@@ -6535,7 +6863,7 @@ OS::VariableIndex::VariableIndex(OS * allocator, OS_FLOAT index, int precision):
 		is_string_index = true;
 		int_valid = false;
 		hash_value = string_index.hash();
-		// fixName();
+		// fixStringIndex();
 	}
 }
 
@@ -6599,7 +6927,7 @@ OS::StringInternal OS::VariableIndex::toString() const
 	return is_string_index ? string_index : StringInternal(getAllocator(), int_index);
 }
 
-void OS::VariableIndex::fixName()
+void OS::VariableIndex::fixStringIndex()
 {
 	if(!int_valid && checkIntIndex()){
 		OS_FLOAT fval;
@@ -6714,6 +7042,7 @@ OS::Value::Table * OS::newTable()
 
 void OS::deleteTable(Value::Table * table)
 {
+	OS_ASSERT(table);
 	Value::Variable * var = table->last, * prev;
 
 	table->count = 0;
@@ -6820,14 +7149,19 @@ bool OS::deleteTableVariable(Value::Table * table, const VariableIndex& index)
 				table->heads[slot] = cur->hash_next;
 			}
 
+			int value_id = cur->value_id;
+
 			cur->next = NULL;
 			cur->prev = NULL;
 			cur->hash_next = NULL;
+			cur->value_id = 0;
 
 			table->count--;
 
 			cur->~Variable();
 			free(cur);
+
+			releaseValueById(value_id);
 			return true;
 		}
 	}  
@@ -6869,32 +7203,6 @@ void OS::deleteArray(Value::Array * arr)
 	}
 	vectorClear(arr->values);
 	deleteTable(arr);
-}
-
-// =====================================================================
-/*
-OS::FunctionDecl::LocalVarDecl::LocalVarDecl()
-{
-	start = 0;
-	end = 0;
-}
-*/
-
-OS::FunctionDecl::FunctionDecl()
-{
-	env = NULL;
-	parent = NULL;
-	parent_opcode_num = 0;
-	num_params = 0;
-	local_decls = 0;
-	num_locals = 0;
-	opcodes = 0;
-	num_opcodes = 0;
-	ref_count = 0;
-}
-
-OS::FunctionDecl::~FunctionDecl()
-{
 }
 
 // =====================================================================
@@ -7295,6 +7603,9 @@ static void * std_heap_func(void * p, int size)
 		free(p);
 		return NULL;
 	}
+	if(size <= 0){
+		return NULL;
+	}
 	return malloc(size);
 }
 
@@ -7475,6 +7786,7 @@ bool OS::init()
 	}
 	// removeStackValues(PROTOTYPES_NUMBER);
 
+	string_values_table = newTable();
 	global_vars = pushObjectValue()->retain(); pop();
 
 	return true;
@@ -7490,10 +7802,10 @@ void OS::shutdown()
 	vectorClear(stack_values);
 	vectorClear(temp_values);
 	vectorClear(call_stack_funcs);
-	vectorClear(func_decls);
 	// vectorClear(cache_values);
 	
 	releaseValue(global_vars); global_vars = NULL;
+	deleteTable(string_values_table); string_values_table = NULL;
 
 	for(int i = 0; i < PROTOTYPES_NUMBER; i++){
 		// releaseValue(prototypes[i]);
@@ -7543,15 +7855,26 @@ void OS::freeAutoreleaseValues()
 }
 */
 
-void OS::releaseFuncDecl(FunctionDecl * decl)
+/*
+void OS::deleteFunctionData(FunctionData * func)
 {
-	OS_ASSERT(decl);
-	if(--decl->ref_count <= 0){
-		OS_ASSERT(decl->ref_count == 0);
-		decl->~FunctionDecl();
-		free(decl);
+	OS_ASSERT(func && func->prog); // && (func->locals || !func->num_locals));
+
+	int i;
+
+	for(i = 0; i < func->num_up_funcs; i++){
+		releaseValue(func->up_funcs[i]);
 	}
+	free(func->up_funcs);
+	func->up_funcs = NULL;
+	
+	func->prog->release();
+	func->prog = NULL;
+
+	func->~FunctionData();
+	free(func);
 }
+*/
 
 void OS::resetValue(Value * val)
 {
@@ -7589,10 +7912,14 @@ void OS::resetValue(Value * val)
 		break;
 
 	case OS_VALUE_TYPE_FUNCTION:
-		// releaseValue(val->value.func.parent_func);
-		releaseFuncDecl(val->value.func.func_decl);
-		// val->value.func.parent_func = NULL;
-		val->value.func.func_decl = NULL;
+		OS_ASSERT(val->value.func.decl && val->value.func.decl->prog);
+		val->value.func.decl->prog->release();
+		val->value.func.decl = NULL;
+		if(val->value.func.parent_func){
+			OS_ASSERT(val->value.func.parent_func->type == OS_VALUE_TYPE_FUNCTION);
+			releaseValue(val->value.func.parent_func);
+			val->value.func.parent_func = NULL;
+		}
 		break;
 
 	case OS_VALUE_TYPE_OBJECT:
@@ -7633,6 +7960,8 @@ void OS::releaseValue(Value * val)
 	if(--val->ref_count <= 0){
 		OS_ASSERT(val->ref_count == 0);
 		deleteValue(val);
+	}else if(val->type == OS_VALUE_TYPE_STRING && val->ref_count == 1){
+		deleteTableVariable(string_values_table, VariableIndex(val->value.string_data, VariableIndex::NoFixStringIndex()));
 	}
 }
 
@@ -7722,13 +8051,32 @@ OS::Value * OS::pushNumberValue(OS_FLOAT val)
 	return res;
 }
 
-OS::Value * OS::pushStringValue(const StringInternal& val)
+OS::Value * OS::pushStringValue(const StringInternal& str)
 {
+#if 1
+	VariableIndex index(str, VariableIndex::NoFixStringIndex());
+	Value::Variable * var = string_values_table->get(index);
+	if(var){
+		Value * value = values.get(var->value_id);
+		return pushValue(value);
+	}
+	Value * value = pushNullValue();
+	value->prototype = prototypes[PROTOTYPE_STRING]->retain();
+	value->value.string_data = str.toData()->retain();
+	value->type = OS_VALUE_TYPE_STRING;
+
+	var = new (malloc(sizeof(Value::Variable))) Value::Variable(index);
+	var->value_id = value->value_id;
+	value->ref_count++;
+	addTableVariable(string_values_table, var);
+	return value;
+#else
 	Value * res = pushNullValue();
 	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
 	res->value.string_data = val.toData()->retain();
 	res->type = OS_VALUE_TYPE_STRING;
 	return res;
+#endif
 }
 
 OS::Value * OS::pushStringValue(const OS_CHAR * val)
