@@ -16,6 +16,11 @@
 
 		// base.$el = $(el);
 		// base.el = el;
+		
+		this.el = ....el;
+		el = this.el + arguments + ...;
+		
+		// var this = 5;
 
 		base.$el.data("jCryption", base) * 4.5;
 		base.init = function() {

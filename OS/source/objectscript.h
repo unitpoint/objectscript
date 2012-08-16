@@ -35,8 +35,10 @@
 #define OS_INT __int64
 #define OS_FLOAT double
 #define OS_INT32 __int32
+#define OS_INT64 __int64
 #define OS_BYTE unsigned char
 #define OS_USHORT unsigned short
+#define OS_SHORT short
 
 #define OS_TEXT(s) s
 
@@ -45,6 +47,9 @@
 #define OS_DEF_PRECISION 16
 
 #define OS_DEF_FMT_BUF_SIZE 1024*10
+
+#define OS_COMPILED_HEADER OS_TEXT("OS.BIN")
+#define OS_COMPILED_VERSION OS_TEXT("0.9")
 
 // #define OS_NEW(classname, params) new (allocator->malloc(sizeof(classname))) classname params
 
@@ -407,7 +412,7 @@ namespace ObjectScript
 
 				OPERATOR_INDIRECT,    // .
 				OPERATOR_CONCAT,    // ..
-				OPERATOR_REST_PARAMS,  // ...
+				REST_ARGUMENTS,  // ...
 
 				// OPERATOR_PRECOMP,   // #
 				// OPERATOR_DOLLAR,    // $
@@ -656,7 +661,7 @@ namespace ObjectScript
 			LocalVarDecl * local_decls;
 			int num_locals;
 
-			int * opcodes;
+			OS_BYTE * opcodes;
 			int num_opcodes;
 
 			int ref_count;
@@ -789,6 +794,8 @@ namespace ObjectScript
 		};
 
 		class Program;
+		class MemStreamWriter;
+
 		class Compiler
 		{
 		public:
@@ -816,6 +823,10 @@ namespace ObjectScript
 				EXP_TYPE_OBJECT_SET_BY_INDEX,
 				EXP_TYPE_OBJECT_SET_BY_EXP,
 				EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX,
+
+				EXP_TYPE_GET_THIS,
+				EXP_TYPE_GET_ARGUMENTS,
+				EXP_TYPE_GET_REST_ARGUMENTS,
 
 				EXP_TYPE_GET_LOCAL_VAR,
 				EXP_TYPE_SET_LOCAL_VAR,
@@ -925,6 +936,8 @@ namespace ObjectScript
 
 		protected:
 
+			friend class Program;
+
 			struct Expression;
 			struct ExpressionList: public Vector<Expression*>
 			{
@@ -1002,20 +1015,21 @@ namespace ObjectScript
 					LocalVar(const StringInternal& name, int index);
 				};
 
-				struct LocalVarScope
+				struct LocalVarCompiled
 				{
 					int cached_name_index;
 					int start_code_pos;
 					int end_code_pos;
 
-					LocalVarScope();
+					LocalVarCompiled();
 				};
 
 				// used by function scope
 				Vector<LocalVar> locals;
-				Vector<LocalVarScope> local_scopes;
+				Vector<LocalVarCompiled> locals_compiled;
 				int num_params;
 				int num_locals;
+				
 				bool parser_started;
 
 				Scope(Scope * parent, ExpressionType, TokenData*);
@@ -1074,8 +1088,11 @@ namespace ObjectScript
 
 			// code generation
 			Program * prog;
-			Value::Table * strings_cache;
-			Value::Table * numbers_cache;
+			Value::Table * prog_numbers_table;
+			Value::Table * prog_strings_table;
+			Vector<OS_FLOAT> prog_numbers;
+			Vector<StringInternal> prog_strings;
+			MemStreamWriter * opcodes;
 
 			bool isError();
 			void resetError();
@@ -1136,7 +1153,6 @@ namespace ObjectScript
 			int cacheString(const StringInternal& str);
 			int cacheNumber(OS_FLOAT);
 
-			bool writeOpcodes(Expression*, Program*);
 			bool writeOpcodes(Expression*);
 			bool writeOpcodes(ExpressionList&);
 
@@ -1146,6 +1162,70 @@ namespace ObjectScript
 			virtual ~Compiler();
 
 			bool compile(); // push compiled text as function
+		};
+
+		class MemStreamWriter
+		{
+		public:
+
+			OS * allocator;
+			Vector<OS_BYTE> buffer;
+
+			MemStreamWriter(OS*);
+			~MemStreamWriter();
+
+			void writeBytes(const void*, int len);
+			void writeBytesAtPos(const void*, int len, int pos);
+
+			void writeByte(int);
+			void writeByteAtPos(int value, int pos);
+			
+			void writeUShort(int);
+			void writeUShortAtPos(int value, int pos);
+
+			void writeInt32(int);
+			void writeInt32AtPos(int value, int pos);
+
+			void writeInt64(OS_INT64);
+			void writeInt64AtPos(OS_INT64 value, int pos);
+
+			void writeFloat(OS_FLOAT);
+			void writeFloatAtPos(OS_FLOAT value, int pos);
+		};
+
+		class MemStreamReader
+		{
+		public:
+
+			OS * allocator; // if NULL then buffer will not be freed
+			OS_BYTE * buffer;
+			int size;
+			int pos;
+
+			MemStreamReader(OS*, int buf_size);
+			MemStreamReader(OS*, OS_BYTE * buf, int buf_size);
+			~MemStreamReader();
+
+			void skipBytes(int len);
+			bool checkBytes(void*, int len);
+
+			void * readBytes(void*, int len);
+			void * readBytesAtPos(void*, int len, int pos);
+
+			OS_BYTE readByte();
+			OS_BYTE readByteAtPos(int pos);
+			
+			OS_USHORT readUShort();
+			OS_USHORT readUShortAtPos(int pos);
+
+			OS_INT32 readInt32();
+			OS_INT32 readInt32AtPos(int pos);
+
+			OS_INT64 readInt64();
+			OS_INT64 readInt64AtPos(int pos);
+
+			OS_FLOAT readFloat();
+			OS_FLOAT readFloatAtPos(int pos);
 		};
 
 		class Program
@@ -1177,6 +1257,10 @@ namespace ObjectScript
 
 				OP_PUSH_AUTO_VAR,
 				OP_SET_AUTO_VAR,
+
+				OP_PUSH_THIS,
+				OP_PUSH_ARGUMENTS,
+				OP_PUSH_REST_ARGUMENTS,
 				
 				OP_PUSH_LOCAL_VAR,
 				OP_SET_LOCAL_VAR,
@@ -1228,9 +1312,13 @@ namespace ObjectScript
 
 			OS * allocator;
 			StringInternal filename;
-			Vector<StringInternal> strings;
-			Vector<OS_FLOAT> numbers;
-			Vector<OS_BYTE> opcodes;
+			// Vector<StringInternal> strings;
+			// Vector<OS_FLOAT> numbers;
+			// OS_BYTE * opcodes;
+			MemStreamReader * opcodes;
+			Value ** const_values;
+			int num_numbers;
+			int num_strings;
 
 			Program(OS * allocator);
 
@@ -1239,22 +1327,10 @@ namespace ObjectScript
 
 			static OpcodeType toOpcodeType(Compiler::ExpressionType);
 
-			void writeOpcodeByte(int);
-			void writeOpcodeByteAtPos(int value, int pos);
-			
-			void writeOpcodeUShort(int);
-			void writeOpcodeUShortAtPos(int value, int pos);
+			bool saveToFile(const char * filename, MemStreamWriter * opcodes, const Vector<OS_FLOAT>& const_numbers, const Vector<StringInternal>& const_strings);
+			bool loadFromFile(const char * filename);
 
-			void writeOpcodeInt32(int);
-			void writeOpcodeInt32AtPos(int value, int pos);
-
-			void writeOpcodeInt64(OS_INT);
-			void writeOpcodeInt64AtPos(OS_INT value, int pos);
-
-			void writeOpcodeFloat(OS_FLOAT);
-			void writeOpcodeFloatAtPos(OS_FLOAT value, int pos);
-
-			bool saveToFile(const char * filename);
+			void start();
 		};
 
 		struct Values
@@ -1416,6 +1492,8 @@ namespace ObjectScript
 			StringInternal __mod;
 
 			StringInternal syntax_var;
+			StringInternal syntax_this;
+			StringInternal syntax_arguments;
 			StringInternal syntax_function;
 			StringInternal syntax_null;
 			StringInternal syntax_true;
