@@ -57,49 +57,49 @@ struct __test_os__
 			"})(a(),2,3));\n"
 			"b(); 5, t, 6, a(), 6;");
 		os->pushInt(123);
-		os->pushObject();
+		os->newObject();
 		os->pushString("qwerty");
-		os->objectGet();
+		os->getProperty();
 		os->pop();
-		os->pushObject();
+		os->newObject();
 		os->pushString("qwerty");
 		os->pushFloat(1.23);
-		os->objectSet();
+		os->setProperty();
 		os->pushFloat(56.0);
 		os->pushFloat(1.23);
-		os->objectSet();
+		os->setProperty();
 		os->pushInt(-56);
 		os->pushString("abc");
-		os->objectSet();
+		os->setProperty();
 		os->pushStackValue();
 		os->pushFloat(-56.0);
-		os->objectGet();
+		os->getProperty();
 		os->pop();
 		os->pushStackValue();
 		os->pushString("-56");
-		os->objectGet();
+		os->getProperty();
 		OS::String str = os->toString();
 		os->pop();
 
 		os->pushInt(-56);
-		int * val = (int*)os->pushUserdata(sizeof(int));
+		int * val = (int*)os->pushUserData(sizeof(int));
 		*val = 1;		
-		os->objectSet();
+		os->setProperty();
 		os->popAll();
 
 		int mem_usage = os->getAllocatedBytes();
-		os->pushObject();
+		os->newObject();
 		for(int i = 0; i < 10000; i++){
 			os->pushString(OS::String(os, i)+"-index");
 			// os->pushInt(i);
 			os->pushFloat(1.0 / i);
-			os->objectSet();
+			os->setProperty();
 		}
 		int mem_usage2 = os->getAllocatedBytes();
 
 		// os->pushInt(100);
 		os->pushString(OS::String(os, 100)+"-index");
-		os->objectGet();
+		os->getProperty();
 		OS_FLOAT check_val = os->toNumber();
 
 		os->popAll();
