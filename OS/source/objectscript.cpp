@@ -15,6 +15,123 @@ static int __snprintf__(char * buf, size_t num, const char * format, ...)
 	return ret;
 }
 
+static bool isnan(float a)
+{
+	volatile float b = a;
+	return b != a;
+}
+
+static bool isnan(double a)
+{
+	volatile double b = a;
+	return b != a;
+}
+
+#define CURRENT_BYTE_ORDER       (*(OS_INT32*)"\x01\x02\x03\x04")
+#define LITTLE_ENDIAN_BYTE_ORDER 0x04030201
+#define BIG_ENDIAN_BYTE_ORDER    0x01020304
+#define PDP_ENDIAN_BYTE_ORDER    0x02010403
+
+#define IS_LITTLE_ENDIAN (CURRENT_BYTE_ORDER == LITTLE_ENDIAN_BYTE_ORDER)
+#define IS_BIG_ENDIAN    (CURRENT_BYTE_ORDER == BIG_ENDIAN_BYTE_ORDER)
+#define IS_PDP_ENDIAN    (CURRENT_BYTE_ORDER == PDP_ENDIAN_BYTE_ORDER)
+
+static inline OS_BYTE toLittleEndianByteOrder(OS_BYTE val)
+{
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*1);
+	return val;
+}
+
+static inline OS_U16 toLittleEndianByteOrder(OS_U16 val)
+{
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*2);
+	if(IS_LITTLE_ENDIAN){
+		return val;
+	}
+	OS_U16 r;
+	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[1];
+	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[0];
+	return r;
+}
+
+static inline OS_INT16 toLittleEndianByteOrder(OS_INT16 val)
+{
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*2);
+	if(IS_LITTLE_ENDIAN){
+		return val;
+	}
+	OS_INT16 r;
+	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[1];
+	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[0];
+	return r;
+}
+
+static inline OS_INT32 toLittleEndianByteOrder(OS_INT32 val)
+{
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*4);
+	if(IS_LITTLE_ENDIAN){
+		return val;
+	}
+	OS_INT32 r;
+	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[3];
+	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[2];
+	((OS_BYTE*)&r)[2] = ((OS_BYTE*)&val)[1];
+	((OS_BYTE*)&r)[3] = ((OS_BYTE*)&val)[0];
+	return r;
+}
+
+static inline OS_INT64 toLittleEndianByteOrder(OS_INT64 val)
+{
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*8);
+	if(IS_LITTLE_ENDIAN){
+		return val;
+	}
+	OS_INT64 r;
+	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[7];
+	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[6];
+	((OS_BYTE*)&r)[2] = ((OS_BYTE*)&val)[5];
+	((OS_BYTE*)&r)[3] = ((OS_BYTE*)&val)[4];
+	((OS_BYTE*)&r)[4] = ((OS_BYTE*)&val)[3];
+	((OS_BYTE*)&r)[5] = ((OS_BYTE*)&val)[2];
+	((OS_BYTE*)&r)[6] = ((OS_BYTE*)&val)[1];
+	((OS_BYTE*)&r)[7] = ((OS_BYTE*)&val)[0];
+	return r;
+}
+
+static inline float toLittleEndianByteOrder(float val)
+{
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*4);
+	if(IS_LITTLE_ENDIAN){
+		return val;
+	}
+	float r;
+	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[3];
+	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[2];
+	((OS_BYTE*)&r)[2] = ((OS_BYTE*)&val)[1];
+	((OS_BYTE*)&r)[3] = ((OS_BYTE*)&val)[0];
+	return r;
+}
+
+static inline double toLittleEndianByteOrder(double val)
+{
+	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*8);
+	if(IS_LITTLE_ENDIAN){
+		return val;
+	}
+	double r;
+	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[7];
+	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[6];
+	((OS_BYTE*)&r)[2] = ((OS_BYTE*)&val)[5];
+	((OS_BYTE*)&r)[3] = ((OS_BYTE*)&val)[4];
+	((OS_BYTE*)&r)[4] = ((OS_BYTE*)&val)[3];
+	((OS_BYTE*)&r)[5] = ((OS_BYTE*)&val)[2];
+	((OS_BYTE*)&r)[6] = ((OS_BYTE*)&val)[1];
+	((OS_BYTE*)&r)[7] = ((OS_BYTE*)&val)[0];
+	return r;
+}
+
+#define fromLittleEndianByteOrder toLittleEndianByteOrder
+
 static inline void parseSpaces(const OS_CHAR *& str)
 {
 	while(*str && OS_ISSPACE(*str))
@@ -164,7 +281,7 @@ OS::EParseNumType OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_I
 						default:
 							OS_ASSERT(false);
 						}
-						fval = (OS_FLOAT)*(float*)&spec_val;
+						fval = fromLittleEndianByteOrder((OS_FLOAT)*(float*)&spec_val);
 						ival = 0;
 						/* if(parseEndSpaces)
 						{
@@ -350,113 +467,6 @@ int OS::Utils::cmp(const void * buf1, int len1, const void * buf2, int len2, int
 {
 	return cmp(buf1, len1 < maxLen ? len1 : maxLen, buf2, len2 < maxLen ? len2 : maxLen);
 }
-
-// =====================================================================
-
-#define CURRENT_BYTE_ORDER       (*(OS_INT32*)"\x01\x02\x03\x04")
-#define LITTLE_ENDIAN_BYTE_ORDER 0x04030201
-#define BIG_ENDIAN_BYTE_ORDER    0x01020304
-#define PDP_ENDIAN_BYTE_ORDER    0x02010403
-
-#define IS_LITTLE_ENDIAN (CURRENT_BYTE_ORDER == LITTLE_ENDIAN_BYTE_ORDER)
-#define IS_BIG_ENDIAN    (CURRENT_BYTE_ORDER == BIG_ENDIAN_BYTE_ORDER)
-#define IS_PDP_ENDIAN    (CURRENT_BYTE_ORDER == PDP_ENDIAN_BYTE_ORDER)
-
-static inline OS_BYTE toLittleEndianByteOrder(OS_BYTE val)
-{
-	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*1);
-	return val;
-}
-
-static inline OS_U16 toLittleEndianByteOrder(OS_U16 val)
-{
-	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*2);
-	if(IS_LITTLE_ENDIAN){
-		return val;
-	}
-	OS_U16 r;
-	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[1];
-	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[0];
-	return r;
-}
-
-static inline OS_INT16 toLittleEndianByteOrder(OS_INT16 val)
-{
-	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*2);
-	if(IS_LITTLE_ENDIAN){
-		return val;
-	}
-	OS_INT16 r;
-	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[1];
-	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[0];
-	return r;
-}
-
-static inline OS_INT32 toLittleEndianByteOrder(OS_INT32 val)
-{
-	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*4);
-	if(IS_LITTLE_ENDIAN){
-		return val;
-	}
-	OS_INT32 r;
-	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[3];
-	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[2];
-	((OS_BYTE*)&r)[2] = ((OS_BYTE*)&val)[1];
-	((OS_BYTE*)&r)[3] = ((OS_BYTE*)&val)[0];
-	return r;
-}
-
-static inline OS_INT64 toLittleEndianByteOrder(OS_INT64 val)
-{
-	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*8);
-	if(IS_LITTLE_ENDIAN){
-		return val;
-	}
-	OS_INT64 r;
-	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[7];
-	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[6];
-	((OS_BYTE*)&r)[2] = ((OS_BYTE*)&val)[5];
-	((OS_BYTE*)&r)[3] = ((OS_BYTE*)&val)[4];
-	((OS_BYTE*)&r)[4] = ((OS_BYTE*)&val)[3];
-	((OS_BYTE*)&r)[5] = ((OS_BYTE*)&val)[2];
-	((OS_BYTE*)&r)[6] = ((OS_BYTE*)&val)[1];
-	((OS_BYTE*)&r)[7] = ((OS_BYTE*)&val)[0];
-	return r;
-}
-
-static inline float toLittleEndianByteOrder(float val)
-{
-	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*4);
-	if(IS_LITTLE_ENDIAN){
-		return val;
-	}
-	float r;
-	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[3];
-	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[2];
-	((OS_BYTE*)&r)[2] = ((OS_BYTE*)&val)[1];
-	((OS_BYTE*)&r)[3] = ((OS_BYTE*)&val)[0];
-	return r;
-}
-
-static inline double toLittleEndianByteOrder(double val)
-{
-	OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*8);
-	if(IS_LITTLE_ENDIAN){
-		return val;
-	}
-	double r;
-	((OS_BYTE*)&r)[0] = ((OS_BYTE*)&val)[7];
-	((OS_BYTE*)&r)[1] = ((OS_BYTE*)&val)[6];
-	((OS_BYTE*)&r)[2] = ((OS_BYTE*)&val)[5];
-	((OS_BYTE*)&r)[3] = ((OS_BYTE*)&val)[4];
-	((OS_BYTE*)&r)[4] = ((OS_BYTE*)&val)[3];
-	((OS_BYTE*)&r)[5] = ((OS_BYTE*)&val)[2];
-	((OS_BYTE*)&r)[6] = ((OS_BYTE*)&val)[1];
-	((OS_BYTE*)&r)[7] = ((OS_BYTE*)&val)[0];
-	return r;
-}
-
-#define fromLittleEndianByteOrder toLittleEndianByteOrder
 
 // =====================================================================
 // =====================================================================
@@ -6066,19 +6076,19 @@ OS::FunctionData::~FunctionData()
 // =====================================================================
 // =====================================================================
 
-OS::Core::ProgramFunctionDecl::LocalVar::LocalVar(const StringInternal& p_name): name(p_name)
+OS::Core::FunctionDecl::LocalVar::LocalVar(const StringInternal& p_name): name(p_name)
 {
 	start_code_pos = -1;
 	end_code_pos = -1;
 }
 
-OS::Core::ProgramFunctionDecl::LocalVar::~LocalVar()
+OS::Core::FunctionDecl::LocalVar::~LocalVar()
 {
 }
 
-OS::Core::ProgramFunctionDecl::ProgramFunctionDecl(Program * p_prog)
+OS::Core::FunctionDecl::FunctionDecl() // Program * p_prog)
 {
-	prog = p_prog;
+	// prog = p_prog;
 	parent_func_index = -1;
 	locals = NULL;
 	num_locals = 0;
@@ -6088,9 +6098,9 @@ OS::Core::ProgramFunctionDecl::ProgramFunctionDecl(Program * p_prog)
 	opcodes_size = 0;
 }
 
-OS::Core::ProgramFunctionDecl::~ProgramFunctionDecl()
+OS::Core::FunctionDecl::~FunctionDecl()
 {
-	OS_ASSERT(!locals && !prog);
+	OS_ASSERT(!locals); // && !prog);
 }
 
 // =====================================================================
@@ -6116,14 +6126,14 @@ OS::Core::Program::~Program()
 	const_values = NULL;
 
 	for(i = 0; i < num_functions; i++){
-		ProgramFunctionDecl * func = functions + i;
+		FunctionDecl * func = functions + i;
 		for(int j = 0; j < func->num_locals; j++){
 			func->locals[j].~LocalVar();
 		}
 		allocator->free(func->locals);
 		func->locals = NULL;
-		func->prog = NULL;
-		func->~ProgramFunctionDecl();
+		// func->prog = NULL;
+		func->~FunctionDecl();
 	}
 	allocator->free(functions);
 	functions = NULL;
@@ -6218,10 +6228,10 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 		allocator->pop();
 	}
 
-	functions = (ProgramFunctionDecl*)allocator->malloc(sizeof(ProgramFunctionDecl) * num_functions);
+	functions = (FunctionDecl*)allocator->malloc(sizeof(FunctionDecl) * num_functions);
 	for(i = 0; i < num_functions; i++){
-		ProgramFunctionDecl * func = functions + i;
-		new (func) ProgramFunctionDecl(this);
+		FunctionDecl * func = functions + i;
+		new (func) FunctionDecl();
 		func->parent_func_index = reader.readInt16();
 		func->num_locals = reader.readByte();
 		func->num_params = reader.readByte();
@@ -6229,13 +6239,13 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 		func->opcodes_pos = reader.readInt32();
 		func->opcodes_size = reader.readInt32();
 
-		func->locals = (ProgramFunctionDecl::LocalVar*)allocator->malloc(sizeof(ProgramFunctionDecl::LocalVar) * func->num_locals);
+		func->locals = (FunctionDecl::LocalVar*)allocator->malloc(sizeof(FunctionDecl::LocalVar) * func->num_locals);
 		for(int j = 0; j < func->num_locals; j++){
 			int cached_name_index = reader.readU16();
 			OS_ASSERT(cached_name_index >= 0 && cached_name_index < num_strings);
-			ProgramFunctionDecl::LocalVar * local_var = func->locals + j;
+			FunctionDecl::LocalVar * local_var = func->locals + j;
 			StringInternal var_name = allocator->core->valueToString(const_values[num_numbers + cached_name_index]);
-			new (local_var) ProgramFunctionDecl::LocalVar(var_name);
+			new (local_var) FunctionDecl::LocalVar(var_name);
 			local_var->start_code_pos = reader.readInt32();
 			local_var->end_code_pos = reader.readInt32();
 		}
@@ -6258,17 +6268,19 @@ void OS::Core::Program::pushFunction()
 
 	int func_index = opcodes->readU16();
 	OS_ASSERT(func_index >= 0 && func_index < num_functions);
-	ProgramFunctionDecl * func_decl = functions + func_index;
+	FunctionDecl * func_decl = functions + func_index;
 
 	Value * func_value = allocator->core->pushNullValue();
 	func_value->prototype = allocator->core->prototypes[PROTOTYPE_FUNCTION]->retain();
-	func_value->value.func.decl = func_decl;
-	func_value->value.func.parent_func = NULL;
+	FunctionValueData * func_value_data = allocator->core->newFunctionValueData();
+	func_value_data->prog = retain();
+	func_value_data->func_decl = func_decl;
+	func_value_data->env = NULL; // TODO: ???
+	func_value_data->self = NULL; // TODO: ???
+	func_value_data->parent_inctance = NULL; // TODO: ???
+	func_value->value.func = func_value_data;
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
 	
-	OS_ASSERT(func_decl->prog == this);
-	retain(); // program is used by value
-
 	OS_ASSERT(functions[func_index].opcodes_pos == opcodes->pos);
 	opcodes->skipBytes(functions[func_index].opcodes_size);
 }
@@ -7174,6 +7186,105 @@ void OS::Core::deleteArray(Value::Array * arr)
 
 // =====================================================================
 
+OS::Core::FunctionValueData::FunctionValueData()
+{
+	parent_inctance = NULL;
+	prog = NULL;
+	func_decl = NULL;
+	self = NULL;
+	env = NULL;
+}
+
+OS::Core::FunctionValueData::~FunctionValueData()
+{
+	OS_ASSERT(!parent_inctance && !prog && !func_decl && !self && !env);
+}
+
+OS::Core::FunctionValueData * OS::Core::newFunctionValueData()
+{
+	FunctionValueData * func_data = new (malloc(sizeof(FunctionValueData))) FunctionValueData();
+	return func_data;
+}
+
+void OS::Core::deleteFunctionValueData(FunctionValueData * func_data)
+{
+	OS_ASSERT(func_data->prog && func_data->func_decl); // && func_data->self && func_data->env);
+	if(func_data->env){
+		releaseValue(func_data->env);
+		func_data->env = NULL;
+	}
+	if(func_data->self){
+		releaseValue(func_data->self);
+		func_data->self = NULL;
+	}
+	func_data->func_decl = NULL;
+	func_data->prog->release();
+	func_data->prog = NULL;
+	if(func_data->parent_inctance){
+		releaseFunctionRunningInstance(func_data->parent_inctance); 
+		func_data->parent_inctance = NULL;
+	}
+	func_data->~FunctionValueData();
+	free(func_data);
+}
+
+// =====================================================================
+
+OS::Core::FunctionRunningInstance::FunctionRunningInstance()
+{
+	func = NULL;
+	self = NULL;
+
+	parent_inctances = NULL;
+	num_parent_inctances = 0;
+
+	locals = NULL;
+	num_locals = 0;
+
+	next_opcode_pos = 0;
+	ref_count = 1;
+}
+
+OS::Core::FunctionRunningInstance::~FunctionRunningInstance()
+{
+	OS_ASSERT(!ref_count);
+	OS_ASSERT(!func && !self && !parent_inctances && !locals);
+}
+
+OS::Core::FunctionRunningInstance * OS::Core::newFunctionRunningInstance()
+{
+	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance))) FunctionRunningInstance();
+	return func_running;
+}
+
+void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance * func_running)
+{
+	int i;
+	for(i = 0; i < func_running->num_locals; i++){
+		releaseValue(func_running->locals[i]);
+	}
+	free(func_running->locals);
+	func_running->locals = NULL;
+
+	releaseValue(func_running->func); func_running->func = NULL;
+
+	if(func_running->self){
+		releaseValue(func_running->self);
+		func_running->self = NULL;
+	}
+
+	for(i = 0; i < func_running->num_parent_inctances; i++){
+		releaseFunctionRunningInstance(func_running->parent_inctances[i]);
+	}
+	free(func_running->parent_inctances);
+	func_running->parent_inctances = NULL;
+
+	func_running->~FunctionRunningInstance();
+	free(func_running);
+}
+
+// =====================================================================
+
 OS::Core::Value::Value(int p_value_id)
 {
 	value_id = p_value_id;
@@ -7193,6 +7304,28 @@ OS::Core::Value::~Value()
 	// OS_ASSERT(!properties);
 	OS_ASSERT(!hash_next);
 	OS_ASSERT(!prototype);
+}
+
+bool OS::Core::valueToBool(Value * val)
+{
+	switch(val->type){
+	case OS_VALUE_TYPE_NULL:
+		return false;
+
+	case OS_VALUE_TYPE_BOOL:
+		return val->value.boolean; // number != 0.0f;
+
+	case OS_VALUE_TYPE_NUMBER:
+		return val->value.number && !isnan(val->value.number);
+
+	case OS_VALUE_TYPE_STRING:
+		return val->value.string_data->data_size > 0;
+
+	// case OS_VALUE_TYPE_OBJECT:
+	// case OS_VALUE_TYPE_ARRAY:
+	// 	return val->value.table ? val->value.table->count : 0;
+	}
+	return true;
 }
 
 int OS::Core::valueToInt(Value * val)
@@ -7250,6 +7383,8 @@ OS_FLOAT OS::Core::valueToNumber(Value * val)
 		return 0;
 
 	case OS_VALUE_TYPE_BOOL:
+		return val->value.boolean;
+
 	case OS_VALUE_TYPE_NUMBER:
 		return val->value.number;
 
@@ -7273,6 +7408,11 @@ bool OS::Core::isValueNumber(Value * val, OS_FLOAT * out)
 		return true;
 
 	case OS_VALUE_TYPE_BOOL:
+		if(out){
+			*out = val->value.boolean;
+		}
+		return true;
+
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
 			*out = val->value.number;
@@ -7326,7 +7466,7 @@ OS::Core::StringInternal OS::Core::valueToString(Value * val)
 		return StringInternal(allocator);
 
 	case OS_VALUE_TYPE_BOOL:
-		return val->value.number ? StringInternal(allocator, OS_TEXT("1")) : StringInternal(allocator);
+		return val->value.boolean ? StringInternal(allocator, OS_TEXT("1")) : StringInternal(allocator);
 
 	case OS_VALUE_TYPE_NUMBER:
 		return StringInternal(allocator, val->value.number, OS_DEF_PRECISION);
@@ -7352,7 +7492,7 @@ bool OS::Core::isValueString(Value * val, StringInternal * out)
 
 	case OS_VALUE_TYPE_BOOL:
 		if(out){
-			*out = StringInternal(allocator, val->value.number ? OS_TEXT("1") : OS_TEXT(""));
+			*out = StringInternal(allocator, val->value.boolean ? OS_TEXT("1") : OS_TEXT(""));
 		}
 		return true;
 
@@ -7657,6 +7797,12 @@ int OS::GenericMemoryManager::getCachedMemorySize(int i)
 	case VARIABLE:
 		return sizeof(Core::Value::Variable);
 
+	case FUNCTION_DATA:
+		return sizeof(Core::FunctionValueData);
+
+	case FUNCTION_RUNNING_INSTANCE:
+		return sizeof(Core::FunctionRunningInstance);
+
 	case TABLE:
 		return sizeof(Core::Value::Table);
 
@@ -7681,7 +7827,13 @@ void * OS::GenericMemoryManager::malloc(int size)
 	if(size == sizeof(Core::Value::Variable)){ // 40 bytes
 		return getCachedMemory(size, VARIABLE);
 	}
-	if(size == sizeof(Core::Value::Table)){
+	if(size == sizeof(Core::FunctionValueData)){ // 20 bytes
+		return getCachedMemory(size, FUNCTION_DATA);
+	}
+	if(size == sizeof(Core::FunctionRunningInstance)){
+		return getCachedMemory(size, FUNCTION_RUNNING_INSTANCE);
+	}
+	if(size == sizeof(Core::Value::Table)){ // 40 bytes
 		return getCachedMemory(size, TABLE);
 	}
 	if(size == sizeof(Core::Value::Array)){ // 56 bytes
@@ -7708,6 +7860,12 @@ void OS::GenericMemoryManager::free(void * ptr)
 	}
 	if(size == sizeof(Core::Value::Variable)){
 		return putCachedMemory(p, size, VARIABLE);
+	}
+	if(size == sizeof(Core::FunctionValueData)){
+		return putCachedMemory(p, size, FUNCTION_DATA);
+	}
+	if(size == sizeof(Core::FunctionRunningInstance)){
+		return putCachedMemory(p, size, FUNCTION_RUNNING_INSTANCE);
 	}
 	if(size == sizeof(Core::Value::Table)){
 		return putCachedMemory(p, size, TABLE);
@@ -7925,6 +8083,9 @@ void OS::Core::resetValue(Value * val)
 		break;
 
 	case OS_VALUE_TYPE_BOOL:
+		val->value.boolean = 0;
+		break;
+
 	case OS_VALUE_TYPE_NUMBER:
 		val->value.number = 0;
 		break;
@@ -7952,14 +8113,8 @@ void OS::Core::resetValue(Value * val)
 		break;
 
 	case OS_VALUE_TYPE_FUNCTION:
-		OS_ASSERT(val->value.func.decl && val->value.func.decl->prog);
-		val->value.func.decl->prog->release();
-		val->value.func.decl = NULL;
-		if(val->value.func.parent_func){
-			OS_ASSERT(val->value.func.parent_func->type == OS_VALUE_TYPE_FUNCTION);
-			releaseValue(val->value.func.parent_func);
-			val->value.func.parent_func = NULL;
-		}
+		deleteFunctionValueData(val->value.func);
+		val->value.func = NULL;
 		break;
 
 	case OS_VALUE_TYPE_OBJECT:
@@ -8035,7 +8190,7 @@ OS::Core::Value::Variable * OS::Core::setTableValue(Value::Table * table, Variab
 	return var;
 }
 
-OS::Core::Value * OS::Core::getOffsValue(int offs)
+OS::Core::Value * OS::Core::getStackValue(int offs)
 {
 	if(offs < 0){
 		offs += stack_values.count;
@@ -8077,7 +8232,7 @@ OS::Core::Value * OS::Core::pushBoolValue(bool val)
 {
 	Value * res = pushNullValue();
 	res->prototype = prototypes[PROTOTYPE_BOOL]->retain();
-	res->value.number = val;
+	res->value.boolean = val;
 	res->type = OS_VALUE_TYPE_BOOL;
 	return res;
 }
@@ -8175,7 +8330,7 @@ OS::Core::Value * OS::Core::pushArrayValue()
 	return res;
 }
 
-void OS::Core::pop(int offs, int count)
+void OS::Core::removeFromStack(int offs, int count)
 {
 	int start = stack_values.count + offs;
 	if(start < 0){
@@ -8206,7 +8361,7 @@ void OS::Core::pop(int offs, int count)
 
 void OS::Core::pop(int count)
 {
-	pop(-count, count);
+	removeFromStack(-count, count);
 }
 
 void OS::pushNull()
@@ -8276,9 +8431,14 @@ void OS::newArray()
 	core->pushArrayValue();
 }
 
-void OS::pushStackValue(int offs)
+void OS::pushValue(const Value& value)
 {
-	core->pushValueAutoNull(core->getOffsValue(offs));
+	core->pushValueAutoNull(value.value);
+}
+
+void OS::pushValue(int offs)
+{
+	core->pushValueAutoNull(core->getStackValue(offs));
 }
 
 void OS::pushValueById(int id)
@@ -8286,24 +8446,19 @@ void OS::pushValueById(int id)
 	core->pushValueAutoNull(core->values.get(id));
 }
 
-void OS::pushValue(const Value& value)
+OS::Value OS::getValue(int offs)
 {
-	core->pushValueAutoNull(value.value);
+	return Value(this, core->getStackValue(offs));
 }
 
-OS::Value OS::getStackValue(int offs)
-{
-	return Value(this, core->getOffsValue(offs));
-}
-
-OS::Value OS::getStackValueById(int id)
+OS::Value OS::getValueById(int id)
 {
 	return Value(this, core->values.get(id));
 }
 
-void OS::pop(int start_offs, int count)
+void OS::remove(int start_offs, int count)
 {
-	core->pop(start_offs, count);
+	core->removeFromStack(start_offs, count);
 }
 
 void OS::pop(int count)
@@ -8311,14 +8466,23 @@ void OS::pop(int count)
 	core->pop(count);
 }
 
-void OS::popAll()
+void OS::removeAll()
 {
-	core->pop(core->stack_values.count);
+	pop(core->stack_values.count);
+}
+
+bool OS::toBool(int offs)
+{
+	Core::Value * val = core->getStackValue(offs);
+	if(val){
+		return core->valueToBool(val);
+	}
+	return false;
 }
 
 OS_FLOAT OS::toNumber(int offs)
 {
-	Core::Value * val = core->getOffsValue(offs);
+	Core::Value * val = core->getStackValue(offs);
 	if(val){
 		return core->valueToNumber(val);
 	}
@@ -8327,7 +8491,7 @@ OS_FLOAT OS::toNumber(int offs)
 
 bool OS::isNumber(int offs, OS_FLOAT * out)
 {
-	Core::Value * val = core->getOffsValue(offs);
+	Core::Value * val = core->getStackValue(offs);
 	if(val){
 		return core->isValueNumber(val, out);
 	}
@@ -8337,9 +8501,20 @@ bool OS::isNumber(int offs, OS_FLOAT * out)
 	return false;
 }
 
+bool OS::Value::isNumber(OS_FLOAT * out) const
+{
+	if(value){
+		return allocator->core->isValueNumber(value, out);
+	}
+	if(out){
+		*out = 0;
+	}
+	return false;
+}
+
 OS::String OS::toString(int offs)
 {
-	Core::Value * val = core->getOffsValue(offs);
+	Core::Value * val = core->getStackValue(offs);
 	if(val){
 		return core->valueToString(val);
 	}
@@ -8348,7 +8523,7 @@ OS::String OS::toString(int offs)
 
 bool OS::isString(int offs, String * out)
 {
-	Core::Value * val = core->getOffsValue(offs);
+	Core::Value * val = core->getStackValue(offs);
 	if(val){
 		if(out){
 			Core::StringInternal str(this);
@@ -8367,29 +8542,71 @@ bool OS::isString(int offs, String * out)
 	return false;
 }
 
+bool OS::Value::isString(String * out) const
+{
+	if(value){
+		if(out){
+			Core::StringInternal str(allocator);
+			if(allocator->core->isValueString(value, &str)){
+				*out = str;
+				return true;
+			}
+			return false;
+		}else{
+			return allocator->core->isValueString(value);
+		}
+	}
+	if(out){
+		*out = String(allocator);
+	}
+	return false;
+}
+
 OS_EValueType OS::getType(int offs)
 {
-	Core::Value * val = core->getOffsValue(offs);
-	return val ? val->type : OS_VALUE_TYPE_UNKNOWN;
+	Core::Value * val = core->getStackValue(offs);
+	return val ? val->type : OS_VALUE_TYPE_NULL;
+}
+
+OS_EValueType OS::Value::getType() const
+{
+	return value ? value->type : OS_VALUE_TYPE_NULL;
 }
 
 OS_EValueType OS::getTypeById(int id)
 {
 	Core::Value * val = core->values.get(id);
-	return val ? val->type : OS_VALUE_TYPE_UNKNOWN;
+	return val ? val->type : OS_VALUE_TYPE_NULL;
 }
 
 bool OS::isType(OS_EValueType type, int offs)
 {
-	Core::Value * val = core->getOffsValue(offs);
+	Core::Value * val = core->getStackValue(offs);
 	return val && val->type == type;
+}
+
+bool OS::Value::isType(OS_EValueType type) const
+{
+	return value && value->type == type;
 }
 
 bool OS::isObject(int offs)
 {
-	Core::Value * val = core->getOffsValue(offs);
+	Core::Value * val = core->getStackValue(offs);
 	if(val){
 		switch(val->type){
+		case OS_VALUE_TYPE_OBJECT:
+		case OS_VALUE_TYPE_ARRAY:
+			return true;
+		}
+	}
+	return false;
+}
+
+bool OS::Value::isObject() const
+{
+	if(value){
+		switch(value->type){
 		case OS_VALUE_TYPE_OBJECT:
 		case OS_VALUE_TYPE_ARRAY:
 			return true;
@@ -8403,11 +8620,28 @@ bool OS::isArray(int offs)
 	return isType(OS_VALUE_TYPE_ARRAY, offs);
 }
 
+bool OS::Value::isArray() const
+{
+	return isType(OS_VALUE_TYPE_ARRAY);
+}
+
 bool OS::isFunction(int offs)
 {
-	Core::Value * val = core->getOffsValue(offs);
+	Core::Value * val = core->getStackValue(offs);
 	if(val){
 		switch(val->type){
+		case OS_VALUE_TYPE_CFUNCTION:
+		case OS_VALUE_TYPE_FUNCTION:
+			return true;
+		}
+	}
+	return false;
+}
+
+bool OS::Value::isFunction() const
+{
+	if(value){
+		switch(value->type){
 		case OS_VALUE_TYPE_CFUNCTION:
 		case OS_VALUE_TYPE_FUNCTION:
 			return true;
@@ -8435,17 +8669,25 @@ bool OS::Core::isValueInstanceOf(Value * val, Value * prototype_val)
 
 bool OS::isInstanceOf(int value_offs, int prototype_offs)
 {
-	Core::Value * val = core->getOffsValue(value_offs);
-	Core::Value * prototype_val = core->getOffsValue(prototype_offs);
+	Core::Value * val = core->getStackValue(value_offs);
+	Core::Value * prototype_val = core->getStackValue(prototype_offs);
 	if(val && prototype_val){
 		return core->isValueInstanceOf(val, prototype_val);
 	}
 	return false;
 }
 
+bool OS::Value::isInstanceOf(const Value& prototype_value) const
+{
+	if(value && prototype_value.value && allocator == prototype_value.allocator){
+		return allocator->core->isValueInstanceOf(value, prototype_value.value);
+	}
+	return false;
+}
+
 void OS::setProperty(int table_offs, int pop_count, bool prototype_enabled, bool setter_enabled)
 {
-	Core::Value * table_arg = core->getOffsValue(table_offs);
+	Core::Value * table_arg = core->getStackValue(table_offs);
 	if(table_arg && core->stack_values.count >= 2){
 		Core::Value * index_arg = core->stack_values.buf[core->stack_values.count - 2];
 		Core::Value * value_arg = core->stack_values.buf[core->stack_values.count - 1];
@@ -8458,7 +8700,7 @@ void OS::setProperty(int table_offs, int pop_count, bool prototype_enabled, bool
 			}
 			switch(index_arg->type){
 			case OS_VALUE_TYPE_BOOL:
-				core->setTableValue(table, Core::VariableIndex(this, (OS_INT)index_arg->value.number), value_arg, prototype_enabled, setter_enabled);
+				core->setTableValue(table, Core::VariableIndex(this, (OS_INT)index_arg->value.boolean), value_arg, prototype_enabled, setter_enabled);
 				pop(pop_count);
 				return;
 
@@ -8539,7 +8781,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex
 					pushValue(table_value);
 					pushValue(value); // func
 					call(1, 1);
-					return getOffsValue(-1);
+					return getStackValue(-1);
 
 				default:
 					// error
@@ -8554,7 +8796,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex
 
 void OS::getProperty(int table_offs, int pop_count, bool prototype_enabled, bool getter_enabled)
 {
-	Core::Value * table_arg = core->getOffsValue(table_offs);
+	Core::Value * table_arg = core->getStackValue(table_offs);
 	if(table_arg && core->stack_values.count >= 1){
 		Core::Value * index_arg = core->stack_values.buf[core->stack_values.count - 1];
 		if(table_arg->type == OS_VALUE_TYPE_OBJECT){
@@ -8564,7 +8806,7 @@ void OS::getProperty(int table_offs, int pop_count, bool prototype_enabled, bool
 
 			switch(index_arg->type){
 			case OS_VALUE_TYPE_BOOL:
-				core->pushPropertyValue(table_arg, Core::VariableIndex(this, (OS_INT)index_arg->value.number), prototype_enabled, getter_enabled);
+				core->pushPropertyValue(table_arg, Core::VariableIndex(this, (OS_INT)index_arg->value.boolean), prototype_enabled, getter_enabled);
 				break;
 
 			case OS_VALUE_TYPE_NUMBER:
@@ -8638,7 +8880,7 @@ bool OS::compile(const Core::StringInternal& str)
 bool OS::compile()
 {
 	Core::StringInternal str(this);
-	Core::Value * val = core->getOffsValue(-1);
+	Core::Value * val = core->getStackValue(-1);
 	if(val && core->isValueString(val, &str)){
 		pop(1);
 		return compile(str);
@@ -8697,7 +8939,6 @@ OS::Value& OS::Value::operator=(const Value& p_value)
 			allocator->core->releaseValue(value);
 		}
 		value = p_value.value ? p_value.value->retain() : NULL;
-		
 		if(allocator != p_value.allocator){
 			allocator->release();
 			allocator = p_value.allocator->retain();

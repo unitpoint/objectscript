@@ -71,22 +71,24 @@ struct __test_os__
 		os->pushNumber(-56);
 		os->pushString("abc");
 		os->setProperty();
-		os->pushStackValue();
+		os->pushValue();
 		os->pushNumber(-56.0);
 		os->getProperty();
 		os->pop();
-		os->pushStackValue();
+		os->pushValue();
 		os->pushString("-56");
 		os->getProperty();
-		OS::Value value = os->getStackValue();
+		OS::Value value = os->getValue();
+		os->pushValue(value);
 		OS::String str = os->toString();
+		bool boolean = os->toBool();
 		os->pop();
 
 		os->pushNumber(-56);
 		int * val = (int*)os->pushUserData(sizeof(int));
 		*val = 1;		
 		os->setProperty();
-		os->popAll();
+		os->removeAll();
 
 		int mem_usage = os->getAllocatedBytes();
 		os->newObject();
@@ -103,7 +105,7 @@ struct __test_os__
 		os->getProperty();
 		OS_FLOAT check_val = os->toNumber();
 
-		os->popAll();
+		os->removeAll();
 		int mem_usage3 = os->getAllocatedBytes();
 
 		os->release();

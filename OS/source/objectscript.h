@@ -63,7 +63,7 @@ namespace ObjectScript
 
 	enum OS_EValueType
 	{
-		OS_VALUE_TYPE_UNKNOWN,
+		// OS_VALUE_TYPE_UNKNOWN,
 		OS_VALUE_TYPE_NULL,
 		OS_VALUE_TYPE_BOOL,
 		OS_VALUE_TYPE_NUMBER,
@@ -117,6 +117,8 @@ namespace ObjectScript
 			enum {
 				VALUE,
 				VARIABLE,
+				FUNCTION_DATA,
+				FUNCTION_RUNNING_INSTANCE,
 				TABLE,
 				ARRAY,
 				EXPRESSION,
@@ -838,7 +840,7 @@ namespace ObjectScript
 
 			// struct FunctionData;
 			// class Program;
-			class ProgramFunctionDecl;
+			struct FunctionValueData;
 			struct Value
 			{
 				struct Variable: public VariableIndex
@@ -893,7 +895,7 @@ namespace ObjectScript
 				// Table * table;
 
 				union {
-					// bool boolean;
+					bool boolean;
 					OS_FLOAT number;
 					StringData * string_data; // retained
 					Table * table;
@@ -904,11 +906,7 @@ namespace ObjectScript
 						OS_UserDataDtor dtor;
 					} userdata;
 
-					// FunctionData * func;
-					struct {
-						ProgramFunctionDecl * decl; // retained
-						Value * parent_func;
-					} func;
+					FunctionValueData * func;
 
 					struct {
 						OS_CFunction func;
@@ -1314,7 +1312,7 @@ namespace ObjectScript
 				bool compile(); // push compiled text as function
 			};
 
-			struct ProgramFunctionDecl
+			struct FunctionDecl
 			{
 				struct LocalVar
 				{
@@ -1335,10 +1333,10 @@ namespace ObjectScript
 				int opcodes_pos;
 				int opcodes_size;
 
-				Program * prog; // retained for value of function type
+				// Program * prog; // retained for value of function type
 
-				ProgramFunctionDecl(Program*);
-				~ProgramFunctionDecl();
+				FunctionDecl(); // Program*);
+				~FunctionDecl();
 			};
 
 			class Program
@@ -1427,7 +1425,7 @@ namespace ObjectScript
 				int num_numbers;
 				int num_strings;
 
-				ProgramFunctionDecl * functions;
+				FunctionDecl * functions;
 				int num_functions;
 
 				MemStreamReader * opcodes;
@@ -1442,6 +1440,38 @@ namespace ObjectScript
 				bool loadFromStream(StreamReader&);
 
 				void pushFunction();
+			};
+
+			struct FunctionRunningInstance;
+			struct FunctionValueData
+			{
+				FunctionRunningInstance * parent_inctance;
+				Program * prog;
+				FunctionDecl * func_decl;
+				Value * self; // TODO: ???
+				Value * env;
+				// Value::Table * table;
+
+				FunctionValueData();
+				~FunctionValueData();
+			};
+
+			struct FunctionRunningInstance
+			{
+				Value * func;
+				Value * self; // TODO: ???
+
+				FunctionRunningInstance ** parent_inctances;
+				int num_parent_inctances;
+
+				Value ** locals;
+				int num_locals;
+
+				int next_opcode_pos;
+				int ref_count;
+
+				FunctionRunningInstance();
+				~FunctionRunningInstance();
 			};
 
 			struct Values
@@ -1462,6 +1492,8 @@ namespace ObjectScript
 
 			struct StackFunction
 			{
+				Vector<FunctionRunningInstance*> stack_calls;
+
 				Value * func; // retained
 				int cur_opcode_num;
 
@@ -1551,6 +1583,12 @@ namespace ObjectScript
 
 			void releaseValue(int value_id);
 
+			FunctionValueData * newFunctionValueData();
+			void deleteFunctionValueData(FunctionValueData*);
+
+			FunctionRunningInstance * newFunctionRunningInstance();
+			void releaseFunctionRunningInstance(FunctionRunningInstance*);
+
 			Value * pushValue(Value * val);
 			Value * pushValueAutoNull(Value * val);
 			Value * pushNullValue();
@@ -1565,13 +1603,14 @@ namespace ObjectScript
 			Value * pushObjectValue();
 			Value * pushArrayValue();
 
-			void pop(int offs, int count);
+			void removeFromStack(int offs = -1, int count = 1);
 			void pop(int count = 1);
 
 			Value * registerValue(Value * val);
 			Value * unregisterValue(int value_id);
 			void deleteValues();
 
+			bool valueToBool(Value * val);
 			int valueToInt(Value * val);
 			OS_FLOAT valueToNumber(Value * val);
 			StringInternal valueToString(Value * val);
@@ -1591,7 +1630,7 @@ namespace ObjectScript
 			Value::Variable * setTableValue(Value::Table * table, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
 			Value * pushPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled);
 
-			Value * getOffsValue(int offs);
+			Value * getStackValue(int offs);
 
 			void enterFunction();
 			void leaveFunction();
@@ -1622,29 +1661,6 @@ namespace ObjectScript
 
 	public:
 
-		class Value
-		{
-			friend class OS;
-
-		private:
-
-			OS * allocator;
-			Core::Value * value;
-
-		protected:
-
-			Value(OS*, Core::Value*);
-
-		public:
-
-			Value(const Value&);
-			~Value();
-
-			Value& operator=(const Value&);
-
-			int getId() const;
-		};
-
 		class String: public Core::StringInternal // retains os, external strings must use String instead of StringInternal
 		{
 			typedef Core::StringInternal super;
@@ -1672,6 +1688,42 @@ namespace ObjectScript
 			String& operator+=(const OS_CHAR*);
 			String& append(const void*, int size);
 			String& append(const OS_CHAR*);
+		};
+
+		class Value
+		{
+			friend class OS;
+
+		private:
+
+			OS * allocator;
+			Core::Value * value;
+
+		protected:
+
+			Value(OS*, Core::Value*);
+
+		public:
+
+			Value(const Value&);
+			~Value();
+
+			Value& operator=(const Value&);
+
+			int getId() const;
+
+			OS_EValueType getType() const;
+			bool isNumber(OS_FLOAT * out = NULL) const;
+			bool isString(String * out = NULL) const;
+			bool isType(OS_EValueType) const;
+			bool isObject() const;
+			bool isArray() const;
+			bool isFunction() const;
+			bool isInstanceOf(const Value& prototype_value) const;
+			
+			bool toBool() const;
+			OS_FLOAT toNumber() const;
+			String toString() const;
 		};
 
 		class StreamWriter
@@ -1848,16 +1900,16 @@ namespace ObjectScript
 		void newObject();
 		void newArray();
 
-		void pushStackValue(int offs = -1);
-		void pushValueById(int id);
 		void pushValue(const Value&);
+		void pushValue(int offs = -1);
+		void pushValueById(int id);
 
-		Value getStackValue(int offs = -1);
-		Value getStackValueById(int id);
+		Value getValue(int offs = -1);
+		Value getValueById(int id);
 
-		void pop(int start_offs, int count);
+		void remove(int start_offs = -1, int count = 1);
+		void removeAll();
 		void pop(int count = 1);
-		void popAll();
 
 		void setProperty(int table_offs = -3, int pop_count = 2, bool prototype_enabled = true, bool setter_enabled = true);
 		void getProperty(int table_offs = -2, int pop_count = 2, bool prototype_enabled = true, bool getter_enabled = true);
@@ -1873,6 +1925,7 @@ namespace ObjectScript
 		bool isInstanceOf(int value_offs = -2, int prototype_offs = -1);
 		// bool checkType(int offs, OS_EValueType type);
 
+		bool toBool(int offs = -1);
 		OS_FLOAT toNumber(int offs = -1);
 		String toString(int offs = -1);
 
