@@ -56,32 +56,33 @@ struct __test_os__
 			"			y ** 2;\n"
 			"})(a(),2,3));\n"
 			"b(); 5, t, 6, a(), 6;");
-		os->pushInt(123);
+		os->pushNumber(123);
 		os->newObject();
 		os->pushString("qwerty");
 		os->getProperty();
 		os->pop();
 		os->newObject();
 		os->pushString("qwerty");
-		os->pushFloat(1.23);
+		os->pushNumber(1.23);
 		os->setProperty();
-		os->pushFloat(56.0);
-		os->pushFloat(1.23);
+		os->pushNumber(56.0);
+		os->pushNumber(1.23);
 		os->setProperty();
-		os->pushInt(-56);
+		os->pushNumber(-56);
 		os->pushString("abc");
 		os->setProperty();
 		os->pushStackValue();
-		os->pushFloat(-56.0);
+		os->pushNumber(-56.0);
 		os->getProperty();
 		os->pop();
 		os->pushStackValue();
 		os->pushString("-56");
 		os->getProperty();
+		OS::Value value = os->getStackValue();
 		OS::String str = os->toString();
 		os->pop();
 
-		os->pushInt(-56);
+		os->pushNumber(-56);
 		int * val = (int*)os->pushUserData(sizeof(int));
 		*val = 1;		
 		os->setProperty();
@@ -92,7 +93,7 @@ struct __test_os__
 		for(int i = 0; i < 10000; i++){
 			os->pushString(OS::String(os, i)+"-index");
 			// os->pushInt(i);
-			os->pushFloat(1.0 / i);
+			os->pushNumber(1.0 / i);
 			os->setProperty();
 		}
 		int mem_usage2 = os->getAllocatedBytes();

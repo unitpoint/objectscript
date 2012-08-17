@@ -890,6 +890,8 @@ namespace ObjectScript
 				Value * hash_next;
 				// int gc_time;
 
+				// Table * table;
+
 				union {
 					// bool boolean;
 					OS_FLOAT number;
@@ -1833,8 +1835,10 @@ namespace ObjectScript
 		// void getGlobal(const StringInternal&);
 
 		void pushNull();
-		void pushInt(int);
-		void pushFloat(double);
+		void pushNumber(OS_INT16);
+		void pushNumber(OS_INT32);
+		void pushNumber(OS_INT64);
+		void pushNumber(double);
 		void pushBool(bool);
 		void pushString(const OS_CHAR*);
 		void pushString(const Core::StringInternal&);

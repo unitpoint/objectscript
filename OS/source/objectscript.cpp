@@ -8121,11 +8121,15 @@ OS::Core::Value * OS::Core::pushStringValue(const StringInternal& str)
 
 OS::Core::Value * OS::Core::pushStringValue(const OS_CHAR * val)
 {
+#if 1
+	return pushStringValue(StringInternal(allocator, val));
+#else
 	Value * res = pushNullValue();
 	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
 	res->value.string_data = StringData::alloc(allocator, val, OS_STRLEN(val));
 	res->type = OS_VALUE_TYPE_STRING;
 	return res;
+#endif
 }
 
 OS::Core::Value * OS::Core::pushCFunctionValue(OS_CFunction func, void * user_param)
@@ -8210,14 +8214,24 @@ void OS::pushNull()
 	core->pushNullValue();
 }
 
-void OS::pushInt(int val)
+void OS::pushNumber(OS_INT16 val)
 {
 	core->pushNumberValue((OS_FLOAT)val);
 }
 
-void OS::pushFloat(OS_FLOAT val)
+void OS::pushNumber(OS_INT32 val)
 {
-	core->pushNumberValue(val);
+	core->pushNumberValue((OS_FLOAT)val);
+}
+
+void OS::pushNumber(OS_INT64 val)
+{
+	core->pushNumberValue((OS_FLOAT)val);
+}
+
+void OS::pushNumber(double val)
+{
+	core->pushNumberValue((OS_FLOAT)val);
 }
 
 void OS::pushBool(bool val)
