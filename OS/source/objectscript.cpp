@@ -7285,6 +7285,17 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 
 // =====================================================================
 
+OS::Core::ValueGreyListItem::ValueGreyListItem()
+{
+	gc_grey_prev = NULL;
+	gc_grey_next = NULL;
+}
+
+OS::Core::ValueGreyListItem::~ValueGreyListItem()
+{
+	OS_ASSERT(!gc_grey_prev && !gc_grey_next);
+}
+
 OS::Core::Value::Value(int p_value_id)
 {
 	value_id = p_value_id;
@@ -7294,7 +7305,7 @@ OS::Core::Value::Value(int p_value_id)
 	// properties = NULL;
 	hash_next = NULL;
 	prototype = NULL;
-	// gc_time = 0;
+	gc_color = GC_BLACK;
 }
 
 OS::Core::Value::~Value()
@@ -7566,6 +7577,9 @@ OS::Core::Value * OS::Core::registerValue(Value * value)
 				// delete [] old_heads;
 				free(old_heads);
 			}
+		}
+		if(gc_values_head_index >= 0){
+			gc_values_head_index = -1;
 		}
 	}
 
@@ -7974,6 +7988,9 @@ OS::Core::Core(OS * p_allocator)
 	strings = NULL;
 	OS_MEMSET(prototypes, 0, sizeof(prototypes));
 	global_vars = NULL;
+
+	gcInitGreyList();
+	gc_values_head_index = -1;
 }
 
 OS::Core::~Core()
@@ -8074,6 +8091,161 @@ void OS::Core::shutdown()
 	empty_string_data = NULL;
 }
 
+void OS::Core::gcInitGreyList()
+{
+	gc_grey_list.gc_grey_next = gc_grey_list.gc_grey_prev = (Value*)&gc_grey_list;
+}
+
+bool OS::Core::isGreyListEmpty()
+{
+	return gc_grey_list.gc_grey_next == (Value*)&gc_grey_list;
+}
+
+void OS::Core::gcResetGreyList()
+{
+	while(!isGreyListEmpty()){
+		gcRemoveGreyValue(gc_grey_list.gc_grey_next);
+	}
+	OS_ASSERT(gc_grey_list.gc_grey_next == (Value*)&gc_grey_list);
+	OS_ASSERT(gc_grey_list.gc_grey_prev == (Value*)&gc_grey_list);
+}
+
+void OS::Core::gcAddGreyValue(Value * value)
+{
+	OS_ASSERT(!value->gc_grey_next && !value->gc_grey_prev);
+	gc_grey_list.gc_grey_next->gc_grey_prev = value;
+	gc_grey_list.gc_grey_prev->gc_grey_next = value;
+	value->gc_grey_next = gc_grey_list.gc_grey_next;
+	value->gc_grey_prev = gc_grey_list.gc_grey_prev;
+	value->gc_color = Value::GC_GREY;
+}
+
+void OS::Core::gcRemoveGreyValue(Value * value)
+{
+	OS_ASSERT(value->gc_grey_next && value->gc_grey_prev);
+	value->gc_grey_next->gc_grey_prev = value->gc_grey_prev;
+	value->gc_grey_prev->gc_grey_next = value->gc_grey_next;
+	value->gc_grey_next = NULL;
+	value->gc_grey_prev = NULL;
+	value->gc_color = Value::GC_BLACK;
+}
+
+int OS::Core::gcProcessGreyList(int max_count)
+{
+	int count = 0;
+	while(count < max_count && !isGreyListEmpty()){
+		Value * cur = gc_grey_list.gc_grey_next;
+		count += gcProcessGreyValue(cur);
+	}
+	return count;
+}
+
+int OS::Core::gcProcessGreyValueTable(Value::Table * table)
+{
+	int count = 0;
+	Value::Variable * var = table->first, * var_next;
+	for(; var; var = var_next, count++){
+		var_next = var->next;
+		Value * var_value = values.get(var->value_id);
+		if(!var_value){
+			VariableIndex index = *var;
+			deleteTableVariable(table, index);
+			continue;
+		}
+		gcAddGreyValue(var_value);
+	}
+	return count;
+}
+
+int OS::Core::gcProcessStringsCacheTable()
+{
+	int count = 0;
+	Value::Table * table = string_values_table;
+	Value::Variable * var = table->first, * var_next;
+	for(; var; var = var_next, count++){
+		var_next = var->next;
+		Value * var_value = values.get(var->value_id);
+		OS_ASSERT(!var_value || var_value->type == OS_VALUE_TYPE_STRING);
+		if(!var_value || var_value->ref_count < 2){
+			VariableIndex index = *var;
+			deleteTableVariable(table, index);
+			continue;
+		}
+		var_value->gc_color = Value::GC_BLACK;
+		// gcAddGreyValue(var_value);
+	}
+	return count;
+}
+
+int OS::Core::gcProcessGreyValue(Value * value)
+{
+	gcRemoveGreyValue(value);
+	switch(value->type){
+	case OS_VALUE_TYPE_NULL:
+		value->gc_color = Value::GC_WHITE; // null is always valid to be freed
+		break;
+
+	case OS_VALUE_TYPE_BOOL:
+	case OS_VALUE_TYPE_NUMBER:
+	case OS_VALUE_TYPE_STRING:
+		break;
+
+	case OS_VALUE_TYPE_ARRAY:
+		OS_ASSERT(false);
+		return 1;
+
+	case OS_VALUE_TYPE_OBJECT:
+		return 1 + gcProcessGreyValueTable(value->value.table);
+
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+	case OS_VALUE_TYPE_THREAD:
+		break;
+	}
+	return 1;
+}
+
+void OS::Core::gcStep(int max_count)
+{
+	max_count -= temp_values.count;
+	allocator->vectorReleaseValues(temp_values);
+
+	if(gc_values_head_index >= 0){
+		OS_ASSERT(gc_values_head_index <= values.head_mask);
+		int i = gc_values_head_index;
+		for(; i <= values.head_mask && max_count > 0; i++){
+			for(Value * value = values.heads[i], * next; value; value = next){
+				next = value->hash_next;
+				if(value->gc_color == Value::GC_WHITE){
+					deleteValue(value);
+				}else{
+					value->gc_color = Value::GC_WHITE;
+				}
+				max_count--;
+			}
+		}
+		if(i <= values.head_mask){
+			gc_values_head_index = i;
+			return;
+		}
+		gc_values_head_index = -1;
+	}
+	if(isGreyListEmpty()){
+		gcAddGreyValue(global_vars);
+		for(int i = 0; i < stack_values.count; i++, max_count--){
+			gcAddGreyValue(stack_values[i]);
+		}
+		max_count -= gcProcessStringsCacheTable();
+		// TODO: add local vars of running functions
+	}
+	gcProcessGreyList(max_count);
+	if(isGreyListEmpty()){
+		gc_values_head_index = 0;
+	}
+}
+
 void OS::Core::resetValue(Value * val)
 {
 	OS_ASSERT(val);
@@ -8145,6 +8317,9 @@ void OS::Core::deleteValue(Value * val)
 	OS_ASSERT(val);
 	resetValue(val);
 	unregisterValue(val->value_id);
+	if(val->gc_grey_next){
+		gcRemoveGreyValue(val);
+	}
 	val->~Value();
 	free(val);
 }

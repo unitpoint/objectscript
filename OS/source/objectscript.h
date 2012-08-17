@@ -841,7 +841,17 @@ namespace ObjectScript
 			// struct FunctionData;
 			// class Program;
 			struct FunctionValueData;
-			struct Value
+			struct Value;
+			struct ValueGreyListItem
+			{
+				Value * gc_grey_prev;
+				Value * gc_grey_next;
+
+				ValueGreyListItem();
+				~ValueGreyListItem();
+			};
+
+			struct Value: public ValueGreyListItem
 			{
 				struct Variable: public VariableIndex
 				{
@@ -915,6 +925,12 @@ namespace ObjectScript
 				} value;
 
 				OS_EValueType type;
+
+				enum {
+					GC_WHITE,
+					GC_GREY,
+					GC_BLACK
+				} gc_color;
 
 				Value(int id);
 				~Value();
@@ -1572,10 +1588,24 @@ namespace ObjectScript
 
 			// Vector<Value*> cache_values;
 
+			ValueGreyListItem gc_grey_list;
+			int gc_values_head_index;
+
 			int fatal_error;
 
 			void * malloc(int size);
 			void free(void * p);
+
+			void gcInitGreyList();
+			bool isGreyListEmpty();
+			void gcResetGreyList();
+			void gcAddGreyValue(Value*);
+			void gcRemoveGreyValue(Value*);
+			int gcProcessGreyValueTable(Value::Table * table);
+			int gcProcessStringsCacheTable();
+			int gcProcessGreyValue(Value*);
+			int gcProcessGreyList(int max_count);
+			void gcStep(int max_count);
 
 			void resetValue(Value*);
 			void deleteValue(Value*);
