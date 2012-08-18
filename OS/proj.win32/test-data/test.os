@@ -1,8 +1,20 @@
 var math = {
-	round: function(a, b){
+	__get: function(name){
+		return function(){};
+	},
+	
+	__get@round: function(){
+		return function(a, b){
+			return a + b;
+		};
+	},
+	/*
+	round2: function(a, b){
 		return a + b;
 	},
+	*/
 };
+		b = math.round2(a, b);
 		b = math.round(a, b);
 		b = math[round](a, b);
 		b = math.round[a, b];

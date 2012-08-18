@@ -473,6 +473,7 @@ namespace ObjectScript
 				StringInternal(OS*, OS_CHAR, int count);
 				StringInternal(OS*, const void*, int size);
 				StringInternal(OS*, const void * buf1, int len1, const void * buf2, int len2);
+				StringInternal(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 				StringInternal(const StringInternal&);
 				StringInternal(StringData*);
 				StringInternal(OS*, OS_INT value);
@@ -590,8 +591,8 @@ namespace ObjectScript
 
 					NUM_INT,        // -?[0..9]+
 					NUM_FLOAT,      // -?[0..9][.]?[0..9]+(e[+-]?[0..9]+)?
-					NUM_VECTOR_3,   // 'NUM_FLOAT NUM_FLOAT NUM_FLOAT'
-					NUM_VECTOR_4,   // 'NUM_FLOAT NUM_FLOAT NUM_FLOAT NUM_FLOAT'
+					// NUM_VECTOR_3,   // 'NUM_FLOAT NUM_FLOAT NUM_FLOAT'
+					// NUM_VECTOR_4,   // 'NUM_FLOAT NUM_FLOAT NUM_FLOAT NUM_FLOAT'
 					// NULL,           // used in compiler
 
 					// [not real operators]
@@ -697,8 +698,8 @@ namespace ObjectScript
 					{
 						OS_INT int_value;
 						OS_FLOAT float_value;
-						OS_FLOAT * vec3;
-						OS_FLOAT * vec4;
+						// OS_FLOAT * vec3;
+						// OS_FLOAT * vec4;
 					};
 					TokenType type;
 
@@ -716,16 +717,16 @@ namespace ObjectScript
 					TokenType getType() const { return type; }
 					OS_INT getInt() const;
 					OS_FLOAT getFloat() const;
-					const OS_FLOAT * getVec3() const;
-					const OS_FLOAT * getVec4() const;
+					// const OS_FLOAT * getVec3() const;
+					// const OS_FLOAT * getVec4() const;
 
 					TokenData(TextData * text_data, const StringInternal& p_str, TokenType p_type, int p_line, int p_pos);
 
 					TokenData * retain();
 					void release();
 
-					void setVec4(OS_FLOAT values[4]);
-					void setVec3(OS_FLOAT values[3]);
+					// void setVec4(OS_FLOAT values[4]);
+					// void setVec3(OS_FLOAT values[3]);
 					void setFloat(OS_FLOAT value);
 					void setInt(OS_INT value);
 
@@ -738,7 +739,7 @@ namespace ObjectScript
 
 				struct Settings
 				{
-					bool parseVector;
+					// bool parseVector;
 					bool parseStringOperator;
 					// bool parsePreprocessor;
 					bool saveComment;
@@ -802,8 +803,8 @@ namespace ObjectScript
 				StringInternal getLineString(int i) const { return text_data->lines[i]; }
 				int getNumLines() const { return text_data->lines.count; }
 
-				bool getSettingParseVector() const { return settings.parseVector; }
-				void setSettingParseVector(bool value){ settings.parseVector = value; }
+				// bool getSettingParseVector() const { return settings.parseVector; }
+				// void setSettingParseVector(bool value){ settings.parseVector = value; }
 
 				bool getSettingParseStringOperator() const { return settings.parseStringOperator; }
 				void setSettingParseStringOperator(bool value){ settings.parseStringOperator = value; }
@@ -904,34 +905,32 @@ namespace ObjectScript
 					Variable * first, * last;
 
 					Table();    
-					virtual ~Table();
+					~Table();
 
 					Variable * get(const VariableIndex& index);
 					// void add(Variable * var);
 					// void free(const VariableIndex& index);
 				};
 
-				struct Array: public Table
+				struct Array // : public Table
 				{
 					Vector<int> values; // allow weak usage, value id list
 
 					Array();
-					virtual ~Array();
+					~Array();
 				};
 
 				int value_id; // allow weak usage
 				int ref_count;
 				Value * prototype; // retained
 				Value * hash_next;
-				// int gc_time;
-
-				// Table * table;
+				
+				Table * table;
 
 				union {
 					bool boolean;
 					OS_FLOAT number;
 					StringData * string_data; // retained
-					Table * table;
 					Array * arr;
 
 					struct {
@@ -1688,13 +1687,14 @@ namespace ObjectScript
 			Value::Array * newArray();
 			void deleteArray(Value::Array*);
 
-			Value::Variable * setPropertyValue(Value::Table * table, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
-			Value::Variable * setPropertyValue(Value * table_value, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
-			Value::Variable * setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled);
+			Value::Variable * setTableValue(Value::Table * table, VariableIndex& index, Value * val);
+			void setPropertyValue(Value * table_value, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
+			void setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled);
 
 			Value * getPropertyValue(Value::Table * table, const VariableIndex& index);
-			Value * getPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled);
-			Value * getPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled);
+			Value * getPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled);
+
+			Value * pushPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled);
 			Value * pushPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled);
 
 			Value * getStackValue(int offs);

@@ -758,6 +758,13 @@ OS::Core::StringInternal::StringInternal(OS * allocator, const void * buf1, int 
 	str = StringData::alloc(allocator, size, buf1, len1, buf2, len2)->toChar();
 }
 
+OS::Core::StringInternal::StringInternal(OS * allocator, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3)
+{
+	// allocator->retain();
+	int size = len1 + len2 + len3;
+	str = StringData::alloc(allocator, size, buf1, len1, buf2, len2, buf3, len3)->toChar();
+}
+
 OS::Core::StringInternal::StringInternal(const StringInternal& b)
 {
 	StringData * data = b.toData();
@@ -1193,8 +1200,8 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 
 	case NUM_INT:     return OS_TEXT("NUM_INT");
 	case NUM_FLOAT:   return OS_TEXT("NUM_FLOAT");
-	case NUM_VECTOR_3:  return OS_TEXT("NUM_VECTOR_3");
-	case NUM_VECTOR_4:  return OS_TEXT("NUM_VECTOR_4");
+	// case NUM_VECTOR_3:  return OS_TEXT("NUM_VECTOR_3");
+	// case NUM_VECTOR_4:  return OS_TEXT("NUM_VECTOR_4");
 
 	case OPERATOR:        return OS_TEXT("OPERATOR");
 	case BINARY_OPERATOR: return OS_TEXT("BINARY_OPERATOR");
@@ -1272,7 +1279,7 @@ OS::Core::Tokenizer::TokenData::TokenData(TextData * p_text_data, const StringIn
 	type = p_type;
 	line = p_line;
 	pos = p_pos;
-	vec3 = NULL;
+	// vec3 = NULL;
 }
 
 OS * OS::Core::Tokenizer::TokenData::getAllocator() const
@@ -1288,6 +1295,7 @@ OS::Core::Tokenizer::TokenData::~TokenData()
 		// getAllocator()->free(float_value);
 		break;
 
+	/*
 	case NUM_VECTOR_3:
 		getAllocator()->free(vec3);
 		break;
@@ -1295,6 +1303,7 @@ OS::Core::Tokenizer::TokenData::~TokenData()
 	case NUM_VECTOR_4:
 		getAllocator()->free(vec4);
 		break;
+	*/
 	}
 	text_data->release();
 }
@@ -1322,9 +1331,11 @@ OS_INT OS::Core::Tokenizer::TokenData::getInt() const
 		return int_value;
 	case NUM_FLOAT: 
 		return (OS_INT)float_value;
+	/*
 	case NUM_VECTOR_3:
 	case NUM_VECTOR_4:
 		return (OS_INT)vec3[0];
+	*/
 	}
 	return 0;
 }
@@ -1337,14 +1348,17 @@ OS_FLOAT OS::Core::Tokenizer::TokenData::getFloat() const
 	case NUM_FLOAT:
 		// OS_ASSERT(float_value);
 		return float_value;
+	/*
 	case NUM_VECTOR_3:
 	case NUM_VECTOR_4:
 		OS_ASSERT(vec3);
 		return vec3[0];
+	*/
 	}
 	return 0;
 }
 
+/*
 static const OS_FLOAT zeroVec4[] = { 0, 0, 0, 0 };
 
 const OS_FLOAT * OS::Core::Tokenizer::TokenData::getVec3() const
@@ -1366,6 +1380,7 @@ const OS_FLOAT * OS::Core::Tokenizer::TokenData::getVec4() const
 	}
 	return zeroVec4;
 }
+*/
 
 bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 {
@@ -1572,7 +1587,7 @@ void OS::Core::Tokenizer::TextData::release()
 OS::Core::Tokenizer::Tokenizer(OS * allocator)
 {
 	initOperatorTable();
-	settings.parseVector = false;
+	// settings.parseVector = false;
 	settings.parseStringOperator = false;
 	// settings.parsePreprocessor = true;
 	settings.saveComment = false;
@@ -1670,6 +1685,7 @@ bool OS::Core::Tokenizer::parseText(const StringInternal& text)
 	return parseLines();
 }
 
+/*
 void OS::Core::Tokenizer::TokenData::setVec4(OS_FLOAT values[4])
 {
 	OS_ASSERT(type == NUM_VECTOR_4 && !vec4);
@@ -1688,6 +1704,7 @@ void OS::Core::Tokenizer::TokenData::setVec3(OS_FLOAT values[3])
 	vec3[1] = values[1];
 	vec3[2] = values[2];
 }
+*/
 
 void OS::Core::Tokenizer::TokenData::setFloat(OS_FLOAT value)
 {
@@ -1748,7 +1765,7 @@ bool OS::Core::Tokenizer::parseLines()
 				break;
 			}
 
-			if(*str == OS_TEXT('"') || (!settings.parseVector && *str == OS_TEXT('\''))){ // begin string
+			if(*str == OS_TEXT('"') || (/*!settings.parseVector &&*/ *str == OS_TEXT('\''))){ // begin string
 				StringInternal s(allocator);
 				OS_CHAR closeChar = *str;
 				const OS_CHAR * tokenStart = str;
@@ -1806,7 +1823,7 @@ bool OS::Core::Tokenizer::parseLines()
 				addToken(s, STRING, cur_line, tokenStart - line_start);
 				continue;
 			}
-			if(*str == OS_TEXT('\'') && settings.parseVector){ // begin const vec3
+			/* if(*str == OS_TEXT('\'') && settings.parseVector){ // begin const vec3
 				const OS_CHAR * tokenStart = str++;
 				parseSpaces(str);
 				OS_FLOAT values[4];
@@ -1839,7 +1856,7 @@ bool OS::Core::Tokenizer::parseLines()
 					vecToken->setVec4(values);
 				}
 				continue;
-			}
+			} */
 
 			if(*str == OS_TEXT('/')){
 				if(str[1] == OS_TEXT('/')){ // begin line comment
@@ -1875,13 +1892,13 @@ bool OS::Core::Tokenizer::parseLines()
 				}
 			}
 
-			if(*str == OS_TEXT('_') || *str == OS_TEXT('$') 
+			if(*str == OS_TEXT('_') || *str == OS_TEXT('$') || *str == OS_TEXT('@') 
 				|| (*str >= OS_TEXT('a') && *str <= OS_TEXT('z'))
 				|| (*str >= OS_TEXT('A') && *str <= OS_TEXT('Z')) )
 			{ // parse name
 				const OS_CHAR * nameStart = str;
 				for(str++; *str; str++){
-					if(*str == OS_TEXT('_') || *str == OS_TEXT('$')
+					if(*str == OS_TEXT('_') || *str == OS_TEXT('$') || *str == OS_TEXT('@')
 						|| (*str >= OS_TEXT('a') && *str <= OS_TEXT('z'))
 						|| (*str >= OS_TEXT('A') && *str <= OS_TEXT('Z'))
 						|| (*str >= OS_TEXT('0') && *str <= OS_TEXT('9')) )
@@ -2300,8 +2317,8 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 			switch(token->getType()){
 			case Tokenizer::NUM_INT: type_name = OS_TEXT("int "); break;
 			case Tokenizer::NUM_FLOAT: type_name = OS_TEXT("float "); break;
-			case Tokenizer::NUM_VECTOR_3: type_name = OS_TEXT("vec3 "); break;
-			case Tokenizer::NUM_VECTOR_4: type_name = OS_TEXT("vec4 "); break;
+			// case Tokenizer::NUM_VECTOR_3: type_name = OS_TEXT("vec3 "); break;
+			// case Tokenizer::NUM_VECTOR_4: type_name = OS_TEXT("vec4 "); break;
 			case Tokenizer::STRING: type_name = OS_TEXT("string "); break;
 			case Tokenizer::NAME: type_name = OS_TEXT("string "); break;
 			default: type_name = OS_TEXT("???"); break;
@@ -3019,6 +3036,8 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 			if(!writeOpcodes(exp->list)){
 				return false;
 			}
+			prog_opcodes->writeByte(Program::OP_RETURN);
+			prog_opcodes->writeByte(0);
 			scope->opcodes_size = prog_opcodes->buffer.count - scope->opcodes_pos;
 
 			for(i = 0; i < scope->locals.count; i++){
@@ -4445,6 +4464,7 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 {
 	OS_ASSERT(recent_token && recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK);
 	if(!expectToken()){
+		allocator->deleteObj(parent);
 		return NULL;
 	}
 
@@ -4830,7 +4850,12 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectFunctionExpression(Scope *
 		return NULL;
 	}
 	
-	return expectCodeExpression(scope, 0);
+	scope = expectCodeExpression(scope, 0);
+	/* if(scope && (!scope->list.count || scope->list[scope->list.count-1]->type != EXP_TYPE_RETURN)){
+		Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_RETURN, scope->token);
+		scope->list.add(exp);
+	} */
+	return scope;
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope * scope)
@@ -6361,8 +6386,8 @@ void OS::Core::Program::pushFunction()
 	FunctionValueData * func_value_data = allocator->core->newFunctionValueData();
 	func_value_data->prog = retain();
 	func_value_data->func_decl = func_decl;
-	func_value_data->env = NULL; // TODO: ???
-	func_value_data->self = NULL; // TODO: ???
+	func_value_data->env = allocator->core->global_vars->retain();
+	func_value_data->self = allocator->core->null_value->retain();
 	func_value_data->parent_inctance = NULL; // TODO: ???
 	func_value->value.func = func_value_data;
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
@@ -7300,7 +7325,7 @@ void OS::Core::deleteArray(Value::Array * arr)
 		releaseValue(arr->values[i]);
 	}
 	allocator->vectorClear(arr->values);
-	deleteTable(arr);
+	// deleteTable(arr);
 }
 
 // =====================================================================
@@ -7327,15 +7352,14 @@ OS::Core::FunctionValueData * OS::Core::newFunctionValueData()
 
 void OS::Core::deleteFunctionValueData(FunctionValueData * func_data)
 {
-	OS_ASSERT(func_data->prog && func_data->func_decl); // && func_data->self && func_data->env);
-	if(func_data->env){
-		releaseValue(func_data->env);
-		func_data->env = NULL;
-	}
-	if(func_data->self){
-		releaseValue(func_data->self);
-		func_data->self = NULL;
-	}
+	OS_ASSERT(func_data->prog && func_data->func_decl && func_data->self && func_data->env);
+
+	releaseValue(func_data->env);
+	func_data->env = NULL;
+	
+	releaseValue(func_data->self);
+	func_data->self = NULL;
+
 	func_data->func_decl = NULL;
 	func_data->prog->release();
 	func_data->prog = NULL;
@@ -7433,7 +7457,7 @@ bool OS::Core::valueToBool(Value * val)
 
 	// case OS_VALUE_TYPE_OBJECT:
 	// case OS_VALUE_TYPE_ARRAY:
-	// 	return val->value.table ? val->value.table->count : 0;
+	// 	return val->table ? val->table->count : 0;
 	}
 	return true;
 }
@@ -7503,7 +7527,7 @@ OS_FLOAT OS::Core::valueToNumber(Value * val)
 
 	// case OS_VALUE_TYPE_OBJECT:
 	// case OS_VALUE_TYPE_ARRAY:
-	// 	return val->value.table ? val->value.table->count : 0;
+	// 	return val->table ? val->table->count : 0;
 	}
 	return 0;
 }
@@ -7537,7 +7561,7 @@ bool OS::Core::isValueNumber(Value * val, OS_FLOAT * out)
 
 	// case OS_VALUE_TYPE_OBJECT:
 	// case OS_VALUE_TYPE_ARRAY:
-	// 	return val->value.table ? val->value.table->count : 0;
+	// 	return val->table ? val->table->count : 0;
 	}
 	if(out){
 		*out = 0;
@@ -7586,7 +7610,7 @@ OS::Core::StringInternal OS::Core::valueToString(Value * val)
 
 	// case OS_VALUE_TYPE_OBJECT:
 	// case OS_VALUE_TYPE_ARRAY:
-	// 	return StringInternal(this, (OS_INT)(val->value.table ? val->value.table->count : 0));
+	// 	return StringInternal(this, (OS_INT)(val->table ? val->table->count : 0));
 	}
 	return StringInternal(allocator);
 }
@@ -7620,7 +7644,7 @@ bool OS::Core::isValueString(Value * val, StringInternal * out)
 
 	// case OS_VALUE_TYPE_OBJECT:
 	// case OS_VALUE_TYPE_ARRAY:
-	// 	return StringInternal(this, (OS_INT)(val->value.table ? val->value.table->count : 0));
+	// 	return StringInternal(this, (OS_INT)(val->table ? val->table->count : 0));
 	}
 	if(out){
 		*out = StringInternal(allocator);
@@ -8330,7 +8354,7 @@ int OS::Core::gcProcessGreyValue(Value * value)
 		return 1;
 
 	case OS_VALUE_TYPE_OBJECT:
-		return 1 + gcProcessGreyValueTable(value->value.table);
+		return 1 + gcProcessGreyValueTable(value->table);
 
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
@@ -8425,11 +8449,11 @@ void OS::Core::resetValue(Value * val)
 		break;
 
 	case OS_VALUE_TYPE_OBJECT:
-		if(val->value.table){
+		/* if(val->value.table){
 			Value::Table * table = val->value.table;
 			val->value.table = NULL;
 			deleteTable(table);
-		}
+		} */
 		break;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -8439,6 +8463,11 @@ void OS::Core::resetValue(Value * val)
 			deleteArray(arr);
 		}
 		break;
+	}
+	if(val->table){
+		Value::Table * table = val->table;
+		val->table = NULL;
+		deleteTable(table);
 	}
 	if(val->prototype){
 		releaseValue(val->prototype);
@@ -8478,7 +8507,7 @@ void OS::Core::releaseValue(int value_id)
 	}
 }
 
-OS::Core::Value::Variable * OS::Core::setPropertyValue(Value::Table * table, VariableIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
+OS::Core::Value::Variable * OS::Core::setTableValue(Value::Table * table, VariableIndex& index, Value * value)
 {
 	OS_ASSERT(table);
 	OS_ASSERT(value);
@@ -8500,19 +8529,74 @@ OS::Core::Value::Variable * OS::Core::setPropertyValue(Value::Table * table, Var
 	return var;
 }
 
-OS::Core::Value::Variable * OS::Core::setPropertyValue(Value * table_value, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setPropertyValue(Value * table_value, VariableIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
 {
-	if(table_value->type == OS_VALUE_TYPE_OBJECT){
-		Core::Value::Table * table = table_value->value.table;
-		if(!table){
-			table = table_value->value.table = newTable();
+	struct Lib {
+		static void setVar(Core * core, Value::Variable * var, Value * value)
+		{
+			OS_ASSERT(var->value_id);
+			if(var->value_id != value->value_id){
+				int old_value_id = var->value_id;			
+				var->value_id = value->value_id;
+				value->ref_count++;
+				core->releaseValue(old_value_id);
+			}
 		}
-		return setPropertyValue(table, index, val, prototype_enabled, setter_enabled);
+	};
+
+	Value::Variable * var = NULL;
+	Value::Table * table = table_value->table;
+	if(table && (var = table->get(index))){
+		return Lib::setVar(this, var, value);
 	}
-	return NULL;
+	if(prototype_enabled){
+		Value * cur_value = table_value;
+		while(cur_value->prototype){
+			cur_value = cur_value->prototype;
+			Value::Table * cur_table = cur_value->table;
+			if(cur_table && (var = cur_table->get(index))){
+				return Lib::setVar(this, var, value);
+			}
+		}
+	}
+
+	if(setter_enabled){
+		Value * self = table_value;
+		if(index.is_string_index){
+			StringInternal setter_name(allocator,
+				strings->__set.toChar(), strings->__set.getDataSize(),
+				OS_TEXT("@"), sizeof(OS_CHAR),
+				index.string_index.toChar(), index.string_index.getDataSize());
+
+			Value * func_value = getPropertyValue(table_value, VariableIndex(setter_name, VariableIndex::KeepStringIndex()), prototype_enabled);
+			if(value){
+				pushValue(value);
+				pushValue(func_value);
+				call(self, 1, 0);
+				return;
+			}
+		}
+		Value * func_value = getPropertyValue(table_value, VariableIndex(strings->__set, VariableIndex::KeepStringIndex()), prototype_enabled);
+		if(func_value){
+			if(index.is_string_index){
+				pushStringValue(index.string_index);
+			}else{
+				pushNumberValue(index.int_index);
+			}
+			pushValue(value);
+			pushValue(func_value);
+			call(self, 2, 0);
+			return;
+		}
+	}
+
+	if(!table){
+		table_value->table = table = newTable();
+	}
+	setTableValue(table, index, value);
 }
 
-OS::Core::Value::Variable * OS::Core::setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled)
 {
 	switch(index_value->type){
 	case OS_VALUE_TYPE_BOOL:
@@ -8524,7 +8608,6 @@ OS::Core::Value::Variable * OS::Core::setPropertyValue(Value * table_value, Valu
 	case OS_VALUE_TYPE_STRING:
 		return setPropertyValue(table_value, Core::VariableIndex(index_value->value.string_data), val, prototype_enabled, setter_enabled);
 	}
-	return NULL;
 }
 
 OS::Core::Value * OS::Core::getStackValue(int offs)
@@ -9276,96 +9359,84 @@ OS::Core::Value * OS::Core::getPropertyValue(Value::Table * table, const Variabl
 	return NULL;
 }
 
-OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled)
+OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled)
 {
-	OS_ASSERT(table_value->type == OS_VALUE_TYPE_OBJECT);
-	if(table_value->type != OS_VALUE_TYPE_OBJECT){
-		return NULL;
-	}
 	Value::Variable * var = NULL;
-	Value::Table * table = table_value->value.table;
+	Value::Table * table = table_value->table;
 	if(table && (var = table->get(index))){
-		return values.get(var->value_id);		
+		return values.get(var->value_id);
 	}
 	if(prototype_enabled){
 		Value * cur_value = table_value;
 		while(cur_value->prototype){
 			cur_value = cur_value->prototype;
-			if(cur_value->type != OS_VALUE_TYPE_OBJECT){
-				break;
-			}
-			Value::Table * cur_table = cur_value->value.table;
+			Value::Table * cur_table = cur_value->table;
 			if(cur_table && (var = cur_table->get(index))){
 				return values.get(var->value_id);
 			}
 		}
 	}
-	/*
-	if(getter_enabled){
-		VariableIndex getter_index(strings->__get);
-		if(table){
-			var = table->get(getter_index);
-		}
-		if(!var && prototype_enabled){
-			// vectorClear(cache_values);
-			// vectorAddItem(cache_values, table_value);
-			Value * cur_value = table_value;
-			while(cur_value->prototype){ // && !cache_values.contains(cur_value->prototype)){
-				cur_value = cur_value->prototype;
-				if(cur_value->type != OS_VALUE_TYPE_OBJECT){
-					break;
-				}
-				Value::Table * cur_table = cur_value->value.table;
-				if(cur_table && (var = cur_table->get(getter_index))){
-					break;
-				}
-			}
-		}
-		if(var){
-			Value * value = values.get(var->value_id);
-			if(value){
-				switch(value->type){
-				case OS_VALUE_TYPE_OBJECT:
-					return pushPropertyValue(value, index, prototype_enabled, getter_enabled);
-
-				case OS_VALUE_TYPE_CFUNCTION:
-				case OS_VALUE_TYPE_FUNCTION:
-					pushValue(table_value);
-					pushValue(value); // func
-					// call(1, 1);
-					return getStackValue(-1);
-
-				default:
-					// error
-					;
-				}			
-			}
-		}
-	}
-	// error
-	return pushConstNullValue();
-	*/
 	return NULL;
 }
 
-OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled)
+OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled)
 {
 	switch(index_value->type){
 	case OS_VALUE_TYPE_BOOL:
-		return getPropertyValue(table_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), prototype_enabled, getter_enabled);
+		return pushPropertyValue(table_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), prototype_enabled, getter_enabled);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return getPropertyValue(table_value, VariableIndex(allocator, index_value->value.number), prototype_enabled, getter_enabled);
+		return pushPropertyValue(table_value, VariableIndex(allocator, index_value->value.number), prototype_enabled, getter_enabled);
 
 	case OS_VALUE_TYPE_STRING:
-		return getPropertyValue(table_value, VariableIndex(index_value->value.string_data), prototype_enabled, getter_enabled);
+		return pushPropertyValue(table_value, VariableIndex(index_value->value.string_data), prototype_enabled, getter_enabled);
 	}
-	return NULL;
+	return pushConstNullValue();
 }
 
 OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled)
 {
-	return pushValueAutoNull(getPropertyValue(table_value, index, prototype_enabled, getter_enabled));
+	Value * self = table_value;
+	for(;;){
+		Value * value = getPropertyValue(table_value, index, prototype_enabled);
+		if(value){
+			return pushValue(value);
+		}
+		if(getter_enabled){
+			if(index.is_string_index){
+				StringInternal getter_name(allocator,
+					strings->__get.toChar(), strings->__get.getDataSize(),
+					OS_TEXT("@"), sizeof(OS_CHAR),
+					index.string_index.toChar(), index.string_index.getDataSize());
+
+				value = getPropertyValue(table_value, VariableIndex(getter_name, VariableIndex::KeepStringIndex()), prototype_enabled);
+				if(value){
+					pushValue(value);
+					call(self, 0, 1);
+					OS_ASSERT(stack_values.count > 0);
+					return stack_values[stack_values.count-1];
+				}
+			}
+			value = getPropertyValue(table_value, VariableIndex(strings->__get, VariableIndex::KeepStringIndex()), prototype_enabled);
+			if(value){
+				if(value->type == OS_VALUE_TYPE_OBJECT){
+					table_value = value;
+					continue;
+				}
+				if(index.is_string_index){
+					pushStringValue(index.string_index);
+				}else{
+					pushNumberValue(index.int_index);
+				}
+				pushValue(value);
+				call(self, 1, 1);
+				OS_ASSERT(stack_values.count > 0);
+				return stack_values[stack_values.count-1];
+			}
+		}
+		return pushConstNullValue();
+	}
+	return NULL; // shut up compiler
 }
 
 void OS::getProperty(bool prototype_enabled, bool getter_enabled)
@@ -9374,7 +9445,7 @@ void OS::getProperty(bool prototype_enabled, bool getter_enabled)
 		Core::Value * table_arg = core->stack_values.buf[core->stack_values.count - 2];
 		Core::Value * index_arg = core->stack_values.buf[core->stack_values.count - 1];
 		OS_ASSERT(table_arg && index_arg);
-		core->pushValueAutoNull(core->getPropertyValue(table_arg, index_arg, prototype_enabled, getter_enabled));
+		core->pushPropertyValue(table_arg, index_arg, prototype_enabled, getter_enabled);
 		core->removeStackValues(-3, 2);
 	}else{
 		// error
@@ -9395,6 +9466,7 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 {
 	OS_ASSERT(func_running->func && func_running->func->type == OS_VALUE_TYPE_FUNCTION);
 	OS_ASSERT(func_running->func->value.func->func_decl);
+	OS_ASSERT(func_running->self);
 
 	if(--func_running->ref_count > 0){
 		return;
@@ -9411,10 +9483,8 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 	releaseValue(func_running->func); 
 	func_running->func = NULL;
 
-	if(func_running->self){
-		releaseValue(func_running->self);
-		func_running->self = NULL;
-	}
+	releaseValue(func_running->self);
+	func_running->self = NULL;
 
 	for(i = 0; i < func_running->num_parent_inctances; i++){
 		releaseFunctionRunningInstance(func_running->parent_inctances[i]);
@@ -9442,11 +9512,9 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int ret_va
 	func_running->func = value->retain();
 	
 	if(!self){
-		self = func_value_data->self;
+		self = func_value_data->self ? func_value_data->self : null_value;
 	}
-	if(self){
-		func_running->self = self->retain();
-	}
+	func_running->self = self->retain();
 	
 	// func_running->num_locals = func_decl->num_locals;
 	func_running->num_params = params;
@@ -9541,7 +9609,7 @@ restart:
 				func_value_data->prog = prog->retain();
 				func_value_data->func_decl = func_decl;
 				func_value_data->env = env->retain();
-				func_value_data->self = NULL; // TODO: ???
+				func_value_data->self = func_running->self->retain();
 				func_value_data->parent_inctance = func_running->retain();
 				func_value->value.func = func_value_data;
 				func_value->type = OS_VALUE_TYPE_FUNCTION;
@@ -9561,11 +9629,11 @@ restart:
 				Value * table_value = stack_values[stack_values.count-2];
 				Value * value = stack_values[stack_values.count-1];
 				if(table_value->type == OS_VALUE_TYPE_OBJECT){
-					Core::Value::Table * table = table_value->value.table;
+					Core::Value::Table * table = table_value->table;
 					if(!table){
-						table = table_value->value.table = newTable();
+						table = table_value->table = newTable();
 					}
-					setPropertyValue(table, VariableIndex(allocator, (OS_INT)table->next_id), value, false, false);
+					setTableValue(table, VariableIndex(allocator, (OS_INT)table->next_id), value);
 				}
 				pop();
 				break;
@@ -9621,7 +9689,7 @@ restart:
 			}
 
 		case Program::OP_PUSH_THIS:
-			pushValueAutoNull(func_running->self);
+			pushValue(func_running->self);
 			break;
 
 		case Program::OP_PUSH_ARGUMENTS:
@@ -9733,17 +9801,9 @@ restart:
 				OS_ASSERT(stack_values.count >= 2 + params);
 				Value * table_value = stack_values[stack_values.count-2-params];
 				Value * index_value = stack_values[stack_values.count-1-params];
-				Value * value = getPropertyValue(table_value, index_value, true, true);
-				if(value){
-					removeStackValues(-2-params, 2);
-					pushValue(value);
-					call(NULL, params, ret_values);
-				}else{
-					pop(params + 2);
-					while(ret_values-- > 0){
-						pushConstNullValue();
-					}
-				}
+				Value * value = pushPropertyValue(table_value, index_value, true, true);
+				removeStackValues(-2-params, 2);
+				call(table_value, params, ret_values);
 				break;
 			}
 
@@ -9795,7 +9855,7 @@ restart:
 				if(cur_ret_values > ret_values){
 					pop(cur_ret_values - ret_values);
 				}else{
-					while(cur_ret_values < ret_values){
+					while(cur_ret_values++ < ret_values){
 						pushConstNullValue();
 					}
 				}
@@ -9881,22 +9941,21 @@ int OS::Core::call(Value * self, int params, int ret_values)
 			if(func_ret_values > ret_values){
 				pop(func_ret_values - ret_values);
 			}else{ 
-				while(func_ret_values < ret_values){
+				while(func_ret_values++ < ret_values){
 					pushConstNullValue();
-					func_ret_values++;
 				}
 			}
 			releaseValue(val);
 			return ret_values;
 		}
-		OS_ASSERT(false);
+		/* OS_ASSERT(false);
 		pop(params);
 		for(int i = 0; i < ret_values; i++){
 			pushConstNullValue();
 		}
-		return ret_values;
+		return ret_values; */
 	}
-	OS_ASSERT(false);
+	// OS_ASSERT(false);
 	pop(params);
 	for(int i = 0; i < ret_values; i++){
 		pushConstNullValue();
