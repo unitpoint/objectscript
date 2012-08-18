@@ -2951,6 +2951,9 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 	case EXP_TYPE_NOP:
 		break;
 
+	case EXP_TYPE_NEW_LOCAL_VAR:
+		break;
+
 	case EXP_TYPE_CODE_LIST:
 		if(!writeOpcodes(exp->list)){
 			return false;
@@ -3167,6 +3170,7 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 			return false;
 		}
 		prog_opcodes->writeByte(Program::OP_GET_PROPERTY);
+		prog_opcodes->writeByte(exp->ret_values);
 		break;
 
 	case EXP_TYPE_SET_PROPERTY:
@@ -3175,7 +3179,6 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 			return false;
 		}
 		prog_opcodes->writeByte(Program::OP_SET_PROPERTY);
-		prog_opcodes->writeByte(exp->ret_values);
 		break;
 
 	case EXP_TYPE_PARAMS:
@@ -3461,7 +3464,7 @@ bool OS::Core::Compiler::compile()
 		}
 		FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 		
-		allocator->core->pushNullValue();
+		allocator->core->pushConstNullValue();
 	}
 	return false;
 }
@@ -6262,7 +6265,7 @@ void OS::Core::Program::pushFunction()
 	int i, opcode = opcodes->readByte();
 	if(opcode != OP_PUSH_FUNCTION){
 		OS_ASSERT(false);
-		allocator->core->pushNullValue();
+		allocator->core->pushConstNullValue();
 		return;
 	}
 
@@ -6270,7 +6273,7 @@ void OS::Core::Program::pushFunction()
 	OS_ASSERT(func_index >= 0 && func_index < num_functions);
 	FunctionDecl * func_decl = functions + func_index;
 
-	Value * func_value = allocator->core->pushNullValue();
+	Value * func_value = allocator->core->pushNewNullValue();
 	func_value->prototype = allocator->core->prototypes[PROTOTYPE_FUNCTION]->retain();
 	FunctionValueData * func_value_data = allocator->core->newFunctionValueData();
 	func_value_data->prog = retain();
@@ -6281,8 +6284,8 @@ void OS::Core::Program::pushFunction()
 	func_value->value.func = func_value_data;
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
 	
-	OS_ASSERT(functions[func_index].opcodes_pos == opcodes->pos);
-	opcodes->skipBytes(functions[func_index].opcodes_size);
+	OS_ASSERT(func_decl->opcodes_pos == opcodes->pos);
+	opcodes->skipBytes(func_decl->opcodes_size);
 }
 
 OS::Core::Program * OS::Core::Program::retain()
@@ -7239,7 +7242,13 @@ OS::Core::FunctionRunningInstance::FunctionRunningInstance()
 	num_parent_inctances = 0;
 
 	locals = NULL;
-	num_locals = 0;
+	num_params = 0;
+	num_extra_params = 0;
+	initial_stack_size = 0;
+	need_ret_values = 0;
+
+	arguments = NULL;
+	rest_arguments = NULL;
 
 	next_opcode_pos = 0;
 	ref_count = 1;
@@ -7248,39 +7257,13 @@ OS::Core::FunctionRunningInstance::FunctionRunningInstance()
 OS::Core::FunctionRunningInstance::~FunctionRunningInstance()
 {
 	OS_ASSERT(!ref_count);
-	OS_ASSERT(!func && !self && !parent_inctances && !locals);
+	OS_ASSERT(!func && !self && !parent_inctances && !locals && !arguments && !rest_arguments);
 }
 
-OS::Core::FunctionRunningInstance * OS::Core::newFunctionRunningInstance()
+OS::Core::FunctionRunningInstance * OS::Core::FunctionRunningInstance::retain()
 {
-	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance))) FunctionRunningInstance();
-	return func_running;
-}
-
-void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance * func_running)
-{
-	int i;
-	for(i = 0; i < func_running->num_locals; i++){
-		releaseValue(func_running->locals[i]);
-	}
-	free(func_running->locals);
-	func_running->locals = NULL;
-
-	releaseValue(func_running->func); func_running->func = NULL;
-
-	if(func_running->self){
-		releaseValue(func_running->self);
-		func_running->self = NULL;
-	}
-
-	for(i = 0; i < func_running->num_parent_inctances; i++){
-		releaseFunctionRunningInstance(func_running->parent_inctances[i]);
-	}
-	free(func_running->parent_inctances);
-	func_running->parent_inctances = NULL;
-
-	func_running->~FunctionRunningInstance();
-	free(func_running);
+	ref_count++;
+	return this;
 }
 
 // =====================================================================
@@ -7647,23 +7630,6 @@ OS::Core::Value * OS::Core::Values::get(int value_id)
 		}
 	}
 	return NULL;
-}
-
-// =====================================================================
-// =====================================================================
-// =====================================================================
-
-OS::Core::StackFunction::StackFunction()
-{
-	func = NULL;
-	cur_opcode_num = 0;
-	local_vars = NULL;
-}
-
-OS::Core::StackFunction::~StackFunction()
-{
-	OS_ASSERT(!func);
-	OS_ASSERT(!local_vars);
 }
 
 // =====================================================================
@@ -8045,18 +8011,16 @@ bool OS::Core::init()
 
 	strings = new (malloc(sizeof(Strings))) Strings(allocator);
 
-	// global_vars
-
+	string_values_table = newTable();
 	for(int i = 0; i < PROTOTYPES_NUMBER; i++){
 		// prototypes[i] = pushTableValue()->retain();		
 		// prototypes[i] = newTable(
-		prototypes[i] = new (malloc(sizeof(Value))) Value(values.next_id++); // pushNullValue()->retain();
+		prototypes[i] = pushNewNullValue()->retain();
 		prototypes[i]->type = OS_VALUE_TYPE_OBJECT;
 	}
-	// removeStackValues(PROTOTYPES_NUMBER);
-
-	string_values_table = newTable();
-	global_vars = pushObjectValue()->retain(); pop();
+	null_value = pushNewNullValue()->retain();
+	global_vars = pushObjectValue()->retain();
+	removeStackValues(PROTOTYPES_NUMBER + 2);
 
 	return true;
 }
@@ -8070,6 +8034,11 @@ void OS::Core::shutdown()
 
 	allocator->vectorClear(stack_values);
 	allocator->vectorClear(temp_values);
+
+	while(call_stack_funcs.count > 0){
+		FunctionRunningInstance * func_running = call_stack_funcs[--call_stack_funcs.count];
+		releaseFunctionRunningInstance(func_running);
+	}
 	allocator->vectorClear(call_stack_funcs);
 	// vectorClear(cache_values);
 	
@@ -8182,7 +8151,7 @@ int OS::Core::gcProcessGreyValue(Value * value)
 	gcRemoveGreyValue(value);
 	switch(value->type){
 	case OS_VALUE_TYPE_NULL:
-		value->gc_color = Value::GC_WHITE; // null is always valid to be freed
+		// value->gc_color = Value::GC_WHITE; // null is always valid to be freed
 		break;
 
 	case OS_VALUE_TYPE_BOOL:
@@ -8343,7 +8312,7 @@ void OS::Core::releaseValue(int value_id)
 	}
 }
 
-OS::Core::Value::Variable * OS::Core::setTableValue(Value::Table * table, VariableIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
+OS::Core::Value::Variable * OS::Core::setPropertyValue(Value::Table * table, VariableIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
 {
 	OS_ASSERT(table);
 	OS_ASSERT(value);
@@ -8363,6 +8332,18 @@ OS::Core::Value::Variable * OS::Core::setTableValue(Value::Table * table, Variab
 	value->ref_count++;
 	addTableVariable(table, var);
 	return var;
+}
+
+OS::Core::Value::Variable * OS::Core::setPropertyValue(Value * table_value, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled)
+{
+	if(table_value->type == OS_VALUE_TYPE_OBJECT){
+		Core::Value::Table * table = table_value->value.table;
+		if(!table){
+			table = table_value->value.table = newTable();
+		}
+		return setPropertyValue(table, index, val, prototype_enabled, setter_enabled);
+	}
+	return NULL;
 }
 
 OS::Core::Value * OS::Core::getStackValue(int offs)
@@ -8393,28 +8374,48 @@ OS::Core::Value * OS::Core::pushValueAutoNull(Value * val)
 	if(val){
 		return pushValue(val);
 	}
-	return pushNullValue();
+	return pushConstNullValue();
 }
 
-OS::Core::Value * OS::Core::pushNullValue()
+OS::Core::Value * OS::Core::pushNewNullValue()
 {
 	Value * val = new (malloc(sizeof(Value))) Value(values.next_id++);
 	allocator->vectorAddItem(stack_values, registerValue(val));
 	return val;
 }
 
-OS::Core::Value * OS::Core::pushBoolValue(bool val)
+OS::Core::Value * OS::Core::pushConstNullValue()
 {
-	Value * res = pushNullValue();
+	return pushValue(null_value);
+}
+
+OS::Core::Value * OS::Core::pushConstTrueValue()
+{
+	return pushValue(true_value);
+}
+
+OS::Core::Value * OS::Core::pushConstFalseValue()
+{
+	return pushValue(false_value);
+}
+
+OS::Core::Value * OS::Core::pushNewBoolValue(bool val)
+{
+	Value * res = pushNewNullValue();
 	res->prototype = prototypes[PROTOTYPE_BOOL]->retain();
 	res->value.boolean = val;
 	res->type = OS_VALUE_TYPE_BOOL;
 	return res;
 }
 
+OS::Core::Value * OS::Core::pushConstBoolValue(bool val)
+{
+	return pushValue(val ? true_value : false_value);
+}
+
 OS::Core::Value * OS::Core::pushNumberValue(OS_FLOAT val)
 {
-	Value * res = pushNullValue();
+	Value * res = pushNewNullValue();
 	res->prototype = prototypes[PROTOTYPE_NUMBER]->retain();
 	res->value.number = val;
 	res->type = OS_VALUE_TYPE_NUMBER;
@@ -8430,7 +8431,7 @@ OS::Core::Value * OS::Core::pushStringValue(const StringInternal& str)
 		Value * value = values.get(var->value_id);
 		return pushValue(value);
 	}
-	Value * value = pushNullValue();
+	Value * value = pushNewNullValue();
 	value->prototype = prototypes[PROTOTYPE_STRING]->retain();
 	value->value.string_data = str.toData()->retain();
 	value->type = OS_VALUE_TYPE_STRING;
@@ -8441,7 +8442,7 @@ OS::Core::Value * OS::Core::pushStringValue(const StringInternal& str)
 	addTableVariable(string_values_table, var);
 	return value;
 #else
-	Value * res = pushNullValue();
+	Value * res = pushNewNullValue();
 	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
 	res->value.string_data = val.toData()->retain();
 	res->type = OS_VALUE_TYPE_STRING;
@@ -8454,7 +8455,7 @@ OS::Core::Value * OS::Core::pushStringValue(const OS_CHAR * val)
 #if 1
 	return pushStringValue(StringInternal(allocator, val));
 #else
-	Value * res = pushNullValue();
+	Value * res = pushNewNullValue();
 	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
 	res->value.string_data = StringData::alloc(allocator, val, OS_STRLEN(val));
 	res->type = OS_VALUE_TYPE_STRING;
@@ -8464,7 +8465,7 @@ OS::Core::Value * OS::Core::pushStringValue(const OS_CHAR * val)
 
 OS::Core::Value * OS::Core::pushCFunctionValue(OS_CFunction func, void * user_param)
 {
-	Value * res = pushNullValue();
+	Value * res = pushNewNullValue();
 	res->value.cfunc.func = func;
 	res->value.cfunc.user_param = user_param;
 	res->type = OS_VALUE_TYPE_CFUNCTION;
@@ -8473,7 +8474,7 @@ OS::Core::Value * OS::Core::pushCFunctionValue(OS_CFunction func, void * user_pa
 
 OS::Core::Value * OS::Core::pushUserdataValue(int data_size, OS_UserDataDtor dtor)
 {
-	Value * res = pushNullValue();
+	Value * res = pushNewNullValue();
 	res->value.userdata.ptr = malloc(data_size);
 	res->value.userdata.dtor = dtor;
 	res->type = OS_VALUE_TYPE_USERDATA;
@@ -8482,7 +8483,7 @@ OS::Core::Value * OS::Core::pushUserdataValue(int data_size, OS_UserDataDtor dto
 
 OS::Core::Value * OS::Core::pushUserPointerValue(void * data, OS_UserDataDtor dtor)
 {
-	Value * res = pushNullValue();
+	Value * res = pushNewNullValue();
 	res->value.userdata.ptr = data;
 	res->value.userdata.dtor = dtor;
 	res->type = OS_VALUE_TYPE_USERPTR;
@@ -8491,7 +8492,7 @@ OS::Core::Value * OS::Core::pushUserPointerValue(void * data, OS_UserDataDtor dt
 
 OS::Core::Value * OS::Core::pushObjectValue()
 {
-	Value * res = pushNullValue();
+	Value * res = pushNewNullValue();
 	res->prototype = prototypes[PROTOTYPE_OBJECT]->retain();
 	res->type = OS_VALUE_TYPE_OBJECT;
 	return res;
@@ -8499,13 +8500,18 @@ OS::Core::Value * OS::Core::pushObjectValue()
 
 OS::Core::Value * OS::Core::pushArrayValue()
 {
-	Value * res = pushNullValue();
+	Value * res = pushNewNullValue();
 	res->prototype = prototypes[PROTOTYPE_ARRAY]->retain();
 	res->type = OS_VALUE_TYPE_ARRAY;
 	return res;
 }
 
-void OS::Core::removeFromStack(int offs, int count)
+OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Value * right_value)
+{
+	return pushConstNullValue();
+}
+
+void OS::Core::removeStackValues(int offs, int count)
 {
 	int start = stack_values.count + offs;
 	if(start < 0){
@@ -8536,12 +8542,12 @@ void OS::Core::removeFromStack(int offs, int count)
 
 void OS::Core::pop(int count)
 {
-	removeFromStack(-count, count);
+	removeStackValues(-count, count);
 }
 
 void OS::pushNull()
 {
-	core->pushNullValue();
+	core->pushConstNullValue();
 }
 
 void OS::pushNumber(OS_INT16 val)
@@ -8566,7 +8572,7 @@ void OS::pushNumber(double val)
 
 void OS::pushBool(bool val)
 {
-	core->pushBoolValue(val);
+	core->pushConstBoolValue(val);
 }
 
 void OS::pushString(const OS_CHAR * val)
@@ -8633,7 +8639,7 @@ OS::Value OS::getValueById(int id)
 
 void OS::remove(int start_offs, int count)
 {
-	core->removeFromStack(start_offs, count);
+	core->removeStackValues(start_offs, count);
 }
 
 void OS::pop(int count)
@@ -8875,17 +8881,17 @@ void OS::setProperty(int table_offs, int pop_count, bool prototype_enabled, bool
 			}
 			switch(index_arg->type){
 			case OS_VALUE_TYPE_BOOL:
-				core->setTableValue(table, Core::VariableIndex(this, (OS_INT)index_arg->value.boolean), value_arg, prototype_enabled, setter_enabled);
+				core->setPropertyValue(table, Core::VariableIndex(this, (OS_INT)index_arg->value.boolean), value_arg, prototype_enabled, setter_enabled);
 				pop(pop_count);
 				return;
 
 			case OS_VALUE_TYPE_NUMBER:
-				core->setTableValue(table, Core::VariableIndex(this, index_arg->value.number), value_arg, prototype_enabled, setter_enabled);
+				core->setPropertyValue(table, Core::VariableIndex(this, index_arg->value.number), value_arg, prototype_enabled, setter_enabled);
 				pop(pop_count);
 				return;
 
 			case OS_VALUE_TYPE_STRING:
-				core->setTableValue(table, Core::VariableIndex(index_arg->value.string_data), value_arg, prototype_enabled, setter_enabled);
+				core->setPropertyValue(table, Core::VariableIndex(index_arg->value.string_data), value_arg, prototype_enabled, setter_enabled);
 				pop(pop_count);
 				return;
 
@@ -8902,7 +8908,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex
 {
 	OS_ASSERT(table_value->type == OS_VALUE_TYPE_OBJECT);
 	if(table_value->type != OS_VALUE_TYPE_OBJECT){
-		return pushNullValue();
+		return pushConstNullValue();
 	}
 	Value::Variable * var = NULL;
 	Value::Table * table = table_value->value.table;
@@ -8955,7 +8961,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex
 				case OS_VALUE_TYPE_FUNCTION:
 					pushValue(table_value);
 					pushValue(value); // func
-					call(1, 1);
+					// call(1, 1);
 					return getStackValue(-1);
 
 				default:
@@ -8966,7 +8972,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex
 		}
 	}
 	// error
-	return pushNullValue();
+	return pushConstNullValue();
 }
 
 void OS::getProperty(int table_offs, int pop_count, bool prototype_enabled, bool getter_enabled)
@@ -9009,38 +9015,524 @@ void OS::getProperty(int table_offs, int pop_count, bool prototype_enabled, bool
 	pushNull();
 }
 
-void OS::Core::enterFunction()
+/*
+OS::Core::FunctionRunningInstance * OS::Core::newFunctionRunningInstance()
 {
-	Value * func = NULL; // pop();
-	if(func->type == OS_VALUE_TYPE_CFUNCTION){
-		func->value.cfunc.func(allocator, func->value.cfunc.user_param);
+	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance))) FunctionRunningInstance();
+	return func_running;
+}
+*/
+
+void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance * func_running)
+{
+	OS_ASSERT(func_running->func && func_running->func->type == OS_VALUE_TYPE_FUNCTION);
+	OS_ASSERT(func_running->func->value.func->func_decl);
+
+	if(--func_running->ref_count > 0){
 		return;
 	}
-	if(func->type != OS_VALUE_TYPE_FUNCTION){
-		OS_ASSERT(false);
-		fatal_error = OS_FATAL_ERROR_OPCODE;
-		return;
+
+	int i;
+	FunctionDecl * func_decl = func_running->func->value.func->func_decl;
+	for(i = 0; i < func_decl->num_locals; i++){
+		releaseValue(func_running->locals[i]);
 	}
-	int num_params = 0; // stack_count; // pop()->toInt();
+	// free(func_running->locals);
+	func_running->locals = NULL;
 
-	StackFunction * stack_func = new (malloc(sizeof(StackFunction))) StackFunction();
-	allocator->vectorAddItem(call_stack_funcs, stack_func);
+	releaseValue(func_running->func); 
+	func_running->func = NULL;
 
-	stack_func->local_vars;
+	if(func_running->self){
+		releaseValue(func_running->self);
+		func_running->self = NULL;
+	}
+
+	for(i = 0; i < func_running->num_parent_inctances; i++){
+		releaseFunctionRunningInstance(func_running->parent_inctances[i]);
+	}
+	// free(func_running->parent_inctances);
+	func_running->parent_inctances = NULL;
+
+	func_running->~FunctionRunningInstance();
+	free(func_running);
 }
 
-void OS::Core::leaveFunction()
+void OS::Core::enterFunction(Value * value, Value * self, int params, int ret_values)
+{
+	OS_ASSERT(value->type == OS_VALUE_TYPE_FUNCTION);
+	OS_ASSERT(stack_values.count >= params);
+
+	FunctionValueData * func_value_data = value->value.func;
+	FunctionDecl * func_decl = func_value_data->func_decl;
+	int num_extra_params = params > func_decl->num_params ? params - func_decl->num_params : 0;
+	int locals_mem_size = sizeof(Value*) * (func_decl->num_locals + num_extra_params);
+	int parents_mem_size = sizeof(FunctionRunningInstance*) * func_decl->max_up_count;
+	
+	// FunctionRunningInstance * func_running = newFunctionRunningInstance();
+	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance) + locals_mem_size + parents_mem_size)) FunctionRunningInstance();
+	func_running->func = value->retain();
+	
+	if(!self){
+		self = func_value_data->self;
+	}
+	if(self){
+		func_running->self = self->retain();
+	}
+	
+	// func_running->num_locals = func_decl->num_locals;
+	func_running->num_params = params;
+	func_running->num_extra_params = num_extra_params;
+	func_running->locals = (Value**)(func_running + 1); // malloc(locals_mem_size);
+	int func_params = func_decl->num_params < params ? func_decl->num_params : params;
+	OS_ASSERT(func_params <= func_decl->num_locals);
+	int stack_param_index = stack_values.count - params;
+	int i, clear_stack_to_index = stack_param_index;
+	for(i = 0; i < func_params; i++, stack_param_index++){
+		func_running->locals[i] = stack_values[stack_param_index]->retain();
+	}
+	for(; i < func_decl->num_locals; i++){
+		func_running->locals[i] = null_value->retain(); // pushConstNullValue()->retain();
+	}
+	for(i = 0; i < num_extra_params; i++, stack_param_index++){
+		func_running->locals[func_decl->num_locals + i] = stack_values[stack_param_index]->retain();
+	}
+	pop(stack_values.count - clear_stack_to_index);
+
+	func_running->parent_inctances = (FunctionRunningInstance**)((OS_BYTE*)func_running->locals + locals_mem_size); // malloc(sizeof(FunctionRunningInstance*) * func_decl->max_up_count);
+	FunctionRunningInstance * cur_parent = func_value_data->parent_inctance;
+	for(i = 0; i < func_decl->max_up_count; i++){
+		OS_ASSERT(cur_parent);
+		func_running->parent_inctances[i] = cur_parent;
+		OS_ASSERT(cur_parent->func->type == OS_VALUE_TYPE_FUNCTION && cur_parent->func->value.func);
+		cur_parent = cur_parent->func->value.func->parent_inctance;
+	}
+
+	func_running->initial_stack_size = stack_values.count;
+	func_running->need_ret_values = ret_values;
+	func_running->next_opcode_pos = func_decl->opcodes_pos;
+	
+	allocator->vectorAddItem(call_stack_funcs, func_running);
+}
+
+int OS::Core::leaveFunction()
 {
 	// Value * num_results = pop();
+	return 0;
 }
 
-int OS::Core::call(int params, int ret_values)
+int OS::Core::execute()
 {
-	pop(params+1);
-	while(ret_values-- > 0){
-		pushNullValue();
+restart:
+	OS_ASSERT(call_stack_funcs.count > 0);
+	FunctionRunningInstance * func_running = call_stack_funcs[call_stack_funcs.count-1];
+	FunctionValueData * func_value_data = func_running->func->value.func;
+	FunctionDecl * func_decl = func_value_data->func_decl;
+	Value * env = func_value_data->env ? func_value_data->env : global_vars;
+	Program * prog = func_value_data->prog;
+
+	MemStreamReader opcodes(NULL, prog->opcodes->buffer + func_decl->opcodes_pos, func_decl->opcodes_size);
+	opcodes.skipBytes(func_running->next_opcode_pos - func_decl->opcodes_pos);
+
+	int prog_num_numbers = prog->num_numbers;
+	OS * allocator = this->allocator;
+	for(;;){
+		int opcode = opcodes.readByte(), i;
+		switch(opcode){
+		case Program::OP_PUSH_NUMBER:
+			i = opcodes.readU16();
+			pushValue(prog->const_values[i]);
+			break;
+
+		case Program::OP_PUSH_STRING:
+			i = opcodes.readU16();
+			pushValue(prog->const_values[prog_num_numbers + i]);
+			break;
+
+		case Program::OP_PUSH_NULL:
+			pushConstNullValue();
+			break;
+
+		case Program::OP_PUSH_TRUE:
+			pushConstTrueValue();
+			break;
+
+		case Program::OP_PUSH_FALSE:
+			pushConstFalseValue();
+			break;
+
+		case Program::OP_PUSH_FUNCTION:
+			{
+				int func_index = opcodes.readU16();
+				OS_ASSERT(func_index >= 0 && func_index < prog->num_functions);
+				FunctionDecl * func_decl = prog->functions + func_index;
+
+				Value * func_value = allocator->core->pushNewNullValue();
+				func_value->prototype = allocator->core->prototypes[PROTOTYPE_FUNCTION]->retain();
+				FunctionValueData * func_value_data = allocator->core->newFunctionValueData();
+				func_value_data->prog = prog->retain();
+				func_value_data->func_decl = func_decl;
+				func_value_data->env = env->retain();
+				func_value_data->self = NULL; // TODO: ???
+				func_value_data->parent_inctance = func_running->retain();
+				func_value->value.func = func_value_data;
+				func_value->type = OS_VALUE_TYPE_FUNCTION;
+	
+				// OS_ASSERT(func_decl->opcodes_pos == opcodes.pos);
+				opcodes.skipBytes(func_decl->opcodes_size);
+				break;
+			}
+
+		case Program::OP_PUSH_NEW_OBJECT:
+			pushObjectValue();
+			break;
+
+		case Program::OP_OBJECT_SET_BY_AUTO_INDEX:
+			{
+				OS_ASSERT(stack_values.count >= 2);
+				Value * table_value = stack_values[stack_values.count-2];
+				Value * value = stack_values[stack_values.count-1]; // getStackValue(-1);
+				if(table_value->type == OS_VALUE_TYPE_OBJECT){
+					Core::Value::Table * table = table_value->value.table;
+					if(!table){
+						table = table_value->value.table = newTable();
+					}
+					setPropertyValue(table, VariableIndex(allocator, (OS_INT)table->next_id), value, false, false);
+				}
+				pop();
+				break;
+			}
+
+		case Program::OP_OBJECT_SET_BY_EXP:
+			allocator->setProperty(-3, 2, false, false);
+			/* {
+				OS_ASSERT(stack_values.count >= 3);
+				Value * table_value = stack_values[stack_values.count-3];
+				Value * index_value = stack_values[stack_values.count-2];
+				Value * value = stack_values[stack_values.count-1];
+				if(table_value->type == OS_VALUE_TYPE_OBJECT){
+					Core::Value::Table * table = table_value->value.table;
+					if(!table){
+						table = table_value->value.table = newTable();
+					}
+					setPropertyValue(table, VariableIndex(allocator, (OS_INT)table->next_id), value, false, false);
+				}
+				pop(2);
+				break;
+			} */
+			break;
+
+		case Program::OP_OBJECT_SET_BY_INDEX:
+			{
+				OS_ASSERT(stack_values.count >= 2);
+				i = opcodes.readU16();
+				Value * table_value = stack_values[stack_values.count-2];
+				Value * index_value = prog->const_values[i];
+				Value * value = stack_values[stack_values.count-1];
+				if(table_value->type == OS_VALUE_TYPE_OBJECT){
+					Core::Value::Table * table = table_value->value.table;
+					if(!table){
+						table = table_value->value.table = newTable();
+					}
+					setPropertyValue(table, VariableIndex(allocator, (OS_INT)valueToNumber(index_value)), value, false, false);
+				}
+				pop();
+				break;
+			}
+
+		case Program::OP_OBJECT_SET_BY_NAME:
+			{
+				OS_ASSERT(stack_values.count >= 2);
+				i = opcodes.readU16();
+				Value * table_value = stack_values[stack_values.count-2];
+				Value * index_value = prog->const_values[prog_num_numbers + i];
+				Value * value = stack_values[stack_values.count-1];
+				if(table_value->type == OS_VALUE_TYPE_OBJECT){
+					Core::Value::Table * table = table_value->value.table;
+					if(!table){
+						table = table_value->value.table = newTable();
+					}
+					setPropertyValue(table, VariableIndex(valueToString(index_value), VariableIndex::NoFixStringIndex()), value, false, false);
+				}
+				pop();
+				break;
+			}
+
+		case Program::OP_PUSH_AUTO_VAR:
+			{
+				i = opcodes.readU16();
+				Value * name_value = prog->const_values[prog_num_numbers + i];
+				StringInternal name = valueToString(name_value);
+				pushPropertyValue(env, VariableIndex(name), true, true); 
+				break;
+			}
+
+		case Program::OP_SET_AUTO_VAR:
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				i = opcodes.readU16();
+				Value * value = stack_values[stack_values.count-1];
+				Value * name_value = prog->const_values[prog_num_numbers + i];
+				StringInternal name = valueToString(name_value);
+				setPropertyValue(env, VariableIndex(name), value, true, true);
+				pop();
+				break;
+			}
+
+		case Program::OP_PUSH_THIS:
+			pushValueAutoNull(func_running->self);
+			break;
+
+		case Program::OP_PUSH_ARGUMENTS:
+			if(!func_running->arguments){
+				// TODO: create arguments value
+			}
+			pushValueAutoNull(func_running->arguments);
+			break;
+
+		case Program::OP_PUSH_REST_ARGUMENTS:
+			if(!func_running->rest_arguments){
+				// TODO: create rest arguments value
+			}
+			pushValueAutoNull(func_running->rest_arguments);
+			break;
+
+		case Program::OP_PUSH_LOCAL_VAR:
+			{
+				FunctionRunningInstance * scope;
+				i = opcodes.readByte();
+				int up_count = opcodes.readByte();
+				if(up_count == 0){
+					scope = func_running;
+				}else if(up_count <= func_decl->max_up_count){
+					scope = func_running->parent_inctances[up_count-1];
+				}else{
+					OS_ASSERT(false);
+					pushConstNullValue();
+					break;
+				}
+				if(i < scope->func->value.func->func_decl->num_locals){
+					pushValue(scope->locals[i]);
+				}else{
+					OS_ASSERT(false);
+					pushConstNullValue();
+				}
+				break;
+			}
+
+		case Program::OP_SET_LOCAL_VAR:
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values[stack_values.count-1];
+				FunctionRunningInstance * scope;
+				i = opcodes.readByte();
+				int up_count = opcodes.readByte();
+				if(up_count == 0){
+					scope = func_running;
+				}else if(up_count <= func_decl->max_up_count){
+					scope = func_running->parent_inctances[up_count-1];
+				}else{
+					OS_ASSERT(false);
+					pop();
+					break;
+				}
+				if(i < scope->func->value.func->func_decl->num_locals){
+					if(scope->locals[i] != value){
+						releaseValue(scope->locals[i]);
+						scope->locals[i] = value->retain();
+					}
+				}else{
+					OS_ASSERT(false);
+				}
+				pop();
+				break;
+			}
+
+		case Program::OP_CALL:
+			{
+				int params = opcodes.readByte();
+				int ret_values = opcodes.readByte();
+				
+				OS_ASSERT(stack_values.count >= 1 + params);
+				call(NULL, params, ret_values);
+				break;
+			}
+
+		case Program::OP_GET_DIM:
+			{
+				OS_ASSERT(false);
+				int params = opcodes.readByte();
+				int ret_values = opcodes.readByte();
+				
+				OS_ASSERT(stack_values.count >= 1 + params);
+				break;
+			}
+
+		case Program::OP_CALL_PROPERTY:
+			{
+				OS_ASSERT(false);
+				int params = opcodes.readByte();
+				int ret_values = opcodes.readByte();
+				
+				OS_ASSERT(stack_values.count >= 1 + params);
+				break;
+			}
+
+		case Program::OP_TAIL_CALL:
+			{
+				// OS_ASSERT(false);
+				int params = opcodes.readByte();
+				int ret_values = opcodes.readByte();
+
+				ret_values = func_running->need_ret_values;
+				
+				OS_ASSERT(stack_values.count >= 1 + params);
+				Value * func_value = stack_values[stack_values.count-1-params]->retain();
+				removeStackValues(-1-params);
+
+				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
+				call_stack_funcs.count--;
+				enterFunction(func_value, NULL, params, ret_values);
+				releaseFunctionRunningInstance(func_running);
+				releaseValue(func_value);
+				goto restart;
+				break;
+			}
+
+		case Program::OP_GET_PROPERTY:
+			{
+				int ret_values = opcodes.readByte();
+				allocator->getProperty();
+				int cur_ret_values = 1;
+				if(cur_ret_values > ret_values){
+					pop(cur_ret_values - ret_values);
+				}else{
+					while(cur_ret_values < ret_values){
+						pushConstNullValue();
+					}
+				}
+				break;
+			}
+
+		case Program::OP_SET_PROPERTY:
+			{
+				allocator->setProperty();
+				break;
+			}
+
+		case Program::OP_RETURN:
+			{
+				int cur_ret_values = opcodes.readByte();
+				int ret_values = func_running->need_ret_values;
+				if(cur_ret_values > ret_values){
+					pop(cur_ret_values - ret_values);
+				}else{
+					while(cur_ret_values < ret_values){
+						pushConstNullValue();
+					}
+				}
+				// func_running->next_opcode_pos = opcodes.getPos();
+				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
+				call_stack_funcs.count--;
+				releaseFunctionRunningInstance(func_running);
+				return ret_values;
+			}
+
+		case Program::OP_POP:
+			pop();
+			break;
+
+		case Program::OP_LOGIC_AND:
+			OS_ASSERT(false);
+			break;
+
+		case Program::OP_LOGIC_OR:
+			OS_ASSERT(false);
+			break;
+
+		case Program::OP_LOGIC_NOT:
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values[stack_values.count-1];
+				pushConstBoolValue(!valueToBool(value));
+				break;
+			}
+
+		case Program::OP_CONCAT:
+		case Program::OP_LOGIC_PTR_EQ:
+		case Program::OP_LOGIC_PTR_NE:
+		case Program::OP_LOGIC_EQ:
+		case Program::OP_LOGIC_NE:
+		case Program::OP_LOGIC_GE:
+		case Program::OP_LOGIC_LE:
+		case Program::OP_LOGIC_GREATER:
+		case Program::OP_LOGIC_LESS:
+		case Program::OP_BIN_AND:
+		case Program::OP_BIN_OR:
+		case Program::OP_BIN_XOR:
+		case Program::OP_BIN_NOT:
+		case Program::OP_ADD: // +
+		case Program::OP_SUB: // -
+		case Program::OP_MUL: // *
+		case Program::OP_DIV: // /
+		case Program::OP_MOD: // %
+		case Program::OP_MUL_SHIFT: // <<
+		case Program::OP_DIV_SHIFT: // >>
+		case Program::OP_POW: // **
+			{
+				OS_ASSERT(stack_values.count >= 2);
+				Value * left_value = stack_values[stack_values.count-2];
+				Value * right_value = stack_values[stack_values.count-1];
+				pushOpResultValue(opcode, left_value, right_value);
+				removeStackValues(-3, 2);
+				break;
+			}
+		}
 	}
+
 	return 0;
+}
+
+int OS::Core::call(Value * self, int params, int ret_values)
+{
+	Value * val = getStackValue(-1);
+	if(val){
+		val->retain();
+		pop();
+		if(val->type == OS_VALUE_TYPE_FUNCTION){
+			enterFunction(val, self, params, ret_values);
+			releaseValue(val);
+			return execute();
+		}else if(val->type == OS_VALUE_TYPE_CFUNCTION){
+			int stack_size_without_params = stack_values.count - params;
+			int func_ret_values = val->value.cfunc.func(allocator, params, val->value.cfunc.user_param);
+			int remove_values = stack_values.count - (stack_size_without_params + func_ret_values);
+			OS_ASSERT(remove_values >= 0);
+			removeStackValues(stack_size_without_params - stack_values.count, remove_values);
+			if(func_ret_values > ret_values){
+				pop(func_ret_values - ret_values);
+			}else{ 
+				while(func_ret_values < ret_values){
+					pushConstNullValue();
+					func_ret_values++;
+				}
+			}
+			releaseValue(val);
+			return ret_values;
+		}
+		OS_ASSERT(false);
+		pop(params);
+		for(int i = 0; i < ret_values; i++){
+			pushConstNullValue();
+		}
+		return ret_values;
+	}
+	OS_ASSERT(false);
+	pop(params);
+	for(int i = 0; i < ret_values; i++){
+		pushConstNullValue();
+	}
+	return ret_values;
 }
 
 bool OS::compile(const Core::StringInternal& str)
@@ -9080,7 +9572,7 @@ int OS::eval(const Core::StringInternal& str)
 {
 	pushString(str);
 	compile();
-	return call(1);
+	return core->call(NULL, 0, 0);
 }
 
 // =====================================================================

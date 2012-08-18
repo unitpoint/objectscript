@@ -59,7 +59,7 @@ namespace ObjectScript
 	class OS;
 	typedef void * (*OS_HeapFunction)(void*, int);
 	typedef void (*OS_UserDataDtor)(OS*, void*);
-	typedef int (*OS_CFunction)(OS*, void*);
+	typedef int (*OS_CFunction)(OS*, int params, void*);
 
 	enum OS_EValueType
 	{
@@ -1466,6 +1466,7 @@ namespace ObjectScript
 				FunctionDecl * func_decl;
 				Value * self; // TODO: ???
 				Value * env;
+
 				// Value::Table * table;
 
 				FunctionValueData();
@@ -1481,13 +1482,21 @@ namespace ObjectScript
 				int num_parent_inctances;
 
 				Value ** locals;
-				int num_locals;
+				int num_params;
+				int num_extra_params;
+				int initial_stack_size;
+				int need_ret_values;
+
+				Value * arguments;
+				Value * rest_arguments;
 
 				int next_opcode_pos;
 				int ref_count;
 
 				FunctionRunningInstance();
 				~FunctionRunningInstance();
+
+				FunctionRunningInstance * retain();
 			};
 
 			struct Values
@@ -1504,19 +1513,6 @@ namespace ObjectScript
 				// Value * add(Value * obj);
 				// Value * remove(int value_id);
 				Value * get(int value_id);
-			};
-
-			struct StackFunction
-			{
-				Vector<FunctionRunningInstance*> stack_calls;
-
-				Value * func; // retained
-				int cur_opcode_num;
-
-				Value ** local_vars;
-
-				StackFunction();
-				~StackFunction();
 			};
 
 			OS * allocator;
@@ -1567,6 +1563,9 @@ namespace ObjectScript
 			Values values;
 			Value::Table * string_values_table;
 			Value * global_vars;
+			Value * null_value;
+			Value * true_value;
+			Value * false_value;
 
 			enum {
 				PROTOTYPE_BOOL,
@@ -1584,7 +1583,7 @@ namespace ObjectScript
 			// Vector<Value*> autorelease_values;
 			Vector<Value*> stack_values;
 			Vector<Value*> temp_values;
-			Vector<StackFunction*> call_stack_funcs;
+			Vector<FunctionRunningInstance*> call_stack_funcs;
 
 			// Vector<Value*> cache_values;
 
@@ -1616,14 +1615,18 @@ namespace ObjectScript
 			FunctionValueData * newFunctionValueData();
 			void deleteFunctionValueData(FunctionValueData*);
 
-			FunctionRunningInstance * newFunctionRunningInstance();
+			// FunctionRunningInstance * newFunctionRunningInstance();
 			void releaseFunctionRunningInstance(FunctionRunningInstance*);
 
 			Value * pushValue(Value * val);
 			Value * pushValueAutoNull(Value * val);
-			Value * pushNullValue();
+			Value * pushNewNullValue();
+			Value * pushNewBoolValue(bool);
+			Value * pushConstNullValue();
+			Value * pushConstTrueValue();
+			Value * pushConstFalseValue();
 
-			Value * pushBoolValue(bool);
+			Value * pushConstBoolValue(bool);
 			Value * pushNumberValue(OS_FLOAT);
 			Value * pushStringValue(const StringInternal&);
 			Value * pushStringValue(const OS_CHAR*);
@@ -1633,7 +1636,9 @@ namespace ObjectScript
 			Value * pushObjectValue();
 			Value * pushArrayValue();
 
-			void removeFromStack(int offs = -1, int count = 1);
+			Value * pushOpResultValue(int opcode, Value * left_value, Value * right_value);
+
+			void removeStackValues(int offs = -1, int count = 1);
 			void pop(int count = 1);
 
 			Value * registerValue(Value * val);
@@ -1657,15 +1662,17 @@ namespace ObjectScript
 			Value::Array * newArray();
 			void deleteArray(Value::Array*);
 
-			Value::Variable * setTableValue(Value::Table * table, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
+			Value::Variable * setPropertyValue(Value::Table * table, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
+			Value::Variable * setPropertyValue(Value * table_value, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
 			Value * pushPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled);
 
 			Value * getStackValue(int offs);
 
-			void enterFunction();
-			void leaveFunction();
+			void enterFunction(Value * value, Value * self, int params, int ret_values);
+			int leaveFunction();
+			int execute();
 
-			int call(int params, int ret_values);
+			int call(Value * self, int params, int ret_values);
 
 			Core(OS*);
 			~Core();

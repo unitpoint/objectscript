@@ -28,8 +28,8 @@ struct __test_os__
 	__test_os__()
 	{
 		OS * os = OS::create();
-		const char * filename = "test-data/castlemonster.js";
-		// const char * filename = "test.os";
+		// const char * filename = "test-data/castlemonster.js";
+		const char * filename = "test-data/test.os";
 		OS::String test_prog = readFile(os, filename);
 		
 		// os->eval("abc, x, y = 5, var1*6 + var2*3  x = y-7;");
