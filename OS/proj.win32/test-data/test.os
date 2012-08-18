@@ -1,3 +1,18 @@
+var math = {
+	round: function(a, b){
+		return a + b;
+	},
+};
+		b = math.round(a, b);
+		b = math[round](a, b);
+		b = math.round[a, b];
+		b = math[round][a, b];
+		b = math[round, a, b];
+		b = math[round, c](a, b);
+		b = math[round, c][a, b][c];
+		b = math[round, a, b][c];
+		b = math[round][a][b](a);
+/*
 var math = math;
 
 var f = function(a, d)
@@ -9,7 +24,13 @@ var f = function(a, d)
 
 	{
 		var a = a * 2;
-		b = math.round(a);
+		b = math.round(a, b);
+		b = math[round](a, b);
+		b = math.round[a, b];
+		b = math[round][a, b];
+		b = math[round, a, b];
+		// b = math->round(a);
+		// b = math->round[a, b];
 	}
 	{
 		var a = a * 2;
@@ -26,3 +47,4 @@ _GLOBALS.A =
 {
 	
 }
+*/

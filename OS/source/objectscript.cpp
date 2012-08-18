@@ -1220,10 +1220,10 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 	case OPERATOR_QUESTION: return OS_TEXT("OPERATOR_QUESTION");
 	case OPERATOR_COLON:    return OS_TEXT("OPERATOR_COLON");
 
-	case OPERATOR_BIN_AND:  return OS_TEXT("OPERATOR_BIN_AND");
-	case OPERATOR_BIN_OR:   return OS_TEXT("OPERATOR_BIN_OR");
-	case OPERATOR_BIN_XOR:  return OS_TEXT("OPERATOR_BIN_XOR");
-	case OPERATOR_BIN_NOT:  return OS_TEXT("OPERATOR_BIN_NOT");
+	case OPERATOR_BIT_AND:  return OS_TEXT("OPERATOR_BIT_AND");
+	case OPERATOR_BIT_OR:   return OS_TEXT("OPERATOR_BIT_OR");
+	case OPERATOR_BIT_XOR:  return OS_TEXT("OPERATOR_BIT_XOR");
+	case OPERATOR_BIT_NOT:  return OS_TEXT("OPERATOR_BIT_NOT");
 	case OPERATOR_ADD:      return OS_TEXT("OPERATOR_ADD");
 	case OPERATOR_SUB:      return OS_TEXT("OPERATOR_SUB");
 	case OPERATOR_MUL:      return OS_TEXT("OPERATOR_MUL");
@@ -1239,10 +1239,10 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 	case OPERATOR_IS:     return OS_TEXT("OPERATOR_IS");
 	case OPERATOR_AS:     return OS_TEXT("OPERATOR_AS");
 
-	case OPERATOR_BIN_AND_ASSIGN: return OS_TEXT("OPERATOR_BIN_AND_ASSIGN");
-	case OPERATOR_BIN_OR_ASSIGN:  return OS_TEXT("OPERATOR_BIN_OR_ASSIGN");
-	case OPERATOR_BIN_XOR_ASSIGN: return OS_TEXT("OPERATOR_BIN_XOR_ASSIGN");
-	case OPERATOR_BIN_NOT_ASSIGN: return OS_TEXT("OPERATOR_BIN_NOT_ASSIGN");
+	case OPERATOR_BIT_AND_ASSIGN: return OS_TEXT("OPERATOR_BIT_AND_ASSIGN");
+	case OPERATOR_BIT_OR_ASSIGN:  return OS_TEXT("OPERATOR_BIT_OR_ASSIGN");
+	case OPERATOR_BIT_XOR_ASSIGN: return OS_TEXT("OPERATOR_BIT_XOR_ASSIGN");
+	case OPERATOR_BIT_NOT_ASSIGN: return OS_TEXT("OPERATOR_BIT_NOT_ASSIGN");
 	case OPERATOR_ADD_ASSIGN:     return OS_TEXT("OPERATOR_ADD_ASSIGN");
 	case OPERATOR_SUB_ASSIGN:     return OS_TEXT("OPERATOR_SUB_ASSIGN");
 	case OPERATOR_MUL_ASSIGN:     return OS_TEXT("OPERATOR_MUL_ASSIGN");
@@ -1407,10 +1407,10 @@ bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 		case OS::Core::Tokenizer::OPERATOR_LOGIC_GREATER: // >
 		case OS::Core::Tokenizer::OPERATOR_LOGIC_LESS:    // <
 
-		case OS::Core::Tokenizer::OPERATOR_BIN_AND: // &
-		case OS::Core::Tokenizer::OPERATOR_BIN_OR:  // |
-		case OS::Core::Tokenizer::OPERATOR_BIN_XOR: // ^
-		case OS::Core::Tokenizer::OPERATOR_BIN_NOT: // ~
+		case OS::Core::Tokenizer::OPERATOR_BIT_AND: // &
+		case OS::Core::Tokenizer::OPERATOR_BIT_OR:  // |
+		case OS::Core::Tokenizer::OPERATOR_BIT_XOR: // ^
+		case OS::Core::Tokenizer::OPERATOR_BIT_NOT: // ~
 		case OS::Core::Tokenizer::OPERATOR_ADD: // +
 		case OS::Core::Tokenizer::OPERATOR_SUB: // -
 		case OS::Core::Tokenizer::OPERATOR_MUL: // *
@@ -1426,10 +1426,10 @@ bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 		case OS::Core::Tokenizer::OPERATOR_IS:
 		case OS::Core::Tokenizer::OPERATOR_AS:
 
-		case OS::Core::Tokenizer::OPERATOR_BIN_AND_ASSIGN: // &=
-		case OS::Core::Tokenizer::OPERATOR_BIN_OR_ASSIGN:  // |=
-		case OS::Core::Tokenizer::OPERATOR_BIN_XOR_ASSIGN: // ^=
-		case OS::Core::Tokenizer::OPERATOR_BIN_NOT_ASSIGN: // ~=
+		case OS::Core::Tokenizer::OPERATOR_BIT_AND_ASSIGN: // &=
+		case OS::Core::Tokenizer::OPERATOR_BIT_OR_ASSIGN:  // |=
+		case OS::Core::Tokenizer::OPERATOR_BIT_XOR_ASSIGN: // ^=
+		case OS::Core::Tokenizer::OPERATOR_BIT_NOT_ASSIGN: // ~=
 		case OS::Core::Tokenizer::OPERATOR_ADD_ASSIGN: // +=
 		case OS::Core::Tokenizer::OPERATOR_SUB_ASSIGN: // -=
 		case OS::Core::Tokenizer::OPERATOR_MUL_ASSIGN: // *=
@@ -1478,10 +1478,10 @@ OS::Core::Tokenizer::OperatorDesc OS::Core::Tokenizer::operator_desc[] =
 	{ OPERATOR_QUESTION,  OS_TEXT("?") }, // , OP_LEVEL_5},
 	{ OPERATOR_COLON,     OS_TEXT(":") }, // , OP_LEVEL_5},
 
-	{ OPERATOR_BIN_AND, OS_TEXT("&") }, // , OP_LEVEL_5},
-	{ OPERATOR_BIN_OR,  OS_TEXT("|") }, // , OP_LEVEL_5},
-	{ OPERATOR_BIN_XOR, OS_TEXT("^") }, // , OP_LEVEL_5},
-	{ OPERATOR_BIN_NOT, OS_TEXT("~") }, // , OP_LEVEL_9},
+	{ OPERATOR_BIT_AND, OS_TEXT("&") }, // , OP_LEVEL_5},
+	{ OPERATOR_BIT_OR,  OS_TEXT("|") }, // , OP_LEVEL_5},
+	{ OPERATOR_BIT_XOR, OS_TEXT("^") }, // , OP_LEVEL_5},
+	{ OPERATOR_BIT_NOT, OS_TEXT("~") }, // , OP_LEVEL_9},
 	{ OPERATOR_CONCAT, OS_TEXT("..") }, // , OP_LEVEL_6},
 	{ OPERATOR_ADD, OS_TEXT("+") }, // , OP_LEVEL_6},
 	{ OPERATOR_SUB, OS_TEXT("-") }, // , OP_LEVEL_6},
@@ -1492,10 +1492,10 @@ OS::Core::Tokenizer::OperatorDesc OS::Core::Tokenizer::operator_desc[] =
 	{ OPERATOR_DIV_SHIFT, OS_TEXT(">>") }, // , OP_LEVEL_7},
 	{ OPERATOR_POW, OS_TEXT("**") }, // , OP_LEVEL_8},
 
-	{ OPERATOR_BIN_AND_ASSIGN, OS_TEXT("&=") }, // , OP_LEVEL_3},
-	{ OPERATOR_BIN_OR_ASSIGN,  OS_TEXT("|=") }, // , OP_LEVEL_3},
-	{ OPERATOR_BIN_XOR_ASSIGN, OS_TEXT("^=") }, // , OP_LEVEL_3},
-	{ OPERATOR_BIN_NOT_ASSIGN, OS_TEXT("~=") }, // , OP_LEVEL_3},
+	{ OPERATOR_BIT_AND_ASSIGN, OS_TEXT("&=") }, // , OP_LEVEL_3},
+	{ OPERATOR_BIT_OR_ASSIGN,  OS_TEXT("|=") }, // , OP_LEVEL_3},
+	{ OPERATOR_BIT_XOR_ASSIGN, OS_TEXT("^=") }, // , OP_LEVEL_3},
+	{ OPERATOR_BIT_NOT_ASSIGN, OS_TEXT("~=") }, // , OP_LEVEL_3},
 	{ OPERATOR_ADD_ASSIGN, OS_TEXT("+=") }, // , OP_LEVEL_3},
 	{ OPERATOR_SUB_ASSIGN, OS_TEXT("-=") }, // , OP_LEVEL_3},
 	{ OPERATOR_MUL_ASSIGN, OS_TEXT("*=") }, // , OP_LEVEL_3},
@@ -2111,7 +2111,7 @@ bool OS::Core::Compiler::Expression::isWriteable() const
 	case EXP_TYPE_NAME:
 	case EXP_TYPE_INDIRECT:
 	case EXP_TYPE_CALL_DIM:
-	case EXP_TYPE_CALL_PROPERTY:
+	case EXP_TYPE_CALL_METHOD:
 		return true;
 
 	case EXP_TYPE_PARAMS:
@@ -2142,7 +2142,7 @@ bool OS::Core::Compiler::Expression::isUnaryOperator() const
 	case EXP_TYPE_PRE_DEC:     // --
 	case EXP_TYPE_POST_INC:    // ++
 	case EXP_TYPE_POST_DEC:    // --
-	case EXP_TYPE_BIN_NOT:      // ~
+	case EXP_TYPE_BIT_NOT:      // ~
 		return true;
 	}
 	return false;
@@ -2190,14 +2190,14 @@ bool OS::Core::Compiler::Expression::isBinaryOperator() const
 	case EXP_TYPE_LOGIC_GREATER: // >
 	case EXP_TYPE_LOGIC_LESS:    // <
 
-	case EXP_TYPE_BIN_AND: // &
-	case EXP_TYPE_BIN_OR:  // |
-	case EXP_TYPE_BIN_XOR: // ^
+	case EXP_TYPE_BIT_AND: // &
+	case EXP_TYPE_BIT_OR:  // |
+	case EXP_TYPE_BIT_XOR: // ^
 
-	case EXP_TYPE_BIN_AND_ASSIGN: // &=
-	case EXP_TYPE_BIN_OR_ASSIGN:  // |=
-	case EXP_TYPE_BIN_XOR_ASSIGN: // ^=
-	case EXP_TYPE_BIN_NOT_ASSIGN: // ~=
+	case EXP_TYPE_BIT_AND_ASSIGN: // &=
+	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
+	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
+	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
 
 	case EXP_TYPE_ADD: // +
 	case EXP_TYPE_SUB: // -
@@ -2235,10 +2235,10 @@ bool OS::Core::Compiler::Expression::isAssignOperator() const
 	switch(type){
 	case EXP_TYPE_ASSIGN: // =
 
-	case EXP_TYPE_BIN_AND_ASSIGN: // &=
-	case EXP_TYPE_BIN_OR_ASSIGN:  // |=
-	case EXP_TYPE_BIN_XOR_ASSIGN: // ^=
-	case EXP_TYPE_BIN_NOT_ASSIGN: // ~=
+	case EXP_TYPE_BIT_AND_ASSIGN: // &=
+	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
+	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
+	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
 
 	case EXP_TYPE_ADD_ASSIGN: // +=
 	case EXP_TYPE_SUB_ASSIGN: // -=
@@ -2437,7 +2437,7 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 			out += StringInternal::format(allocator, OS_TEXT("%sbegin return\n"), spaces);
 			for(i = 0; i < list.count; i++){
 				if(i > 0){
-					out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+					out += StringInternal::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 				}
 				out += list[i]->debugPrint(compiler, depth+1);
 			}
@@ -2450,18 +2450,25 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 	case EXP_TYPE_TAIL_CALL:
 		OS_ASSERT(list.count == 2);
 		out += StringInternal::format(allocator, OS_TEXT("%sbegin tail call\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
+		out += list[0]->debugPrint(compiler, depth+1);
 		out += StringInternal::format(allocator, OS_TEXT("%send tail call\n"), spaces);
 		break;
 
 	case EXP_TYPE_CALL:
+		OS_ASSERT(list.count == 2);
+		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		out += list[1]->debugPrint(compiler, depth+1);
+		out += list[0]->debugPrint(compiler, depth+1);
+		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
+		break;
+
 	case EXP_TYPE_CALL_DIM:
 	case EXP_TYPE_GET_DIM:
-	case EXP_TYPE_CALL_PROPERTY:
+	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_GET_PROPERTY:
-	case EXP_TYPE_GET_PROPERTY_DIM:
-	case EXP_TYPE_SET_AUTO_VAR_DIM:
+	// case EXP_TYPE_GET_PROPERTY_DIM:
+	// case EXP_TYPE_SET_AUTO_VAR_DIM:
 		OS_ASSERT(list.count == 2);
 		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
@@ -2469,16 +2476,24 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
 
+	/*
 	case EXP_TYPE_SET_LOCAL_VAR_DIM:
 		OS_ASSERT(false);
 		break;
 
 	case EXP_TYPE_GET_AUTO_VAR_DIM:
-		OS_ASSERT(list.count == 1);
+		OS_ASSERT(list.count >= 2);
 		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
+		// out += list[0]->debugPrint(compiler, depth+1);
+		for(i = 0; i < list.count; i++){
+			if(i > 0){
+				out += StringInternal::format(allocator, OS_TEXT("%s  ,\n"), spaces);
+			}
+			out += list[i]->debugPrint(compiler, depth+1);
+		}
 		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
+	*/
 
 	case EXP_TYPE_VALUE:
 		OS_ASSERT(list.count == 1);
@@ -2712,7 +2727,7 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 	case EXP_TYPE_PLUS:     // +
 	case EXP_TYPE_NEG:     // -
 	case EXP_TYPE_LOGIC_NOT:     // !
-	case EXP_TYPE_BIN_NOT: // ~
+	case EXP_TYPE_BIT_NOT: // ~
 	case EXP_TYPE_PRE_INC:     // ++
 	case EXP_TYPE_PRE_DEC:     // --
 	case EXP_TYPE_POST_INC:    // ++
@@ -2763,14 +2778,14 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 	case EXP_TYPE_LOGIC_LE:  // <=
 	case EXP_TYPE_LOGIC_GREATER: // >
 	case EXP_TYPE_LOGIC_LESS:    // <
-	case EXP_TYPE_BIN_AND: // &
-	case EXP_TYPE_BIN_OR:  // |
-	case EXP_TYPE_BIN_XOR: // ^
-		// case EXP_TYPE_BIN_NOT: // ~
-	case EXP_TYPE_BIN_AND_ASSIGN: // &=
-	case EXP_TYPE_BIN_OR_ASSIGN:  // |=
-	case EXP_TYPE_BIN_XOR_ASSIGN: // ^=
-	case EXP_TYPE_BIN_NOT_ASSIGN: // ~=
+	case EXP_TYPE_BIT_AND: // &
+	case EXP_TYPE_BIT_OR:  // |
+	case EXP_TYPE_BIT_XOR: // ^
+		// case EXP_TYPE_BIT_NOT: // ~
+	case EXP_TYPE_BIT_AND_ASSIGN: // &=
+	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
+	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
+	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
 	case EXP_TYPE_ADD: // +
 	case EXP_TYPE_SUB: // -
 	case EXP_TYPE_MUL: // *
@@ -2868,7 +2883,7 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 		}
 
 	case EXP_TYPE_SET_PROPERTY:
-	case EXP_TYPE_SET_PROPERTY_DIM:
+	// case EXP_TYPE_SET_PROPERTY_DIM:
 	case EXP_TYPE_SET_DIM:
 		{
 			OS_ASSERT(list.count == 3);
@@ -2889,12 +2904,12 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 
 int OS::Core::Compiler::cacheString(const StringInternal& str)
 {
-	VariableIndex index(str, VariableIndex::NoFixStringIndex());
+	VariableIndex index(str, VariableIndex::KeepStringIndex());
 	Value::Variable * var = prog_strings_table->get(index);
 	if(var){
-		OS_ASSERT((OS_INT)(int)var->int_index == var->int_index);
-		OS_ASSERT(var->int_index >= 0 && var->int_index <= 0xffff);
-		return (int)var->int_index;
+		Value * value = allocator->core->values.get(var->value_id);
+		OS_ASSERT(value);
+		return allocator->core->valueToInt(value);
 	}
 	Value * value = allocator->core->pushNumberValue(prog_strings_table->count);
 	var = new (malloc(sizeof(Value::Variable))) Value::Variable(index);
@@ -2912,9 +2927,9 @@ int OS::Core::Compiler::cacheNumber(OS_FLOAT num)
 	VariableIndex index(allocator, num);
 	Value::Variable * var = prog_numbers_table->get(index);
 	if(var){
-		OS_ASSERT((OS_INT)(int)var->int_index == var->int_index);
-		OS_ASSERT(var->int_index >= 0 && var->int_index <= 0xffff);
-		return (int)var->int_index;
+		Value * value = allocator->core->values.get(var->value_id);
+		OS_ASSERT(value);
+		return allocator->core->valueToInt(value);
 	}
 	Value * value = allocator->core->pushNumberValue(prog_numbers_table->count);
 	var = new (malloc(sizeof(Value::Variable))) Value::Variable(index);
@@ -2963,13 +2978,13 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 	case EXP_TYPE_CONST_NUMBER:
 		OS_ASSERT(exp->list.count == 0);
 		prog_opcodes->writeByte(Program::OP_PUSH_NUMBER);
-		prog_opcodes->writeU16(cacheNumber(exp->token->getFloat()));
+		prog_opcodes->writeUVariable(cacheNumber(exp->token->getFloat()));
 		break;
 
 	case EXP_TYPE_CONST_STRING:
 		OS_ASSERT(exp->list.count == 0);
 		prog_opcodes->writeByte(Program::OP_PUSH_STRING);
-		prog_opcodes->writeU16(cacheString(exp->token->str));
+		prog_opcodes->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_CONST_NULL:
@@ -2992,10 +3007,10 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 			Scope * scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
 			prog_opcodes->writeByte(Program::OP_PUSH_FUNCTION);
-#if 1
+
 			int func_index = prog_functions.indexOf(scope);
 			OS_ASSERT(func_index >= 0);
-			prog_opcodes->writeU16(func_index);
+			prog_opcodes->writeUVariable(func_index);
 
 			allocator->vectorReserveCapacity(scope->locals_compiled, scope->num_locals);
 			scope->locals_compiled.count = scope->num_locals;
@@ -3013,41 +3028,6 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 				var_scope.start_code_pos = scope->opcodes_pos;
 				var_scope.end_code_pos = prog_opcodes->buffer.count;
 			}
-#else
-			int func_size_pos = prog_opcodes->buffer.count;
-			prog_opcodes->writeInt32(0); // func size
-			prog_opcodes->writeInt32(0); // func opcodes size
-			
-			prog_opcodes->writeByte(scope->num_locals);
-			prog_opcodes->writeByte(scope->num_params);
-
-			allocator->vectorReserveCapacity(scope->locals_compiled, scope->num_locals);
-			scope->locals_compiled.count = scope->num_locals;
-
-			int func_opcodes_pos = prog_opcodes->buffer.count;
-			if(!writeOpcodes(exp->list)){
-				return false;
-			}
-			int opcodes_size = prog_opcodes->buffer.count - func_opcodes_pos;
-			for(i = 0; i < scope->locals.count; i++){
-				Scope::LocalVar& var = scope->locals[i];
-				Scope::LocalVarCompiled& var_scope = scope->locals_compiled[var.index];
-				var_scope.cached_name_index = cacheString(var.name);
-				var_scope.start_code_pos = func_size_pos;
-				var_scope.end_code_pos = prog_opcodes->buffer.count;
-			}
-			for(i = 0; i < scope->locals_compiled.count; i++){
-				Scope::LocalVarCompiled& var_scope = scope->locals_compiled[i];
-				OS_ASSERT(var_scope.start_code_pos >= 0);
-				OS_ASSERT(var_scope.end_code_pos >= 0);
-				prog_opcodes->writeU16(var_scope.cached_name_index);
-				prog_opcodes->writeInt32(var_scope.start_code_pos);
-				prog_opcodes->writeInt32(var_scope.end_code_pos);
-			}
-
-			prog_opcodes->writeInt32AtPos(prog_opcodes->buffer.count - func_size_pos, func_size_pos);
-			prog_opcodes->writeInt32AtPos(opcodes_size, func_size_pos + sizeof(OS_INT32));
-#endif
 			break;
 		}
 
@@ -3100,7 +3080,7 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 		}
 		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_INDEX);
 		// prog_opcodes->writeInt64(exp->token->getInt());
-		prog_opcodes->writeU16(cacheNumber(exp->token->getFloat()));
+		prog_opcodes->writeUVariable(cacheNumber(exp->token->getFloat()));
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
@@ -3109,13 +3089,13 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 			return false;
 		}
 		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_NAME);
-		prog_opcodes->writeU16(cacheString(exp->token->str));
+		prog_opcodes->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_GET_AUTO_VAR:
 		OS_ASSERT(exp->list.count == 0);
 		prog_opcodes->writeByte(Program::OP_PUSH_AUTO_VAR);
-		prog_opcodes->writeU16(cacheString(exp->token->str));
+		prog_opcodes->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_SET_AUTO_VAR:
@@ -3124,7 +3104,7 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 			return false;
 		}
 		prog_opcodes->writeByte(Program::OP_SET_AUTO_VAR);
-		prog_opcodes->writeU16(cacheString(exp->token->str));
+		prog_opcodes->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_GET_THIS:
@@ -3135,9 +3115,14 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 
 	case EXP_TYPE_GET_LOCAL_VAR:
 		OS_ASSERT(exp->list.count == 0);
-		prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR);
-		prog_opcodes->writeByte(exp->local_var.index);
-		prog_opcodes->writeByte(exp->local_var.up_count);
+		if(!exp->local_var.up_count){
+			prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR);
+			prog_opcodes->writeByte(exp->local_var.index);
+		}else{
+			prog_opcodes->writeByte(Program::OP_PUSH_UP_LOCAL_VAR);
+			prog_opcodes->writeByte(exp->local_var.index);
+			prog_opcodes->writeByte(exp->local_var.up_count);
+		}
 		break;
 
 	case EXP_TYPE_SET_LOCAL_VAR:
@@ -3145,15 +3130,29 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
-		prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR);
-		prog_opcodes->writeByte(exp->local_var.index);
-		prog_opcodes->writeByte(exp->local_var.up_count);
+		if(!exp->local_var.up_count){
+			prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR);
+			prog_opcodes->writeByte(exp->local_var.index);
+		}else{
+			prog_opcodes->writeByte(Program::OP_SET_UP_LOCAL_VAR);
+			prog_opcodes->writeByte(exp->local_var.index);
+			prog_opcodes->writeByte(exp->local_var.up_count);
+		}
 		break;
 
 	case EXP_TYPE_CALL:
+		OS_ASSERT(exp->list.count == 2);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
+		if(!writeOpcodes(exp->list[1]) || !writeOpcodes(exp->list[0])){
+			return false;
+		}
+		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
+		prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
+		prog_opcodes->writeByte(exp->ret_values);
+		break;
+
 	case EXP_TYPE_GET_DIM:
-	case EXP_TYPE_CALL_PROPERTY:
-	case EXP_TYPE_TAIL_CALL:
+	case EXP_TYPE_CALL_METHOD:
 		OS_ASSERT(exp->list.count == 2);
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
 		if(!writeOpcodes(exp->list)){
@@ -3162,6 +3161,16 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
 		prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
 		prog_opcodes->writeByte(exp->ret_values);
+		break;
+
+	case EXP_TYPE_TAIL_CALL:
+		OS_ASSERT(exp->list.count == 2);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
+		if(!writeOpcodes(exp->list[1]) || !writeOpcodes(exp->list[0])){
+			return false;
+		}
+		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
+		prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
 		break;
 
 	case EXP_TYPE_GET_PROPERTY:
@@ -3217,10 +3226,10 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 	case EXP_TYPE_LOGIC_LESS:
 	case EXP_TYPE_LOGIC_NOT:
 
-	case EXP_TYPE_BIN_AND:
-	case EXP_TYPE_BIN_OR:
-	case EXP_TYPE_BIN_XOR:
-	case EXP_TYPE_BIN_NOT:
+	case EXP_TYPE_BIT_AND:
+	case EXP_TYPE_BIT_OR:
+	case EXP_TYPE_BIT_XOR:
+	case EXP_TYPE_BIT_NOT:
 
 	case EXP_TYPE_ADD:
 	case EXP_TYPE_SUB:
@@ -3446,8 +3455,8 @@ bool OS::Core::Compiler::compile()
 			dump += OS::Core::StringInternal(allocator, " EXPECT_SWITCH_SCOPE");
 			break;
 
-		case ERROR_FINISH_BIN_OP:
-			dump += OS::Core::StringInternal(allocator, " FINISH_BIN_OP");
+		case ERROR_FINISH_BINARY_OP:
+			dump += OS::Core::StringInternal(allocator, " FINISH_BINARY_OP");
 			break;
 
 		case ERROR_FINISH_UNARY_OP:
@@ -3536,10 +3545,10 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::toExpressionType(TokenTyp
 	// case Tokenizer::OPERATOR_QUESTION: return EXP_TYPE_QUESTION;
 		// case Tokenizer::OPERATOR_COLON: return ;
 
-	case Tokenizer::OPERATOR_BIN_AND: return EXP_TYPE_BIN_AND;
-	case Tokenizer::OPERATOR_BIN_OR: return EXP_TYPE_BIN_OR;
-	case Tokenizer::OPERATOR_BIN_XOR: return EXP_TYPE_BIN_XOR;
-	case Tokenizer::OPERATOR_BIN_NOT: return EXP_TYPE_BIN_NOT;
+	case Tokenizer::OPERATOR_BIT_AND: return EXP_TYPE_BIT_AND;
+	case Tokenizer::OPERATOR_BIT_OR: return EXP_TYPE_BIT_OR;
+	case Tokenizer::OPERATOR_BIT_XOR: return EXP_TYPE_BIT_XOR;
+	case Tokenizer::OPERATOR_BIT_NOT: return EXP_TYPE_BIT_NOT;
 	case Tokenizer::OPERATOR_ADD: return EXP_TYPE_ADD;
 	case Tokenizer::OPERATOR_SUB: return EXP_TYPE_SUB;
 	case Tokenizer::OPERATOR_MUL: return EXP_TYPE_MUL;
@@ -3556,10 +3565,10 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::toExpressionType(TokenTyp
 	case Tokenizer::OPERATOR_AS: return EXP_TYPE_AS;
 	case Tokenizer::OPERATOR_IN: return EXP_TYPE_IN;
 
-	case Tokenizer::OPERATOR_BIN_AND_ASSIGN: return EXP_TYPE_BIN_AND_ASSIGN;
-	case Tokenizer::OPERATOR_BIN_OR_ASSIGN: return EXP_TYPE_BIN_OR_ASSIGN;
-	case Tokenizer::OPERATOR_BIN_XOR_ASSIGN: return EXP_TYPE_BIN_XOR_ASSIGN;
-	case Tokenizer::OPERATOR_BIN_NOT_ASSIGN: return EXP_TYPE_BIN_NOT_ASSIGN;
+	case Tokenizer::OPERATOR_BIT_AND_ASSIGN: return EXP_TYPE_BIT_AND_ASSIGN;
+	case Tokenizer::OPERATOR_BIT_OR_ASSIGN: return EXP_TYPE_BIT_OR_ASSIGN;
+	case Tokenizer::OPERATOR_BIT_XOR_ASSIGN: return EXP_TYPE_BIT_XOR_ASSIGN;
+	case Tokenizer::OPERATOR_BIT_NOT_ASSIGN: return EXP_TYPE_BIT_NOT_ASSIGN;
 	case Tokenizer::OPERATOR_ADD_ASSIGN: return EXP_TYPE_ADD_ASSIGN;
 	case Tokenizer::OPERATOR_SUB_ASSIGN: return EXP_TYPE_SUB_ASSIGN;
 	case Tokenizer::OPERATOR_MUL_ASSIGN: return EXP_TYPE_MUL_ASSIGN;
@@ -3682,28 +3691,28 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::toOpcodeLevel(ExpressionType
 	// case EXP_TYPE_QUESTION:    // ?
 	// 	return OP_LEVEL_9;
 
-	case EXP_TYPE_BIN_AND: // &
+	case EXP_TYPE_BIT_AND: // &
 		return OP_LEVEL_5;
 
-	case EXP_TYPE_BIN_OR:  // |
+	case EXP_TYPE_BIT_OR:  // |
 		return OP_LEVEL_4;
 
-	case EXP_TYPE_BIN_XOR: // ^
+	case EXP_TYPE_BIT_XOR: // ^
 		return OP_LEVEL_5;
 
-	case EXP_TYPE_BIN_NOT: // ~
+	case EXP_TYPE_BIT_NOT: // ~
 		return OP_LEVEL_9;
 
-	case EXP_TYPE_BIN_AND_ASSIGN: // &=
+	case EXP_TYPE_BIT_AND_ASSIGN: // &=
 		return OP_LEVEL_3;
 
-	case EXP_TYPE_BIN_OR_ASSIGN:  // |=
+	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
 		return OP_LEVEL_3;
 
-	case EXP_TYPE_BIN_XOR_ASSIGN: // ^=
+	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
 		return OP_LEVEL_3;
 
-	case EXP_TYPE_BIN_NOT_ASSIGN: // ~=
+	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
 		return OP_LEVEL_3;
 
 	case EXP_TYPE_CONCAT: // ..
@@ -3915,11 +3924,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 	case EXP_TYPE_CALL:
 	case EXP_TYPE_CALL_DIM:
 	case EXP_TYPE_GET_DIM:
-	case EXP_TYPE_CALL_PROPERTY:
+	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_GET_PROPERTY:
-	case EXP_TYPE_GET_PROPERTY_DIM:
+	// case EXP_TYPE_GET_PROPERTY_DIM:
 	case EXP_TYPE_INDIRECT:
-	case EXP_TYPE_GET_AUTO_VAR_DIM:
+	// case EXP_TYPE_GET_AUTO_VAR_DIM:
 	case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
 		exp->ret_values = ret_values;
 		return exp;
@@ -3931,11 +3940,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 			case EXP_TYPE_CALL:
 			case EXP_TYPE_CALL_DIM:
 			case EXP_TYPE_GET_DIM:
-			case EXP_TYPE_CALL_PROPERTY:
+			case EXP_TYPE_CALL_METHOD:
 			case EXP_TYPE_GET_PROPERTY:
-			case EXP_TYPE_GET_PROPERTY_DIM:
+			// case EXP_TYPE_GET_PROPERTY_DIM:
 			case EXP_TYPE_INDIRECT:
-			case EXP_TYPE_GET_AUTO_VAR_DIM:
+			// case EXP_TYPE_GET_AUTO_VAR_DIM:
 			case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
 				last_exp->ret_values = ret_values;
 				exp->ret_values = ret_values;
@@ -3973,10 +3982,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 				case EXP_TYPE_CALL:
 				case EXP_TYPE_CALL_DIM:
 				case EXP_TYPE_GET_DIM:
-				case EXP_TYPE_CALL_PROPERTY:
+				case EXP_TYPE_CALL_METHOD:
 				case EXP_TYPE_GET_PROPERTY:
-				case EXP_TYPE_GET_PROPERTY_DIM:
-				case EXP_TYPE_GET_AUTO_VAR_DIM:
+				// case EXP_TYPE_GET_PROPERTY_DIM:
+				// case EXP_TYPE_GET_AUTO_VAR_DIM:
 				case EXP_TYPE_INDIRECT:
 					if(exp->ret_values <= param_exp->ret_values){
 						param_exp->ret_values -= exp->ret_values;
@@ -4023,10 +4032,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newSingleValueExpression(Ex
 	case EXP_TYPE_CALL:
 	case EXP_TYPE_CALL_DIM:
 	case EXP_TYPE_GET_DIM:
-	case EXP_TYPE_CALL_PROPERTY:
+	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_GET_PROPERTY:
-	case EXP_TYPE_GET_PROPERTY_DIM:
-	case EXP_TYPE_GET_AUTO_VAR_DIM:
+	// case EXP_TYPE_GET_PROPERTY_DIM:
+	// case EXP_TYPE_GET_AUTO_VAR_DIM:
 	case EXP_TYPE_INDIRECT:
 		{
 			// int active_locals = exp->active_locals;
@@ -4168,11 +4177,29 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				allocator->vectorInsertAtIndex(right_exp->list, 0, left_exp->list[1]);
 				right_exp->ret_values += left_exp->list[1]->ret_values;
 				left_exp->list[1] = right_exp;
-				left_exp->type = EXP_TYPE_CALL_PROPERTY;
+				left_exp->type = EXP_TYPE_CALL_METHOD;
 				left_exp->ret_values = exp->ret_values;
 				allocator->vectorClear(exp->list);
 				allocator->deleteObj(exp);
 				return left_exp;
+			}
+			if(left_exp->type == EXP_TYPE_GET_DIM){
+				OS_ASSERT(left_exp->list.count == 2);
+				OS_ASSERT(right_exp->type == EXP_TYPE_PARAMS);
+				if(left_exp->list[1]->list.count == 1){
+					Expression * params = left_exp->list[1];
+					OS_ASSERT(params->type == EXP_TYPE_PARAMS);
+					allocator->vectorInsertAtIndex(right_exp->list, 0, params->list[0]);
+					right_exp->ret_values += params->ret_values;
+					left_exp->list[1] = right_exp;
+					left_exp->type = EXP_TYPE_CALL_METHOD;
+					left_exp->ret_values = exp->ret_values;
+					allocator->vectorClear(params->list);
+					allocator->deleteObj(params);
+					allocator->vectorClear(exp->list);
+					allocator->deleteObj(exp);
+					return left_exp;
+				}
 			}
 			return exp;
 		}
@@ -4186,6 +4213,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			Expression * params = exp->list[1];
 			OS_ASSERT(params->type == EXP_TYPE_PARAMS);
 			switch(name_exp->type){
+			/*
 			case EXP_TYPE_GET_PROPERTY:
 				OS_ASSERT(name_exp->list.count == 2);
 				allocator->vectorInsertAtIndex(params->list, 0, name_exp->list[1]);
@@ -4195,23 +4223,70 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				allocator->vectorClear(exp->list);
 				allocator->deleteObj(exp);
 				return name_exp;
+			*/
 
+			/* 
+			case EXP_TYPE_GET_DIM:
+				OS_ASSERT(name_exp->list.count == 2);
+				if(name_exp->list[1]->list.count == 1){
+					Expression * name_params = name_exp->list[1];
+					OS_ASSERT(name_params->type == EXP_TYPE_PARAMS);
+					allocator->vectorInsertAtIndex(params->list, 0, name_params->list[0]);
+					params->ret_values += name_params->ret_values;
+					name_exp->list[1] = params;
+					name_exp->type = EXP_TYPE_GET_PROPERTY_DIM;
+					name_exp->ret_values = exp->ret_values;
+					allocator->vectorClear(name_params->list);
+					allocator->deleteObj(name_params);
+					allocator->vectorClear(exp->list);
+					allocator->deleteObj(exp);
+					return name_exp;
+				}
+			*/
+
+			/*
 			case EXP_TYPE_GET_AUTO_VAR:
 				OS_ASSERT(name_exp->list.count == 0);
 				name_exp->type = EXP_TYPE_CONST_STRING;
 				allocator->vectorInsertAtIndex(params->list, 0, name_exp);
 				params->ret_values += name_exp->ret_values;
-				allocator->vectorRemoveAtIndex(exp->list, 1);
-				exp->list[0] = params;
+				// allocator->vectorRemoveAtIndex(exp->list, 1);
+				// exp->list[0] = params;
+				allocator->vectorClear(exp->list);
+				exp->list.swap(params->list);
+				allocator->deleteObj(params);
 				exp->type = EXP_TYPE_GET_AUTO_VAR_DIM;
 				return exp;
+
+			case EXP_TYPE_GET_AUTO_VAR_DIM:
+				OS_ASSERT(name_exp->list.count >= 2);
+				if(name_exp->list.count == 2){
+					Expression * object = name_exp->list[0];
+					Expression * name_params = name_exp->list[1];
+					allocator->vectorInsertAtIndex(params->list, 0, name_params);
+					params->ret_values += name_params->ret_values;
+					exp->list[0] = object;
+					exp->type = EXP_TYPE_GET_PROPERTY_DIM;
+					allocator->vectorClear(name_exp->list);
+					allocator->deleteObj(name_exp);
+					return exp;
+				}
+				// break;
+			*/
 
 			case EXP_TYPE_GET_LOCAL_VAR:
 				// OS_ASSERT(false);
 				// break;
 
 			default:
-				exp->type = EXP_TYPE_GET_DIM;
+				if(params->list.count == 1){
+					exp->list[1] = params->list[0];
+					allocator->vectorClear(params->list);
+					allocator->deleteObj(params);
+					exp->type = EXP_TYPE_GET_PROPERTY;
+				}else{
+					exp->type = EXP_TYPE_GET_DIM;
+				}
 			}
 			return exp;
 		}
@@ -4239,7 +4314,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 
 			case EXP_TYPE_CALL:
 				right_exp->type = EXP_TYPE_PARAMS;
-				exp_type = EXP_TYPE_CALL_PROPERTY;
+				exp_type = EXP_TYPE_CALL_METHOD;
 				OS_ASSERT(right_exp->list.count == 2);
 				if(right_exp->list[0]->type == EXP_TYPE_NAME){
 					OS_ASSERT(right_exp->list[0]->ret_values == 1);
@@ -4247,6 +4322,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				}
 				break;
 
+			/*
 			case EXP_TYPE_CALL_DIM:
 				right_exp->type = EXP_TYPE_PARAMS;
 				exp_type = EXP_TYPE_GET_PROPERTY_DIM;
@@ -4256,6 +4332,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 					right_exp->list[0]->type = EXP_TYPE_CONST_STRING;
 				}
 				break;
+			*/
 			}
 			exp->type = exp_type;
 			// exp->ret_values = 1;
@@ -4980,16 +5057,16 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 		// case EXP_TYPE_QUESTION:  // ?
 		// case EXP_TYPE_COLON:     // :
 
-		case EXP_TYPE_BIN_AND: // &
+		case EXP_TYPE_BIT_AND: // &
 			return lib.newExpression(left_exp->toInt() & right_exp->toInt(), left_exp, right_exp);
 
-		case EXP_TYPE_BIN_OR:  // |
+		case EXP_TYPE_BIT_OR:  // |
 			return lib.newExpression(left_exp->toInt() | right_exp->toInt(), left_exp, right_exp);
 
-		case EXP_TYPE_BIN_XOR: // ^
+		case EXP_TYPE_BIT_XOR: // ^
 			return lib.newExpression(left_exp->toInt() ^ right_exp->toInt(), left_exp, right_exp);
 
-		// case EXP_TYPE_BIN_NOT: // ~
+		// case EXP_TYPE_BIT_NOT: // ~
 		case EXP_TYPE_ADD: // +
 			return lib.newExpression(left_exp->toNumber() + right_exp->toNumber(), left_exp, right_exp);
 
@@ -5127,6 +5204,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 				var_exp->ret_values = value_exp->ret_values-1;
 				return var_exp;
 
+			/*
 			case EXP_TYPE_NAME:
 				{
 					OS_ASSERT(name_exp->ret_values == 1);
@@ -5148,7 +5226,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 					}
 					OS_ASSERT(false);
 				}
+			*/
 
+			/*
 			case EXP_TYPE_INDIRECT:
 				{
 					OS_ASSERT(name_exp->list.count == 2);
@@ -5170,6 +5250,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 					allocator->deleteObj(name_exp);
 					return var_exp;
 				}
+			*/
 			}
 			break;
 		}
@@ -5349,10 +5430,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		// case Tokenizer::OPERATOR_QUESTION:  // ?
 		// case Tokenizer::OPERATOR_COLON:     // :
 
-		case Tokenizer::OPERATOR_BIN_AND: // &
-		case Tokenizer::OPERATOR_BIN_OR:  // |
-		case Tokenizer::OPERATOR_BIN_XOR: // ^
-		case Tokenizer::OPERATOR_BIN_NOT: // ~
+		case Tokenizer::OPERATOR_BIT_AND: // &
+		case Tokenizer::OPERATOR_BIT_OR:  // |
+		case Tokenizer::OPERATOR_BIT_XOR: // ^
+		case Tokenizer::OPERATOR_BIT_NOT: // ~
 		case Tokenizer::OPERATOR_ADD: // +
 		case Tokenizer::OPERATOR_SUB: // -
 		case Tokenizer::OPERATOR_MUL: // *
@@ -5377,10 +5458,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			}
 			continue;
 
-		case Tokenizer::OPERATOR_BIN_AND_ASSIGN: // &=
-		case Tokenizer::OPERATOR_BIN_OR_ASSIGN:  // |=
-		case Tokenizer::OPERATOR_BIN_XOR_ASSIGN: // ^=
-		case Tokenizer::OPERATOR_BIN_NOT_ASSIGN: // ~=
+		case Tokenizer::OPERATOR_BIT_AND_ASSIGN: // &=
+		case Tokenizer::OPERATOR_BIT_OR_ASSIGN:  // |=
+		case Tokenizer::OPERATOR_BIT_XOR_ASSIGN: // ^=
+		case Tokenizer::OPERATOR_BIT_NOT_ASSIGN: // ~=
 		case Tokenizer::OPERATOR_ADD_ASSIGN: // +=
 		case Tokenizer::OPERATOR_SUB_ASSIGN: // -=
 		case Tokenizer::OPERATOR_MUL_ASSIGN: // *=
@@ -5501,13 +5582,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		// exp->active_locals = scope->function->num_locals;
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
-	case Tokenizer::OPERATOR_BIN_NOT:
+	case Tokenizer::OPERATOR_BIT_NOT:
 		exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
-		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_BIN_NOT, exp->token, exp);
+		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_BIT_NOT, exp->token, exp);
 		exp->ret_values = 1;
 		// exp->active_locals = scope->function->num_locals;
 		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
@@ -5768,6 +5849,7 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_GET_PROPERTY:
 		return OS_TEXT("get property");
 
+	/*
 	case EXP_TYPE_SET_PROPERTY_DIM:
 		return OS_TEXT("set property dim");
 
@@ -5782,6 +5864,7 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 
 	case EXP_TYPE_SET_AUTO_VAR_DIM:
 		return OS_TEXT("set auto var dim");
+	*/
 
 	case EXP_TYPE_SET_DIM:
 		return OS_TEXT("set dim");
@@ -5798,8 +5881,8 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_GET_DIM:
 		return OS_TEXT("get dim");
 
-	case EXP_TYPE_CALL_PROPERTY:
-		return OS_TEXT("call property");
+	case EXP_TYPE_CALL_METHOD:
+		return OS_TEXT("call method");
 
 	case EXP_TYPE_VALUE:
 		return OS_TEXT("single value");
@@ -5951,29 +6034,29 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_POST_DEC:    // --
 		return OS_TEXT("post --");
 
-	case EXP_TYPE_BIN_AND: // &
-		return OS_TEXT("bin &");
+	case EXP_TYPE_BIT_AND: // &
+		return OS_TEXT("bit &");
 
-	case EXP_TYPE_BIN_OR:  // |
-		return OS_TEXT("bin |");
+	case EXP_TYPE_BIT_OR:  // |
+		return OS_TEXT("bit |");
 
-	case EXP_TYPE_BIN_XOR: // ^
-		return OS_TEXT("bin ^");
+	case EXP_TYPE_BIT_XOR: // ^
+		return OS_TEXT("bit ^");
 
-	case EXP_TYPE_BIN_NOT: // ~
-		return OS_TEXT("bin ~");
+	case EXP_TYPE_BIT_NOT: // ~
+		return OS_TEXT("bit ~");
 
-	case EXP_TYPE_BIN_AND_ASSIGN: // &=
-		return OS_TEXT("bin &=");
+	case EXP_TYPE_BIT_AND_ASSIGN: // &=
+		return OS_TEXT("bit &=");
 
-	case EXP_TYPE_BIN_OR_ASSIGN:  // |=
-		return OS_TEXT("bin |=");
+	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
+		return OS_TEXT("bit |=");
 
-	case EXP_TYPE_BIN_XOR_ASSIGN: // ^=
-		return OS_TEXT("bin ^=");
+	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
+		return OS_TEXT("bit ^=");
 
-	case EXP_TYPE_BIN_NOT_ASSIGN: // ~=
-		return OS_TEXT("bin ~=");
+	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
+		return OS_TEXT("bit ~=");
 
 	case EXP_TYPE_CONCAT: // ..
 		return OS_TEXT("operator ..");
@@ -6152,10 +6235,10 @@ bool OS::Core::Compiler::saveToStream(StreamWriter& writer)
 	writer.writeByte(len);
 	writer.writeBytes(OS_COMPILED_VERSION, len);
 
-	writer.writeU16(prog_numbers.count);
-	writer.writeU16(prog_strings.count);
-	writer.writeU16(prog_functions.count);
-	writer.writeInt32(prog_opcodes->buffer.count);
+	writer.writeUVariable(prog_numbers.count);
+	writer.writeUVariable(prog_strings.count);
+	writer.writeUVariable(prog_functions.count);
+	writer.writeUVariable(prog_opcodes->buffer.count);
 
 	for(i = 0; i < prog_numbers.count; i++){
 		writer.writeFloat(prog_numbers[i]);	
@@ -6163,26 +6246,26 @@ bool OS::Core::Compiler::saveToStream(StreamWriter& writer)
 	for(i = 0; i < prog_strings.count; i++){
 		const StringInternal& str = prog_strings[i];
 		int data_size = str.getDataSize();
-		writer.writeU16(data_size);
+		writer.writeUVariable(data_size);
 		writer.writeBytes(str.toChar(), data_size);
 	}
 	for(i = 0; i < prog_functions.count; i++){
 		Compiler::Scope * func_scope = prog_functions[i];
-		writer.writeInt16(func_scope->parent ? func_scope->parent->func_index : -1); // prog_functions.indexOf(func_scope->parent));
+		writer.writeUVariable(func_scope->parent ? func_scope->parent->func_index+1 : 0); // prog_functions.indexOf(func_scope->parent));
 		writer.writeByte(func_scope->num_locals);
 		writer.writeByte(func_scope->num_params);
 		writer.writeByte(func_scope->max_up_count);
-		writer.writeInt32(func_scope->opcodes_pos);
-		writer.writeInt32(func_scope->opcodes_size);
+		writer.writeUVariable(func_scope->opcodes_pos);
+		writer.writeUVariable(func_scope->opcodes_size);
 
 		OS_ASSERT(func_scope->locals_compiled.count == func_scope->num_locals);
 		for(int j = 0; j < func_scope->locals_compiled.count; j++){
 			Compiler::Scope::LocalVarCompiled& var_scope = func_scope->locals_compiled[j];
 			OS_ASSERT(var_scope.start_code_pos >= func_scope->opcodes_pos && var_scope.start_code_pos < func_scope->opcodes_pos+func_scope->opcodes_size);
 			OS_ASSERT(var_scope.end_code_pos > func_scope->opcodes_pos && var_scope.end_code_pos <= func_scope->opcodes_pos+func_scope->opcodes_size);
-			writer.writeU16(var_scope.cached_name_index);
-			writer.writeInt32(var_scope.start_code_pos);
-			writer.writeInt32(var_scope.end_code_pos);
+			writer.writeUVariable(var_scope.cached_name_index);
+			writer.writeUVariable(var_scope.start_code_pos - func_scope->opcodes_pos);
+			writer.writeUVariable(var_scope.end_code_pos - func_scope->opcodes_pos);
 		}
 	}
 
@@ -6206,10 +6289,10 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 		return false;
 	}
 
-	num_numbers = reader.readU16();
-	num_strings = reader.readU16();
-	num_functions = reader.readU16();
-	int opcodes_size = reader.readInt32();
+	num_numbers = reader.readUVariable();
+	num_strings = reader.readUVariable();
+	num_functions = reader.readUVariable();
+	int opcodes_size = reader.readUVariable();
 
 	const_values = (Value**)allocator->malloc(sizeof(Value*) * (num_numbers + num_strings));
 	for(i = 0; i < num_numbers; i++){
@@ -6221,7 +6304,7 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 		allocator->pop();
 	}
 	for(i = 0; i < num_strings; i++){
-		int data_size = reader.readU16();
+		int data_size = reader.readUVariable();
 		StringInternal str(allocator, OS_TEXT('\0'), data_size/sizeof(OS_CHAR));
 		reader.readBytes((void*)str.toChar(), data_size);
 
@@ -6235,22 +6318,22 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 	for(i = 0; i < num_functions; i++){
 		FunctionDecl * func = functions + i;
 		new (func) FunctionDecl();
-		func->parent_func_index = reader.readInt16();
+		func->parent_func_index = reader.readUVariable() - 1;
 		func->num_locals = reader.readByte();
 		func->num_params = reader.readByte();
 		func->max_up_count = reader.readByte();
-		func->opcodes_pos = reader.readInt32();
-		func->opcodes_size = reader.readInt32();
+		func->opcodes_pos = reader.readUVariable();
+		func->opcodes_size = reader.readUVariable();
 
 		func->locals = (FunctionDecl::LocalVar*)allocator->malloc(sizeof(FunctionDecl::LocalVar) * func->num_locals);
 		for(int j = 0; j < func->num_locals; j++){
-			int cached_name_index = reader.readU16();
+			int cached_name_index = reader.readUVariable();
 			OS_ASSERT(cached_name_index >= 0 && cached_name_index < num_strings);
 			FunctionDecl::LocalVar * local_var = func->locals + j;
 			StringInternal var_name = allocator->core->valueToString(const_values[num_numbers + cached_name_index]);
 			new (local_var) FunctionDecl::LocalVar(var_name);
-			local_var->start_code_pos = reader.readInt32();
-			local_var->end_code_pos = reader.readInt32();
+			local_var->start_code_pos = reader.readUVariable() + func->opcodes_pos;
+			local_var->end_code_pos = reader.readUVariable() + func->opcodes_pos;
 		}
 	}
 
@@ -6269,7 +6352,7 @@ void OS::Core::Program::pushFunction()
 		return;
 	}
 
-	int func_index = opcodes->readU16();
+	int func_index = opcodes->readUVariable();
 	OS_ASSERT(func_index >= 0 && func_index < num_functions);
 	FunctionDecl * func_decl = functions + func_index;
 
@@ -6309,7 +6392,7 @@ OS::Core::Program::OpcodeType OS::Core::Program::toOpcodeType(Compiler::Expressi
 	switch(exp_type){
 	case Compiler::EXP_TYPE_CALL: return OP_CALL;
 	case Compiler::EXP_TYPE_GET_DIM: return OP_GET_DIM;
-	case Compiler::EXP_TYPE_CALL_PROPERTY: return OP_CALL_PROPERTY;
+	case Compiler::EXP_TYPE_CALL_METHOD: return OP_CALL_METHOD;
 	case Compiler::EXP_TYPE_TAIL_CALL: return OP_TAIL_CALL;
 
 	case Compiler::EXP_TYPE_GET_THIS: return OP_PUSH_THIS;
@@ -6330,10 +6413,10 @@ OS::Core::Program::OpcodeType OS::Core::Program::toOpcodeType(Compiler::Expressi
 	case Compiler::EXP_TYPE_LOGIC_LESS: return OP_LOGIC_LESS;
 	case Compiler::EXP_TYPE_LOGIC_NOT: return OP_LOGIC_NOT;
 
-	case Compiler::EXP_TYPE_BIN_AND: return OP_BIN_AND;
-	case Compiler::EXP_TYPE_BIN_OR: return OP_BIN_OR;
-	case Compiler::EXP_TYPE_BIN_XOR: return OP_BIN_XOR;
-	case Compiler::EXP_TYPE_BIN_NOT: return OP_BIN_NOT;
+	case Compiler::EXP_TYPE_BIT_AND: return OP_BIT_AND;
+	case Compiler::EXP_TYPE_BIT_OR: return OP_BIT_OR;
+	case Compiler::EXP_TYPE_BIT_XOR: return OP_BIT_XOR;
+	case Compiler::EXP_TYPE_BIT_NOT: return OP_BIT_NOT;
 
 	case Compiler::EXP_TYPE_ADD: return OP_ADD;
 	case Compiler::EXP_TYPE_SUB: return OP_SUB;
@@ -6382,6 +6465,20 @@ void OS::StreamWriter::writeByteAtPos(int value, int pos)
 	OS_ASSERT(value >= 0 && value <= 0xff);
 	OS_BYTE le_value = toLittleEndianByteOrder((OS_BYTE)value);
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
+}
+
+void OS::StreamWriter::writeUVariable(int value)
+{
+	OS_ASSERT(value >= 0);
+	for(;;){
+		if(value >= 0x7f){
+			writeByte((value & 0x7f) | 0x80);
+			value >>= 7;
+		}else{
+			writeByte(value);
+			return;
+		}
+	}
 }
 
 void OS::StreamWriter::writeU16(int value)
@@ -6558,6 +6655,25 @@ OS_BYTE OS::StreamReader::readByteAtPos(int pos)
 	OS_BYTE le_value;
 	readBytesAtPos(&le_value, sizeof(le_value), pos);
 	return fromLittleEndianByteOrder(le_value);
+}
+
+OS_BYTE OS::StreamReader::readUVariable()
+{
+	int value = readByte();
+	if(!(value & 0x80)){
+		return value;
+	}
+	value &= 0x7f;
+	for(int i = 7;; i += 7){
+		int b = readByte();
+		if(b & 0x80){
+			value |= (b & 0x7f) << i;
+		}else{
+			OS_ASSERT((value | (b << i)) >= 0);
+			return value | (b << i);
+		}
+	}
+	return 0; // shut up compiler
 }
 
 OS_U16 OS::StreamReader::readU16()
@@ -6779,7 +6895,7 @@ OS::Core::VariableIndex::VariableIndex(const StringInternal& index): string_inde
 	fixStringIndex();
 }
 
-OS::Core::VariableIndex::VariableIndex(const StringInternal& index, const NoFixStringIndex&): string_index(index)
+OS::Core::VariableIndex::VariableIndex(const StringInternal& index, const KeepStringIndex&): string_index(index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -6797,7 +6913,7 @@ OS::Core::VariableIndex::VariableIndex(StringData * index): string_index(index)
 	fixStringIndex();
 }
 
-OS::Core::VariableIndex::VariableIndex(StringData * index, const NoFixStringIndex&): string_index(index)
+OS::Core::VariableIndex::VariableIndex(StringData * index, const KeepStringIndex&): string_index(index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -7690,9 +7806,30 @@ OS::GenericMemoryManager::GenericMemoryManager()
 	allocated_bytes = 0;
 	max_allocated_bytes = 0;
 	cached_bytes = 0;
-	OS_MEMSET(cached_memory_blocks, 0, sizeof(cached_memory_blocks));
-	OS_MEMSET(cached_memory_count, 0, sizeof(cached_memory_count));
-	real_malloc_count = 0;
+	OS_MEMSET(page_desc, 0, sizeof(page_desc));
+	num_page_desc = 0;
+	OS_MEMSET(pages, 0, sizeof(pages));
+	OS_MEMSET(cached_blocks, 0, sizeof(cached_blocks));
+	// num_cached_blocks = 0;
+
+	registerPageDesc(sizeof(Core::Value), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::Value::Variable), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::FunctionValueData), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*4, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*8, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*16, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*32, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::Value::Table), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::Value::Array), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::Compiler::EXPRESSION_SIZE), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::TokenData), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(8, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(16, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(32, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(64, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(128, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(256, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	sortPageDesc();
 }
 
 OS::GenericMemoryManager::~GenericMemoryManager()
@@ -7702,24 +7839,140 @@ OS::GenericMemoryManager::~GenericMemoryManager()
 	OS_ASSERT(!cached_bytes);
 }
 
+
+
+void OS::GenericMemoryManager::sortPageDesc()
+{
+	struct Lib {
+		static int __cdecl comparePageDesc(const void * pa, const void * pb)
+		{
+			PageDesc * a = (PageDesc*)pa;
+			PageDesc * b = (PageDesc*)pb;
+			return a->block_size - b->block_size;
+		}
+	};
+	qsort(page_desc, num_page_desc, sizeof(page_desc[0]), Lib::comparePageDesc);
+}
+
+void OS::GenericMemoryManager::registerPageDesc(int block_size, int num_blocks)
+{
+	if(num_page_desc == MAX_PAGE_COUNT){
+		return;
+	}
+	int i;
+	for(i = 0; i < num_page_desc; i++){
+		if(page_desc[i].block_size == block_size){
+			if(page_desc[i].num_blocks < num_blocks){
+				page_desc[i].num_blocks = num_blocks;
+				page_desc[i].allocated_bytes = sizeof(Page) + (sizeof(MemBlock) + block_size) * num_blocks;
+			}
+			return;
+		}
+	}
+	page_desc[i].block_size = block_size;
+	page_desc[i].num_blocks = num_blocks;
+	page_desc[i].allocated_bytes = sizeof(Page) + (sizeof(MemBlock) + block_size) * num_blocks;
+	num_page_desc++;
+}
+
+void * OS::GenericMemoryManager::allocFromCachedBlock(int i)
+{
+	OS_ASSERT(i >= 0 && i < num_page_desc);
+	CachedBlock * cached_block = cached_blocks[i];
+	OS_ASSERT(cached_block);
+	cached_blocks[i] = cached_block->next;
+	Page * page = cached_block->page;
+	OS_ASSERT(page->num_cached_blocks > 0);
+	page->num_cached_blocks--;
+	MemBlock * mem_block = (MemBlock*)cached_block;
+	mem_block->page = page;
+	mem_block->block_size = page_desc[i].block_size;
+	cached_bytes -= mem_block->block_size + sizeof(MemBlock);
+	void * p = mem_block + 1;
+	OS_MEMSET(p, 0, mem_block->block_size);
+	return p;
+}
+
+void * OS::GenericMemoryManager::allocFromPageType(int i)
+{
+	OS_ASSERT(i >= 0 && i < num_page_desc);
+	if(cached_blocks[i]){
+		return allocFromCachedBlock(i);
+	}
+
+	int allocated_bytes = page_desc[i].allocated_bytes;
+	Page * page = (Page*)stdAlloc(allocated_bytes);
+	page->index = i;
+	page->next_page = pages[i];
+	pages[i] = page;
+	page->num_cached_blocks = page_desc[i].num_blocks;
+	cached_bytes += allocated_bytes;
+
+	OS_BYTE * page_blocks = (OS_BYTE*)(page + 1);
+	for(int j = 0; j < page_desc[i].num_blocks; j++){
+		CachedBlock * cached_block = (CachedBlock*)page_blocks;
+		cached_block->page = page;
+		cached_block->next = cached_blocks[i];
+		cached_blocks[i] = cached_block;
+		page_blocks += sizeof(MemBlock) + page_desc[i].block_size;
+	}
+
+	return allocFromCachedBlock(i);
+}
+
+void OS::GenericMemoryManager::freeMemBlock(MemBlock * mem_block)
+{
+	Page * page = mem_block->page;
+	cached_bytes += mem_block->block_size + sizeof(MemBlock);
+	CachedBlock * cached_block = (CachedBlock*)mem_block;
+	cached_block->page = page;
+	cached_block->next = cached_blocks[page->index];
+	cached_blocks[page->index] = cached_block;
+	page->num_cached_blocks++;
+}
+
 void OS::GenericMemoryManager::freeCachedMemory()
 {
 	if(cached_bytes > 0){
-		for(int i = 0; i < CACHED_COUNT; i++){
-			int size = getCachedMemorySize(i);
-			while(cached_memory_blocks[i]){
-				int * p = (int*)getCachedMemory(size, i);
-				OS_ASSERT(p);
-				stdFree(p-1, size);
+		for(int i = num_page_desc-1; i >= 0; i--){
+			Page * prev = NULL, * next = NULL;
+			int num_blocks = page_desc[i].num_blocks;
+			for(Page * page = pages[i]; page; page = next){
+				next = page->next_page;
+				if(page->num_cached_blocks == num_blocks){
+					CachedBlock * prev_cached_block = NULL, * next_cached_block = NULL;
+					for(CachedBlock * cached_block = cached_blocks[i]; cached_block; cached_block = next_cached_block){
+						next_cached_block = cached_block->next;
+						if(cached_block->page == page){
+							if(!prev_cached_block){
+								cached_blocks[i] = next_cached_block;
+								// keep prev_cached_block null
+								continue;
+							}else{
+								prev_cached_block->next = next_cached_block;
+							}
+						}
+						prev_cached_block = cached_block;
+					}
+					if(!prev){
+						pages[i] = page->next_page;
+					}else{
+						prev->next_page = page->next_page;
+						prev = page;
+					}
+					cached_bytes -= page_desc[i].allocated_bytes;
+					stdFree(page);
+				}else{
+					prev = page;
+				}
 			}
 		}
-		OS_ASSERT(!cached_bytes);
 	}
 }
 
 void * OS::GenericMemoryManager::stdAlloc(int size)
 {
-	real_malloc_count++;
+	// real_malloc_count++;
 	int * p = (int*)::malloc(size + sizeof(int));
 	if(!p && cached_bytes > 0){
 		freeCachedMemory();
@@ -7728,7 +7981,7 @@ void * OS::GenericMemoryManager::stdAlloc(int size)
 			return NULL;
 		}
 	}
-	p[0] = size;
+	p[0] = size | 0x80000000;
 	allocated_bytes += size + sizeof(int);
 	if(max_allocated_bytes < allocated_bytes){
 		max_allocated_bytes = allocated_bytes;
@@ -7737,93 +7990,24 @@ void * OS::GenericMemoryManager::stdAlloc(int size)
 	return p+1;
 }
 
-void OS::GenericMemoryManager::stdFree(void * ptr, int size)
+void OS::GenericMemoryManager::stdFree(void * ptr)
 {
+	int * p = (int*)ptr - 1;
+	OS_ASSERT(p[0] & 0x80000000);
+	int size = p[0] & ~0x80000000;
 	allocated_bytes -= size + sizeof(int);
-	::free(ptr);
-}
-
-void * OS::GenericMemoryManager::getCachedMemory(int size, int i)
-{
-	OS_ASSERT(i >= 0 && i < CACHED_COUNT);
-	cached_memory_count[i]++;
-	CachedMemoryBlock * block = cached_memory_blocks[i];
-	if(block){
-		cached_memory_blocks[i] = block->next;
-		cached_bytes -= size + sizeof(int);
-		int * p = (int*)block;
-		p[0] = size;
-		OS_MEMSET(p+1, 0, size);
-		return p+1;
-	}
-	return stdAlloc(size);
-}
-
-void OS::GenericMemoryManager::putCachedMemory(void * p, int size, int i)
-{
-	OS_ASSERT(i >= 0 && i < CACHED_COUNT);
-	CachedMemoryBlock * block = (CachedMemoryBlock*)p;
-	block->next = cached_memory_blocks[i];
-	cached_memory_blocks[i] = block;
-	cached_bytes += size + sizeof(int);
-}
-
-int OS::GenericMemoryManager::getCachedMemorySize(int i)
-{
-	switch(i){
-	case VALUE:
-		return sizeof(Core::Value);
-
-	case VARIABLE:
-		return sizeof(Core::Value::Variable);
-
-	case FUNCTION_DATA:
-		return sizeof(Core::FunctionValueData);
-
-	case FUNCTION_RUNNING_INSTANCE:
-		return sizeof(Core::FunctionRunningInstance);
-
-	case TABLE:
-		return sizeof(Core::Value::Table);
-
-	case ARRAY:
-		return sizeof(Core::Value::Array);
-
-	case EXPRESSION:
-		return Core::Compiler::EXPRESSION_SIZE;
-
-	case TOKENDATA:
-		return sizeof(Core::TokenData);
-	}
-	OS_ASSERT(false);
-	return 0;
+	::free(p);
 }
 
 void * OS::GenericMemoryManager::malloc(int size)
 {
-	if(size == sizeof(Core::Value)){ // 32 bytes
-		return getCachedMemory(size, VALUE);
+	if(size <= 0){
+		return NULL;
 	}
-	if(size == sizeof(Core::Value::Variable)){ // 40 bytes
-		return getCachedMemory(size, VARIABLE);
-	}
-	if(size == sizeof(Core::FunctionValueData)){ // 20 bytes
-		return getCachedMemory(size, FUNCTION_DATA);
-	}
-	if(size == sizeof(Core::FunctionRunningInstance)){
-		return getCachedMemory(size, FUNCTION_RUNNING_INSTANCE);
-	}
-	if(size == sizeof(Core::Value::Table)){ // 40 bytes
-		return getCachedMemory(size, TABLE);
-	}
-	if(size == sizeof(Core::Value::Array)){ // 56 bytes
-		return getCachedMemory(size, ARRAY);
-	}
-	if(size == Core::Compiler::EXPRESSION_SIZE){ // 36 bytes
-		return getCachedMemory(size, EXPRESSION);
-	}
-	if(size == sizeof(Core::TokenData)){
-		return getCachedMemory(size, TOKENDATA);
+	for(int i = 0; i < num_page_desc; i++){
+		if(size <= page_desc[i].block_size){
+			return allocFromPageType(i);
+		}
 	}
 	return stdAlloc(size);
 }
@@ -7835,31 +8019,13 @@ void OS::GenericMemoryManager::free(void * ptr)
 	}
 	int * p = (int*)ptr - 1;
 	int size = p[0];
-	if(size == sizeof(Core::Value)){
-		return putCachedMemory(p, size, VALUE);
+	if(size & 0x80000000){
+		stdFree(ptr); // p, size & ~0x80000000);
+		return;
 	}
-	if(size == sizeof(Core::Value::Variable)){
-		return putCachedMemory(p, size, VARIABLE);
-	}
-	if(size == sizeof(Core::FunctionValueData)){
-		return putCachedMemory(p, size, FUNCTION_DATA);
-	}
-	if(size == sizeof(Core::FunctionRunningInstance)){
-		return putCachedMemory(p, size, FUNCTION_RUNNING_INSTANCE);
-	}
-	if(size == sizeof(Core::Value::Table)){
-		return putCachedMemory(p, size, TABLE);
-	}
-	if(size == sizeof(Core::Value::Array)){
-		return putCachedMemory(p, size, ARRAY);
-	}
-	if(size == Core::Compiler::EXPRESSION_SIZE){
-		return putCachedMemory(p, size, EXPRESSION);
-	}
-	if(size == sizeof(Core::TokenData)){
-		return putCachedMemory(p, size, TOKENDATA);
-	}
-	stdFree(p, size);
+	MemBlock * mem_block = (MemBlock*)ptr - 1;
+	OS_ASSERT(mem_block->block_size == size);
+	freeMemBlock(mem_block);
 }
 
 int OS::GenericMemoryManager::getPointerSize(void * ptr)
@@ -8300,7 +8466,7 @@ void OS::Core::releaseValue(Value * val)
 		OS_ASSERT(val->ref_count == 0);
 		deleteValue(val);
 	}else if(val->type == OS_VALUE_TYPE_STRING && val->ref_count == 1){
-		deleteTableVariable(string_values_table, VariableIndex(val->value.string_data, VariableIndex::NoFixStringIndex()));
+		deleteTableVariable(string_values_table, VariableIndex(val->value.string_data, VariableIndex::KeepStringIndex()));
 	}
 }
 
@@ -8342,6 +8508,21 @@ OS::Core::Value::Variable * OS::Core::setPropertyValue(Value * table_value, Vari
 			table = table_value->value.table = newTable();
 		}
 		return setPropertyValue(table, index, val, prototype_enabled, setter_enabled);
+	}
+	return NULL;
+}
+
+OS::Core::Value::Variable * OS::Core::setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled)
+{
+	switch(index_value->type){
+	case OS_VALUE_TYPE_BOOL:
+		return setPropertyValue(table_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), val, prototype_enabled, setter_enabled);
+
+	case OS_VALUE_TYPE_NUMBER:
+		return setPropertyValue(table_value, VariableIndex(allocator, index_value->value.number), val, prototype_enabled, setter_enabled);
+
+	case OS_VALUE_TYPE_STRING:
+		return setPropertyValue(table_value, Core::VariableIndex(index_value->value.string_data), val, prototype_enabled, setter_enabled);
 	}
 	return NULL;
 }
@@ -8425,7 +8606,7 @@ OS::Core::Value * OS::Core::pushNumberValue(OS_FLOAT val)
 OS::Core::Value * OS::Core::pushStringValue(const StringInternal& str)
 {
 #if 1
-	VariableIndex index(str, VariableIndex::NoFixStringIndex());
+	VariableIndex index(str, VariableIndex::KeepStringIndex());
 	Value::Variable * var = string_values_table->get(index);
 	if(var){
 		Value * value = values.get(var->value_id);
@@ -8508,6 +8689,209 @@ OS::Core::Value * OS::Core::pushArrayValue()
 
 OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Value * right_value)
 {
+	struct Lib
+	{
+		static bool isEqualExact(Value * left_value, Value * right_value)
+		{
+			if(left_value->type == right_value->type){ // && left_value->prototype == right_value->prototype){
+				switch(left_value->type){
+				case OS_VALUE_TYPE_NULL:
+					return true;
+
+				case OS_VALUE_TYPE_NUMBER:
+					return left_value->value.number == right_value->value.number;
+
+				case OS_VALUE_TYPE_BOOL:
+					return left_value->value.boolean == right_value->value.boolean;
+
+				case OS_VALUE_TYPE_STRING:
+					// there are no same strings with diferent string_data, see string_values_table
+					// the same strings are always share one value_id
+					// return left_value->value.string_data == right_value->value.string_data;
+
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_FUNCTION:
+				case OS_VALUE_TYPE_CFUNCTION:
+				case OS_VALUE_TYPE_THREAD:
+					return left_value->value_id == right_value->value_id;
+				}
+			}
+			return false;
+		}
+
+		static int compare(OS_FLOAT num1, OS_FLOAT num2)
+		{
+			if(num1 > num2){
+				return 1;
+			}
+			if(num1 < num2){
+				return -1;
+			}
+			return 0;
+		}
+
+		static int compare(StringData * left_string_data, OS_FLOAT right_number)
+		{
+			OS_CHAR buf[128];
+			Utils::numToStr(buf, right_number);
+			return left_string_data->cmp(buf, OS_STRLEN(buf));
+		}
+
+		static Value * getMethod(Core * core, Value * object, const StringInternal& method_name)
+		{
+			VariableIndex index(method_name, VariableIndex::KeepStringIndex());
+			Value * func_value = core->pushPropertyValue(object, index, true, true);
+			switch(func_value->type){
+			case OS_VALUE_TYPE_CFUNCTION:
+			case OS_VALUE_TYPE_FUNCTION:
+				core->pop();
+				return func_value;
+			}
+			core->pop();
+			return NULL;
+		}
+
+		static int compare(OS_FLOAT left_number, Value * right_value)
+		{
+			switch(right_value->type){
+			case OS_VALUE_TYPE_NULL:
+				return 1;
+
+			case OS_VALUE_TYPE_NUMBER:
+				return compare(left_number, right_value->value.number);
+
+			case OS_VALUE_TYPE_BOOL:
+				return compare(left_number, right_value->value.boolean);
+
+			case OS_VALUE_TYPE_STRING:
+				return -compare(right_value->value.string_data, left_number);
+
+			default:
+				OS_ASSERT(false);
+
+			case OS_VALUE_TYPE_ARRAY:
+			case OS_VALUE_TYPE_OBJECT:
+				{
+					// TODO: check __cmp method
+					// Value * func = getMethod(this
+					break;
+				}
+
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+			case OS_VALUE_TYPE_THREAD:
+				// return -1;
+				break;
+			}
+			return -1;
+		}
+
+		static int compare(StringData * left_string_data, Value * right_value)
+		{
+			switch(right_value->type){
+			case OS_VALUE_TYPE_NULL:
+				return 1;
+
+			case OS_VALUE_TYPE_NUMBER:
+				return compare(left_string_data, right_value->value.number);
+
+			case OS_VALUE_TYPE_BOOL:
+				return compare(left_string_data, right_value->value.boolean);
+
+			case OS_VALUE_TYPE_STRING:
+				return left_string_data->cmp(right_value->value.string_data);
+
+			default:
+				OS_ASSERT(false);
+
+			case OS_VALUE_TYPE_ARRAY:
+			case OS_VALUE_TYPE_OBJECT:
+
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+			case OS_VALUE_TYPE_THREAD:
+				// return -1;
+				break;
+			}
+			return -1;
+		}
+
+		static int compare(Value * left_value, Value * right_value)
+		{
+			switch(left_value->type){
+			case OS_VALUE_TYPE_NULL:
+				return right_value->type == OS_VALUE_TYPE_NULL ? 0 : -1;
+
+			case OS_VALUE_TYPE_NUMBER:
+				return compare(left_value->value.number, right_value);
+
+			case OS_VALUE_TYPE_BOOL:
+				return compare(left_value->value.boolean, right_value);
+
+			case OS_VALUE_TYPE_STRING:
+				return compare(left_value->value.string_data, right_value);
+
+			case OS_VALUE_TYPE_ARRAY:
+			case OS_VALUE_TYPE_OBJECT:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+			case OS_VALUE_TYPE_THREAD:
+				break;
+			}
+			return -1;
+		}
+	};
+
+	switch(opcode){
+	case Program::OP_CONCAT:
+
+	case Program::OP_LOGIC_PTR_EQ:
+		return pushConstBoolValue(Lib::isEqualExact(left_value, right_value));
+
+	case Program::OP_LOGIC_PTR_NE:
+		return pushConstBoolValue(!Lib::isEqualExact(left_value, right_value));
+
+	case Program::OP_LOGIC_EQ:
+		return pushConstBoolValue(Lib::compare(left_value, right_value) == 0);
+
+	case Program::OP_LOGIC_NE:
+		return pushConstBoolValue(Lib::compare(left_value, right_value) != 0);
+
+	case Program::OP_LOGIC_GE:
+		return pushConstBoolValue(Lib::compare(left_value, right_value) >= 0);
+
+	case Program::OP_LOGIC_LE:
+		return pushConstBoolValue(Lib::compare(left_value, right_value) <= 0);
+
+	case Program::OP_LOGIC_GREATER:
+		return pushConstBoolValue(Lib::compare(left_value, right_value) > 0);
+
+	case Program::OP_LOGIC_LESS:
+		return pushConstBoolValue(Lib::compare(left_value, right_value) < 0);
+
+	case Program::OP_BIT_AND:
+	case Program::OP_BIT_OR:
+	case Program::OP_BIT_XOR:
+	case Program::OP_BIT_NOT:
+	case Program::OP_ADD: // +
+	case Program::OP_SUB: // -
+	case Program::OP_MUL: // *
+	case Program::OP_DIV: // /
+	case Program::OP_MOD: // %
+	case Program::OP_MUL_SHIFT: // <<
+	case Program::OP_DIV_SHIFT: // >>
+	case Program::OP_POW: // **
+		break;
+	}
 	return pushConstNullValue();
 }
 
@@ -8866,70 +9250,57 @@ bool OS::Value::isInstanceOf(const Value& prototype_value) const
 	return false;
 }
 
-void OS::setProperty(int table_offs, int pop_count, bool prototype_enabled, bool setter_enabled)
+void OS::setProperty(bool prototype_enabled, bool setter_enabled)
 {
-	Core::Value * table_arg = core->getStackValue(table_offs);
-	if(table_arg && core->stack_values.count >= 2){
+	if(core->stack_values.count >= 3){
+		Core::Value * table_arg = core->stack_values.buf[core->stack_values.count - 3];
 		Core::Value * index_arg = core->stack_values.buf[core->stack_values.count - 2];
 		Core::Value * value_arg = core->stack_values.buf[core->stack_values.count - 1];
-		if(table_arg->type == OS_VALUE_TYPE_ARRAY){
-		}
-		if(table_arg->type == OS_VALUE_TYPE_OBJECT || table_arg->type == OS_VALUE_TYPE_ARRAY){
-			Core::Value::Table * table = table_arg->value.table;
-			if(!table){
-				table = table_arg->value.table = core->newTable();
-			}
-			switch(index_arg->type){
-			case OS_VALUE_TYPE_BOOL:
-				core->setPropertyValue(table, Core::VariableIndex(this, (OS_INT)index_arg->value.boolean), value_arg, prototype_enabled, setter_enabled);
-				pop(pop_count);
-				return;
-
-			case OS_VALUE_TYPE_NUMBER:
-				core->setPropertyValue(table, Core::VariableIndex(this, index_arg->value.number), value_arg, prototype_enabled, setter_enabled);
-				pop(pop_count);
-				return;
-
-			case OS_VALUE_TYPE_STRING:
-				core->setPropertyValue(table, Core::VariableIndex(index_arg->value.string_data), value_arg, prototype_enabled, setter_enabled);
-				pop(pop_count);
-				return;
-
-			default:
-				OS_ASSERT(false); // TODO: not yet implemented
-			}
-		}
+		OS_ASSERT(table_arg && index_arg && value_arg);
+		core->setPropertyValue(table_arg, index_arg, value_arg, prototype_enabled, setter_enabled);
+		pop(3);
+	}else{
+		// error
+		pop(3);
 	}
-	// error
-	pop(pop_count);
 }
 
-OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled)
+OS::Core::Value * OS::Core::getPropertyValue(Value::Table * table, const VariableIndex& index)
+{
+	if(table){
+		Value::Variable * var = table->get(index);
+		if(var){
+			return values.get(var->value_id);		
+		}
+	}
+	return NULL;
+}
+
+OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled)
 {
 	OS_ASSERT(table_value->type == OS_VALUE_TYPE_OBJECT);
 	if(table_value->type != OS_VALUE_TYPE_OBJECT){
-		return pushConstNullValue();
+		return NULL;
 	}
 	Value::Variable * var = NULL;
 	Value::Table * table = table_value->value.table;
 	if(table && (var = table->get(index))){
-		return pushValueAutoNull(values.get(var->value_id));		
+		return values.get(var->value_id);		
 	}
 	if(prototype_enabled){
-		// vectorClear(cache_values);
-		// vectorAddItem(cache_values, table_value);
 		Value * cur_value = table_value;
-		while(cur_value->prototype){ // && !cache_values.contains(cur_value->prototype)){
+		while(cur_value->prototype){
 			cur_value = cur_value->prototype;
 			if(cur_value->type != OS_VALUE_TYPE_OBJECT){
 				break;
 			}
 			Value::Table * cur_table = cur_value->value.table;
 			if(cur_table && (var = cur_table->get(index))){
-				return pushValueAutoNull(values.get(var->value_id));
+				return values.get(var->value_id);
 			}
 		}
 	}
+	/*
 	if(getter_enabled){
 		VariableIndex getter_index(strings->__get);
 		if(table){
@@ -8973,46 +9344,43 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex
 	}
 	// error
 	return pushConstNullValue();
+	*/
+	return NULL;
 }
 
-void OS::getProperty(int table_offs, int pop_count, bool prototype_enabled, bool getter_enabled)
+OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled)
 {
-	Core::Value * table_arg = core->getStackValue(table_offs);
-	if(table_arg && core->stack_values.count >= 1){
-		Core::Value * index_arg = core->stack_values.buf[core->stack_values.count - 1];
-		if(table_arg->type == OS_VALUE_TYPE_OBJECT){
-			table_arg->retain();
-			index_arg->retain();
-			pop(pop_count);
+	switch(index_value->type){
+	case OS_VALUE_TYPE_BOOL:
+		return getPropertyValue(table_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), prototype_enabled, getter_enabled);
 
-			switch(index_arg->type){
-			case OS_VALUE_TYPE_BOOL:
-				core->pushPropertyValue(table_arg, Core::VariableIndex(this, (OS_INT)index_arg->value.boolean), prototype_enabled, getter_enabled);
-				break;
+	case OS_VALUE_TYPE_NUMBER:
+		return getPropertyValue(table_value, VariableIndex(allocator, index_value->value.number), prototype_enabled, getter_enabled);
 
-			case OS_VALUE_TYPE_NUMBER:
-				core->pushPropertyValue(table_arg, Core::VariableIndex(this, index_arg->value.number), prototype_enabled, getter_enabled);
-				break;
-
-			case OS_VALUE_TYPE_STRING:
-				core->pushPropertyValue(table_arg, Core::VariableIndex(index_arg->value.string_data), prototype_enabled, getter_enabled);
-				break;
-
-			default:
-				// error				
-				core->releaseValue(table_arg);
-				core->releaseValue(index_arg);
-				pushNull();
-				return;
-			}
-			core->releaseValue(table_arg);
-			core->releaseValue(index_arg);
-			return;
-		}
+	case OS_VALUE_TYPE_STRING:
+		return getPropertyValue(table_value, VariableIndex(index_value->value.string_data), prototype_enabled, getter_enabled);
 	}
-	// error
-	pop(pop_count);
-	pushNull();
+	return NULL;
+}
+
+OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled)
+{
+	return pushValueAutoNull(getPropertyValue(table_value, index, prototype_enabled, getter_enabled));
+}
+
+void OS::getProperty(bool prototype_enabled, bool getter_enabled)
+{
+	if(core->stack_values.count >= 2){
+		Core::Value * table_arg = core->stack_values.buf[core->stack_values.count - 2];
+		Core::Value * index_arg = core->stack_values.buf[core->stack_values.count - 1];
+		OS_ASSERT(table_arg && index_arg);
+		core->pushValueAutoNull(core->getPropertyValue(table_arg, index_arg, prototype_enabled, getter_enabled));
+		core->removeStackValues(-3, 2);
+	}else{
+		// error
+		pop(2);
+		pushNull();
+	}
 }
 
 /*
@@ -9103,7 +9471,7 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int ret_va
 	FunctionRunningInstance * cur_parent = func_value_data->parent_inctance;
 	for(i = 0; i < func_decl->max_up_count; i++){
 		OS_ASSERT(cur_parent);
-		func_running->parent_inctances[i] = cur_parent;
+		func_running->parent_inctances[i] = cur_parent->retain();
 		OS_ASSERT(cur_parent->func->type == OS_VALUE_TYPE_FUNCTION && cur_parent->func->value.func);
 		cur_parent = cur_parent->func->value.func->parent_inctance;
 	}
@@ -9140,12 +9508,12 @@ restart:
 		int opcode = opcodes.readByte(), i;
 		switch(opcode){
 		case Program::OP_PUSH_NUMBER:
-			i = opcodes.readU16();
+			i = opcodes.readUVariable();
 			pushValue(prog->const_values[i]);
 			break;
 
 		case Program::OP_PUSH_STRING:
-			i = opcodes.readU16();
+			i = opcodes.readUVariable();
 			pushValue(prog->const_values[prog_num_numbers + i]);
 			break;
 
@@ -9163,7 +9531,7 @@ restart:
 
 		case Program::OP_PUSH_FUNCTION:
 			{
-				int func_index = opcodes.readU16();
+				int func_index = opcodes.readUVariable();
 				OS_ASSERT(func_index >= 0 && func_index < prog->num_functions);
 				FunctionDecl * func_decl = prog->functions + func_index;
 
@@ -9191,7 +9559,7 @@ restart:
 			{
 				OS_ASSERT(stack_values.count >= 2);
 				Value * table_value = stack_values[stack_values.count-2];
-				Value * value = stack_values[stack_values.count-1]; // getStackValue(-1);
+				Value * value = stack_values[stack_values.count-1];
 				if(table_value->type == OS_VALUE_TYPE_OBJECT){
 					Core::Value::Table * table = table_value->value.table;
 					if(!table){
@@ -9204,38 +9572,17 @@ restart:
 			}
 
 		case Program::OP_OBJECT_SET_BY_EXP:
-			allocator->setProperty(-3, 2, false, false);
-			/* {
-				OS_ASSERT(stack_values.count >= 3);
-				Value * table_value = stack_values[stack_values.count-3];
-				Value * index_value = stack_values[stack_values.count-2];
-				Value * value = stack_values[stack_values.count-1];
-				if(table_value->type == OS_VALUE_TYPE_OBJECT){
-					Core::Value::Table * table = table_value->value.table;
-					if(!table){
-						table = table_value->value.table = newTable();
-					}
-					setPropertyValue(table, VariableIndex(allocator, (OS_INT)table->next_id), value, false, false);
-				}
-				pop(2);
-				break;
-			} */
+			allocator->setProperty(false, false);
 			break;
 
 		case Program::OP_OBJECT_SET_BY_INDEX:
 			{
 				OS_ASSERT(stack_values.count >= 2);
-				i = opcodes.readU16();
+				i = opcodes.readUVariable();
 				Value * table_value = stack_values[stack_values.count-2];
 				Value * index_value = prog->const_values[i];
 				Value * value = stack_values[stack_values.count-1];
-				if(table_value->type == OS_VALUE_TYPE_OBJECT){
-					Core::Value::Table * table = table_value->value.table;
-					if(!table){
-						table = table_value->value.table = newTable();
-					}
-					setPropertyValue(table, VariableIndex(allocator, (OS_INT)valueToNumber(index_value)), value, false, false);
-				}
+				setPropertyValue(table_value, index_value, value, false, false);
 				pop();
 				break;
 			}
@@ -9243,24 +9590,18 @@ restart:
 		case Program::OP_OBJECT_SET_BY_NAME:
 			{
 				OS_ASSERT(stack_values.count >= 2);
-				i = opcodes.readU16();
+				i = opcodes.readUVariable();
 				Value * table_value = stack_values[stack_values.count-2];
 				Value * index_value = prog->const_values[prog_num_numbers + i];
 				Value * value = stack_values[stack_values.count-1];
-				if(table_value->type == OS_VALUE_TYPE_OBJECT){
-					Core::Value::Table * table = table_value->value.table;
-					if(!table){
-						table = table_value->value.table = newTable();
-					}
-					setPropertyValue(table, VariableIndex(valueToString(index_value), VariableIndex::NoFixStringIndex()), value, false, false);
-				}
+				setPropertyValue(table_value, VariableIndex(valueToString(index_value), VariableIndex::KeepStringIndex()), value, false, false);
 				pop();
 				break;
 			}
 
 		case Program::OP_PUSH_AUTO_VAR:
 			{
-				i = opcodes.readU16();
+				i = opcodes.readUVariable();
 				Value * name_value = prog->const_values[prog_num_numbers + i];
 				StringInternal name = valueToString(name_value);
 				pushPropertyValue(env, VariableIndex(name), true, true); 
@@ -9270,11 +9611,11 @@ restart:
 		case Program::OP_SET_AUTO_VAR:
 			{
 				OS_ASSERT(stack_values.count >= 1);
-				i = opcodes.readU16();
+				i = opcodes.readUVariable();
 				Value * value = stack_values[stack_values.count-1];
 				Value * name_value = prog->const_values[prog_num_numbers + i];
 				StringInternal name = valueToString(name_value);
-				setPropertyValue(env, VariableIndex(name), value, true, true);
+				setPropertyValue(env, VariableIndex(name, VariableIndex::KeepStringIndex()), value, true, true);
 				pop();
 				break;
 			}
@@ -9299,20 +9640,9 @@ restart:
 
 		case Program::OP_PUSH_LOCAL_VAR:
 			{
-				FunctionRunningInstance * scope;
 				i = opcodes.readByte();
-				int up_count = opcodes.readByte();
-				if(up_count == 0){
-					scope = func_running;
-				}else if(up_count <= func_decl->max_up_count){
-					scope = func_running->parent_inctances[up_count-1];
-				}else{
-					OS_ASSERT(false);
-					pushConstNullValue();
-					break;
-				}
-				if(i < scope->func->value.func->func_decl->num_locals){
-					pushValue(scope->locals[i]);
+				if(i < func_decl->num_locals){
+					pushValue(func_running->locals[i]);
 				}else{
 					OS_ASSERT(false);
 					pushConstNullValue();
@@ -9324,26 +9654,53 @@ restart:
 			{
 				OS_ASSERT(stack_values.count >= 1);
 				Value * value = stack_values[stack_values.count-1];
-				FunctionRunningInstance * scope;
 				i = opcodes.readByte();
-				int up_count = opcodes.readByte();
-				if(up_count == 0){
-					scope = func_running;
-				}else if(up_count <= func_decl->max_up_count){
-					scope = func_running->parent_inctances[up_count-1];
-				}else{
-					OS_ASSERT(false);
-					pop();
-					break;
-				}
-				if(i < scope->func->value.func->func_decl->num_locals){
-					if(scope->locals[i] != value){
-						releaseValue(scope->locals[i]);
-						scope->locals[i] = value->retain();
+				if(i < func_decl->num_locals){
+					if(func_running->locals[i] != value){
+						releaseValue(func_running->locals[i]);
+						func_running->locals[i] = value->retain();
 					}
 				}else{
 					OS_ASSERT(false);
 				}
+				pop();
+				break;
+			}
+
+		case Program::OP_PUSH_UP_LOCAL_VAR:
+			{
+				i = opcodes.readByte();
+				int up_count = opcodes.readByte();
+				if(up_count <= func_decl->max_up_count){
+					FunctionRunningInstance * scope = func_running->parent_inctances[up_count-1];
+					if(i < scope->func->value.func->func_decl->num_locals){
+						pushValue(scope->locals[i]);
+						break;
+					}
+				}
+				OS_ASSERT(false);
+				pushConstNullValue();
+				break;
+			}
+
+		case Program::OP_SET_UP_LOCAL_VAR:
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values[stack_values.count-1];
+				i = opcodes.readByte();
+				int up_count = opcodes.readByte();
+				if(up_count <= func_decl->max_up_count){
+					FunctionRunningInstance * scope = func_running->parent_inctances[up_count-1];
+					if(i < scope->func->value.func->func_decl->num_locals){
+						if(scope->locals[i] != value){
+							releaseValue(scope->locals[i]);
+							scope->locals[i] = value->retain();
+						}
+						pop();
+						break;
+					}
+				}
+				OS_ASSERT(false);
 				pop();
 				break;
 			}
@@ -9368,13 +9725,25 @@ restart:
 				break;
 			}
 
-		case Program::OP_CALL_PROPERTY:
+		case Program::OP_CALL_METHOD:
 			{
-				OS_ASSERT(false);
-				int params = opcodes.readByte();
+				int params = opcodes.readByte() - 1;
 				int ret_values = opcodes.readByte();
 				
-				OS_ASSERT(stack_values.count >= 1 + params);
+				OS_ASSERT(stack_values.count >= 2 + params);
+				Value * table_value = stack_values[stack_values.count-2-params];
+				Value * index_value = stack_values[stack_values.count-1-params];
+				Value * value = getPropertyValue(table_value, index_value, true, true);
+				if(value){
+					removeStackValues(-2-params, 2);
+					pushValue(value);
+					call(NULL, params, ret_values);
+				}else{
+					pop(params + 2);
+					while(ret_values-- > 0){
+						pushConstNullValue();
+					}
+				}
 				break;
 			}
 
@@ -9382,9 +9751,7 @@ restart:
 			{
 				// OS_ASSERT(false);
 				int params = opcodes.readByte();
-				int ret_values = opcodes.readByte();
-
-				ret_values = func_running->need_ret_values;
+				int ret_values = func_running->need_ret_values;
 				
 				OS_ASSERT(stack_values.count >= 1 + params);
 				Value * func_value = stack_values[stack_values.count-1-params]->retain();
@@ -9392,6 +9759,7 @@ restart:
 
 				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
 				call_stack_funcs.count--;
+				// TODO: check cfunction here
 				enterFunction(func_value, NULL, params, ret_values);
 				releaseFunctionRunningInstance(func_running);
 				releaseValue(func_value);
@@ -9407,7 +9775,7 @@ restart:
 				if(cur_ret_values > ret_values){
 					pop(cur_ret_values - ret_values);
 				}else{
-					while(cur_ret_values < ret_values){
+					while(cur_ret_values++ < ret_values){
 						pushConstNullValue();
 					}
 				}
@@ -9455,6 +9823,7 @@ restart:
 				OS_ASSERT(stack_values.count >= 1);
 				Value * value = stack_values[stack_values.count-1];
 				pushConstBoolValue(!valueToBool(value));
+				removeStackValues(-2, 1);
 				break;
 			}
 
@@ -9467,10 +9836,10 @@ restart:
 		case Program::OP_LOGIC_LE:
 		case Program::OP_LOGIC_GREATER:
 		case Program::OP_LOGIC_LESS:
-		case Program::OP_BIN_AND:
-		case Program::OP_BIN_OR:
-		case Program::OP_BIN_XOR:
-		case Program::OP_BIN_NOT:
+		case Program::OP_BIT_AND:
+		case Program::OP_BIT_OR:
+		case Program::OP_BIT_XOR:
+		case Program::OP_BIT_NOT:
 		case Program::OP_ADD: // +
 		case Program::OP_SUB: // -
 		case Program::OP_MUL: // *

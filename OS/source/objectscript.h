@@ -51,6 +51,8 @@
 #define OS_COMPILED_HEADER OS_TEXT("OS.BIN")
 #define OS_COMPILED_VERSION OS_TEXT("0.9")
 
+#define OS_MEMORY_MANAGER_PAGE_BLOCKS 128
+
 // #define OS_NEW(classname, params) new (allocator->malloc(sizeof(classname))) classname params
 
 namespace ObjectScript
@@ -114,38 +116,59 @@ namespace ObjectScript
 		{
 		protected:
 
-			enum {
-				VALUE,
-				VARIABLE,
-				FUNCTION_DATA,
-				FUNCTION_RUNNING_INSTANCE,
-				TABLE,
-				ARRAY,
-				EXPRESSION,
-				TOKENDATA,
-				CACHED_COUNT
-			};
-
 			int allocated_bytes;
 			int max_allocated_bytes;
 			int cached_bytes;
 
-			struct CachedMemoryBlock
+			struct PageDesc
 			{
-				CachedMemoryBlock * next;
+				int block_size;
+				int num_blocks;
+
+				int allocated_bytes;
 			};
-			CachedMemoryBlock * cached_memory_blocks[CACHED_COUNT];
-			int cached_memory_count[CACHED_COUNT];
-			int real_malloc_count;
+
+			struct Page
+			{
+				int index;
+				int num_cached_blocks;
+				Page * next_page;
+			};
+
+			struct CachedBlock
+			{
+				Page * page;
+				CachedBlock * next;
+			};
+
+			struct MemBlock
+			{
+				Page * page;
+				int block_size;
+			};
+
+			enum {
+				MAX_PAGE_COUNT = 17
+			};
+
+			PageDesc page_desc[MAX_PAGE_COUNT];
+			int num_page_desc;
+
+			Page * pages[MAX_PAGE_COUNT];
+
+			CachedBlock * cached_blocks[MAX_PAGE_COUNT];
+
+			void registerPageDesc(int block_size, int num_blocks);
+			void sortPageDesc();
+
+			void * allocFromCachedBlock(int i);
+			void * allocFromPageType(int i);
+			void freeMemBlock(MemBlock*);
 
 			void freeCachedMemory();
 
 			void * stdAlloc(int size);
-			void stdFree(void * p, int size);
-
-			int getCachedMemorySize(int i);
-			void * getCachedMemory(int size, int i);
-			void putCachedMemory(void * p, int size, int i);
+			void stdFree(void * p);
 
 		public:
 
@@ -603,10 +626,10 @@ namespace ObjectScript
 					OPERATOR_QUESTION,  // ?
 					OPERATOR_COLON,     // :
 
-					OPERATOR_BIN_AND, // &
-					OPERATOR_BIN_OR,  // |
-					OPERATOR_BIN_XOR, // ^
-					OPERATOR_BIN_NOT, // ~
+					OPERATOR_BIT_AND, // &
+					OPERATOR_BIT_OR,  // |
+					OPERATOR_BIT_XOR, // ^
+					OPERATOR_BIT_NOT, // ~
 					OPERATOR_ADD, // +
 					OPERATOR_SUB, // -
 					OPERATOR_MUL, // *
@@ -623,10 +646,10 @@ namespace ObjectScript
 					OPERATOR_AS,    // as
 					OPERATOR_IN,    // in
 
-					OPERATOR_BIN_AND_ASSIGN, // &=
-					OPERATOR_BIN_OR_ASSIGN,  // |=
-					OPERATOR_BIN_XOR_ASSIGN, // ^=
-					OPERATOR_BIN_NOT_ASSIGN, // ~=
+					OPERATOR_BIT_AND_ASSIGN, // &=
+					OPERATOR_BIT_OR_ASSIGN,  // |=
+					OPERATOR_BIT_XOR_ASSIGN, // ^=
+					OPERATOR_BIT_NOT_ASSIGN, // ~=
 					OPERATOR_ADD_ASSIGN, // +=
 					OPERATOR_SUB_ASSIGN, // -=
 					OPERATOR_MUL_ASSIGN, // *=
@@ -805,9 +828,9 @@ namespace ObjectScript
 			// struct Value;
 			struct VariableIndex
 			{
-				struct NoFixStringIndex
+				struct KeepStringIndex
 				{
-					NoFixStringIndex(){}
+					KeepStringIndex(){}
 				};
 
 				StringInternal string_index;
@@ -818,9 +841,9 @@ namespace ObjectScript
 
 				VariableIndex(const VariableIndex& index);
 				VariableIndex(const StringInternal& index);
-				VariableIndex(const StringInternal& index, const NoFixStringIndex&);
+				VariableIndex(const StringInternal& index, const KeepStringIndex&);
 				VariableIndex(StringData * index);
-				VariableIndex(StringData * index, const NoFixStringIndex&);
+				VariableIndex(StringData * index, const KeepStringIndex&);
 				VariableIndex(OS*, const OS_CHAR * index);
 				VariableIndex(OS*, OS_INT32 index);
 				VariableIndex(OS*, OS_INT64 index);
@@ -994,19 +1017,19 @@ namespace ObjectScript
 					EXP_TYPE_GET_PROPERTY,
 					EXP_TYPE_SET_PROPERTY,
 
-					EXP_TYPE_GET_PROPERTY_DIM,
-					EXP_TYPE_SET_PROPERTY_DIM,
+					// EXP_TYPE_GET_PROPERTY_DIM,
+					// EXP_TYPE_SET_PROPERTY_DIM,
 
 					// EXP_TYPE_GET_LOCAL_VAR_DIM,
-					EXP_TYPE_GET_AUTO_VAR_DIM,
+					// EXP_TYPE_GET_AUTO_VAR_DIM,
 
 					EXP_TYPE_GET_DIM,
 					EXP_TYPE_SET_DIM,
 
-					EXP_TYPE_CALL_PROPERTY,
+					EXP_TYPE_CALL_METHOD,
 
-					EXP_TYPE_SET_LOCAL_VAR_DIM,
-					EXP_TYPE_SET_AUTO_VAR_DIM,
+					// EXP_TYPE_SET_LOCAL_VAR_DIM,
+					// EXP_TYPE_SET_AUTO_VAR_DIM,
 
 					// EXP_CONST_STRING,
 					// EXP_CONST_FLOAT,
@@ -1048,15 +1071,15 @@ namespace ObjectScript
 
 					// EXP_TYPE_QUESTION,
 
-					EXP_TYPE_BIN_AND, // &
-					EXP_TYPE_BIN_OR,  // |
-					EXP_TYPE_BIN_XOR, // ^
-					EXP_TYPE_BIN_NOT, // ~
+					EXP_TYPE_BIT_AND, // &
+					EXP_TYPE_BIT_OR,  // |
+					EXP_TYPE_BIT_XOR, // ^
+					EXP_TYPE_BIT_NOT, // ~
 
-					EXP_TYPE_BIN_AND_ASSIGN, // &=
-					EXP_TYPE_BIN_OR_ASSIGN,  // |=
-					EXP_TYPE_BIN_XOR_ASSIGN, // ^=
-					EXP_TYPE_BIN_NOT_ASSIGN, // ~=
+					EXP_TYPE_BIT_AND_ASSIGN, // &=
+					EXP_TYPE_BIT_OR_ASSIGN,  // |=
+					EXP_TYPE_BIT_XOR_ASSIGN, // ^=
+					EXP_TYPE_BIT_NOT_ASSIGN, // ~=
 
 					EXP_TYPE_ADD, // +
 					EXP_TYPE_SUB, // -
@@ -1210,7 +1233,7 @@ namespace ObjectScript
 					ERROR_EXPECT_EXPRESSION,
 					ERROR_EXPECT_FUNCTION_SCOPE,
 					ERROR_EXPECT_SWITCH_SCOPE,
-					ERROR_FINISH_BIN_OP,
+					ERROR_FINISH_BINARY_OP,
 					ERROR_FINISH_UNARY_OP,
 				};
 
@@ -1392,9 +1415,12 @@ namespace ObjectScript
 					OP_PUSH_LOCAL_VAR,
 					OP_SET_LOCAL_VAR,
 
+					OP_PUSH_UP_LOCAL_VAR,
+					OP_SET_UP_LOCAL_VAR,
+
 					OP_CALL,
 					OP_GET_DIM,
-					OP_CALL_PROPERTY,
+					OP_CALL_METHOD,
 					OP_TAIL_CALL,
 
 					OP_GET_PROPERTY,
@@ -1417,10 +1443,10 @@ namespace ObjectScript
 					OP_LOGIC_LESS,
 					OP_LOGIC_NOT,
 
-					OP_BIN_AND,
-					OP_BIN_OR,
-					OP_BIN_XOR,
-					OP_BIN_NOT,
+					OP_BIT_AND,
+					OP_BIT_OR,
+					OP_BIT_XOR,
+					OP_BIT_NOT,
 
 					OP_ADD, // +
 					OP_SUB, // -
@@ -1664,6 +1690,11 @@ namespace ObjectScript
 
 			Value::Variable * setPropertyValue(Value::Table * table, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
 			Value::Variable * setPropertyValue(Value * table_value, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
+			Value::Variable * setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled);
+
+			Value * getPropertyValue(Value::Table * table, const VariableIndex& index);
+			Value * getPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled);
+			Value * getPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled);
 			Value * pushPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled);
 
 			Value * getStackValue(int offs);
@@ -1780,6 +1811,9 @@ namespace ObjectScript
 			virtual void writeByte(int);
 			virtual void writeByteAtPos(int value, int pos);
 
+			virtual void writeUVariable(int);
+			// virtual void writeUVariableAtPos(int value, int pos);
+
 			virtual void writeU16(int);
 			virtual void writeU16AtPos(int value, int pos);
 
@@ -1849,6 +1883,8 @@ namespace ObjectScript
 
 			virtual OS_BYTE readByte();
 			virtual OS_BYTE readByteAtPos(int pos);
+
+			virtual OS_BYTE readUVariable();
 
 			virtual OS_U16 readU16();
 			virtual OS_U16 readU16AtPos(int pos);
@@ -1948,8 +1984,8 @@ namespace ObjectScript
 		void removeAll();
 		void pop(int count = 1);
 
-		void setProperty(int table_offs = -3, int pop_count = 2, bool prototype_enabled = true, bool setter_enabled = true);
-		void getProperty(int table_offs = -2, int pop_count = 2, bool prototype_enabled = true, bool getter_enabled = true);
+		void setProperty(bool prototype_enabled = true, bool setter_enabled = true);
+		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
 
 		OS_EValueType getType(int offs = -1);
 		OS_EValueType getTypeById(int id);
