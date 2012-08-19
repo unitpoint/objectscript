@@ -2928,13 +2928,11 @@ int OS::Core::Compiler::cacheString(const StringInternal& str)
 		OS_ASSERT(value);
 		return allocator->core->valueToInt(value);
 	}
-	Value * value = allocator->core->pushNumberValue(prog_strings_table->count)->retain();
+	Value * value = allocator->core->newNumberValue(prog_strings_table->count);
 	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
 	prop->value_id = value->value_id;
-	// value->ref_count++;
 	allocator->core->addTableProperty(prog_strings_table, prop);
 	allocator->vectorAddItem(prog_strings, str);
-	allocator->pop();
 	OS_ASSERT(prog_strings_table->count == prog_strings.count);
 	return prog_strings_table->count-1;
 }
@@ -2948,13 +2946,11 @@ int OS::Core::Compiler::cacheNumber(OS_FLOAT num)
 		OS_ASSERT(value);
 		return allocator->core->valueToInt(value);
 	}
-	Value * value = allocator->core->pushNumberValue(prog_numbers_table->count)->retain();
+	Value * value = allocator->core->newNumberValue(prog_numbers_table->count);
 	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
 	prop->value_id = value->value_id;
-	// value->ref_count++;
 	allocator->core->addTableProperty(prog_numbers_table, prop);
 	allocator->vectorAddItem(prog_numbers, num);
-	allocator->pop();
 	OS_ASSERT(prog_numbers_table->count == prog_numbers.count);
 	return prog_numbers_table->count-1;
 }
@@ -6322,21 +6318,13 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 	const_values = (Value**)allocator->malloc(sizeof(Value*) * (num_numbers + num_strings));
 	for(i = 0; i < num_numbers; i++){
 		OS_FLOAT number = reader.readFloat();
-
-		Value * value = allocator->core->pushNumberValue(number);
-		// value->ref_count++;
-		const_values[i] = value->retain();
-		allocator->pop();
+		const_values[i] = allocator->core->newNumberValue(number);
 	}
 	for(i = 0; i < num_strings; i++){
 		int data_size = reader.readUVariable();
 		StringInternal str(allocator, OS_TEXT('\0'), data_size/sizeof(OS_CHAR));
 		reader.readBytes((void*)str.toChar(), data_size);
-
-		Value * value = allocator->core->pushStringValue(str);
-		// value->ref_count++;
-		const_values[num_numbers+i] = value->retain();
-		allocator->pop();
+		const_values[num_numbers+i] = allocator->core->newStringValue(str);
 	}
 
 	functions = (FunctionDecl*)allocator->malloc(sizeof(FunctionDecl) * num_functions);
@@ -6391,7 +6379,7 @@ void OS::Core::Program::pushFunction()
 	func_value_data->parent_inctance = NULL; // TODO: ???
 	func_value->value.func = func_value_data;
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
-	
+
 	OS_ASSERT(func_decl->opcodes_pos == opcodes->pos);
 	opcodes->skipBytes(func_decl->opcodes_size);
 }
@@ -7797,11 +7785,11 @@ OS::Core::Strings::Strings(OS * allocator)
 	:
 	__get(allocator, OS_TEXT("__get")),
 	__set(allocator, OS_TEXT("__set")),
-	__construct(allocator, OS_TEXT("__construct")),
-	__destruct(allocator, OS_TEXT("__destruct")),
+	__constructor(allocator, OS_TEXT("__constructor")),
+	__destructor(allocator, OS_TEXT("__destructor")),
 	__cmp(allocator, OS_TEXT("__cmp")),
-	__tostring(allocator, OS_TEXT("__tostring")),
-	__tobool(allocator, OS_TEXT("__tobool")),
+	__tostring(allocator, OS_TEXT("toString")),
+	// __tobool(allocator, OS_TEXT("__tobool")),
 	__add(allocator, OS_TEXT("__add")),
 	__sub(allocator, OS_TEXT("__sub")),
 	__mul(allocator, OS_TEXT("__mul")),
@@ -8221,13 +8209,13 @@ bool OS::Core::init()
 
 	string_values_table = newTable();
 	for(int i = 0; i < PROTOTYPES_NUMBER; i++){
-		// prototypes[i] = pushTableValue()->retain();		
-		// prototypes[i] = newTable(
-		prototypes[i] = pushNewNullValue()->retain();
+		prototypes[i] = newValue();
 		prototypes[i]->type = OS_VALUE_TYPE_OBJECT;
 	}
-	null_value = pushNewNullValue()->retain();
-	global_vars = pushObjectValue()->retain();
+	null_value = newValue();
+	true_value = newBoolValue(true);
+	false_value = newBoolValue(false);
+	global_vars = newObjectValue();
 	removeStackValues(PROTOTYPES_NUMBER + 2);
 
 	return true;
@@ -8469,7 +8457,7 @@ void OS::Core::resetValue(Value * val)
 	case OS_VALUE_TYPE_OBJECT:
 		{
 			bool prototype_enabled = true;
-			Value * func = getPropertyValue(val, PropertyIndex(strings->__destruct, PropertyIndex::KeepStringIndex()), prototype_enabled);
+			Value * func = getPropertyValue(val, PropertyIndex(strings->__destructor, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func){
 				pushValue(func);
 				call(val, 0, 0);
@@ -8514,23 +8502,27 @@ void OS::Core::deleteValue(Value * val)
 	free(val);
 }
 
-void OS::Core::releaseValue(Value * val)
+OS::Core::Value * OS::Core::releaseValue(Value * val)
 {
 	OS_ASSERT(val);
 	if(--val->ref_count <= 0){
 		OS_ASSERT(val->ref_count == 0);
 		deleteValue(val);
+		return NULL;
 	}else if(val->type == OS_VALUE_TYPE_STRING && val->ref_count == 1){
 		deleteTableProperty(string_values_table, PropertyIndex(val->value.string_data, PropertyIndex::KeepStringIndex()));
+		return NULL;
 	}
+	return val;
 }
 
-void OS::Core::releaseValue(int value_id)
+OS::Core::Value * OS::Core::releaseValue(int value_id)
 {
 	Value * val = values.get(value_id);
 	if(val){		
-		releaseValue(val);
+		return releaseValue(val);
 	}
+	return NULL;
 }
 
 OS::Core::Value::Property * OS::Core::setTableValue(Value::Table * table, PropertyIndex& index, Value * value)
@@ -8577,9 +8569,29 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 	}
 
 	if(index.is_string_index && index.string_index == strings->syntax_prototype){
-		if(table_value->prototype != value){
-			releaseValue(table_value->prototype);
-			table_value->prototype = value->retain();
+		switch(table_value->type){
+		case OS_VALUE_TYPE_NULL:
+			// null value has no prototype
+			break;
+
+		case OS_VALUE_TYPE_BOOL:
+		case OS_VALUE_TYPE_NUMBER:
+		case OS_VALUE_TYPE_STRING:
+		case OS_VALUE_TYPE_ARRAY:
+		case OS_VALUE_TYPE_OBJECT:
+		case OS_VALUE_TYPE_FUNCTION:
+		case OS_VALUE_TYPE_THREAD:
+			if(table_value->prototype != value){
+				releaseValue(table_value->prototype);
+				table_value->prototype = value->retain();
+			}
+			break;
+
+		case OS_VALUE_TYPE_USERDATA:
+		case OS_VALUE_TYPE_USERPTR:
+		case OS_VALUE_TYPE_CFUNCTION:
+			// TODO: warning???
+			break;
 		}
 		return;
 	}
@@ -8662,27 +8674,136 @@ OS::Core::Value * OS::Core::getStackValue(int offs)
 	return NULL;
 }
 
+OS::Core::Value * OS::Core::newValue()
+{
+	Value * val = new (malloc(sizeof(Value))) Value(values.next_id++);
+	return registerValue(val);
+	// allocator->vectorAddItem(stack_values, registerValue(val));
+	// return val;
+}
+
+OS::Core::Value * OS::Core::newBoolValue(bool val)
+{
+	Value * res = newValue();
+	res->prototype = prototypes[PROTOTYPE_BOOL]->retain();
+	res->value.boolean = val;
+	res->type = OS_VALUE_TYPE_BOOL;
+	return res;
+}
+
+OS::Core::Value * OS::Core::newNumberValue(OS_FLOAT val)
+{
+	Value * res = newValue();
+	res->prototype = prototypes[PROTOTYPE_NUMBER]->retain();
+	res->value.number = val;
+	res->type = OS_VALUE_TYPE_NUMBER;
+	return res;
+}
+
+OS::Core::Value * OS::Core::newStringValue(const StringInternal& str)
+{
+#if 1
+	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
+	Value::Property * prop = string_values_table->get(index);
+	if(prop){
+		Value * value = values.get(prop->value_id);
+		OS_ASSERT(value);
+		return value->retain();
+	}
+	Value * value = newValue();
+	value->prototype = prototypes[PROTOTYPE_STRING]->retain();
+	value->value.string_data = str.toData()->retain();
+	value->type = OS_VALUE_TYPE_STRING;
+
+	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
+	prop->value_id = value->value_id;
+	value->ref_count++;
+	addTableProperty(string_values_table, prop);
+	return value;
+#else
+	Value * res = newValue();
+	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
+	res->value.string_data = val.toData()->retain();
+	res->type = OS_VALUE_TYPE_STRING;
+	return res;
+#endif
+}
+
+OS::Core::Value * OS::Core::newStringValue(const OS_CHAR * val)
+{
+#if 1
+	return newStringValue(StringInternal(allocator, val));
+#else
+	Value * res = newValue();
+	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
+	res->value.string_data = StringData::alloc(allocator, val, OS_STRLEN(val));
+	res->type = OS_VALUE_TYPE_STRING;
+	return res;
+#endif
+}
+
+OS::Core::Value * OS::Core::newCFunctionValue(OS_CFunction func, void * user_param)
+{
+	Value * res = newValue();
+	res->value.cfunc.func = func;
+	res->value.cfunc.user_param = user_param;
+	res->type = OS_VALUE_TYPE_CFUNCTION;
+	return res;
+}
+
+OS::Core::Value * OS::Core::newUserDataValue(int data_size, OS_UserDataDtor dtor)
+{
+	Value * res = newValue();
+	res->value.userdata.ptr = malloc(data_size);
+	res->value.userdata.dtor = dtor;
+	res->type = OS_VALUE_TYPE_USERDATA;
+	return res;
+}
+
+OS::Core::Value * OS::Core::newUserPointerValue(void * data, OS_UserDataDtor dtor)
+{
+	Value * res = newValue();
+	res->value.userdata.ptr = data;
+	res->value.userdata.dtor = dtor;
+	res->type = OS_VALUE_TYPE_USERPTR;
+	return res;
+}
+
+OS::Core::Value * OS::Core::newObjectValue()
+{
+	Value * res = newValue();
+	res->prototype = prototypes[PROTOTYPE_OBJECT]->retain();
+	res->type = OS_VALUE_TYPE_OBJECT;
+	return res;
+}
+
+OS::Core::Value * OS::Core::newObjectValue(Value * prototype)
+{
+	OS_ASSERT(prototype);
+	Value * res = newValue();
+	res->prototype = prototype->retain();
+	res->type = OS_VALUE_TYPE_OBJECT;
+	return res;
+}
+
+OS::Core::Value * OS::Core::newArrayValue()
+{
+	Value * res = newValue();
+	res->prototype = prototypes[PROTOTYPE_ARRAY]->retain();
+	res->type = OS_VALUE_TYPE_ARRAY;
+	return res;
+}
+
 OS::Core::Value * OS::Core::pushValue(Value * val)
 {
 	OS_ASSERT(val);
 	allocator->vectorAddItem(stack_values, val);
-	// val->ref_count++;
 	return val->retain();
 }
 
 OS::Core::Value * OS::Core::pushValueAutoNull(Value * val)
 {
-	if(val){
-		return pushValue(val);
-	}
-	return pushConstNullValue();
-}
-
-OS::Core::Value * OS::Core::pushNewNullValue()
-{
-	Value * val = new (malloc(sizeof(Value))) Value(values.next_id++);
-	allocator->vectorAddItem(stack_values, registerValue(val));
-	return val;
+	return pushValue(val ? val : null_value);
 }
 
 OS::Core::Value * OS::Core::pushConstNullValue()
@@ -8700,112 +8821,59 @@ OS::Core::Value * OS::Core::pushConstFalseValue()
 	return pushValue(false_value);
 }
 
-OS::Core::Value * OS::Core::pushNewBoolValue(bool val)
-{
-	Value * res = pushNewNullValue();
-	res->prototype = prototypes[PROTOTYPE_BOOL]->retain();
-	res->value.boolean = val;
-	res->type = OS_VALUE_TYPE_BOOL;
-	return res;
-}
-
 OS::Core::Value * OS::Core::pushConstBoolValue(bool val)
 {
 	return pushValue(val ? true_value : false_value);
 }
 
-OS::Core::Value * OS::Core::pushNumberValue(OS_FLOAT val)
+OS::Core::Value * OS::Core::pushNewNullValue()
 {
-	Value * res = pushNewNullValue();
-	res->prototype = prototypes[PROTOTYPE_NUMBER]->retain();
-	res->value.number = val;
-	res->type = OS_VALUE_TYPE_NUMBER;
-	return res;
+	return releaseValue(pushValue(newValue()));
 }
 
-OS::Core::Value * OS::Core::pushStringValue(const StringInternal& str)
+OS::Core::Value * OS::Core::pushNumberValue(OS_FLOAT val)
 {
-#if 1
-	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
-	Value::Property * prop = string_values_table->get(index);
-	if(prop){
-		Value * value = values.get(prop->value_id);
-		OS_ASSERT(value);
-		return pushValue(value);
-	}
-	Value * value = pushNewNullValue()->retain();
-	value->prototype = prototypes[PROTOTYPE_STRING]->retain();
-	value->value.string_data = str.toData()->retain();
-	value->type = OS_VALUE_TYPE_STRING;
+	return releaseValue(pushValue(newNumberValue(val)));
+}
 
-	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
-	prop->value_id = value->value_id;
-	// value->ref_count++;
-	addTableProperty(string_values_table, prop);
-	return value;
-#else
-	Value * res = pushNewNullValue();
-	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
-	res->value.string_data = val.toData()->retain();
-	res->type = OS_VALUE_TYPE_STRING;
-	return res;
-#endif
+OS::Core::Value * OS::Core::pushStringValue(const StringInternal& val)
+{
+	return releaseValue(pushValue(newStringValue(val)));
 }
 
 OS::Core::Value * OS::Core::pushStringValue(const OS_CHAR * val)
 {
-#if 1
-	return pushStringValue(StringInternal(allocator, val));
-#else
-	Value * res = pushNewNullValue();
-	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
-	res->value.string_data = StringData::alloc(allocator, val, OS_STRLEN(val));
-	res->type = OS_VALUE_TYPE_STRING;
-	return res;
-#endif
+	return releaseValue(pushValue(newStringValue(val)));
 }
 
 OS::Core::Value * OS::Core::pushCFunctionValue(OS_CFunction func, void * user_param)
 {
-	Value * res = pushNewNullValue();
-	res->value.cfunc.func = func;
-	res->value.cfunc.user_param = user_param;
-	res->type = OS_VALUE_TYPE_CFUNCTION;
-	return res;
+	return releaseValue(pushValue(newCFunctionValue(func, user_param)));
 }
 
-OS::Core::Value * OS::Core::pushUserdataValue(int data_size, OS_UserDataDtor dtor)
+OS::Core::Value * OS::Core::pushUserDataValue(int data_size, OS_UserDataDtor dtor)
 {
-	Value * res = pushNewNullValue();
-	res->value.userdata.ptr = malloc(data_size);
-	res->value.userdata.dtor = dtor;
-	res->type = OS_VALUE_TYPE_USERDATA;
-	return res;
+	return releaseValue(pushValue(newUserDataValue(data_size, dtor)));
 }
 
 OS::Core::Value * OS::Core::pushUserPointerValue(void * data, OS_UserDataDtor dtor)
 {
-	Value * res = pushNewNullValue();
-	res->value.userdata.ptr = data;
-	res->value.userdata.dtor = dtor;
-	res->type = OS_VALUE_TYPE_USERPTR;
-	return res;
+	return releaseValue(pushValue(newUserPointerValue(data, dtor)));
 }
 
 OS::Core::Value * OS::Core::pushObjectValue()
 {
-	Value * res = pushNewNullValue();
-	res->prototype = prototypes[PROTOTYPE_OBJECT]->retain();
-	res->type = OS_VALUE_TYPE_OBJECT;
-	return res;
+	return releaseValue(pushValue(newObjectValue()));
+}
+
+OS::Core::Value * OS::Core::pushObjectValue(Value * prototype)
+{
+	return releaseValue(pushValue(newObjectValue(prototype)));
 }
 
 OS::Core::Value * OS::Core::pushArrayValue()
 {
-	Value * res = pushNewNullValue();
-	res->prototype = prototypes[PROTOTYPE_ARRAY]->retain();
-	res->type = OS_VALUE_TYPE_ARRAY;
-	return res;
+	return releaseValue(pushValue(newArrayValue()));
 }
 
 OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Value * right_value)
@@ -9083,7 +9151,7 @@ void OS::pushCFunction(OS_CFunction func, void * user_param)
 
 void * OS::pushUserData(int data_size, OS_UserDataDtor dtor)
 {
-	Core::Value * val = core->pushUserdataValue(data_size, dtor);
+	Core::Value * val = core->pushUserDataValue(data_size, dtor);
 	return val->value.userdata.ptr;
 }
 
@@ -9993,14 +10061,13 @@ int OS::Core::call(Value * self, int params, int ret_values)
 			return ret_values;
 		}else if(val->type == OS_VALUE_TYPE_OBJECT){
 			bool prototype_enabled = true;
-			Value * func = getPropertyValue(val, PropertyIndex(strings->__construct, PropertyIndex::KeepStringIndex()), prototype_enabled);
+			Value * func = getPropertyValue(val, PropertyIndex(strings->__constructor, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION){
 				Value * object;
 				if(val != self){
-					object = pushObjectValue()->retain(); pop();
-					object->prototype = val->retain();
+					object = newObjectValue(val);
 				}else{
-					object = self;
+					object = self->retain();
 				}
 				pushValue(func);
 				call(object, params, 0);

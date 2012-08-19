@@ -1547,11 +1547,11 @@ namespace ObjectScript
 			{
 				StringInternal __get;
 				StringInternal __set;
-				StringInternal __construct;
-				StringInternal __destruct;
+				StringInternal __constructor;
+				StringInternal __destructor;
 				StringInternal __cmp;
 				StringInternal __tostring;
-				StringInternal __tobool;
+				// StringInternal __tobool;
 				StringInternal __add;
 				StringInternal __sub;
 				StringInternal __mul;
@@ -1634,9 +1634,8 @@ namespace ObjectScript
 
 			void resetValue(Value*);
 			void deleteValue(Value*);
-			void releaseValue(Value*);
-
-			void releaseValue(int value_id);
+			Value * releaseValue(Value*);
+			Value * releaseValue(int value_id);
 
 			FunctionValueData * newFunctionValueData();
 			void deleteFunctionValueData(FunctionValueData*);
@@ -1644,22 +1643,33 @@ namespace ObjectScript
 			// FunctionRunningInstance * newFunctionRunningInstance();
 			void releaseFunctionRunningInstance(FunctionRunningInstance*);
 
+			Value * newValue(); // has to be released
+			Value * newBoolValue(bool); // has to be released
+			Value * newNumberValue(OS_FLOAT); // has to be released
+			Value * newStringValue(const StringInternal&); // has to be released
+			Value * newStringValue(const OS_CHAR*); // has to be released
+			Value * newCFunctionValue(OS_CFunction func, void * user_param); // has to be released
+			Value * newUserDataValue(int data_size, OS_UserDataDtor dtor); // has to be released
+			Value * newUserPointerValue(void * data, OS_UserDataDtor dtor); // has to be released
+			Value * newObjectValue(); // has to be released
+			Value * newObjectValue(Value * prototype); // has to be released
+			Value * newArrayValue(); // has to be released
+
 			Value * pushValue(Value * val);
 			Value * pushValueAutoNull(Value * val);
-			Value * pushNewNullValue();
-			Value * pushNewBoolValue(bool);
 			Value * pushConstNullValue();
 			Value * pushConstTrueValue();
 			Value * pushConstFalseValue();
-
 			Value * pushConstBoolValue(bool);
+			Value * pushNewNullValue();
 			Value * pushNumberValue(OS_FLOAT);
 			Value * pushStringValue(const StringInternal&);
 			Value * pushStringValue(const OS_CHAR*);
 			Value * pushCFunctionValue(OS_CFunction func, void * user_param);
-			Value * pushUserdataValue(int data_size, OS_UserDataDtor dtor);
+			Value * pushUserDataValue(int data_size, OS_UserDataDtor dtor);
 			Value * pushUserPointerValue(void * data, OS_UserDataDtor dtor);
 			Value * pushObjectValue();
+			Value * pushObjectValue(Value * prototype);
 			Value * pushArrayValue();
 
 			Value * pushOpResultValue(int opcode, Value * left_value, Value * right_value);
