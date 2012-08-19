@@ -7593,7 +7593,7 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::toString()
 	return StringInternal(getAllocator());
 }
 
-OS::Core::StringInternal OS::Core::valueToString(Value * val)
+OS::Core::StringInternal OS::Core::valueToString(Value * val, bool tostring_enabled, bool prototype_enabled)
 {
 	switch(val->type){
 	case OS_VALUE_TYPE_NULL:
@@ -7608,7 +7608,31 @@ OS::Core::StringInternal OS::Core::valueToString(Value * val)
 	case OS_VALUE_TYPE_STRING:
 		return StringInternal(val->value.string_data);
 
-	// case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_OBJECT:
+		if(tostring_enabled){
+			Value * func = getPropertyValue(val, VariableIndex(strings->__tostring, VariableIndex::KeepStringIndex()), prototype_enabled);
+			if(func){
+				pushValue(func);
+				call(val, 0, 1);
+				OS_ASSERT(stack_values.count > 0);
+
+				struct Convert
+				{
+					Core * core;
+					Value * value;
+					
+					Convert(Value * p_value, Core * p_core){ core = p_core; value = p_value; }
+					~Convert(){ core->pop(); }
+
+					StringInternal toString()
+					{
+						return core->valueToString(value, false);
+					}
+				};
+				return Convert(stack_values[stack_values.count-1], this).toString();
+			}
+		}
+
 	// case OS_VALUE_TYPE_ARRAY:
 	// 	return StringInternal(this, (OS_INT)(val->table ? val->table->count : 0));
 	}
@@ -8529,7 +8553,7 @@ OS::Core::Value::Variable * OS::Core::setTableValue(Value::Table * table, Variab
 	return var;
 }
 
-void OS::Core::setPropertyValue(Value * table_value, VariableIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setPropertyValue(Value * table_value, Value * index_value, VariableIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
 {
 	struct Lib {
 		static void setVar(Core * core, Value::Variable * var, Value * value)
@@ -8569,7 +8593,7 @@ void OS::Core::setPropertyValue(Value * table_value, VariableIndex& index, Value
 				index.string_index.toChar(), index.string_index.getDataSize());
 
 			Value * func_value = getPropertyValue(table_value, VariableIndex(setter_name, VariableIndex::KeepStringIndex()), prototype_enabled);
-			if(value){
+			if(func_value){
 				pushValue(value);
 				pushValue(func_value);
 				call(self, 1, 0);
@@ -8578,7 +8602,9 @@ void OS::Core::setPropertyValue(Value * table_value, VariableIndex& index, Value
 		}
 		Value * func_value = getPropertyValue(table_value, VariableIndex(strings->__set, VariableIndex::KeepStringIndex()), prototype_enabled);
 		if(func_value){
-			if(index.is_string_index){
+			if(index_value){
+				pushValue(index_value);
+			}else if(index.is_string_index){
 				pushStringValue(index.string_index);
 			}else{
 				pushNumberValue(index.int_index);
@@ -8600,13 +8626,13 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Value 
 {
 	switch(index_value->type){
 	case OS_VALUE_TYPE_BOOL:
-		return setPropertyValue(table_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), val, prototype_enabled, setter_enabled);
+		return setPropertyValue(table_value, index_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), val, prototype_enabled, setter_enabled);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return setPropertyValue(table_value, VariableIndex(allocator, index_value->value.number), val, prototype_enabled, setter_enabled);
+		return setPropertyValue(table_value, index_value, VariableIndex(allocator, index_value->value.number), val, prototype_enabled, setter_enabled);
 
 	case OS_VALUE_TYPE_STRING:
-		return setPropertyValue(table_value, Core::VariableIndex(index_value->value.string_data), val, prototype_enabled, setter_enabled);
+		return setPropertyValue(table_value, index_value, VariableIndex(index_value->value.string_data), val, prototype_enabled, setter_enabled);
 	}
 }
 
@@ -8693,6 +8719,7 @@ OS::Core::Value * OS::Core::pushStringValue(const StringInternal& str)
 	Value::Variable * var = string_values_table->get(index);
 	if(var){
 		Value * value = values.get(var->value_id);
+		OS_ASSERT(value);
 		return pushValue(value);
 	}
 	Value * value = pushNewNullValue();
@@ -8821,20 +8848,6 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 			OS_CHAR buf[128];
 			Utils::numToStr(buf, right_number);
 			return left_string_data->cmp(buf, OS_STRLEN(buf));
-		}
-
-		static Value * getMethod(Core * core, Value * object, const StringInternal& method_name)
-		{
-			VariableIndex index(method_name, VariableIndex::KeepStringIndex());
-			Value * func_value = core->pushPropertyValue(object, index, true, true);
-			switch(func_value->type){
-			case OS_VALUE_TYPE_CFUNCTION:
-			case OS_VALUE_TYPE_FUNCTION:
-				core->pop();
-				return func_value;
-			}
-			core->pop();
-			return NULL;
 		}
 
 		static int compare(OS_FLOAT left_number, Value * right_value)
@@ -9383,18 +9396,28 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 {
 	switch(index_value->type){
 	case OS_VALUE_TYPE_BOOL:
-		return pushPropertyValue(table_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), prototype_enabled, getter_enabled);
+		return pushPropertyValue(table_value, index_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), prototype_enabled, getter_enabled);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return pushPropertyValue(table_value, VariableIndex(allocator, index_value->value.number), prototype_enabled, getter_enabled);
+		return pushPropertyValue(table_value, index_value, VariableIndex(allocator, index_value->value.number), prototype_enabled, getter_enabled);
 
 	case OS_VALUE_TYPE_STRING:
-		return pushPropertyValue(table_value, VariableIndex(index_value->value.string_data), prototype_enabled, getter_enabled);
+		return pushPropertyValue(table_value, index_value, VariableIndex(index_value->value.string_data), prototype_enabled, getter_enabled);
+	}
+	if(getter_enabled){
+		Value * value = getPropertyValue(table_value, VariableIndex(strings->__get, VariableIndex::KeepStringIndex()), prototype_enabled);
+		if(value){
+			pushValue(index_value);
+			pushValue(value);
+			call(table_value, 1, 1);
+			OS_ASSERT(stack_values.count > 0);
+			return stack_values[stack_values.count-1];
+		}
 	}
 	return pushConstNullValue();
 }
 
-OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled)
+OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled)
 {
 	Value * self = table_value;
 	for(;;){
@@ -9423,7 +9446,9 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, VariableIndex
 					table_value = value;
 					continue;
 				}
-				if(index.is_string_index){
+				if(index_value){
+					pushValue(index_value);
+				}else if(index.is_string_index){
 					pushStringValue(index.string_index);
 				}else{
 					pushNumberValue(index.int_index);
@@ -9662,7 +9687,7 @@ restart:
 				Value * table_value = stack_values[stack_values.count-2];
 				Value * index_value = prog->const_values[prog_num_numbers + i];
 				Value * value = stack_values[stack_values.count-1];
-				setPropertyValue(table_value, VariableIndex(valueToString(index_value), VariableIndex::KeepStringIndex()), value, false, false);
+				setPropertyValue(table_value, index_value, VariableIndex(valueToString(index_value), VariableIndex::KeepStringIndex()), value, false, false);
 				pop();
 				break;
 			}
@@ -9672,7 +9697,7 @@ restart:
 				i = opcodes.readUVariable();
 				Value * name_value = prog->const_values[prog_num_numbers + i];
 				StringInternal name = valueToString(name_value);
-				pushPropertyValue(env, VariableIndex(name), true, true); 
+				pushPropertyValue(env, name_value, VariableIndex(name), true, true); 
 				break;
 			}
 
@@ -9683,7 +9708,7 @@ restart:
 				Value * value = stack_values[stack_values.count-1];
 				Value * name_value = prog->const_values[prog_num_numbers + i];
 				StringInternal name = valueToString(name_value);
-				setPropertyValue(env, VariableIndex(name, VariableIndex::KeepStringIndex()), value, true, true);
+				setPropertyValue(env, name_value, VariableIndex(name, VariableIndex::KeepStringIndex()), value, true, true);
 				pop();
 				break;
 			}

@@ -1688,14 +1688,14 @@ namespace ObjectScript
 			void deleteArray(Value::Array*);
 
 			Value::Variable * setTableValue(Value::Table * table, VariableIndex& index, Value * val);
-			void setPropertyValue(Value * table_value, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
+			void setPropertyValue(Value * table_value, Value * index_value, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
 			void setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled);
 
 			Value * getPropertyValue(Value::Table * table, const VariableIndex& index);
 			Value * getPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled);
 
+			Value * pushPropertyValue(Value * table_value, Value * index_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled);
 			Value * pushPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled);
-			Value * pushPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled);
 
 			Value * getStackValue(int offs);
 
