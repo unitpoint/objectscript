@@ -1673,7 +1673,7 @@ namespace ObjectScript
 			bool valueToBool(Value * val);
 			int valueToInt(Value * val);
 			OS_FLOAT valueToNumber(Value * val);
-			StringInternal valueToString(Value * val);
+			StringInternal valueToString(Value * val, bool tostring_enabled = false, bool prototype_enabled = true);
 
 			bool isValueNumber(Value * val, OS_FLOAT * out = NULL);
 			bool isValueString(Value * val, StringInternal * out = NULL);

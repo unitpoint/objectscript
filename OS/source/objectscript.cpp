@@ -7616,20 +7616,13 @@ OS::Core::StringInternal OS::Core::valueToString(Value * val, bool tostring_enab
 				call(val, 0, 1);
 				OS_ASSERT(stack_values.count > 0);
 
-				struct Convert
-				{
+				struct Pop {
 					Core * core;
-					Value * value;
-					
-					Convert(Value * p_value, Core * p_core){ core = p_core; value = p_value; }
-					~Convert(){ core->pop(); }
+					Pop(Core * p_core){ core = p_core; }
+					~Pop(){ core->pop(); }
+				} pop(this);
 
-					StringInternal toString()
-					{
-						return core->valueToString(value, false);
-					}
-				};
-				return Convert(stack_values[stack_values.count-1], this).toString();
+				return valueToString(stack_values[stack_values.count-1], false);
 			}
 		}
 
@@ -8473,6 +8466,14 @@ void OS::Core::resetValue(Value * val)
 		break;
 
 	case OS_VALUE_TYPE_OBJECT:
+		{
+			bool prototype_enabled = true;
+			Value * func = getPropertyValue(val, VariableIndex(strings->__destruct, VariableIndex::KeepStringIndex()), prototype_enabled);
+			if(func){
+				pushValue(func);
+				call(val, 0, 0);
+			}
+		}
 		/* if(val->value.table){
 			Value::Table * table = val->value.table;
 			val->value.table = NULL;
@@ -9972,6 +9973,26 @@ int OS::Core::call(Value * self, int params, int ret_values)
 			}
 			releaseValue(val);
 			return ret_values;
+		}else if(val->type == OS_VALUE_TYPE_OBJECT){
+			bool prototype_enabled = true;
+			Value * func = getPropertyValue(val, VariableIndex(strings->__construct, VariableIndex::KeepStringIndex()), prototype_enabled);
+			if(func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION){
+				Value * object = pushObjectValue()->retain(); pop();
+				object->prototype = val->retain();
+				pushValue(func);
+				call(object, params, 0);
+				pushValue(object);
+				releaseValue(object);
+				int func_ret_values = 1;
+				if(func_ret_values > ret_values){
+					pop(func_ret_values - ret_values);
+				}else{ 
+					while(func_ret_values++ < ret_values){
+						pushConstNullValue();
+					}
+				}
+				return ret_values;
+			}
 		}
 		/* OS_ASSERT(false);
 		pop(params);
