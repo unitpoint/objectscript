@@ -1489,7 +1489,7 @@ namespace ObjectScript
 				FunctionRunningInstance * parent_inctance;
 				Program * prog;
 				FunctionDecl * func_decl;
-				Value * self; // TODO: ???
+				// Value * self; // TODO: ???
 				Value * env;
 
 				// Value::Table * table;
@@ -1558,6 +1558,7 @@ namespace ObjectScript
 				StringInternal __div;
 				StringInternal __mod;
 
+				StringInternal syntax_prototype;
 				StringInternal syntax_var;
 				StringInternal syntax_this;
 				StringInternal syntax_arguments;

@@ -6387,7 +6387,7 @@ void OS::Core::Program::pushFunction()
 	func_value_data->prog = retain();
 	func_value_data->func_decl = func_decl;
 	func_value_data->env = allocator->core->global_vars->retain();
-	func_value_data->self = allocator->core->null_value->retain();
+	// func_value_data->self = allocator->core->null_value->retain();
 	func_value_data->parent_inctance = NULL; // TODO: ???
 	func_value->value.func = func_value_data;
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
@@ -7335,13 +7335,13 @@ OS::Core::FunctionValueData::FunctionValueData()
 	parent_inctance = NULL;
 	prog = NULL;
 	func_decl = NULL;
-	self = NULL;
+	// self = NULL;
 	env = NULL;
 }
 
 OS::Core::FunctionValueData::~FunctionValueData()
 {
-	OS_ASSERT(!parent_inctance && !prog && !func_decl && !self && !env);
+	OS_ASSERT(!parent_inctance && !prog && !func_decl && !env); //  && !self
 }
 
 OS::Core::FunctionValueData * OS::Core::newFunctionValueData()
@@ -7352,13 +7352,13 @@ OS::Core::FunctionValueData * OS::Core::newFunctionValueData()
 
 void OS::Core::deleteFunctionValueData(FunctionValueData * func_data)
 {
-	OS_ASSERT(func_data->prog && func_data->func_decl && func_data->self && func_data->env);
+	OS_ASSERT(func_data->prog && func_data->func_decl && func_data->env); //  && func_data->self
 
 	releaseValue(func_data->env);
 	func_data->env = NULL;
 	
-	releaseValue(func_data->self);
-	func_data->self = NULL;
+	// releaseValue(func_data->self);
+	// func_data->self = NULL;
 
 	func_data->func_decl = NULL;
 	func_data->prog->release();
@@ -7808,6 +7808,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	__div(allocator, OS_TEXT("__div")),
 	__mod(allocator, OS_TEXT("__mod")),
 
+	syntax_prototype(allocator, OS_TEXT("prototype")),
 	syntax_var(allocator, OS_TEXT("var")),
 	syntax_this(allocator, OS_TEXT("this")),
 	syntax_arguments(allocator, OS_TEXT("arguments")),
@@ -8574,6 +8575,15 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 	if(table && (prop = table->get(index))){
 		return Lib::setVar(this, prop, value);
 	}
+
+	if(index.is_string_index && index.string_index == strings->syntax_prototype){
+		if(table_value->prototype != value){
+			releaseValue(table_value->prototype);
+			table_value->prototype = value->retain();
+		}
+		return;
+	}
+
 	if(prototype_enabled){
 		Value * cur_value = table_value;
 		while(cur_value->prototype){
@@ -9380,6 +9390,9 @@ OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, PropertyIndex&
 	if(table && (prop = table->get(index))){
 		return values.get(prop->value_id);
 	}
+	if(index.is_string_index && index.string_index == strings->syntax_prototype){
+		return table_value->prototype;
+	}
 	if(prototype_enabled){
 		Value * cur_value = table_value;
 		while(cur_value->prototype){
@@ -9526,6 +9539,7 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int ret_va
 {
 	OS_ASSERT(value->type == OS_VALUE_TYPE_FUNCTION);
 	OS_ASSERT(stack_values.count >= params);
+	OS_ASSERT(self);
 
 	FunctionValueData * func_value_data = value->value.func;
 	FunctionDecl * func_decl = func_value_data->func_decl;
@@ -9537,9 +9551,9 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int ret_va
 	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance) + locals_mem_size + parents_mem_size)) FunctionRunningInstance();
 	func_running->func = value->retain();
 	
-	if(!self){
+	/* if(!self){
 		self = func_value_data->self ? func_value_data->self : null_value;
-	}
+	} */
 	func_running->self = self->retain();
 	
 	// func_running->num_locals = func_decl->num_locals;
@@ -9635,7 +9649,7 @@ restart:
 				func_value_data->prog = prog->retain();
 				func_value_data->func_decl = func_decl;
 				func_value_data->env = env->retain();
-				func_value_data->self = func_running->self->retain();
+				// func_value_data->self = func_running->self->retain();
 				func_value_data->parent_inctance = func_running->retain();
 				func_value->value.func = func_value_data;
 				func_value->type = OS_VALUE_TYPE_FUNCTION;
@@ -9805,7 +9819,7 @@ restart:
 				int ret_values = opcodes.readByte();
 				
 				OS_ASSERT(stack_values.count >= 1 + params);
-				call(NULL, params, ret_values);
+				call(func_running->self, params, ret_values);
 				break;
 			}
 
@@ -9829,7 +9843,11 @@ restart:
 				Value * index_value = stack_values[stack_values.count-1-params];
 				Value * value = pushPropertyValue(table_value, index_value, true, true);
 				removeStackValues(-2-params, 2);
-				call(table_value, params, ret_values);
+				Value * self = func_running->self;
+				if(self->prototype != table_value){
+					self = table_value;
+				}
+				call(self, params, ret_values);
 				break;
 			}
 
@@ -9977,8 +9995,13 @@ int OS::Core::call(Value * self, int params, int ret_values)
 			bool prototype_enabled = true;
 			Value * func = getPropertyValue(val, PropertyIndex(strings->__construct, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION){
-				Value * object = pushObjectValue()->retain(); pop();
-				object->prototype = val->retain();
+				Value * object;
+				if(val != self){
+					object = pushObjectValue()->retain(); pop();
+					object->prototype = val->retain();
+				}else{
+					object = self;
+				}
 				pushValue(func);
 				call(object, params, 0);
 				pushValue(object);
