@@ -1,6 +1,32 @@
 #ifndef __OBJECT_SCRIPT__
 #define __OBJECT_SCRIPT__
 
+/******************************************************************************
+* Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+* Copyright (C) 2012 unitpoint.com (support@unitpoint.ru)
+*
+* Latest source code: https://github.com/unitpoint/objectscript
+*
+* Permission is hereby granted, free of charge, to any person obtaining
+* a copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice shall be
+* included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+******************************************************************************/
+
 // #include <vector>
 #include <stdarg.h>
 #include <stdio.h>
@@ -214,12 +240,6 @@ namespace ObjectScript
 			static int cmp(const void * buf1, int len1, const void * buf2, int len2, int maxLen);
 		};
 
-		class StreamReader;
-		class MemStreamReader;
-
-		class StreamWriter;
-		class MemStreamWriter;
-
 	protected:
 
 		template<class T>
@@ -250,6 +270,12 @@ namespace ObjectScript
 				return buf[i];
 			}
 
+			const T& lastElement() const
+			{
+				OS_ASSERT(count > 0);
+				return buf[count-1];
+			}
+
 			bool contains(const T& val) const 
 			{
 				for(int i = count-1; i >= 0; i--){
@@ -271,12 +297,12 @@ namespace ObjectScript
 			}
 		};
 
-		template<class T> void vectorReserveCapacity(Vector<T>& vec, int capacity)
+		template<class T> void vectorReserveCapacity(Vector<T>& vec, int new_capacity)
 		{
-			if(vec.capacity < capacity){
+			if(vec.capacity < new_capacity){
 				vec.capacity = vec.capacity > 0 ? vec.capacity*2 : 4;
-				if(vec.capacity < capacity){
-					vec.capacity = capacity; // (capacity+3) & ~3;
+				if(vec.capacity < new_capacity){
+					vec.capacity = new_capacity; // (capacity+3) & ~3;
 				}
 				T * new_buf = (T*)malloc(sizeof(T)*vec.capacity);
 				OS_ASSERT(new_buf);
@@ -401,6 +427,157 @@ namespace ObjectScript
 		{
 		public:
 
+			class StreamWriter
+			{
+			public:
+
+				OS * allocator;
+
+				StreamWriter(OS*);
+				virtual ~StreamWriter();
+
+				virtual int getPos() const = 0;
+
+				virtual void writeBytes(const void*, int len) = 0;
+				virtual void writeBytesAtPos(const void*, int len, int pos) = 0;
+
+				virtual void writeByte(int);
+				virtual void writeByteAtPos(int value, int pos);
+
+				virtual void writeUVariable(int);
+
+				virtual void writeU16(int);
+				virtual void writeU16AtPos(int value, int pos);
+
+				virtual void writeInt16(int);
+				virtual void writeInt16AtPos(int value, int pos);
+
+				virtual void writeInt32(int);
+				virtual void writeInt32AtPos(int value, int pos);
+
+				virtual void writeInt64(OS_INT64);
+				virtual void writeInt64AtPos(OS_INT64 value, int pos);
+
+				virtual void writeFloat(OS_FLOAT);
+				virtual void writeFloatAtPos(OS_FLOAT value, int pos);
+			};
+
+			class MemStreamWriter: public StreamWriter
+			{
+			public:
+
+				Vector<OS_BYTE> buffer;
+
+				MemStreamWriter(OS*);
+				~MemStreamWriter();
+
+				int getPos() const;
+
+				void writeBytes(const void*, int len);
+				void writeBytesAtPos(const void*, int len, int pos);
+
+				void writeByte(int);
+				void writeByteAtPos(int value, int pos);
+			};
+
+			class FileStreamWriter: public StreamWriter
+			{
+			public:
+
+				FILE * f;
+
+				FileStreamWriter(OS*, const char * filename);
+				FileStreamWriter(OS*, FILE * f);
+				~FileStreamWriter();
+
+				int getPos() const;
+
+				void writeBytes(const void*, int len);
+				void writeBytesAtPos(const void*, int len, int pos);
+			};
+
+			class StreamReader
+			{
+			public:
+
+				OS * allocator; // if NULL then buffer will not be freed
+
+				StreamReader(OS*);
+				virtual ~StreamReader();
+
+				virtual int getPos() const = 0;
+
+				virtual void skipBytes(int len) = 0;
+				virtual bool checkBytes(void*, int len) = 0;
+
+				virtual void * readBytes(void*, int len) = 0;
+				virtual void * readBytesAtPos(void*, int len, int pos) = 0;
+
+				virtual OS_BYTE readByte();
+				virtual OS_BYTE readByteAtPos(int pos);
+
+				virtual OS_BYTE readUVariable();
+
+				virtual OS_U16 readU16();
+				virtual OS_U16 readU16AtPos(int pos);
+
+				virtual OS_INT16 readInt16();
+				virtual OS_INT16 readInt16AtPos(int pos);
+
+				virtual OS_INT32 readInt32();
+				virtual OS_INT32 readInt32AtPos(int pos);
+
+				virtual OS_INT64 readInt64();
+				virtual OS_INT64 readInt64AtPos(int pos);
+
+				virtual OS_FLOAT readFloat();
+				virtual OS_FLOAT readFloatAtPos(int pos);
+			};
+
+			class MemStreamReader: public StreamReader
+			{
+			public:
+
+				OS_BYTE * buffer;
+				int size;
+				int pos;
+
+				// if allocator is NULL then buffer will not be freed
+				MemStreamReader(OS*, int buf_size);
+				MemStreamReader(OS*, OS_BYTE * buf, int buf_size);
+				~MemStreamReader();
+
+				int getPos() const;
+
+				void skipBytes(int len);
+				bool checkBytes(void*, int len);
+
+				void * readBytes(void*, int len);
+				void * readBytesAtPos(void*, int len, int pos);
+
+				OS_BYTE readByte();
+				OS_BYTE readByteAtPos(int pos);
+			};
+
+			class FileStreamReader: public StreamReader
+			{
+			public:
+
+				FILE * f;
+
+				FileStreamReader(OS*, const char * filename);
+				FileStreamReader(OS*, FILE * f);
+				~FileStreamReader();
+
+				int getPos() const;
+
+				void skipBytes(int len);
+				bool checkBytes(void*, int len);
+
+				void * readBytes(void*, int len);
+				void * readBytesAtPos(void*, int len, int pos);
+			};
+
 			class StringData
 			{
 			public:
@@ -459,7 +636,7 @@ namespace ObjectScript
 				}
 			};
 
-			class StringInternal // doesn't retain OS, strings inside of OS mush use StringInternal instead of String
+			class String // doesn't retain OS, strings inside of OS must use OS::Core::String instead of OS::String
 			{
 			protected:
 
@@ -468,27 +645,27 @@ namespace ObjectScript
 
 			public:
 
-				StringInternal(OS*);
-				StringInternal(OS*, const OS_CHAR*);
-				StringInternal(OS*, OS_CHAR, int count);
-				StringInternal(OS*, const void*, int size);
-				StringInternal(OS*, const void * buf1, int len1, const void * buf2, int len2);
-				StringInternal(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
-				StringInternal(const StringInternal&);
-				StringInternal(StringData*);
-				StringInternal(OS*, OS_INT value);
-				StringInternal(OS*, OS_FLOAT value, int precision = OS_DEF_PRECISION);
-				~StringInternal();
+				String(OS*);
+				String(OS*, const OS_CHAR*);
+				String(OS*, OS_CHAR, int count);
+				String(OS*, const void*, int size);
+				String(OS*, const void * buf1, int len1, const void * buf2, int len2);
+				String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
+				String(const String&);
+				String(StringData*);
+				String(OS*, OS_INT value);
+				String(OS*, OS_FLOAT value, int precision = OS_DEF_PRECISION);
+				~String();
 
-				static StringInternal format(OS*, int temp_buf_size, const OS_CHAR * fmt, ...);
-				static StringInternal format(OS*, int temp_buf_size, const OS_CHAR * fmt, va_list);
-				static StringInternal format(OS*, const OS_CHAR * fmt, ...);
-				static StringInternal format(OS*, const OS_CHAR * fmt, va_list);
+				static String format(OS*, int temp_buf_size, const OS_CHAR * fmt, ...);
+				static String format(OS*, int temp_buf_size, const OS_CHAR * fmt, va_list);
+				static String format(OS*, const OS_CHAR * fmt, ...);
+				static String format(OS*, const OS_CHAR * fmt, va_list);
 
-				StringInternal& setFormat(int temp_buf_size, const OS_CHAR * fmt, ...);
-				StringInternal& setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list);
-				StringInternal& setFormat(const OS_CHAR * fmt, ...);
-				StringInternal& setFormat(const OS_CHAR * fmt, va_list);
+				String& setFormat(int temp_buf_size, const OS_CHAR * fmt, ...);
+				String& setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list);
+				String& setFormat(const OS_CHAR * fmt, ...);
+				String& setFormat(const OS_CHAR * fmt, va_list);
 
 				StringData * toData() const { return StringData::toData(str); }
 				StringData * toData(){ return StringData::toData(str); }
@@ -509,42 +686,42 @@ namespace ObjectScript
 				OS_INT toInt() const;
 				OS_FLOAT toFloat() const;
 
-				StringInternal& operator=(const StringInternal&);
-				StringInternal& operator=(const OS_CHAR*);
+				String& operator=(const String&);
+				String& operator=(const OS_CHAR*);
 
-				StringInternal& operator+=(const StringInternal&);
-				StringInternal& operator+=(const OS_CHAR*);
-				StringInternal& append(const void*, int size);
-				StringInternal& append(const OS_CHAR*);
+				String& operator+=(const String&);
+				String& operator+=(const OS_CHAR*);
+				String& append(const void*, int size);
+				String& append(const OS_CHAR*);
 
-				StringInternal operator+(const StringInternal&) const;
-				StringInternal operator+(const OS_CHAR*) const;
+				String operator+(const String&) const;
+				String operator+(const OS_CHAR*) const;
 
-				bool operator==(const StringInternal&) const;
+				bool operator==(const String&) const;
 				bool operator==(const OS_CHAR*) const;
 
-				bool operator!=(const StringInternal&) const;
+				bool operator!=(const String&) const;
 				bool operator!=(const OS_CHAR*) const;
 
-				bool operator<=(const StringInternal&) const;
+				bool operator<=(const String&) const;
 				bool operator<=(const OS_CHAR*) const;
 
-				bool operator<(const StringInternal&) const;
+				bool operator<(const String&) const;
 				bool operator<(const OS_CHAR*) const;
 
-				bool operator>=(const StringInternal&) const;
+				bool operator>=(const String&) const;
 				bool operator>=(const OS_CHAR*) const;
 
-				bool operator>(const StringInternal&) const;
+				bool operator>(const String&) const;
 				bool operator>(const OS_CHAR*) const;
 
-				StringInternal trim(bool trim_left = true, bool trim_right = true) const;
+				String trim(bool trim_left = true, bool trim_right = true) const;
 
-				int cmp(const StringInternal&) const;
+				int cmp(const String&) const;
 				int cmp(const OS_CHAR*) const;
 				int hash() const;
 
-				StringInternal clone() const;
+				String clone() const;
 			};
 
 			class Tokenizer
@@ -636,16 +813,9 @@ namespace ObjectScript
 					OPERATOR_MUL, // *
 					OPERATOR_DIV, // /
 					OPERATOR_MOD, // %
-					OPERATOR_MUL_SHIFT, // <<
-					OPERATOR_DIV_SHIFT, // >>
+					OPERATOR_LSHIFT, // <<
+					OPERATOR_RSHIFT, // >>
 					OPERATOR_POW, // **
-
-					OPERATOR_DOT,   // dot
-					OPERATOR_CROSS, // cross
-					OPERATOR_SWAP,  // swap
-					OPERATOR_IS,    // is
-					OPERATOR_AS,    // as
-					OPERATOR_IN,    // in
 
 					OPERATOR_BIT_AND_ASSIGN, // &=
 					OPERATOR_BIT_OR_ASSIGN,  // |=
@@ -656,8 +826,8 @@ namespace ObjectScript
 					OPERATOR_MUL_ASSIGN, // *=
 					OPERATOR_DIV_ASSIGN, // /=
 					OPERATOR_MOD_ASSIGN, // %=
-					OPERATOR_MUL_SHIFT_ASSIGN, // <<=
-					OPERATOR_DIV_SHIFT_ASSIGN, // >>=
+					OPERATOR_LSHIFT_ASSIGN, // <<=
+					OPERATOR_RSHIFT_ASSIGN, // >>=
 					OPERATOR_POW_ASSIGN, // **=
 
 					OPERATOR_ASSIGN, // =
@@ -679,8 +849,8 @@ namespace ObjectScript
 
 				public:
 
-					StringInternal filename;
-					Vector<StringInternal> lines;
+					String filename;
+					Vector<String> lines;
 
 					int ref_count;
 
@@ -709,7 +879,7 @@ namespace ObjectScript
 
 					TextData * text_data;
 
-					StringInternal str;
+					String str;
 					int line, pos;
 					int ref_count;
 
@@ -720,7 +890,7 @@ namespace ObjectScript
 					// const OS_FLOAT * getVec3() const;
 					// const OS_FLOAT * getVec4() const;
 
-					TokenData(TextData * text_data, const StringInternal& p_str, TokenType p_type, int p_line, int p_pos);
+					TokenData(TextData * text_data, const String& p_str, TokenType p_type, int p_line, int p_pos);
 
 					TokenData * retain();
 					void release();
@@ -730,7 +900,7 @@ namespace ObjectScript
 					void setFloat(OS_FLOAT value);
 					void setInt(OS_INT value);
 
-					operator const StringInternal& () const { return str; }
+					operator const String& () const { return str; }
 
 					bool isTypeOf(TokenType tokenType) const;
 				};
@@ -739,9 +909,6 @@ namespace ObjectScript
 
 				struct Settings
 				{
-					// bool parseVector;
-					bool parseStringOperator;
-					// bool parsePreprocessor;
 					bool saveComment;
 				} settings;
 
@@ -772,7 +939,7 @@ namespace ObjectScript
 				static int __cdecl CompareOperatorDesc(const void * a, const void * b);
 				static void initOperatorTable();
 
-				TokenData * addToken(const StringInternal& token, TokenType type, int line, int pos);
+				TokenData * addToken(const String& token, TokenType type, int line, int pos);
 
 				TokenType parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_INT& ival, bool parse_end_spaces);
 				bool parseLines();
@@ -799,23 +966,14 @@ namespace ObjectScript
 
 				static const OS_CHAR * getTokenTypeName(TokenType tokenType);
 
-				StringInternal getFilename() const { return text_data->filename; }
-				StringInternal getLineString(int i) const { return text_data->lines[i]; }
+				String getFilename() const { return text_data->filename; }
+				String getLineString(int i) const { return text_data->lines[i]; }
 				int getNumLines() const { return text_data->lines.count; }
-
-				// bool getSettingParseVector() const { return settings.parseVector; }
-				// void setSettingParseVector(bool value){ settings.parseVector = value; }
-
-				bool getSettingParseStringOperator() const { return settings.parseStringOperator; }
-				void setSettingParseStringOperator(bool value){ settings.parseStringOperator = value; }
-
-				//bool SettingParsePreprocessor() const { return settings.parsePreprocessor; }
-				//void SetSettingParsePreprocessor(bool value){ settings.parsePreprocessor = value; }
 
 				bool getSettingSaveComment() const { return settings.saveComment; }
 				void setSettingSaveComment(bool value){ settings.saveComment = value; }
 
-				bool parseText(const StringInternal& text);
+				bool parseText(const String& text);
 
 				int getNumTokens() const { return tokens.count; }
 				TokenData * getToken(int i) const { return tokens[i]; }
@@ -834,15 +992,15 @@ namespace ObjectScript
 					KeepStringIndex(){}
 				};
 
-				StringInternal string_index;
+				String string_index;
 				OS_INT int_index;
 				int hash_value;
 				bool is_string_index;
 				bool int_valid;
 
 				PropertyIndex(const PropertyIndex& index);
-				PropertyIndex(const StringInternal& index);
-				PropertyIndex(const StringInternal& index, const KeepStringIndex&);
+				PropertyIndex(const String& index);
+				PropertyIndex(const String& index, const KeepStringIndex&);
 				PropertyIndex(StringData * index);
 				PropertyIndex(StringData * index, const KeepStringIndex&);
 				PropertyIndex(OS*, const OS_CHAR * index);
@@ -856,7 +1014,7 @@ namespace ObjectScript
 				int cmp(const PropertyIndex& b) const;
 				int hash() const;
 
-				StringInternal toString() const;
+				String toString() const;
 
 				bool checkIntIndex() const;
 				void fixStringIndex();
@@ -886,7 +1044,7 @@ namespace ObjectScript
 					Property * prev, * next;
 
 					Property(const PropertyIndex& index);
-					Property(const StringInternal& index);
+					Property(const String& index);
 					Property(OS*, const OS_CHAR * index);
 					Property(OS*, OS_INT index);
 					Property(OS*, int index);
@@ -1085,8 +1243,8 @@ namespace ObjectScript
 					EXP_TYPE_MUL, // *
 					EXP_TYPE_DIV, // /
 					EXP_TYPE_MOD, // %
-					EXP_TYPE_MUL_SHIFT, // <<
-					EXP_TYPE_DIV_SHIFT, // >>
+					EXP_TYPE_LSHIFT, // <<
+					EXP_TYPE_RSHIFT, // >>
 					EXP_TYPE_POW, // **
 
 					EXP_TYPE_ADD_ASSIGN, // +=
@@ -1094,21 +1252,11 @@ namespace ObjectScript
 					EXP_TYPE_MUL_ASSIGN, // *=
 					EXP_TYPE_DIV_ASSIGN, // /=
 					EXP_TYPE_MOD_ASSIGN, // %=
-					EXP_TYPE_MUL_SHIFT_ASSIGN, // <<=
-					EXP_TYPE_DIV_SHIFT_ASSIGN, // >>=
+					EXP_TYPE_LSHIFT_ASSIGN, // <<=
+					EXP_TYPE_RSHIFT_ASSIGN, // >>=
 					EXP_TYPE_POW_ASSIGN, // **=
 
 					EXP_TYPE_ASSIGN,
-
-					EXP_TYPE_DOT, // dot
-					EXP_TYPE_CROSS, // cross
-
-					EXP_TYPE_SWAP, // swap
-
-					EXP_TYPE_AS, // as
-					EXP_TYPE_IS,  // is
-
-					EXP_TYPE_IN,  // in
 				};
 
 			protected:
@@ -1164,7 +1312,7 @@ namespace ObjectScript
 
 					OS_FLOAT toNumber();
 					OS_INT toInt();
-					StringInternal toString();
+					String toString();
 
 					bool isConstValue() const;
 					bool isValue() const;
@@ -1176,7 +1324,7 @@ namespace ObjectScript
 					bool isAssignOperator() const;
 					bool isLogicOperator() const;
 
-					StringInternal debugPrint(Compiler * compiler, int depth);
+					String debugPrint(Compiler * compiler, int depth);
 				};
 
 				struct Scope: public Expression
@@ -1186,10 +1334,10 @@ namespace ObjectScript
 
 					struct LocalVar
 					{
-						StringInternal name;
+						String name;
 						int index;
 
-						LocalVar(const StringInternal& name, int index);
+						LocalVar(const String& name, int index);
 					};
 
 					struct LocalVarCompiled
@@ -1216,8 +1364,8 @@ namespace ObjectScript
 					Scope(Scope * parent, ExpressionType, TokenData*);
 					virtual ~Scope();
 
-					void addLocalVar(const StringInternal& name);
-					void addLocalVar(const StringInternal& name, LocalVarDesc&);
+					void addLocalVar(const String& name);
+					void addLocalVar(const String& name, LocalVarDesc&);
 				};
 
 				enum ErrorType {
@@ -1258,12 +1406,12 @@ namespace ObjectScript
 				ErrorType error;
 				TokenData * error_token;
 				TokenType expect_token_type;
-				StringInternal expect_token;
+				String expect_token;
 
 				TokenData * recent_token;
 				int next_token_index;
 
-				// StringInternal recent_printed_filename;
+				// String recent_printed_filename;
 				TextData * recent_printed_text_data;
 				int recent_printed_line;
 
@@ -1272,7 +1420,7 @@ namespace ObjectScript
 				Value::Table * prog_numbers_table;
 				Value::Table * prog_strings_table;
 				Vector<OS_FLOAT> prog_numbers;
-				Vector<StringInternal> prog_strings;
+				Vector<String> prog_strings;
 				Vector<Scope*> prog_functions;
 				MemStreamWriter * prog_opcodes;
 				int prog_max_up_count;
@@ -1282,7 +1430,7 @@ namespace ObjectScript
 				void setError();
 				void setError(ErrorType value, TokenData * error_token);
 				void setError(TokenType expect_token_type, TokenData * error_token);
-				void setError(const StringInternal& str, TokenData * error_token);
+				void setError(const String& str, TokenData * error_token);
 
 				void * malloc(int size);
 
@@ -1328,12 +1476,12 @@ namespace ObjectScript
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
-				bool findLocalVar(LocalVarDesc&, Scope * scope, const StringInternal& name, int active_locals, int max_up_count = 127);
+				bool findLocalVar(LocalVarDesc&, Scope * scope, const String& name, int active_locals, int max_up_count = 127);
 
-				StringInternal debugPrintSourceLine(TokenData*);
+				String debugPrintSourceLine(TokenData*);
 				static const OS_CHAR * getExpName(ExpressionType);
 
-				int cacheString(const StringInternal& str);
+				int cacheString(const String& str);
 				int cacheNumber(OS_FLOAT);
 
 				bool writeOpcodes(Expression*);
@@ -1354,12 +1502,12 @@ namespace ObjectScript
 			{
 				struct LocalVar
 				{
-					StringInternal name;
+					String name;
 					int start_code_pos;
 					int end_code_pos;
 					// Value * value;
 
-					LocalVar(const StringInternal&);
+					LocalVar(const String&);
 					~LocalVar();
 				};
 
@@ -1452,14 +1600,14 @@ namespace ObjectScript
 					OP_MUL, // *
 					OP_DIV, // /
 					OP_MOD, // %
-					OP_MUL_SHIFT, // <<
-					OP_DIV_SHIFT, // >>
+					OP_LSHIFT, // <<
+					OP_RSHIFT, // >>
 					OP_POW, // **
 				};
 
 				OS * allocator;
-				StringInternal filename;
-				// Vector<StringInternal> strings;
+				String filename;
+				// Vector<String> strings;
 				// Vector<OS_FLOAT> numbers;
 				// OS_BYTE * opcodes;
 				Value ** const_values;
@@ -1545,41 +1693,48 @@ namespace ObjectScript
 
 			struct Strings
 			{
-				StringInternal __get;
-				StringInternal __set;
-				StringInternal __constructor;
-				StringInternal __destructor;
-				StringInternal __cmp;
-				StringInternal __tostring;
-				// StringInternal __tobool;
-				StringInternal __add;
-				StringInternal __sub;
-				StringInternal __mul;
-				StringInternal __div;
-				StringInternal __mod;
+				String __get;
+				String __set;
+				String __constructor;
+				String __destructor;
+				String __cmp;
+				String __tostring;
+				// String __tobool;
+				String __concat;
+				String __bitand;
+				String __bitor;
+				String __bitxor;
+				String __add;
+				String __sub;
+				String __mul;
+				String __div;
+				String __mod;
+				String __lshift;
+				String __rshift;
+				String __pow;
 
-				StringInternal syntax_prototype;
-				StringInternal syntax_var;
-				StringInternal syntax_this;
-				StringInternal syntax_arguments;
-				StringInternal syntax_function;
-				StringInternal syntax_null;
-				StringInternal syntax_true;
-				StringInternal syntax_false;
-				StringInternal syntax_return;
-				StringInternal syntax_class;
-				StringInternal syntax_enum;
-				StringInternal syntax_switch;
-				StringInternal syntax_case;
-				StringInternal syntax_default;
-				StringInternal syntax_if;
-				StringInternal syntax_else;
-				StringInternal syntax_elseif;
-				StringInternal syntax_for;
-				StringInternal syntax_do;
-				StringInternal syntax_while;
-				StringInternal syntax_break;
-				StringInternal syntax_continue;
+				String syntax_prototype;
+				String syntax_var;
+				String syntax_this;
+				String syntax_arguments;
+				String syntax_function;
+				String syntax_null;
+				String syntax_true;
+				String syntax_false;
+				String syntax_return;
+				String syntax_class;
+				String syntax_enum;
+				String syntax_switch;
+				String syntax_case;
+				String syntax_default;
+				String syntax_if;
+				String syntax_else;
+				String syntax_elseif;
+				String syntax_for;
+				String syntax_do;
+				String syntax_while;
+				String syntax_break;
+				String syntax_continue;
 
 				int __dummy__;
 
@@ -1646,7 +1801,7 @@ namespace ObjectScript
 			Value * newValue(); // has to be released
 			Value * newBoolValue(bool); // has to be released
 			Value * newNumberValue(OS_FLOAT); // has to be released
-			Value * newStringValue(const StringInternal&); // has to be released
+			Value * newStringValue(const String&); // has to be released
 			Value * newStringValue(const OS_CHAR*); // has to be released
 			Value * newCFunctionValue(OS_CFunction func, void * user_param); // has to be released
 			Value * newUserDataValue(int data_size, OS_UserDataDtor dtor); // has to be released
@@ -1663,7 +1818,7 @@ namespace ObjectScript
 			Value * pushConstBoolValue(bool);
 			Value * pushNewNullValue();
 			Value * pushNumberValue(OS_FLOAT);
-			Value * pushStringValue(const StringInternal&);
+			Value * pushStringValue(const String&);
 			Value * pushStringValue(const OS_CHAR*);
 			Value * pushCFunctionValue(OS_CFunction func, void * user_param);
 			Value * pushUserDataValue(int data_size, OS_UserDataDtor dtor);
@@ -1682,12 +1837,12 @@ namespace ObjectScript
 			void deleteValues();
 
 			bool valueToBool(Value * val);
-			int valueToInt(Value * val);
+			OS_INT valueToInt(Value * val);
 			OS_FLOAT valueToNumber(Value * val);
-			StringInternal valueToString(Value * val, bool tostring_enabled = false, bool prototype_enabled = true);
+			String valueToString(Value * val, bool tostring_method_enabled = false, bool prototype_enabled = true);
 
 			bool isValueNumber(Value * val, OS_FLOAT * out = NULL);
-			bool isValueString(Value * val, StringInternal * out = NULL);
+			bool isValueString(Value * val, String * out = NULL);
 			bool isValueInstanceOf(Value * val, Value * prototype_val);
 
 			Value::Table * newTable();
@@ -1740,9 +1895,9 @@ namespace ObjectScript
 
 	public:
 
-		class String: public Core::StringInternal // retains os, external strings must use String instead of StringInternal
+		class String: public Core::String // retains os, external strings must use String instead of String
 		{
-			typedef Core::StringInternal super;
+			typedef Core::String super;
 
 		public:
 
@@ -1751,19 +1906,19 @@ namespace ObjectScript
 			String(OS*, OS_CHAR, int count);
 			String(OS*, const void*, int size);
 			String(OS*, const void * buf1, int len1, const void * buf2, int len2);
-			String(const StringInternal&);
+			String(const Core::String&);
 			String(const String&);
 			String(Core::StringData*);
 			String(OS*, OS_INT value);
 			String(OS*, OS_FLOAT value, int precision);
 			~String();
 
-			// operator const StringInternal&() const { return *this; }
+			// operator const String&() const { return *this; }
 
-			String& operator=(const StringInternal&);
+			String& operator=(const Core::String&);
 			String& operator=(const OS_CHAR*);
 
-			String& operator+=(const StringInternal&);
+			String& operator+=(const Core::String&);
 			String& operator+=(const OS_CHAR*);
 			String& append(const void*, int size);
 			String& append(const OS_CHAR*);
@@ -1805,158 +1960,6 @@ namespace ObjectScript
 			String toString() const;
 		};
 
-		class StreamWriter
-		{
-		public:
-
-			OS * allocator;
-
-			StreamWriter(OS*);
-			virtual ~StreamWriter();
-
-			virtual int getPos() const = 0;
-
-			virtual void writeBytes(const void*, int len) = 0;
-			virtual void writeBytesAtPos(const void*, int len, int pos) = 0;
-
-			virtual void writeByte(int);
-			virtual void writeByteAtPos(int value, int pos);
-
-			virtual void writeUVariable(int);
-
-			virtual void writeU16(int);
-			virtual void writeU16AtPos(int value, int pos);
-
-			virtual void writeInt16(int);
-			virtual void writeInt16AtPos(int value, int pos);
-
-			virtual void writeInt32(int);
-			virtual void writeInt32AtPos(int value, int pos);
-
-			virtual void writeInt64(OS_INT64);
-			virtual void writeInt64AtPos(OS_INT64 value, int pos);
-
-			virtual void writeFloat(OS_FLOAT);
-			virtual void writeFloatAtPos(OS_FLOAT value, int pos);
-		};
-
-		class MemStreamWriter: public StreamWriter
-		{
-		public:
-
-			Vector<OS_BYTE> buffer;
-
-			MemStreamWriter(OS*);
-			~MemStreamWriter();
-
-			int getPos() const;
-
-			void writeBytes(const void*, int len);
-			void writeBytesAtPos(const void*, int len, int pos);
-
-			void writeByte(int);
-			void writeByteAtPos(int value, int pos);
-		};
-
-		class FileStreamWriter: public StreamWriter
-		{
-		public:
-
-			FILE * f;
-
-			FileStreamWriter(OS*, const char * filename);
-			FileStreamWriter(OS*, FILE * f);
-			~FileStreamWriter();
-
-			int getPos() const;
-
-			void writeBytes(const void*, int len);
-			void writeBytesAtPos(const void*, int len, int pos);
-		};
-
-		class StreamReader
-		{
-		public:
-
-			OS * allocator; // if NULL then buffer will not be freed
-
-			StreamReader(OS*);
-			virtual ~StreamReader();
-
-			virtual int getPos() const = 0;
-
-			virtual void skipBytes(int len) = 0;
-			virtual bool checkBytes(void*, int len) = 0;
-
-			virtual void * readBytes(void*, int len) = 0;
-			virtual void * readBytesAtPos(void*, int len, int pos) = 0;
-
-			virtual OS_BYTE readByte();
-			virtual OS_BYTE readByteAtPos(int pos);
-
-			virtual OS_BYTE readUVariable();
-
-			virtual OS_U16 readU16();
-			virtual OS_U16 readU16AtPos(int pos);
-
-			virtual OS_INT16 readInt16();
-			virtual OS_INT16 readInt16AtPos(int pos);
-
-			virtual OS_INT32 readInt32();
-			virtual OS_INT32 readInt32AtPos(int pos);
-
-			virtual OS_INT64 readInt64();
-			virtual OS_INT64 readInt64AtPos(int pos);
-
-			virtual OS_FLOAT readFloat();
-			virtual OS_FLOAT readFloatAtPos(int pos);
-		};
-
-		class MemStreamReader: public StreamReader
-		{
-		public:
-
-			OS_BYTE * buffer;
-			int size;
-			int pos;
-
-			// if allocator is NULL then buffer will not be freed
-			MemStreamReader(OS*, int buf_size);
-			MemStreamReader(OS*, OS_BYTE * buf, int buf_size);
-			~MemStreamReader();
-
-			int getPos() const;
-
-			void skipBytes(int len);
-			bool checkBytes(void*, int len);
-
-			void * readBytes(void*, int len);
-			void * readBytesAtPos(void*, int len, int pos);
-
-			OS_BYTE readByte();
-			OS_BYTE readByteAtPos(int pos);
-		};
-
-		class FileStreamReader: public StreamReader
-		{
-		public:
-
-			FILE * f;
-
-			FileStreamReader(OS*, const char * filename);
-			FileStreamReader(OS*, FILE * f);
-			~FileStreamReader();
-
-			int getPos() const;
-
-			void skipBytes(int len);
-			bool checkBytes(void*, int len);
-
-			void * readBytes(void*, int len);
-			void * readBytesAtPos(void*, int len, int pos);
-		};
-
-
 		static OS * create(MemoryManager * = NULL);
 
 		OS * retain();
@@ -1967,7 +1970,7 @@ namespace ObjectScript
 		int getCachedBytes();
 
 		void getGlobal(const OS_CHAR*);
-		// void getGlobal(const StringInternal&);
+		// void getGlobal(const String&);
 
 		void pushNull();
 		void pushNumber(OS_INT16);
@@ -1976,7 +1979,7 @@ namespace ObjectScript
 		void pushNumber(double);
 		void pushBool(bool);
 		void pushString(const OS_CHAR*);
-		void pushString(const Core::StringInternal&);
+		void pushString(const Core::String&);
 		void pushCFunction(OS_CFunction func, void * user_param);
 		void * pushUserData(int data_size, OS_UserDataDtor dtor = NULL);
 		void * pushUserPointer(void * data, OS_UserDataDtor dtor = NULL);
@@ -2012,12 +2015,12 @@ namespace ObjectScript
 		OS_FLOAT toNumber(int offs = -1);
 		String toString(int offs = -1);
 
-		bool compile(const Core::StringInternal&);
+		bool compile(const Core::String&);
 		bool compile();
 
 		int call(int params = 0);
 		int eval(OS_CHAR * str);
-		int eval(const Core::StringInternal& str);
+		int eval(const Core::String& str);
 	};
 
 } // namespace OS

@@ -1,3 +1,9 @@
+
+var a = 2;
+var b = 3;
+var c = a * b;
+
+/*
 var math = {
 	__get: function(name){
 		return function(){};
@@ -8,12 +14,9 @@ var math = {
 			return a + b;
 		};
 	},
-	/*
-	round2: function(a, b){
-		return a + b;
-	},
-	*/
+
 };
+	var b;
 		b = math.round2(a, b);
 		b = math.round(a, b);
 		b = math[round](a, b);
@@ -24,6 +27,7 @@ var math = {
 		b = math[round, c][a, b][c];
 		b = math[round, a, b][c];
 		b = math[round][a][b](a);
+*/
 /*
 var math = math;
 

@@ -18,13 +18,13 @@ static int __snprintf__(char * buf, size_t num, const char * format, ...)
 static bool isnan(float a)
 {
 	volatile float b = a;
-	return b != a;
+	return b != b;
 }
 
 static bool isnan(double a)
 {
 	volatile double b = a;
-	return b != a;
+	return b != b;
 }
 
 #define CURRENT_BYTE_ORDER       (*(OS_INT32*)"\x01\x02\x03\x04")
@@ -283,10 +283,6 @@ OS::EParseNumType OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_I
 						}
 						fval = fromLittleEndianByteOrder((OS_FLOAT)*(float*)&spec_val);
 						ival = 0;
-						/* if(parseEndSpaces)
-						{
-						parseSpaces(str);
-						} */
 						return PARSE_NUM_TYPE_FLOAT;
 					}            
 				}
@@ -339,10 +335,6 @@ OS::EParseNumType OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_I
 			}
 			fval = sign > 0 ? float_val : -float_val;
 			ival = 0;
-			/* if(parseEndSpaces)
-			{
-			parseSpaces(str);
-			} */
 			return PARSE_NUM_TYPE_FLOAT;
 		}
 		else if(saveSrc == str)
@@ -355,11 +347,6 @@ OS::EParseNumType OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_I
 	// int_val *= sign;
 	fval = 0;
 	ival = sign > 0 ? int_val : -int_val;
-	// OS_ASSERT((int)val == int_val);
-	/* if(parseEndSpaces)
-	{
-	parseSpaces(str);
-	} */
 	return PARSE_NUM_TYPE_INT;
 }
 
@@ -676,23 +663,6 @@ void OS::Core::StringData::release()
 	}
 }
 
-/*
-OS::Core::StringData * OS::Core::StringData::retainSafely()
-{
-	if(this){
-		retain();
-	}
-	return this;
-}
-
-void OS::Core::StringData::releaseSafely()
-{
-	if(this){
-		release();
-	}
-}
-*/
-
 int OS::Core::StringData::cmp(const StringData * b) const
 {
 	return Utils::cmp(toMemory(), data_size, b->toMemory(), b->data_size);
@@ -720,19 +690,19 @@ OS_FLOAT OS::Core::StringData::toFloat() const
 
 // =====================================================================
 
-OS::Core::StringInternal::StringInternal(OS * allocator)
+OS::Core::String::String(OS * allocator)
 {
 	// allocator->retain();
 	str = allocator->core->empty_string_data->retain()->toChar();
 }
 
-OS::Core::StringInternal::StringInternal(OS * allocator, const OS_CHAR * s)
+OS::Core::String::String(OS * allocator, const OS_CHAR * s)
 {
 	// allocator->retain();
 	str = StringData::alloc(allocator, s, OS_STRLEN(s))->toChar();
 }
 
-OS::Core::StringInternal::StringInternal(OS * allocator, OS_CHAR c, int count)
+OS::Core::String::String(OS * allocator, OS_CHAR c, int count)
 {
 	StringData * data = StringData::alloc(allocator, sizeof(c)*count, NULL, 0);
 	str = data->toChar();
@@ -745,40 +715,40 @@ OS::Core::StringInternal::StringInternal(OS * allocator, OS_CHAR c, int count)
 	}
 }
 
-OS::Core::StringInternal::StringInternal(OS * allocator, const void * buf, int size)
+OS::Core::String::String(OS * allocator, const void * buf, int size)
 {
 	// allocator->retain();
 	str = StringData::alloc(allocator, buf, size)->toChar();
 }
 
-OS::Core::StringInternal::StringInternal(OS * allocator, const void * buf1, int len1, const void * buf2, int len2)
+OS::Core::String::String(OS * allocator, const void * buf1, int len1, const void * buf2, int len2)
 {
 	// allocator->retain();
 	int size = len1 + len2;
 	str = StringData::alloc(allocator, size, buf1, len1, buf2, len2)->toChar();
 }
 
-OS::Core::StringInternal::StringInternal(OS * allocator, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3)
+OS::Core::String::String(OS * allocator, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3)
 {
 	// allocator->retain();
 	int size = len1 + len2 + len3;
 	str = StringData::alloc(allocator, size, buf1, len1, buf2, len2, buf3, len3)->toChar();
 }
 
-OS::Core::StringInternal::StringInternal(const StringInternal& b)
+OS::Core::String::String(const String& b)
 {
 	StringData * data = b.toData();
 	// data->allocator->retain();
 	str = data->retain()->toChar();
 }
 
-OS::Core::StringInternal::StringInternal(StringData * b)
+OS::Core::String::String(StringData * b)
 {
 	// b->allocator->retain();
 	str = b->retain()->toChar();
 }
 
-OS::Core::StringInternal::StringInternal(OS * allocator, OS_INT value)
+OS::Core::String::String(OS * allocator, OS_INT value)
 {
 	// allocator->retain();
 	OS_CHAR buf[64];
@@ -786,7 +756,7 @@ OS::Core::StringInternal::StringInternal(OS * allocator, OS_INT value)
 	str = StringData::alloc(allocator, buf, OS_STRLEN(buf))->toChar();
 }
 
-OS::Core::StringInternal::StringInternal(OS * allocator, OS_FLOAT value, int precision)
+OS::Core::String::String(OS * allocator, OS_FLOAT value, int precision)
 {
 	// allocator->retain();
 	OS_CHAR buf[128];
@@ -794,7 +764,7 @@ OS::Core::StringInternal::StringInternal(OS * allocator, OS_FLOAT value, int pre
 	str = StringData::alloc(allocator, buf, OS_STRLEN(buf))->toChar();
 }
 
-OS::Core::StringInternal::~StringInternal()
+OS::Core::String::~String()
 {
 	if(str){ // str is cleared by String due to OS release properly
 		StringData * data = toData();
@@ -818,33 +788,33 @@ struct OS_VaListDtor
 	}
 };
 
-OS::Core::StringInternal OS::Core::StringInternal::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, ...)
+OS::Core::String OS::Core::String::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
-	return StringInternal(allocator).setFormat(temp_buf_size, fmt, va);
+	return String(allocator).setFormat(temp_buf_size, fmt, va);
 }
 
-OS::Core::StringInternal OS::Core::StringInternal::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, va_list va)
+OS::Core::String OS::Core::String::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, va_list va)
 {
-	return StringInternal(allocator).setFormat(temp_buf_size, fmt, va);
+	return String(allocator).setFormat(temp_buf_size, fmt, va);
 }
 
-OS::Core::StringInternal OS::Core::StringInternal::format(OS * allocator, const OS_CHAR * fmt, ...)
+OS::Core::String OS::Core::String::format(OS * allocator, const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
-	return StringInternal(allocator).setFormat(fmt, va);
+	return String(allocator).setFormat(fmt, va);
 }
 
-OS::Core::StringInternal OS::Core::StringInternal::format(OS * allocator, const OS_CHAR * fmt, va_list va)
+OS::Core::String OS::Core::String::format(OS * allocator, const OS_CHAR * fmt, va_list va)
 {
-	return StringInternal(allocator).setFormat(fmt, va);
+	return String(allocator).setFormat(fmt, va);
 }
 
-OS::Core::StringInternal& OS::Core::StringInternal::setFormat(int temp_buf_size, const OS_CHAR * fmt, ...)
+OS::Core::String& OS::Core::String::setFormat(int temp_buf_size, const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
@@ -852,14 +822,14 @@ OS::Core::StringInternal& OS::Core::StringInternal::setFormat(int temp_buf_size,
 	return setFormat(temp_buf_size, fmt, va);
 }
 
-OS::Core::StringInternal& OS::Core::StringInternal::setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list va)
+OS::Core::String& OS::Core::String::setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list va)
 {
-	StringInternal buf(getAllocator(), OS_CHAR(0), temp_buf_size);
+	String buf(getAllocator(), OS_CHAR(0), temp_buf_size);
 	OS_VSNPRINTF((OS_CHAR*)buf.toChar(), sizeof(OS_CHAR)*temp_buf_size, fmt, va);
 	return *this = buf.toChar();
 }
 
-OS::Core::StringInternal& OS::Core::StringInternal::setFormat(const OS_CHAR * fmt, ...)
+OS::Core::String& OS::Core::String::setFormat(const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
@@ -867,19 +837,19 @@ OS::Core::StringInternal& OS::Core::StringInternal::setFormat(const OS_CHAR * fm
 	return setFormat(OS_DEF_FMT_BUF_SIZE, fmt, va);
 }
 
-OS::Core::StringInternal& OS::Core::StringInternal::setFormat(const OS_CHAR * fmt, va_list va)
+OS::Core::String& OS::Core::String::setFormat(const OS_CHAR * fmt, va_list va)
 {
 	return setFormat(OS_DEF_FMT_BUF_SIZE, fmt, va);
 }
 
-void OS::Core::StringInternal::clear()
+void OS::Core::String::clear()
 {
 	StringData * data = toData();
 	str = data->allocator->core->empty_string_data->retain()->toChar();
 	data->release();
 }
 
-OS::Core::StringInternal OS::Core::StringInternal::trim(bool left_trim, bool right_trim) const
+OS::Core::String OS::Core::String::trim(bool left_trim, bool right_trim) const
 {
 	const OS_CHAR * start = toChar();
 	const OS_CHAR * end = start + getDataSize();
@@ -898,11 +868,11 @@ OS::Core::StringInternal OS::Core::StringInternal::trim(bool left_trim, bool rig
 		}
 	}
 
-	return real_sub ? StringInternal(getAllocator(), (void*)start, (int)end - (int)start) : *this;
+	return real_sub ? String(getAllocator(), (void*)start, (int)end - (int)start) : *this;
 }
 
 
-OS::Core::StringInternal& OS::Core::StringInternal::operator=(const StringInternal& b)
+OS::Core::String& OS::Core::String::operator=(const String& b)
 {
 	StringData * old_data = toData();
 	str = b.toData()->retain()->toChar();
@@ -910,7 +880,7 @@ OS::Core::StringInternal& OS::Core::StringInternal::operator=(const StringIntern
 	return *this;
 }
 
-OS::Core::StringInternal& OS::Core::StringInternal::operator=(const OS_CHAR * b)
+OS::Core::String& OS::Core::String::operator=(const OS_CHAR * b)
 {
 	StringData * data = toData();
 	OS * allocator = data->allocator;
@@ -919,35 +889,35 @@ OS::Core::StringInternal& OS::Core::StringInternal::operator=(const OS_CHAR * b)
 	return *this;
 }
 
-OS::Core::StringInternal& OS::Core::StringInternal::operator+=(const StringInternal& b)
+OS::Core::String& OS::Core::String::operator+=(const String& b)
 {
 	str = StringData::append(toData(), b.toData())->toChar();
 	return *this;
 }
 
-OS::Core::StringInternal& OS::Core::StringInternal::operator+=(const OS_CHAR * b)
+OS::Core::String& OS::Core::String::operator+=(const OS_CHAR * b)
 {
 	int len = OS_STRLEN(b);
 	str = StringData::append(toData(), b, len)->toChar();
 	return *this;
 }
 
-OS::Core::StringInternal& OS::Core::StringInternal::append(const void * buf, int size)
+OS::Core::String& OS::Core::String::append(const void * buf, int size)
 {
 	str = StringData::append(toData(), buf, size)->toChar();
 	return *this;
 }
 
-OS::Core::StringInternal& OS::Core::StringInternal::append(const OS_CHAR * b)
+OS::Core::String& OS::Core::String::append(const OS_CHAR * b)
 {
 	return append(b, OS_STRLEN(b));
 }
 
-OS::Core::StringInternal OS::Core::StringInternal::operator+(const StringInternal& b) const
+OS::Core::String OS::Core::String::operator+(const String& b) const
 {
 	StringData * data = toData(), * b_data = b.toData();
 	if(data->data_size && b_data->data_size){
-		return StringInternal(data->allocator, data->toMemory(), data->data_size, b_data->toMemory(), b_data->data_size);
+		return String(data->allocator, data->toMemory(), data->data_size, b_data->toMemory(), b_data->data_size);
 	}
 	if(data->data_size){
 		return *this;
@@ -955,102 +925,102 @@ OS::Core::StringInternal OS::Core::StringInternal::operator+(const StringInterna
 	return b;
 }
 
-OS::Core::StringInternal OS::Core::StringInternal::operator+(const OS_CHAR * b) const
+OS::Core::String OS::Core::String::operator+(const OS_CHAR * b) const
 {
 	StringData * data = toData();
 	int len = OS_STRLEN(b);
 	if(data->data_size && len > 0){
-		return StringInternal(data->allocator, data->toMemory(), data->data_size, b, len);
+		return String(data->allocator, data->toMemory(), data->data_size, b, len);
 	}
 	if(data->data_size){
 		return *this;
 	}
-	return StringInternal(data->allocator, b, len);
+	return String(data->allocator, b, len);
 }
 
-bool OS::Core::StringInternal::operator==(const StringInternal& b) const
+bool OS::Core::String::operator==(const String& b) const
 {
 	return cmp(b) == 0;
 }
 
-bool OS::Core::StringInternal::operator==(const OS_CHAR * b) const
+bool OS::Core::String::operator==(const OS_CHAR * b) const
 {
 	return cmp(b) == 0;
 }
 
-bool OS::Core::StringInternal::operator!=(const StringInternal& b) const
+bool OS::Core::String::operator!=(const String& b) const
 {
 	return cmp(b) != 0;
 }
 
-bool OS::Core::StringInternal::operator!=(const OS_CHAR * b) const
+bool OS::Core::String::operator!=(const OS_CHAR * b) const
 {
 	return cmp(b) != 0;
 }
 
-bool OS::Core::StringInternal::operator<=(const StringInternal& b) const
+bool OS::Core::String::operator<=(const String& b) const
 {
 	return cmp(b) <= 0;
 }
 
-bool OS::Core::StringInternal::operator<=(const OS_CHAR * b) const
+bool OS::Core::String::operator<=(const OS_CHAR * b) const
 {
 	return cmp(b) <= 0;
 }
 
-bool OS::Core::StringInternal::operator<(const StringInternal& b) const
+bool OS::Core::String::operator<(const String& b) const
 {
 	return cmp(b) < 0;
 }
 
-bool OS::Core::StringInternal::operator<(const OS_CHAR * b) const
+bool OS::Core::String::operator<(const OS_CHAR * b) const
 {
 	return cmp(b) < 0;
 }
 
-bool OS::Core::StringInternal::operator>=(const StringInternal& b) const
+bool OS::Core::String::operator>=(const String& b) const
 {
 	return cmp(b) >= 0;
 }
 
-bool OS::Core::StringInternal::operator>=(const OS_CHAR * b) const
+bool OS::Core::String::operator>=(const OS_CHAR * b) const
 {
 	return cmp(b) >= 0;
 }
 
-bool OS::Core::StringInternal::operator>(const StringInternal& b) const
+bool OS::Core::String::operator>(const String& b) const
 {
 	return cmp(b) > 0;
 }
 
-bool OS::Core::StringInternal::operator>(const OS_CHAR * b) const
+bool OS::Core::String::operator>(const OS_CHAR * b) const
 {
 	return cmp(b) > 0;
 }
 
-int OS::Core::StringInternal::cmp(const StringInternal& b) const
+int OS::Core::String::cmp(const String& b) const
 {
 	// StringData * data = toData(), * b_data = b.toData();
 	// return Utils::cmp(data->toChar(), data->data_size, b_data->toChar(), b_data->data_size);
 	return toData()->cmp(b.toData());
 }
 
-int OS::Core::StringInternal::cmp(const OS_CHAR * b) const
+int OS::Core::String::cmp(const OS_CHAR * b) const
 {
 	return toData()->cmp(b, OS_STRLEN(b));
 }
 
-int OS::Core::StringInternal::hash() const
+int OS::Core::String::hash() const
 {
 	return toData()->hash();
 }
 
-OS_INT OS::Core::StringInternal::toInt() const
+OS_INT OS::Core::String::toInt() const
 {
 	return toData()->toInt();
 }
 
-OS_FLOAT OS::Core::StringInternal::toFloat() const
+OS_FLOAT OS::Core::String::toFloat() const
 {
 	return toData()->toFloat();
 }
@@ -1084,7 +1054,7 @@ OS::String::String(OS * os, const void * buf1, int len1, const void * buf2, int 
 	os->retain();
 }
 
-OS::String::String(const StringInternal& str): super(str)
+OS::String::String(const Core::String& str): super(str)
 {
 	str.getAllocator()->retain();
 }
@@ -1119,9 +1089,9 @@ OS::String::~String()
 }
 
 
-// operator const StringInternal&() const { return *this; }
+// operator const String&() const { return *this; }
 
-OS::String& OS::String::operator=(const StringInternal& str)
+OS::String& OS::String::operator=(const Core::String& str)
 {
 	super::operator=(str);
 	return *this;
@@ -1134,7 +1104,7 @@ OS::String& OS::String::operator=(const OS_CHAR * str)
 }
 
 
-OS::String& OS::String::operator+=(const StringInternal& str)
+OS::String& OS::String::operator+=(const Core::String& str)
 {
 	super::operator+=(str);
 	return *this;
@@ -1176,15 +1146,6 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 
 	case BEGIN_ARRAY_BLOCK:   return OS_TEXT("BEGIN_ARRAY_BLOCK");
 	case END_ARRAY_BLOCK:     return OS_TEXT("END_ARRAY_BLOCK");
-
-		/*
-		case BEGIN_PREPROCESSOR_IF_BLOCK:     return OS_TEXT("BEGIN_PREPROCESSOR_IF_BLOCK");
-		case BEGIN_PREPROCESSOR_IFDEF_BLOCK:  return OS_TEXT("BEGIN_PREPROCESSOR_IFDEF_BLOCK");
-		case BEGIN_PREPROCESSOR_IFNDEF_BLOCK: return OS_TEXT("BEGIN_PREPROCESSOR_IFNDEF_BLOCK");
-		case PREPROCESSOR_ELSE_BLOCK:         return OS_TEXT("PREPROCESSOR_ELSE_BLOCK");
-		case PREPROCESSOR_ELSE_IF_BLOCK:      return OS_TEXT("PREPROCESSOR_ELSE_IF_BLOCK");
-		case END_PREPROCESSOR_IF_BLOCK:       return OS_TEXT("END_PREPROCESSOR_IF_BLOCK");
-		*/
 
 	case CODE_SEPARATOR:      return OS_TEXT("CODE_SEPARATOR");
 	case PARAM_SEPARATOR:     return OS_TEXT("PARAM_SEPARATOR");
@@ -1236,15 +1197,9 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 	case OPERATOR_MUL:      return OS_TEXT("OPERATOR_MUL");
 	case OPERATOR_DIV:      return OS_TEXT("OPERATOR_DIV");
 	case OPERATOR_MOD:      return OS_TEXT("OPERATOR_MOD");
-	case OPERATOR_MUL_SHIFT:  return OS_TEXT("OPERATOR_MUL_SHIFT");
-	case OPERATOR_DIV_SHIFT:  return OS_TEXT("OPERATOR_DIV_SHIFT");
+	case OPERATOR_LSHIFT:  return OS_TEXT("OPERATOR_LSHIFT");
+	case OPERATOR_RSHIFT:  return OS_TEXT("OPERATOR_RSHIFT");
 	case OPERATOR_POW:      return OS_TEXT("OPERATOR_POW");
-
-	case OPERATOR_DOT:    return OS_TEXT("OPERATOR_DOT");
-	case OPERATOR_CROSS:  return OS_TEXT("OPERATOR_CROSS");
-	case OPERATOR_SWAP:  return OS_TEXT("OPERATOR_SWAP");
-	case OPERATOR_IS:     return OS_TEXT("OPERATOR_IS");
-	case OPERATOR_AS:     return OS_TEXT("OPERATOR_AS");
 
 	case OPERATOR_BIT_AND_ASSIGN: return OS_TEXT("OPERATOR_BIT_AND_ASSIGN");
 	case OPERATOR_BIT_OR_ASSIGN:  return OS_TEXT("OPERATOR_BIT_OR_ASSIGN");
@@ -1255,8 +1210,8 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 	case OPERATOR_MUL_ASSIGN:     return OS_TEXT("OPERATOR_MUL_ASSIGN");
 	case OPERATOR_DIV_ASSIGN:     return OS_TEXT("OPERATOR_DIV_ASSIGN");
 	case OPERATOR_MOD_ASSIGN:     return OS_TEXT("OPERATOR_MOD_ASSIGN");
-	case OPERATOR_MUL_SHIFT_ASSIGN: return OS_TEXT("OPERATOR_MUL_SHIFT_ASSIGN");
-	case OPERATOR_DIV_SHIFT_ASSIGN: return OS_TEXT("OPERATOR_DIV_SHIFT_ASSIGN");
+	case OPERATOR_LSHIFT_ASSIGN: return OS_TEXT("OPERATOR_LSHIFT_ASSIGN");
+	case OPERATOR_RSHIFT_ASSIGN: return OS_TEXT("OPERATOR_RSHIFT_ASSIGN");
 	case OPERATOR_POW_ASSIGN:     return OS_TEXT("OPERATOR_POW_ASSIGN");
 
 	case OPERATOR_ASSIGN: return OS_TEXT("OPERATOR_ASSIGN");
@@ -1272,7 +1227,7 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 	return OS_TEXT("TOKENTYPE !!!");
 }
 
-OS::Core::Tokenizer::TokenData::TokenData(TextData * p_text_data, const StringInternal& p_str, TokenType p_type, int p_line, int p_pos): str(p_str)
+OS::Core::Tokenizer::TokenData::TokenData(TextData * p_text_data, const String& p_str, TokenType p_type, int p_line, int p_pos): str(p_str)
 {
 	text_data = p_text_data->retain();
 	ref_count = 1;
@@ -1290,21 +1245,6 @@ OS * OS::Core::Tokenizer::TokenData::getAllocator() const
 OS::Core::Tokenizer::TokenData::~TokenData()
 {
 	OS_ASSERT(ref_count == 0);
-	switch(type){
-	case NUM_FLOAT:
-		// getAllocator()->free(float_value);
-		break;
-
-	/*
-	case NUM_VECTOR_3:
-		getAllocator()->free(vec3);
-		break;
-
-	case NUM_VECTOR_4:
-		getAllocator()->free(vec4);
-		break;
-	*/
-	}
 	text_data->release();
 }
 
@@ -1331,11 +1271,6 @@ OS_INT OS::Core::Tokenizer::TokenData::getInt() const
 		return int_value;
 	case NUM_FLOAT: 
 		return (OS_INT)float_value;
-	/*
-	case NUM_VECTOR_3:
-	case NUM_VECTOR_4:
-		return (OS_INT)vec3[0];
-	*/
 	}
 	return 0;
 }
@@ -1348,39 +1283,9 @@ OS_FLOAT OS::Core::Tokenizer::TokenData::getFloat() const
 	case NUM_FLOAT:
 		// OS_ASSERT(float_value);
 		return float_value;
-	/*
-	case NUM_VECTOR_3:
-	case NUM_VECTOR_4:
-		OS_ASSERT(vec3);
-		return vec3[0];
-	*/
 	}
 	return 0;
 }
-
-/*
-static const OS_FLOAT zeroVec4[] = { 0, 0, 0, 0 };
-
-const OS_FLOAT * OS::Core::Tokenizer::TokenData::getVec3() const
-{
-	switch(type){
-	case NUM_VECTOR_3:
-		OS_ASSERT(vec3);
-		return vec3;
-	}
-	return zeroVec4;
-}
-
-const OS_FLOAT * OS::Core::Tokenizer::TokenData::getVec4() const
-{
-	switch(type){
-	case NUM_VECTOR_4:
-		OS_ASSERT(vec4);
-		return vec4;
-	}
-	return zeroVec4;
-}
-*/
 
 bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 {
@@ -1431,15 +1336,9 @@ bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 		case OS::Core::Tokenizer::OPERATOR_MUL: // *
 		case OS::Core::Tokenizer::OPERATOR_DIV: // /
 		case OS::Core::Tokenizer::OPERATOR_MOD: // %
-		case OS::Core::Tokenizer::OPERATOR_MUL_SHIFT: // <<
-		case OS::Core::Tokenizer::OPERATOR_DIV_SHIFT: // >>
+		case OS::Core::Tokenizer::OPERATOR_LSHIFT: // <<
+		case OS::Core::Tokenizer::OPERATOR_RSHIFT: // >>
 		case OS::Core::Tokenizer::OPERATOR_POW: // **
-
-		case OS::Core::Tokenizer::OPERATOR_DOT:
-		case OS::Core::Tokenizer::OPERATOR_CROSS:
-		case OS::Core::Tokenizer::OPERATOR_SWAP:
-		case OS::Core::Tokenizer::OPERATOR_IS:
-		case OS::Core::Tokenizer::OPERATOR_AS:
 
 		case OS::Core::Tokenizer::OPERATOR_BIT_AND_ASSIGN: // &=
 		case OS::Core::Tokenizer::OPERATOR_BIT_OR_ASSIGN:  // |=
@@ -1450,8 +1349,8 @@ bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 		case OS::Core::Tokenizer::OPERATOR_MUL_ASSIGN: // *=
 		case OS::Core::Tokenizer::OPERATOR_DIV_ASSIGN: // /=
 		case OS::Core::Tokenizer::OPERATOR_MOD_ASSIGN: // %=
-		case OS::Core::Tokenizer::OPERATOR_MUL_SHIFT_ASSIGN: // <<=
-		case OS::Core::Tokenizer::OPERATOR_DIV_SHIFT_ASSIGN: // >>=
+		case OS::Core::Tokenizer::OPERATOR_LSHIFT_ASSIGN: // <<=
+		case OS::Core::Tokenizer::OPERATOR_RSHIFT_ASSIGN: // >>=
 		case OS::Core::Tokenizer::OPERATOR_POW_ASSIGN: // **=
 
 		case OS::Core::Tokenizer::OPERATOR_ASSIGN: // =
@@ -1503,8 +1402,8 @@ OS::Core::Tokenizer::OperatorDesc OS::Core::Tokenizer::operator_desc[] =
 	{ OPERATOR_MUL, OS_TEXT("*") }, // , OP_LEVEL_7},
 	{ OPERATOR_DIV, OS_TEXT("/") }, // , OP_LEVEL_7},
 	{ OPERATOR_MOD, OS_TEXT("%") }, // , OP_LEVEL_7},
-	{ OPERATOR_MUL_SHIFT, OS_TEXT("<<") }, // , OP_LEVEL_7},
-	{ OPERATOR_DIV_SHIFT, OS_TEXT(">>") }, // , OP_LEVEL_7},
+	{ OPERATOR_LSHIFT, OS_TEXT("<<") }, // , OP_LEVEL_7},
+	{ OPERATOR_RSHIFT, OS_TEXT(">>") }, // , OP_LEVEL_7},
 	{ OPERATOR_POW, OS_TEXT("**") }, // , OP_LEVEL_8},
 
 	{ OPERATOR_BIT_AND_ASSIGN, OS_TEXT("&=") }, // , OP_LEVEL_3},
@@ -1516,8 +1415,8 @@ OS::Core::Tokenizer::OperatorDesc OS::Core::Tokenizer::operator_desc[] =
 	{ OPERATOR_MUL_ASSIGN, OS_TEXT("*=") }, // , OP_LEVEL_3},
 	{ OPERATOR_DIV_ASSIGN, OS_TEXT("/=") }, // , OP_LEVEL_3},
 	{ OPERATOR_MOD_ASSIGN, OS_TEXT("%=") }, // , OP_LEVEL_3},
-	{ OPERATOR_MUL_SHIFT_ASSIGN, OS_TEXT("<<=") }, // , OP_LEVEL_3},
-	{ OPERATOR_DIV_SHIFT_ASSIGN, OS_TEXT(">>=") }, // , OP_LEVEL_3},
+	{ OPERATOR_LSHIFT_ASSIGN, OS_TEXT("<<=") }, // , OP_LEVEL_3},
+	{ OPERATOR_RSHIFT_ASSIGN, OS_TEXT(">>=") }, // , OP_LEVEL_3},
 	{ OPERATOR_POW_ASSIGN, OS_TEXT("**=") }, // , OP_LEVEL_3},
 
 	{ OPERATOR_ASSIGN, OS_TEXT("=") }, // , OP_LEVEL_3},
@@ -1587,9 +1486,6 @@ void OS::Core::Tokenizer::TextData::release()
 OS::Core::Tokenizer::Tokenizer(OS * allocator)
 {
 	initOperatorTable();
-	// settings.parseVector = false;
-	settings.parseStringOperator = false;
-	// settings.parsePreprocessor = true;
 	settings.saveComment = false;
 	error = ERROR_NOTHING;
 	cur_line = 0;
@@ -1635,28 +1531,7 @@ void OS::Core::Tokenizer::insertToken(int i, TokenData * token)
 	getAllocator()->vectorInsertAtIndex(tokens, i, token);
 }
 
-/*
-void OS::Core::Tokenizer::PrintLines()
-{
-	_tprintf(OS_TEXT("[OS::Core::Tokenizer::PrintLines] lines: %d\n\n"), lines.Count());
-	for(int i = 0; i < lines.Count(); i++)
-	{
-		_tprintf(OS_TEXT("%s\n"), lines[i]);
-	}
-}
-
-void OS::Core::Tokenizer::PrintTokens()
-{
-	_tprintf(OS_TEXT("[OS::Core::Tokenizer::PrintTokens] tokens: %d\n\n"), tokens.Count());
-	for(int i = 0; i < tokens.Count(); i++)
-	{
-		TokenData * token = tokens[i];
-		_tprintf(OS_TEXT("token: %s, type: %d, line: %d, %d\n"), token->str, token_type, token->line, token->pos); //, lines[token.line].SubString(token.pos, 20));
-	}
-}
-*/
-
-bool OS::Core::Tokenizer::parseText(const StringInternal& text)
+bool OS::Core::Tokenizer::parseText(const String& text)
 {
 	OS * allocator = getAllocator();
 
@@ -1670,10 +1545,10 @@ bool OS::Core::Tokenizer::parseText(const StringInternal& text)
 	{
 		const OS_CHAR * line_end = OS_STRCHR(str, OS_TEXT('\n'));
 		if(line_end){
-			allocator->vectorAddItem(text_data->lines, StringInternal(allocator, str, line_end - str).trim(false, true));
+			allocator->vectorAddItem(text_data->lines, String(allocator, str, line_end - str).trim(false, true));
 			str = line_end+1;
 		}else{
-			allocator->vectorAddItem(text_data->lines, StringInternal(allocator, str).trim(false, true));
+			allocator->vectorAddItem(text_data->lines, String(allocator, str).trim(false, true));
 			break;
 		}
 	}
@@ -1685,40 +1560,17 @@ bool OS::Core::Tokenizer::parseText(const StringInternal& text)
 	return parseLines();
 }
 
-/*
-void OS::Core::Tokenizer::TokenData::setVec4(OS_FLOAT values[4])
-{
-	OS_ASSERT(type == NUM_VECTOR_4 && !vec4);
-	vec4 = (OS_FLOAT*)getAllocator()->malloc(sizeof(OS_FLOAT)*4);
-	vec4[0] = values[0];
-	vec4[1] = values[1];
-	vec4[2] = values[2];
-	vec4[3] = values[3];
-}
-
-void OS::Core::Tokenizer::TokenData::setVec3(OS_FLOAT values[3])
-{
-	OS_ASSERT(type == NUM_VECTOR_3 && !vec3);
-	vec3 = (OS_FLOAT*)getAllocator()->malloc(sizeof(OS_FLOAT)*3);
-	vec3[0] = values[0];
-	vec3[1] = values[1];
-	vec3[2] = values[2];
-}
-*/
-
 void OS::Core::Tokenizer::TokenData::setFloat(OS_FLOAT value)
 {
-	// OS_ASSERT(type == NUM_FLOAT); // && !float_value);
 	float_value = value;
 }
 
 void OS::Core::Tokenizer::TokenData::setInt(OS_INT value)
 {
-	// OS_ASSERT(type == NUM_INT); // && !vec3);
 	int_value = value;
 }
 
-OS::Core::Tokenizer::TokenData * OS::Core::Tokenizer::addToken(const StringInternal& str, TokenType type, int line, int pos)
+OS::Core::Tokenizer::TokenData * OS::Core::Tokenizer::addToken(const String& str, TokenType type, int line, int pos)
 {
 	OS * allocator = getAllocator();
 	TokenData * token = new (allocator->malloc(sizeof(TokenData))) TokenData(text_data, str, type, line, pos);
@@ -1765,8 +1617,8 @@ bool OS::Core::Tokenizer::parseLines()
 				break;
 			}
 
-			if(*str == OS_TEXT('"') || (/*!settings.parseVector &&*/ *str == OS_TEXT('\''))){ // begin string
-				StringInternal s(allocator);
+			if(*str == OS_TEXT('"') || *str == OS_TEXT('\'')){ // begin string
+				String s(allocator);
 				OS_CHAR closeChar = *str;
 				const OS_CHAR * tokenStart = str;
 				for(str++; *str && *str != closeChar;){
@@ -1823,50 +1675,16 @@ bool OS::Core::Tokenizer::parseLines()
 				addToken(s, STRING, cur_line, tokenStart - line_start);
 				continue;
 			}
-			/* if(*str == OS_TEXT('\'') && settings.parseVector){ // begin const vec3
-				const OS_CHAR * tokenStart = str++;
-				parseSpaces(str);
-				OS_FLOAT values[4];
-				int i;
-				for(i = 0; i < 4; i++){
-					if(i == 3 && *str == OS_TEXT('\'')){
-						break;
-					}
-					OS_INT ival;
-					switch(parseNum(str, values[i], ival, true)){
-					case ERROR_TOKEN:
-						cur_pos = str - line_start;
-						error = i < 3 ? ERROR_CONST_VECTOR_3 : ERROR_CONST_VECTOR_4;
-						return false;
-
-					case NUM_INT:
-						values[i] = (OS_FLOAT)ival;
-					}
-				}
-				if(*str != OS_TEXT('\'')){
-					cur_pos = str - line_start;
-					error = i < 4 ? ERROR_CONST_VECTOR_3 : ERROR_CONST_VECTOR_4;
-					return false;
-				}
-				str++;
-				TokenData * vecToken = addToken(StringInternal(allocator, tokenStart, str - tokenStart), i < 4 ? NUM_VECTOR_3 : NUM_VECTOR_4, cur_line, tokenStart - line_start);
-				if(i < 4){
-					vecToken->setVec3(values);
-				}else{
-					vecToken->setVec4(values);
-				}
-				continue;
-			} */
 
 			if(*str == OS_TEXT('/')){
 				if(str[1] == OS_TEXT('/')){ // begin line comment
 					if(settings.saveComment){
-						addToken(StringInternal(allocator, str), COMMENT_LINE, cur_line, str - line_start);
+						addToken(String(allocator, str), COMMENT_LINE, cur_line, str - line_start);
 					}
 					break;
 				}
 				if(str[1] == OS_TEXT('*')){ // begin multi line comment
-					StringInternal comment(allocator, str, sizeof(OS_CHAR)*2);
+					String comment(allocator, str, sizeof(OS_CHAR)*2);
 					int startLine = cur_line;
 					int startPos = str - line_start;
 					for(str += 2;;){
@@ -1907,27 +1725,8 @@ bool OS::Core::Tokenizer::parseLines()
 					}
 					break;
 				}
-				StringInternal name = StringInternal(allocator, nameStart, str - nameStart);
+				String name = String(allocator, nameStart, str - nameStart);
 				TokenType type = NAME;
-				if(settings.parseStringOperator){
-					if(name == OS_TEXT("dot")){
-						type = OPERATOR_DOT;
-					}else if(name == OS_TEXT("cross")){
-						type = OPERATOR_CROSS;
-					}else if(name == OS_TEXT("swap")){
-						type = OPERATOR_SWAP;
-					}else if(name == OS_TEXT("as")){
-						type = OPERATOR_AS;
-					}else if(name == OS_TEXT("is")){
-						type = OPERATOR_IS;
-					}else if(name == OS_TEXT("in")){
-						type = OPERATOR_IN;
-					}else if(name == OS_TEXT("eq")){
-						type = OPERATOR_LOGIC_PTR_EQ;
-					}else if(name == OS_TEXT("ne")){
-						type = OPERATOR_LOGIC_PTR_NE;
-					}
-				}
 				addToken(name, type, cur_line, nameStart - line_start);
 				continue;
 			}
@@ -1937,7 +1736,7 @@ bool OS::Core::Tokenizer::parseLines()
 				size_t len = OS_STRLEN(operator_desc[i].name);
 				if(OS_STRNCMP(str, operator_desc[i].name, len) == 0)
 				{
-					addToken(StringInternal(allocator, str, (int)len), operator_desc[i].type, cur_line, str - line_start);
+					addToken(String(allocator, str, (int)len), operator_desc[i].type, cur_line, str - line_start);
 					str += len;
 					break;
 				}
@@ -1952,7 +1751,7 @@ bool OS::Core::Tokenizer::parseLines()
 				const OS_CHAR * tokenStart = str;
 				TokenType type = parseNum(str, val, ival, true);
 				if(type != ERROR_TOKEN){
-					TokenData * token = addToken(StringInternal(allocator, tokenStart, str - tokenStart).trim(false, true), type, cur_line, tokenStart - line_start);
+					TokenData * token = addToken(String(allocator, tokenStart, str - tokenStart).trim(false, true), type, cur_line, tokenStart - line_start);
 					if(type == NUM_INT){
 						token->setInt(ival);
 					}else{
@@ -2221,26 +2020,17 @@ bool OS::Core::Compiler::Expression::isBinaryOperator() const
 	case EXP_TYPE_MUL: // *
 	case EXP_TYPE_DIV: // /
 	case EXP_TYPE_MOD: // %
-	case EXP_TYPE_MUL_SHIFT: // <<
-	case EXP_TYPE_DIV_SHIFT: // >>
+	case EXP_TYPE_LSHIFT: // <<
+	case EXP_TYPE_RSHIFT: // >>
 	case EXP_TYPE_POW: // **
-
-	case EXP_TYPE_DOT: // dot
-	case EXP_TYPE_CROSS: // cross
-
-	case EXP_TYPE_SWAP: // swap
-
-	case EXP_TYPE_AS:
-	case EXP_TYPE_IS:
-	case EXP_TYPE_IN:
 
 	case EXP_TYPE_ADD_ASSIGN: // +=
 	case EXP_TYPE_SUB_ASSIGN: // -=
 	case EXP_TYPE_MUL_ASSIGN: // *=
 	case EXP_TYPE_DIV_ASSIGN: // /=
 	case EXP_TYPE_MOD_ASSIGN: // %=
-	case EXP_TYPE_MUL_SHIFT_ASSIGN: // <<=
-	case EXP_TYPE_DIV_SHIFT_ASSIGN: // >>=
+	case EXP_TYPE_LSHIFT_ASSIGN: // <<=
+	case EXP_TYPE_RSHIFT_ASSIGN: // >>=
 	case EXP_TYPE_POW_ASSIGN: // **=
 		return true;
 	}
@@ -2262,44 +2052,34 @@ bool OS::Core::Compiler::Expression::isAssignOperator() const
 	case EXP_TYPE_MUL_ASSIGN: // *=
 	case EXP_TYPE_DIV_ASSIGN: // /=
 	case EXP_TYPE_MOD_ASSIGN: // %=
-	case EXP_TYPE_MUL_SHIFT_ASSIGN: // <<=
-	case EXP_TYPE_DIV_SHIFT_ASSIGN: // >>=
+	case EXP_TYPE_LSHIFT_ASSIGN: // <<=
+	case EXP_TYPE_RSHIFT_ASSIGN: // >>=
 	case EXP_TYPE_POW_ASSIGN: // **=
 		return true;
 	}
 	return false;
 }
 
-/*
-static void fillSpaces(OS_CHAR * s, int len)
-{
-  for(int i = 0; i < len; i++){
-    s[i] = OS_TEXT(' ');
-  }
-  s[len] = 0;
-}
-*/
-
-OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler * compiler, int depth)
+OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler * compiler, int depth)
 {
 	OS * allocator = getAllocator();
-	StringInternal out = compiler->debugPrintSourceLine(token);
+	String out = compiler->debugPrintSourceLine(token);
 
 	// OS_CHAR * spaces = (OS_CHAR*)alloca(sizeof(OS_CHAR)*(depth+1));
 	// fillSpaces(spaces, depth);
-	StringInternal spaces_buf(allocator, OS_TEXT(' '), depth*2);
+	String spaces_buf(allocator, OS_TEXT(' '), depth*2);
 	const OS_CHAR * spaces = spaces_buf;
 
 	int i;
 	const OS_CHAR * type_name;
 	switch(type){
 	case EXP_TYPE_NOP:
-		out += StringInternal::format(allocator, OS_TEXT("%snop\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%snop\n"), spaces);
 		break;
 
 	case EXP_TYPE_CODE_LIST:
 		type_name = OS::Core::Compiler::getExpName(type);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, type_name);
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, type_name);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
 				out += OS_TEXT("\n");
@@ -2307,7 +2087,7 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 			// OS_ASSERT(i+1 == list.count ? list[i]->ret_values == ret_values : list[i]->ret_values == 0);
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, type_name, ret_values);
+		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, type_name, ret_values);
 		break;
 
 	case EXP_TYPE_CONST_NUMBER:
@@ -2323,76 +2103,76 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 			case Tokenizer::NAME: type_name = OS_TEXT("string "); break;
 			default: type_name = OS_TEXT("???"); break;
 			}
-			out += StringInternal::format(allocator, OS_TEXT("%spush const %s%s\n"), spaces, type_name, token->str.toChar());
+			out += String::format(allocator, OS_TEXT("%spush const %s%s\n"), spaces, type_name, token->str.toChar());
 		}
 		break;
 
 	case EXP_TYPE_CONST_NULL:
 	case EXP_TYPE_CONST_TRUE:
 	case EXP_TYPE_CONST_FALSE:
-		out += StringInternal::format(allocator, OS_TEXT("%s%s\n"), spaces, getExpName(type));
+		out += String::format(allocator, OS_TEXT("%s%s\n"), spaces, getExpName(type));
 		break;
 
 	case EXP_TYPE_NAME:
-		out += StringInternal::format(allocator, OS_TEXT("%sname %s\n"), spaces, token->str.toChar());
+		out += String::format(allocator, OS_TEXT("%sname %s\n"), spaces, token->str.toChar());
 		break;
 
 	case EXP_TYPE_PARAMS:
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin params %d\n"), spaces, list.count);
+		out += String::format(allocator, OS_TEXT("%sbegin params %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s  ,\n"), spaces);
+				out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringInternal::format(allocator, OS_TEXT("%send params ret values %d\n"), spaces, ret_values);
+		out += String::format(allocator, OS_TEXT("%send params ret values %d\n"), spaces, ret_values);
 		break;
 
 	case EXP_TYPE_ARRAY:
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin array %d\n"), spaces, list.count);
+		out += String::format(allocator, OS_TEXT("%sbegin array %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s  ,\n"), spaces);
+				out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringInternal::format(allocator, OS_TEXT("%send array\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%send array\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT:
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin object %d\n"), spaces, list.count);
+		out += String::format(allocator, OS_TEXT("%sbegin object %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += String::format(allocator, OS_TEXT("%s ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
-		out += StringInternal::format(allocator, OS_TEXT("%send object\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%send object\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%sset by name: [%s]\n"), spaces, token->str.toChar());
+		out += String::format(allocator, OS_TEXT("%sset by name: [%s]\n"), spaces, token->str.toChar());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%sset by index: [%d]\n"), spaces, token->getInt());
+		out += String::format(allocator, OS_TEXT("%sset by index: [%d]\n"), spaces, token->getInt());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
 		OS_ASSERT(list.count == 2);
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX:
 		OS_ASSERT(list.count == 1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%sset like array\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%sset like array\n"), spaces);
 		break;
 
 	case EXP_TYPE_FUNCTION:
@@ -2400,17 +2180,17 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 			// OS_ASSERT(list.count >= 1);
 			Scope * scope = dynamic_cast<Scope*>(this);
 			OS_ASSERT(scope);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin function\n"), spaces);
+			out += String::format(allocator, OS_TEXT("%sbegin function\n"), spaces);
 			if(scope->num_locals > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s  begin locals, total %d\n"), spaces, scope->num_locals);
+				out += String::format(allocator, OS_TEXT("%s  begin locals, total %d\n"), spaces, scope->num_locals);
 				for(i = 0; i < scope->locals.count; i++){
-					out += StringInternal::format(allocator, OS_TEXT("%s    %d %s%s\n"), spaces, 
+					out += String::format(allocator, OS_TEXT("%s    %d %s%s\n"), spaces, 
 						scope->locals[i].index,
 						scope->locals[i].name.toChar(),
 						i < scope->num_params ? OS_TEXT(" (param)") : OS_TEXT("")
 						);
 				}
-				out += StringInternal::format(allocator, OS_TEXT("%s  end locals\n"), spaces);
+				out += String::format(allocator, OS_TEXT("%s  end locals\n"), spaces);
 			}
 			for(i = 0; i < list.count; i++){
 				if(i > 0){
@@ -2418,7 +2198,7 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 				}
 				out += list[i]->debugPrint(compiler, depth+1);
 			}
-			out += StringInternal::format(allocator, OS_TEXT("%send function\n"), spaces);
+			out += String::format(allocator, OS_TEXT("%send function\n"), spaces);
 			break;
 		}
 
@@ -2427,17 +2207,17 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 			// OS_ASSERT(list.count >= 1);
 			Scope * scope = dynamic_cast<Scope*>(this);
 			OS_ASSERT(scope);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin scope\n"), spaces);
+			out += String::format(allocator, OS_TEXT("%sbegin scope\n"), spaces);
 			if(scope->locals.count > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s  begin locals %d\n"), spaces, scope->locals.count);
+				out += String::format(allocator, OS_TEXT("%s  begin locals %d\n"), spaces, scope->locals.count);
 				for(i = 0; i < scope->locals.count; i++){
-					out += StringInternal::format(allocator, OS_TEXT("%s    %d %s%s\n"), spaces, 
+					out += String::format(allocator, OS_TEXT("%s    %d %s%s\n"), spaces, 
 						scope->locals[i].index,
 						scope->locals[i].name.toChar(),
 						i < scope->num_params ? OS_TEXT(" (param)") : OS_TEXT("")
 						);
 				}
-				out += StringInternal::format(allocator, OS_TEXT("%s  end locals\n"), spaces);
+				out += String::format(allocator, OS_TEXT("%s  end locals\n"), spaces);
 			}
 			for(i = 0; i < list.count; i++){
 				if(i > 0){
@@ -2445,20 +2225,20 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 				}
 				out += list[i]->debugPrint(compiler, depth+1);
 			}
-			out += StringInternal::format(allocator, OS_TEXT("%send scope ret values %d\n"), spaces, ret_values);
+			out += String::format(allocator, OS_TEXT("%send scope ret values %d\n"), spaces, ret_values);
 			break;
 		}
 
 	case EXP_TYPE_RETURN:
 		if(list.count > 0){
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin return\n"), spaces);
+			out += String::format(allocator, OS_TEXT("%sbegin return\n"), spaces);
 			for(i = 0; i < list.count; i++){
 				if(i > 0){
-					out += StringInternal::format(allocator, OS_TEXT("%s  ,\n"), spaces);
+					out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 				}
 				out += list[i]->debugPrint(compiler, depth+1);
 			}
-			out += StringInternal::format(allocator, OS_TEXT("%send return values %d\n"), spaces, ret_values);
+			out += String::format(allocator, OS_TEXT("%send return values %d\n"), spaces, ret_values);
 		}else{
 			out += OS_TEXT("return\n");
 		}
@@ -2466,18 +2246,18 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 
 	case EXP_TYPE_TAIL_CALL:
 		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin tail call\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%sbegin tail call\n"), spaces);
 		out += list[1]->debugPrint(compiler, depth+1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send tail call\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%send tail call\n"), spaces);
 		break;
 
 	case EXP_TYPE_CALL:
 		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		out += list[1]->debugPrint(compiler, depth+1);
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
+		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
 
 	case EXP_TYPE_CALL_DIM:
@@ -2487,259 +2267,25 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 	// case EXP_TYPE_GET_PROPERTY_DIM:
 	// case EXP_TYPE_SET_AUTO_VAR_DIM:
 		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
+		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
-
-	/*
-	case EXP_TYPE_SET_LOCAL_VAR_DIM:
-		OS_ASSERT(false);
-		break;
-
-	case EXP_TYPE_GET_AUTO_VAR_DIM:
-		OS_ASSERT(list.count >= 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		// out += list[0]->debugPrint(compiler, depth+1);
-		for(i = 0; i < list.count; i++){
-			if(i > 0){
-				out += StringInternal::format(allocator, OS_TEXT("%s  ,\n"), spaces);
-			}
-			out += list[i]->debugPrint(compiler, depth+1);
-		}
-		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
-		break;
-	*/
 
 	case EXP_TYPE_VALUE:
 		OS_ASSERT(list.count == 1);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_POP_VALUE:
 		OS_ASSERT(list.count == 1);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
+		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
-
-	/*
-	case EXP_TYPE_THREAD:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin thread call\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send thread call\n"), spaces);
-		break;
-
-	case EXP_TYPE_FOR:
-		OS_ASSERT(list.count == 4);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin for\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin init\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end init\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin step\n"), spaces);
-		out += list[2]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end step\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[3]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-		out += StringInternal::format(allocator, OS_TEXT("%send for\n"), spaces);
-		break;
-
-	case EXP_TYPE_DO_WHILE:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin do while\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send do while\n"), spaces);
-		break;
-
-	case EXP_TYPE_WHILE_DO:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin while do\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send while do\n"), spaces);
-		break;
-
-	case EXP_TYPE_SWITCH:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin switch\n"), spaces);
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
-		out += StringInternal::format(allocator, OS_TEXT("%send switch\n"), spaces);
-		break;
-
-	case EXP_TYPE_SWITCH_CASE:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send case\n"), spaces);
-		break;
-
-	case EXP_TYPE_SWITCH_CASE_INTERVAL:
-		OS_ASSERT(list.count == 3);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[2]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
-		break;
-
-	case EXP_TYPE_SWITCH_DEFAULT:
-		OS_ASSERT(list.count == 1);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin default code\n"), spaces);
-
-		// out += StringInternal::format(allocator, OS_TEXT("%s begin code\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
-		// out += StringInternal::format(allocator, OS_TEXT("%s end code\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send default code\n"), spaces);
-		break;
-
-	case EXP_TYPE_BREAK:
-	case EXP_TYPE_CONTINUE:
-		{
-			OS_ASSERT(!list.count || (list.count == 1 && list[0]->macro == EXP_TYPE_LABEL));
-			out += StringInternal::format(allocator, OS_TEXT("%s%s%s\n"), spaces, OS::Core::Compiler::getExpName(type), list.count ? OS_TEXT(" ") + list[0]->token->str : OS_TEXT(""));
-			break;
-		}
-
-	case EXP_TYPE_IN:
-		{
-			OS_ASSERT(list.count >= 2);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin operator in\n"), spaces);
-			out += StringInternal::format(allocator, OS_TEXT("%s begin value\n"), spaces);
-			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end value\n"), spaces);
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin cases\n"), spaces);
-			for(int i = 1; i < list.count; i++)
-			{
-				OS_ASSERT(list[i]->macro == EXP_TYPE_IN_CASE || list[i]->macro == EXP_TYPE_IN_CASE_INTERVAL);
-				out += list[i]->debugPrint(compiler, depth+2);
-			}
-			out += StringInternal::format(allocator, OS_TEXT("%s end cases\n"), spaces);
-			out += StringInternal::format(allocator, OS_TEXT("%send operator in\n"), spaces);
-		}
-		break;
-
-	case EXP_TYPE_IN_CASE:
-		OS_ASSERT(list.count == 1);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin case\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send case\n"), spaces);
-		break;
-
-	case EXP_TYPE_IN_CASE_INTERVAL:
-		OS_ASSERT(list.count == 2);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin case interval\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value A\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value A\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%s begin value B\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+2);
-		out += StringInternal::format(allocator, OS_TEXT("%s end value B\n"), spaces);
-
-		out += StringInternal::format(allocator, OS_TEXT("%send case interval\n"), spaces);
-		break;
-
-		//   case EXP_TYPE_SET_LOCAL:
-		//   case EXP_TYPE_SET_OBJECT_FIELD:
-
-	case EXP_TYPE_GOTO:
-		break;
-
-	case EXP_TYPE_IF:
-		// case EXP_TYPE_IF_NOT:
-	case EXP_TYPE_POST_IF:
-		{
-			OS_ASSERT(list.count == 2 || list.count == 3);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
-			out += list[1]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end then\n"), spaces);
-
-			if(list.count == 3)
-			{
-				out += StringInternal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
-				out += list[2]->debugPrint(compiler, depth+2);
-				out += StringInternal::format(allocator, OS_TEXT("%s end else\n"), spaces);
-			}
-			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-			break;
-		}
-
-	case EXP_TYPE_WAIT_FRAME:
-		out += StringInternal::format(allocator, OS_TEXT("%s%s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		break;
-
-	case EXP_TYPE_WAIT_APP_TIME_MS:
-	case EXP_TYPE_WAIT_OBJECT:
-	case EXP_TYPE_KILL:
-	case EXP_TYPE_CLONE:
-	case EXP_TYPE_VALID:
-		OS_ASSERT(list.count == 1);
-		out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		break;
-	*/
 
 	case EXP_TYPE_PLUS:     // +
 	case EXP_TYPE_NEG:     // -
@@ -2752,35 +2298,11 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 		{
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
-			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
-
-	/*
-	case EXP_TYPE_QUESTION:
-		{
-			OS_ASSERT(list.count == 3);
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin bool\n"), spaces);
-			out += list[0]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end bool\n"), spaces);
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin then\n"), spaces);
-			out += list[1]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end then\n"), spaces);
-
-			out += StringInternal::format(allocator, OS_TEXT("%s begin else\n"), spaces);
-			out += list[2]->debugPrint(compiler, depth+2);
-			out += StringInternal::format(allocator, OS_TEXT("%s end else\n"), spaces);
-
-			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
-			break;
-		}
-	*/
 
 	case EXP_TYPE_INDIRECT:
 	case EXP_TYPE_ASSIGN:
@@ -2808,42 +2330,35 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 	case EXP_TYPE_MUL: // *
 	case EXP_TYPE_DIV: // /
 	case EXP_TYPE_MOD: // %
-	case EXP_TYPE_MUL_SHIFT: // <<
-	case EXP_TYPE_DIV_SHIFT: // >>
+	case EXP_TYPE_LSHIFT: // <<
+	case EXP_TYPE_RSHIFT: // >>
 	case EXP_TYPE_POW: // **
-
-	case EXP_TYPE_DOT:
-	case EXP_TYPE_CROSS:
-	case EXP_TYPE_SWAP:
-	case EXP_TYPE_AS:
-	case EXP_TYPE_IS:
-		// case EXP_TYPE_IN:
 
 	case EXP_TYPE_ADD_ASSIGN: // +=
 	case EXP_TYPE_SUB_ASSIGN: // -=
 	case EXP_TYPE_MUL_ASSIGN: // *=
 	case EXP_TYPE_DIV_ASSIGN: // /=
 	case EXP_TYPE_MOD_ASSIGN: // %=
-	case EXP_TYPE_MUL_SHIFT_ASSIGN: // <<=
-	case EXP_TYPE_DIV_SHIFT_ASSIGN: // >>=
+	case EXP_TYPE_LSHIFT_ASSIGN: // <<=
+	case EXP_TYPE_RSHIFT_ASSIGN: // >>=
 	case EXP_TYPE_POW_ASSIGN: // **=
 		{
 			OS_ASSERT(list.count == 2);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
 			out += list[1]->debugPrint(compiler, depth+1);
-			out += StringInternal::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
 
 	case EXP_TYPE_NEW_LOCAL_VAR:
 		{
 			OS_ASSERT(list.count == 0);
-			StringInternal info = StringInternal::format(allocator, OS_TEXT("(%d %d%s)"),
+			String info = String::format(allocator, OS_TEXT("(%d %d%s)"),
 				local_var.index, local_var.up_count, 
 				local_var.is_param ? OS_TEXT(" param") : OS_TEXT(""));
-			out += StringInternal::format(allocator, OS_TEXT("%snew local var %s %s\n"), spaces, token->str.toChar(), info.toChar());
+			out += String::format(allocator, OS_TEXT("%snew local var %s %s\n"), spaces, token->str.toChar(), info.toChar());
 			break;
 		}
 
@@ -2853,7 +2368,7 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 		{
 			OS_ASSERT(list.count == 0);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%s%s\n"), spaces, exp_name);
+			out += String::format(allocator, OS_TEXT("%s%s\n"), spaces, exp_name);
 			break;
 		}
 
@@ -2861,10 +2376,10 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 		{
 			OS_ASSERT(list.count == 0);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			StringInternal info = StringInternal::format(allocator, OS_TEXT("(%d %d%s)"),
+			String info = String::format(allocator, OS_TEXT("(%d %d%s)"),
 				local_var.index, local_var.up_count, 
 				local_var.is_param ? OS_TEXT(" param") : OS_TEXT(""));
-			out += StringInternal::format(allocator, OS_TEXT("%s%s %s %s\n"), spaces, exp_name, token->str.toChar(), info.toChar());
+			out += String::format(allocator, OS_TEXT("%s%s %s %s\n"), spaces, exp_name, token->str.toChar(), info.toChar());
 			break;
 		}
 
@@ -2872,7 +2387,7 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 		{
 			OS_ASSERT(list.count == 0);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%s%s %s\n"), spaces, exp_name, token->str.toChar());
+			out += String::format(allocator, OS_TEXT("%s%s %s\n"), spaces, exp_name, token->str.toChar());
 			break;
 		}
 
@@ -2880,12 +2395,12 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 		{
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			StringInternal info = StringInternal::format(allocator, OS_TEXT("(%d %d%s)"),
+			String info = String::format(allocator, OS_TEXT("(%d %d%s)"),
 				local_var.index, local_var.up_count, 
 				local_var.is_param ? OS_TEXT(" param") : OS_TEXT(""));
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
-			out += StringInternal::format(allocator, OS_TEXT("%send %s %s %s\n"), spaces, exp_name, token->str.toChar(), info.toChar());
+			out += String::format(allocator, OS_TEXT("%send %s %s %s\n"), spaces, exp_name, token->str.toChar(), info.toChar());
 			break;
 		}
 
@@ -2893,9 +2408,9 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 		{
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
-			out += StringInternal::format(allocator, OS_TEXT("%send %s %s\n"), spaces, exp_name, token->str.toChar());
+			out += String::format(allocator, OS_TEXT("%send %s %s\n"), spaces, exp_name, token->str.toChar());
 			break;
 		}
 
@@ -2905,11 +2420,11 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 		{
 			OS_ASSERT(list.count == 3);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += StringInternal::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			out += list[0]->debugPrint(compiler, depth+1);
 			out += list[1]->debugPrint(compiler, depth+1);
 			out += list[2]->debugPrint(compiler, depth+1);
-			out += StringInternal::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, exp_name, ret_values);
+			out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, exp_name, ret_values);
 			break;
 		}
 
@@ -2919,7 +2434,7 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 
 // =====================================================================
 
-int OS::Core::Compiler::cacheString(const StringInternal& str)
+int OS::Core::Compiler::cacheString(const String& str)
 {
 	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
 	Value::Property * prop = prog_strings_table->get(index);
@@ -3251,8 +2766,8 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 	case EXP_TYPE_MUL:
 	case EXP_TYPE_DIV:
 	case EXP_TYPE_MOD:
-	case EXP_TYPE_MUL_SHIFT:
-	case EXP_TYPE_DIV_SHIFT:
+	case EXP_TYPE_LSHIFT:
+	case EXP_TYPE_RSHIFT:
 	case EXP_TYPE_POW:
 		// OS_ASSERT(exp->list.count == 1);
 		if(!writeOpcodes(exp->list)){
@@ -3264,19 +2779,6 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 	return true;
 }
 
-// =====================================================================
-/*
-OS::Core::Compiler::VarAssingExpression::VarAssingExpression(const StringInternal& p_var_name, Expression * p_value_exp)
-	: Expression(EXP_VAR_ASSING), var_name(p_var_name)
-{
-	value_exp = p_value_exp;
-}
-
-OS::Core::Compiler::VarAssingExpression::~VarAssingExpression()
-{
-	var_name.getAllocator()->deleteObj(value_exp);
-}
-*/
 // =====================================================================
 
 OS::Core::Compiler::Scope::Scope(Scope * p_parent, ExpressionType type, TokenData * token): Expression(type, token)
@@ -3297,7 +2799,7 @@ OS::Core::Compiler::Scope::~Scope()
 	getAllocator()->vectorClear(locals_compiled);
 }
 
-OS::Core::Compiler::Scope::LocalVar::LocalVar(const StringInternal& p_name, int p_index): name(p_name)
+OS::Core::Compiler::Scope::LocalVar::LocalVar(const String& p_name, int p_index): name(p_name)
 {
 	index = p_index;
 }
@@ -3309,18 +2811,15 @@ OS::Core::Compiler::Scope::LocalVarCompiled::LocalVarCompiled()
 	end_code_pos = -1;
 }
 
-void OS::Core::Compiler::Scope::addLocalVar(const StringInternal& name)
+void OS::Core::Compiler::Scope::addLocalVar(const String& name)
 {
 	OS * allocator = getAllocator();
 	LocalVar local_var(name, function->num_locals);
 	allocator->vectorAddItem(locals, local_var);
 	function->num_locals++;
-	/* if(function != this){
-		allocator->vectorAddItem(locals, local_var);
-	} */
 }
 
-void OS::Core::Compiler::Scope::addLocalVar(const StringInternal& name, LocalVarDesc& local_var)
+void OS::Core::Compiler::Scope::addLocalVar(const String& name, LocalVarDesc& local_var)
 {
 	local_var.index = function->num_locals;
 	local_var.up_count = 0;
@@ -3358,10 +2857,6 @@ OS::Core::Compiler::~Compiler()
 	if(recent_printed_text_data){
 		recent_printed_text_data->release();
 	}
-	/* if(prog){
-		prog->release();
-		prog = NULL;
-	} */
 	if(prog_numbers_table){
 		allocator->core->deleteTable(prog_numbers_table);
 		prog_numbers_table = NULL;
@@ -3391,7 +2886,7 @@ bool OS::Core::Compiler::compile()
 		Expression * exp = processExpressionSecondPass(scope, scope);
 		OS_ASSERT(exp->type == EXP_TYPE_FUNCTION);
 
-		OS::Core::StringInternal dump = exp->debugPrint(this, 0);
+		OS::Core::String dump = exp->debugPrint(this, 0);
 		FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 
 		prog_strings_table = allocator->core->newTable();
@@ -3422,69 +2917,69 @@ bool OS::Core::Compiler::compile()
 
 		return true;
 	}else{
-		OS::Core::StringInternal dump = OS::Core::StringInternal(allocator, "Error");
+		OS::Core::String dump = OS::Core::String(allocator, "Error");
 		switch(error){
 		default:
-			dump += OS::Core::StringInternal(allocator, " unknown");
+			dump += OS::Core::String(allocator, " unknown");
 			break;
 
 		case ERROR_SYNTAX:
-			dump += OS::Core::StringInternal(allocator, " SYNTAX");
+			dump += OS::Core::String(allocator, " SYNTAX");
 			break;
 
 		case ERROR_VAR_ALREADY_EXIST:
-			dump += OS::Core::StringInternal(allocator, " VAR_ALREADY_EXIST");
+			dump += OS::Core::String(allocator, " VAR_ALREADY_EXIST");
 			break;
 
 		case ERROR_EXPECT_TOKEN_TYPE:
-			dump += OS::Core::StringInternal(allocator, " EXPECT_TOKEN_TYPE ");
-			dump += OS::Core::StringInternal(allocator, Tokenizer::getTokenTypeName(expect_token_type));
+			dump += OS::Core::String(allocator, " EXPECT_TOKEN_TYPE ");
+			dump += OS::Core::String(allocator, Tokenizer::getTokenTypeName(expect_token_type));
 			break;
 
 		case ERROR_EXPECT_TOKEN_STR:
-			dump += OS::Core::StringInternal(allocator, " EXPECT_TOKEN_STR ");
+			dump += OS::Core::String(allocator, " EXPECT_TOKEN_STR ");
 			dump += expect_token;
 			break;
 
 		case ERROR_EXPECT_TOKEN:
-			dump += OS::Core::StringInternal(allocator, " EXPECT_TOKEN");
+			dump += OS::Core::String(allocator, " EXPECT_TOKEN");
 			break;
 
 		case ERROR_EXPECT_VALUE:
-			dump += OS::Core::StringInternal(allocator, " EXPECT_VALUE");
+			dump += OS::Core::String(allocator, " EXPECT_VALUE");
 			break;
 
 		case ERROR_EXPECT_WRITEABLE:
-			dump += OS::Core::StringInternal(allocator, " EXPECT_WRITEABLE");
+			dump += OS::Core::String(allocator, " EXPECT_WRITEABLE");
 			break;
 
 		case ERROR_EXPECT_EXPRESSION:
-			dump += OS::Core::StringInternal(allocator, " EXPECT_EXPRESSION");
+			dump += OS::Core::String(allocator, " EXPECT_EXPRESSION");
 			break;
 
 		case ERROR_EXPECT_FUNCTION_SCOPE:
-			dump += OS::Core::StringInternal(allocator, " EXPECT_FUNCTION_SCOPE");
+			dump += OS::Core::String(allocator, " EXPECT_FUNCTION_SCOPE");
 			break;
 
 		case ERROR_EXPECT_SWITCH_SCOPE:
-			dump += OS::Core::StringInternal(allocator, " EXPECT_SWITCH_SCOPE");
+			dump += OS::Core::String(allocator, " EXPECT_SWITCH_SCOPE");
 			break;
 
 		case ERROR_FINISH_BINARY_OP:
-			dump += OS::Core::StringInternal(allocator, " FINISH_BINARY_OP");
+			dump += OS::Core::String(allocator, " FINISH_BINARY_OP");
 			break;
 
 		case ERROR_FINISH_UNARY_OP:
-			dump += OS::Core::StringInternal(allocator, " FINISH_UNARY_OP");
+			dump += OS::Core::String(allocator, " FINISH_UNARY_OP");
 			break;
 		}
 		dump += OS::String(allocator, "\n");
 		if(error_token){
 			if(error_token->text_data->filename.getDataSize() > 0){
-				dump += OS::Core::StringInternal::format(allocator, "filename %s\n", error_token->text_data->filename.toChar());
+				dump += OS::Core::String::format(allocator, "filename %s\n", error_token->text_data->filename.toChar());
 			}
-			dump += OS::Core::StringInternal::format(allocator, "[%d] %s\n", error_token->line+1, error_token->text_data->lines[error_token->line].toChar());
-			dump += OS::Core::StringInternal::format(allocator, "pos %d, token: %s\n", error_token->pos+1, error_token->str.toChar());
+			dump += OS::Core::String::format(allocator, "[%d] %s\n", error_token->line+1, error_token->text_data->lines[error_token->line].toChar());
+			dump += OS::Core::String::format(allocator, "pos %d, token: %s\n", error_token->pos+1, error_token->str.toChar());
 		}
 		FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 		
@@ -3521,7 +3016,7 @@ void OS::Core::Compiler::setError(TokenType expect_token_type, TokenData * error
 	this->expect_token_type = expect_token_type;
 }
 
-void OS::Core::Compiler::setError(const StringInternal& str, TokenData * error_token)
+void OS::Core::Compiler::setError(const String& str, TokenData * error_token)
 {
 	OS_ASSERT(!isError());
 	error = ERROR_EXPECT_TOKEN_STR;
@@ -3569,16 +3064,9 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::toExpressionType(TokenTyp
 	case Tokenizer::OPERATOR_MUL: return EXP_TYPE_MUL;
 	case Tokenizer::OPERATOR_DIV: return EXP_TYPE_DIV;
 	case Tokenizer::OPERATOR_MOD: return EXP_TYPE_MOD;
-	case Tokenizer::OPERATOR_MUL_SHIFT: return EXP_TYPE_MUL_SHIFT;
-	case Tokenizer::OPERATOR_DIV_SHIFT: return EXP_TYPE_DIV_SHIFT;
+	case Tokenizer::OPERATOR_LSHIFT: return EXP_TYPE_LSHIFT;
+	case Tokenizer::OPERATOR_RSHIFT: return EXP_TYPE_RSHIFT;
 	case Tokenizer::OPERATOR_POW: return EXP_TYPE_POW;
-
-	case Tokenizer::OPERATOR_DOT: return EXP_TYPE_DOT;
-	case Tokenizer::OPERATOR_CROSS: return EXP_TYPE_CROSS;
-	case Tokenizer::OPERATOR_SWAP: return EXP_TYPE_SWAP;
-	case Tokenizer::OPERATOR_IS: return EXP_TYPE_IS;
-	case Tokenizer::OPERATOR_AS: return EXP_TYPE_AS;
-	case Tokenizer::OPERATOR_IN: return EXP_TYPE_IN;
 
 	case Tokenizer::OPERATOR_BIT_AND_ASSIGN: return EXP_TYPE_BIT_AND_ASSIGN;
 	case Tokenizer::OPERATOR_BIT_OR_ASSIGN: return EXP_TYPE_BIT_OR_ASSIGN;
@@ -3589,8 +3077,8 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::toExpressionType(TokenTyp
 	case Tokenizer::OPERATOR_MUL_ASSIGN: return EXP_TYPE_MUL_ASSIGN;
 	case Tokenizer::OPERATOR_DIV_ASSIGN: return EXP_TYPE_DIV_ASSIGN;
 	case Tokenizer::OPERATOR_MOD_ASSIGN: return EXP_TYPE_MOD_ASSIGN;
-	case Tokenizer::OPERATOR_MUL_SHIFT_ASSIGN: return EXP_TYPE_MUL_SHIFT_ASSIGN;
-	case Tokenizer::OPERATOR_DIV_SHIFT_ASSIGN: return EXP_TYPE_DIV_SHIFT_ASSIGN;
+	case Tokenizer::OPERATOR_LSHIFT_ASSIGN: return EXP_TYPE_LSHIFT_ASSIGN;
+	case Tokenizer::OPERATOR_RSHIFT_ASSIGN: return EXP_TYPE_RSHIFT_ASSIGN;
 	case Tokenizer::OPERATOR_POW_ASSIGN: return EXP_TYPE_POW_ASSIGN;
 
 	case Tokenizer::OPERATOR_ASSIGN: return EXP_TYPE_ASSIGN;
@@ -3601,43 +3089,6 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::toExpressionType(TokenTyp
 OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::toOpcodeLevel(ExpressionType exp_type)
 {
 	switch(exp_type){
-	// case EXP_TYPE_NOP:
-
-	/*
-	case EXP_TYPE_CODE_LIST:
-		return OP_LEVEL_10;
-
-	// case EXP_TYPE_CODE_SCOPE:
-	// 	return OP_LEVEL_10;
-
-	case EXP_TYPE_CONST_NUMBER:
-	case EXP_TYPE_CONST_STRING:
-	case EXP_TYPE_CONST_NULL:
-	case EXP_TYPE_CONST_TRUE:
-	case EXP_TYPE_CONST_FALSE:
-		return OP_LEVEL_10;
-	
-	case EXP_TYPE_NAME:
-		return OP_LEVEL_10;
-
-	case EXP_TYPE_PARAMS:
-		return OP_LEVEL_10;
-
-	case EXP_TYPE_ARRAY:
-		return OP_LEVEL_10;
-
-	case EXP_TYPE_CALL:
-		return OP_LEVEL_10;
-
-	case EXP_TYPE_CALL_DIM:
-		return OP_LEVEL_10;
-
-		// case EXP_TYPE_RETURN:
-
-	case EXP_TYPE_THREAD:
-		return OP_LEVEL_10;
-	*/
-
 	case EXP_TYPE_INDIRECT:
 		return OP_LEVEL_10;
 
@@ -3748,24 +3199,14 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::toOpcodeLevel(ExpressionType
 	case EXP_TYPE_MOD: // %
 		return OP_LEVEL_7;
 
-	case EXP_TYPE_MUL_SHIFT: // <<
+	case EXP_TYPE_LSHIFT: // <<
 		return OP_LEVEL_7;
 
-	case EXP_TYPE_DIV_SHIFT: // >>
+	case EXP_TYPE_RSHIFT: // >>
 		return OP_LEVEL_7;
 
 	case EXP_TYPE_POW: // **
 		return OP_LEVEL_8;
-
-	case EXP_TYPE_DOT:
-	case EXP_TYPE_CROSS:
-		return OP_LEVEL_7;
-
-	case EXP_TYPE_SWAP:
-	case EXP_TYPE_AS:
-	case EXP_TYPE_IS:
-	case EXP_TYPE_IN:
-		return OP_LEVEL_9;
 
 	case EXP_TYPE_ADD_ASSIGN: // +=
 		return OP_LEVEL_3;
@@ -3782,10 +3223,10 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::toOpcodeLevel(ExpressionType
 	case EXP_TYPE_MOD_ASSIGN: // %=
 		return OP_LEVEL_3;
 
-	case EXP_TYPE_MUL_SHIFT_ASSIGN: // <<=
+	case EXP_TYPE_LSHIFT_ASSIGN: // <<=
 		return OP_LEVEL_3;
 
-	case EXP_TYPE_DIV_SHIFT_ASSIGN: // >>=
+	case EXP_TYPE_RSHIFT_ASSIGN: // >>=
 		return OP_LEVEL_3;
 
 	case EXP_TYPE_POW_ASSIGN: // **=
@@ -3845,7 +3286,7 @@ OS::Core::Tokenizer::TokenData * OS::Core::Compiler::putNextTokenType(TokenType 
 	}
 	ungetToken();
 
-	TokenData * token = new (malloc(sizeof(TokenData))) TokenData(recent_token->text_data, StringInternal(allocator), token_type, recent_token->line, recent_token->pos);
+	TokenData * token = new (malloc(sizeof(TokenData))) TokenData(recent_token->text_data, String(allocator), token_type, recent_token->line, recent_token->pos);
 	tokenizer->insertToken(next_token_index, token);
 	return token;
 }
@@ -4066,15 +3507,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newSingleValueExpression(Ex
 OS::Core::Compiler::Expression * OS::Core::Compiler::newExpressionFromList(ExpressionList& list, int ret_values)
 {
 	Expression * exp;
-	// DeleteSeparators(list);
-	/* if(!list.count){
-		if(allow_auto_nop){
-			return new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NOP, recent_token);
-		}
-		setError(ERROR_EXPECT_EXPRESSION, recent_token);
-		return NULL;
-	} */
-	// deleteNops(list);
 	if(list.count == 1){
 		exp = list[0];
 		list.removeIndex(0);
@@ -4083,10 +3515,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newExpressionFromList(Expre
 		readToken();
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CODE_LIST, cur_token);
 	}else{
-		/* deleteNops(list);
-		if(!list.count){
-			return new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NOP, recent_token);
-		} */
 		int i;
 		for(i = 0; i < list.count-1; i++){
 			OS_ASSERT(list[i]->type != EXP_TYPE_CODE_LIST);
@@ -4094,11 +3522,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newExpressionFromList(Expre
 		}
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CODE_LIST, list[0]->token);
 		exp->list.swap(list);
-		// exp->ret_values = 0;
-		// exp->active_locals = list[list.count-1]->active_locals;
-		/* for(i = 0; i < exp->list.count; i++){
-			exp->ret_values += exp->list[i]->ret_values;
-		} */
 		exp->ret_values = exp->list[exp->list.count-1]->ret_values;
 	}
 	return expectExpressionValues(exp, ret_values);
@@ -4227,81 +3650,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			Expression * name_exp = exp->list[0];
 			Expression * params = exp->list[1];
 			OS_ASSERT(params->type == EXP_TYPE_PARAMS);
-			switch(name_exp->type){
-			/*
-			case EXP_TYPE_GET_PROPERTY:
-				OS_ASSERT(name_exp->list.count == 2);
-				allocator->vectorInsertAtIndex(params->list, 0, name_exp->list[1]);
-				params->ret_values += name_exp->list[1]->ret_values;
-				name_exp->list[1] = params;
-				name_exp->type = EXP_TYPE_GET_PROPERTY_DIM;
-				allocator->vectorClear(exp->list);
-				allocator->deleteObj(exp);
-				return name_exp;
-			*/
-
-			/* 
-			case EXP_TYPE_GET_DIM:
-				OS_ASSERT(name_exp->list.count == 2);
-				if(name_exp->list[1]->list.count == 1){
-					Expression * name_params = name_exp->list[1];
-					OS_ASSERT(name_params->type == EXP_TYPE_PARAMS);
-					allocator->vectorInsertAtIndex(params->list, 0, name_params->list[0]);
-					params->ret_values += name_params->ret_values;
-					name_exp->list[1] = params;
-					name_exp->type = EXP_TYPE_GET_PROPERTY_DIM;
-					name_exp->ret_values = exp->ret_values;
-					allocator->vectorClear(name_params->list);
-					allocator->deleteObj(name_params);
-					allocator->vectorClear(exp->list);
-					allocator->deleteObj(exp);
-					return name_exp;
-				}
-			*/
-
-			/*
-			case EXP_TYPE_GET_AUTO_VAR:
-				OS_ASSERT(name_exp->list.count == 0);
-				name_exp->type = EXP_TYPE_CONST_STRING;
-				allocator->vectorInsertAtIndex(params->list, 0, name_exp);
-				params->ret_values += name_exp->ret_values;
-				// allocator->vectorRemoveAtIndex(exp->list, 1);
-				// exp->list[0] = params;
-				allocator->vectorClear(exp->list);
-				exp->list.swap(params->list);
+			if(params->list.count == 1){
+				exp->list[1] = params->list[0];
+				allocator->vectorClear(params->list);
 				allocator->deleteObj(params);
-				exp->type = EXP_TYPE_GET_AUTO_VAR_DIM;
-				return exp;
-
-			case EXP_TYPE_GET_AUTO_VAR_DIM:
-				OS_ASSERT(name_exp->list.count >= 2);
-				if(name_exp->list.count == 2){
-					Expression * object = name_exp->list[0];
-					Expression * name_params = name_exp->list[1];
-					allocator->vectorInsertAtIndex(params->list, 0, name_params);
-					params->ret_values += name_params->ret_values;
-					exp->list[0] = object;
-					exp->type = EXP_TYPE_GET_PROPERTY_DIM;
-					allocator->vectorClear(name_exp->list);
-					allocator->deleteObj(name_exp);
-					return exp;
-				}
-				// break;
-			*/
-
-			case EXP_TYPE_GET_LOCAL_VAR:
-				// OS_ASSERT(false);
-				// break;
-
-			default:
-				if(params->list.count == 1){
-					exp->list[1] = params->list[0];
-					allocator->vectorClear(params->list);
-					allocator->deleteObj(params);
-					exp->type = EXP_TYPE_GET_PROPERTY;
-				}else{
-					exp->type = EXP_TYPE_GET_DIM;
-				}
+				exp->type = EXP_TYPE_GET_PROPERTY;
+			}else{
+				exp->type = EXP_TYPE_GET_DIM;
 			}
 			return exp;
 		}
@@ -4313,14 +3668,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			Expression * right_exp = exp->list[1];
 			left_exp = expectExpressionValues(left_exp, 1);
 			right_exp = expectExpressionValues(right_exp, 1);
-			/* switch(left_exp->type){
-			case EXP_TYPE_NAME:
-				{
-					int local_var_index = findLocalVarIndex(NULL, left_exp->token->str);
-					left_exp->type = local_var_index < 0 ? EXP_TYPE_GET_AUTO_VAR : EXP_TYPE_GET_LOCAL_VAR;
-					break;
-				}
-			} */
 			ExpressionType exp_type = EXP_TYPE_GET_PROPERTY;
 			switch(right_exp->type){
 			case EXP_TYPE_NAME:
@@ -4336,22 +3683,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 					right_exp->list[0]->type = EXP_TYPE_CONST_STRING;
 				}
 				break;
-
-			/*
-			case EXP_TYPE_CALL_DIM:
-				right_exp->type = EXP_TYPE_PARAMS;
-				exp_type = EXP_TYPE_GET_PROPERTY_DIM;
-				OS_ASSERT(right_exp->list.count == 2);
-				if(right_exp->list[0]->type == EXP_TYPE_NAME){
-					OS_ASSERT(right_exp->list[0]->ret_values == 1);
-					right_exp->list[0]->type = EXP_TYPE_CONST_STRING;
-				}
-				break;
-			*/
 			}
 			exp->type = exp_type;
-			// exp->ret_values = 1;
-			// return exp;
 			break;
 		}
 	}
@@ -4420,15 +3753,6 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 	}
 	int ret_values = list.count == 1 && list[0]->ret_values > 0 ? 1 : 0;
 	exp = newExpressionFromList(list, ret_values);
-
-	/* struct Lib {
-		static Expression * returnFunction(Scope * scope)
-		{
-			OS_ASSERT(scope->type == EXP_TYPE_FUNCTION);
-			Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_RETURN
-		}
-	}; */
-
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
 		if(exp->list.count == 1 && exp->list[0]->type == EXP_TYPE_FUNCTION){
@@ -4514,13 +3838,10 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 	if(list.count == 0){
 		return scope;
 	}
-	/* for(int i = 0; i < list.count-1; i++){
-		list[i] = expectExpressionValues(list[i], 0);
-	} */
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
-		{ // if(is_new_func || scope->type == EXP_TYPE_SCOPE){
+		{
 			scope->list.swap(exp->list);
 			allocator->deleteObj(exp);
 			break;
@@ -4559,11 +3880,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 			return NULL;
 		}
 
-		/* Expression * error(ErrorType err)
-		{
-			return error(err, compiler->recent_token);
-		} */
-		
 		Expression * error(ErrorType err, TokenData * token)
 		{
 			compiler->setError(err, token);
@@ -4776,12 +4092,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 				allocator->deleteObj(params);
 				return NULL;
 			}
-			/* if(!recent_token){ // || recent_token->getType() != Tokenizer::PARAM_SEPARATOR){
-				setError(ERROR_SYNTAX, recent_token);
-				allocator->deleteObj(params);
-				return NULL;
-			} */
-			// readToken();
 			return finishParamsExpression(scope, params);
 		}
 		// exp = expectExpressionValues(exp, 1);
@@ -4847,10 +4157,6 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectFunctionExpression(Scope *
 	}
 	
 	scope = expectCodeExpression(scope, 0);
-	/* if(scope && (!scope->list.count || scope->list[scope->list.count-1]->type != EXP_TYPE_RETURN)){
-		Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_RETURN, scope->token);
-		scope->list.add(exp);
-	} */
 	return scope;
 }
 
@@ -4941,11 +4247,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectReturnExpression(Scop
 		return ret_exp;
 
 	case Tokenizer::END_CODE_BLOCK:
-		/* if(!readToken()){
-			setError(ERROR_SYNTAX, recent_token);
-			allocator->deleteObj(ret_exp);
-			return NULL;
-		} */
 		return ret_exp;
 	}
 	for(;;){
@@ -4958,9 +4259,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectReturnExpression(Scop
 		ret_exp->list.add(exp);
 		ret_exp->ret_values++;
 		if(!recent_token){
-			// setError(ERROR_SYNTAX, recent_token);
-			// allocator->deleteObj(ret_exp);
-			// return NULL;
 			return ret_exp;
 		}
 		switch(recent_token->getType()){
@@ -4973,11 +4271,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectReturnExpression(Scop
 			return ret_exp;
 
 		case Tokenizer::CODE_SEPARATOR:
-			// if(!readToken()){
-				// setError(ERROR_SYNTAX, recent_token);
-				// allocator->deleteObj(ret_exp);
-				// return NULL;
-			// }
 			return ret_exp;
 
 		case Tokenizer::PARAM_SEPARATOR:
@@ -5008,7 +4301,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 				return compiler->malloc(size);
 			}
 
-			Expression * newExpression(const StringInternal& str, Expression * left_exp, Expression * right_exp)
+			Expression * newExpression(const String& str, Expression * left_exp, Expression * right_exp)
 			{
 				token = new (malloc(sizeof(TokenData))) TokenData(token->text_data, str, Tokenizer::STRING, token->line, token->pos);
 				Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_STRING, token);
@@ -5021,7 +4314,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 
 			Expression * newExpression(OS_FLOAT val, Expression * left_exp, Expression * right_exp)
 			{
-				token = new (malloc(sizeof(TokenData))) TokenData(token->text_data, StringInternal(compiler->allocator, val), Tokenizer::NUM_FLOAT, token->line, token->pos);
+				token = new (malloc(sizeof(TokenData))) TokenData(token->text_data, String(compiler->allocator, val), Tokenizer::NUM_FLOAT, token->line, token->pos);
 				token->setFloat(val);
 				Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NUMBER, token);
 				exp->ret_values = 1;
@@ -5103,24 +4396,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 		case EXP_TYPE_MOD: // %
 			return lib.newExpression(OS_MATH_FMOD(left_exp->toNumber(), right_exp->toNumber()), left_exp, right_exp);
 
-		case EXP_TYPE_MUL_SHIFT: // <<
+		case EXP_TYPE_LSHIFT: // <<
 			return lib.newExpression(left_exp->toInt() << right_exp->toInt(), left_exp, right_exp);
 
-		case EXP_TYPE_DIV_SHIFT: // >>
+		case EXP_TYPE_RSHIFT: // >>
 			return lib.newExpression(left_exp->toInt() >> right_exp->toInt(), left_exp, right_exp);
 
 		case EXP_TYPE_POW: // **
 			return lib.newExpression(OS_MATH_POW(left_exp->toNumber(), right_exp->toNumber()), left_exp, right_exp);
-
-
-		/*
-		case EXP_TYPE_DOT:   // dot
-		case EXP_TYPE_CROSS: // cross
-		// case EXP_TYPE_SWAP:  // swap
-		case EXP_TYPE_IS:    // is
-		case EXP_TYPE_AS:    // as
-		// case EXP_TYPE_IN:    // in
-		*/
 		}
 	}
 	switch(exp_type){
@@ -5145,39 +4428,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 			allocator->deleteObj(left_exp);
 			return values_exp;
 		}
-	/*
-	case EXP_TYPE_INDIRECT:
-		{
-			left_exp = expectExpressionValues(left_exp, 1);
-			right_exp = expectExpressionValues(right_exp, 1);
-			switch(left_exp->type){
-			case EXP_TYPE_NAME:
-				{
-					int local_var_index = findLocalVarIndex(scope, left_exp->token->str);
-					left_exp->type = local_var_index < 0 ? EXP_TYPE_GET_AUTO_VAR : EXP_TYPE_GET_LOCAL_VAR;
-					break;
-				}
-			}
-			switch(right_exp->type){
-			case EXP_TYPE_NAME:
-				right_exp->type = EXP_TYPE_CONST_STRING;
-				break;
-			}
-			Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_PROPERTY, token, left_exp, right_exp);
-			exp->ret_values = 1;
-			return exp;
-		}
-	*/
 	}
 	left_exp = expectExpressionValues(left_exp, 1);
 	right_exp = expectExpressionValues(right_exp, 1);
 	Expression * exp = new (malloc(sizeof(Expression))) Expression(exp_type, token, left_exp, right_exp);
 	exp->ret_values = 1;
-	// exp->active_locals = scope->function->num_locals;
 	return exp;
 }
 
-bool OS::Core::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const StringInternal& name, int active_locals, int max_up_count)
+bool OS::Core::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const String& name, int active_locals, int max_up_count)
 {
 	OS_ASSERT(scope);
 	for(int up_count = 0, up_scope_count = 0;;){
@@ -5217,63 +4476,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 			Expression * name_exp = var_exp->list[0];
 			Expression * params = var_exp->list[1];
 			OS_ASSERT(params->type == EXP_TYPE_PARAMS);
-			switch(name_exp->type){
-			// case EXP_TYPE_CALL_DIM:
-			default:
-				allocator->vectorInsertAtIndex(var_exp->list, 0, value_exp);
-				var_exp->type = EXP_TYPE_SET_DIM;
-				var_exp->ret_values = value_exp->ret_values-1;
-				return var_exp;
-
-			/*
-			case EXP_TYPE_NAME:
-				{
-					OS_ASSERT(name_exp->ret_values == 1);
-					LocalVarDesc local_var;
-					if(!findLocalVar(local_var, scope, name_exp->token->str, name_exp->active_locals)){
-						OS_ASSERT(name_exp->list.count == 0);
-						Expression * field_exp = name_exp;
-						field_exp->type = EXP_TYPE_CONST_STRING;
-						allocator->vectorInsertAtIndex(params->list, 0, field_exp);
-						params->ret_values += field_exp->ret_values;
-
-						OS_ASSERT(var_exp->list.count == 2);
-						var_exp->list[0] = value_exp;
-						var_exp->list[1] = params;
-						var_exp->type = EXP_TYPE_SET_AUTO_VAR_DIM;
-						var_exp->ret_values = value_exp->ret_values-1;
-
-						return var_exp;
-					}
-					OS_ASSERT(false);
-				}
-			*/
-
-			/*
-			case EXP_TYPE_INDIRECT:
-				{
-					OS_ASSERT(name_exp->list.count == 2);
-					Expression * field_exp = name_exp->list[1];
-					if(field_exp->type == EXP_TYPE_NAME){
-						field_exp->type = EXP_TYPE_CONST_STRING;
-					}
-					allocator->vectorInsertAtIndex(params->list, 0, field_exp);
-					params->ret_values += field_exp->ret_values;
-
-					OS_ASSERT(var_exp->list.count == 2);
-					var_exp->list[0] = value_exp;
-					var_exp->list[1] = name_exp->list[0];
-					var_exp->list.add(params);
-					var_exp->type = EXP_TYPE_SET_PROPERTY_DIM;
-					var_exp->ret_values = value_exp->ret_values-1;
-
-					allocator->vectorClear(name_exp->list);
-					allocator->deleteObj(name_exp);
-					return var_exp;
-				}
-			*/
-			}
-			break;
+			allocator->vectorInsertAtIndex(var_exp->list, 0, value_exp);
+			var_exp->type = EXP_TYPE_SET_DIM;
+			var_exp->ret_values = value_exp->ret_values-1;
+			return var_exp;
 		}
 
 	case EXP_TYPE_INDIRECT:
@@ -5302,26 +4508,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 
 			case EXP_TYPE_CALL:
 				OS_ASSERT(false);
-				/* setError(ERROR_EXPECT_WRITEABLE, var_exp_right->token);
-				allocator->deleteObj(var_exp);
-				allocator->deleteObj(value_exp); */
 				return NULL;
 
 			case EXP_TYPE_CALL_DIM:
 				OS_ASSERT(false);
-				/* var_exp_right->type = EXP_TYPE_PARAMS;
-				exp_type = EXP_TYPE_SET_PROPERTY_DIM;
-				OS_ASSERT(var_exp_right->list.count == 2);
-				if(var_exp_right->list[0]->type == EXP_TYPE_NAME){
-					OS_ASSERT(var_exp_right->list[0]->ret_values == 1);
-					var_exp_right->list[0]->type = EXP_TYPE_CONST_STRING;
-				}
-				break; */
 				return NULL;
 			}
 			Expression * exp = new (malloc(sizeof(Expression))) Expression(exp_type, var_exp->token, value_exp, var_exp_left, var_exp_right);
 			exp->ret_values = value_exp->ret_values-1;
-			// exp->active_locals = scope->function->num_locals;
 			allocator->vectorClear(var_exp->list);
 			allocator->deleteObj(var_exp);
 			return exp;
@@ -5394,16 +4588,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope * scope, Expression * exp, bool allow_binary_operator, bool allow_param)
 {
-	/* switch(exp->type){
-	case EXP_TYPE_CALL:
-	case EXP_TYPE_CALL_DIM:
-		exp->ret_values = 1;
-		break;
-
-	default:
-		OS_ASSERT(exp->ret_values == 1);
-		break;
-	} */
 	for(;;){
 		if(!recent_token){
 			return exp;
@@ -5460,16 +4644,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::OPERATOR_MUL: // *
 		case Tokenizer::OPERATOR_DIV: // /
 		case Tokenizer::OPERATOR_MOD: // %
-		case Tokenizer::OPERATOR_MUL_SHIFT: // <<
-		case Tokenizer::OPERATOR_DIV_SHIFT: // >>
+		case Tokenizer::OPERATOR_LSHIFT: // <<
+		case Tokenizer::OPERATOR_RSHIFT: // >>
 		case Tokenizer::OPERATOR_POW: // **
 
-		case Tokenizer::OPERATOR_DOT:   // dot
-		case Tokenizer::OPERATOR_CROSS: // cross
-		// case Tokenizer::OPERATOR_SWAP:  // swap
-		case Tokenizer::OPERATOR_IS:    // is
-		case Tokenizer::OPERATOR_AS:    // as
-		// case Tokenizer::OPERATOR_IN:    // in
 			if(!allow_binary_operator && token_type != Tokenizer::OPERATOR_INDIRECT){
 				return exp;
 			}
@@ -5488,8 +4666,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::OPERATOR_MUL_ASSIGN: // *=
 		case Tokenizer::OPERATOR_DIV_ASSIGN: // /=
 		case Tokenizer::OPERATOR_MOD_ASSIGN: // %=
-		case Tokenizer::OPERATOR_MUL_SHIFT_ASSIGN: // <<=
-		case Tokenizer::OPERATOR_DIV_SHIFT_ASSIGN: // >>=
+		case Tokenizer::OPERATOR_LSHIFT_ASSIGN: // <<=
+		case Tokenizer::OPERATOR_RSHIFT_ASSIGN: // >>=
 		case Tokenizer::OPERATOR_POW_ASSIGN: // **=
 			setError(ERROR_SYNTAX, token);
 			return NULL;
@@ -5803,9 +4981,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 	return NULL;
 }
 
-OS::Core::StringInternal OS::Core::Compiler::debugPrintSourceLine(TokenData * token)
+OS::Core::String OS::Core::Compiler::debugPrintSourceLine(TokenData * token)
 {
-	StringInternal out(allocator);
+	String out(allocator);
 	if(!token){
 		return out;
 	}
@@ -5818,15 +4996,15 @@ OS::Core::StringInternal OS::Core::Compiler::debugPrintSourceLine(TokenData * to
 		filePrinted = true;
 		recent_printed_line = -1;
 		recent_printed_text_data = token->text_data->retain();
-		out += StringInternal::format(allocator, OS_TEXT("\n[FILE] %s"), token->text_data->filename.toChar());
+		out += String::format(allocator, OS_TEXT("\n[FILE] %s"), token->text_data->filename.toChar());
 	}
 	if(recent_printed_line != token->line && token->line >= 0){
 		recent_printed_line = token->line;
-		StringInternal line = token->text_data->lines[token->line].trim();
-		out += StringInternal::format(allocator, OS_TEXT("\n[%d] %s\n\n"), token->line+1, line.toChar());
+		String line = token->text_data->lines[token->line].trim();
+		out += String::format(allocator, OS_TEXT("\n[%d] %s\n\n"), token->line+1, line.toChar());
 	}
 	else if(filePrinted){
-		out += StringInternal::format(allocator, OS_TEXT("\n"));
+		out += String::format(allocator, OS_TEXT("\n"));
 	}
 	return out;
 }
@@ -5869,23 +5047,6 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 
 	case EXP_TYPE_GET_PROPERTY:
 		return OS_TEXT("get property");
-
-	/*
-	case EXP_TYPE_SET_PROPERTY_DIM:
-		return OS_TEXT("set property dim");
-
-	case EXP_TYPE_GET_PROPERTY_DIM:
-		return OS_TEXT("get property dim");
-
-	case EXP_TYPE_GET_AUTO_VAR_DIM:
-		return OS_TEXT("get auto var dim");
-
-	case EXP_TYPE_SET_LOCAL_VAR_DIM:
-		return OS_TEXT("set local var dim");
-
-	case EXP_TYPE_SET_AUTO_VAR_DIM:
-		return OS_TEXT("set auto var dim");
-	*/
 
 	case EXP_TYPE_SET_DIM:
 		return OS_TEXT("set dim");
@@ -5966,35 +5127,6 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 
 	case EXP_TYPE_ASSIGN:
 		return OS_TEXT("operator =");
-
-	/*
-	case EXP_TYPE_IF:
-		return OS_TEXT("if");
-
-		// case EXP_TYPE_IF_NOT:
-		//   return OS_TEXT("if not");
-
-	case EXP_TYPE_POST_IF:
-		return OS_TEXT("post_if");
-
-	case EXP_TYPE_KILL:
-		return OS_TEXT("kill");
-
-	case EXP_TYPE_CLONE:
-		return OS_TEXT("clone");
-
-	case EXP_TYPE_VALID:
-		return OS_TEXT("valid");
-
-	case EXP_TYPE_WAIT_FRAME:
-		return OS_TEXT("waitFrame");
-
-	case EXP_TYPE_WAIT_APP_TIME_MS:
-		return OS_TEXT("waitAppTimeMS");
-
-	case EXP_TYPE_WAIT_OBJECT:
-		return OS_TEXT("waitObject");
-	*/
 
 	case EXP_TYPE_LOGIC_AND: // &&
 		return OS_TEXT("logic &&");
@@ -6097,32 +5229,14 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_MOD: // %
 		return OS_TEXT("operator %");
 
-	case EXP_TYPE_MUL_SHIFT: // <<
+	case EXP_TYPE_LSHIFT: // <<
 		return OS_TEXT("operator <<");
 
-	case EXP_TYPE_DIV_SHIFT: // >>
+	case EXP_TYPE_RSHIFT: // >>
 		return OS_TEXT("operator >>");
 
 	case EXP_TYPE_POW: // **
 		return OS_TEXT("operator **");
-
-	case EXP_TYPE_DOT:
-		return OS_TEXT("operator dot");
-
-	case EXP_TYPE_CROSS:
-		return OS_TEXT("operator cross");
-
-	case EXP_TYPE_SWAP:
-		return OS_TEXT("operator swap");
-
-	case EXP_TYPE_AS:
-		return OS_TEXT("operator as");
-
-	case EXP_TYPE_IS:
-		return OS_TEXT("operator is");
-
-	case EXP_TYPE_IN:
-		return OS_TEXT("operator in");
 
 	case EXP_TYPE_ADD_ASSIGN: // +=
 		return OS_TEXT("operator +=");
@@ -6139,10 +5253,10 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_MOD_ASSIGN: // %=
 		return OS_TEXT("operator %=");
 
-	case EXP_TYPE_MUL_SHIFT_ASSIGN: // <<=
+	case EXP_TYPE_LSHIFT_ASSIGN: // <<=
 		return OS_TEXT("operator <<=");
 
-	case EXP_TYPE_DIV_SHIFT_ASSIGN: // >>=
+	case EXP_TYPE_RSHIFT_ASSIGN: // >>=
 		return OS_TEXT("operator >>=");
 
 	case EXP_TYPE_POW_ASSIGN: // **=
@@ -6154,36 +5268,8 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 // =====================================================================
 // =====================================================================
 // =====================================================================
-/*
-OS::FunctionData::LocalVar::LocalVar(OS * allocator): name(allocator)
-{
-	start_code_pos = -1;
-	end_code_pos = -1;
-}
 
-// =====================================================================
-
-OS::FunctionData::FunctionData()
-{
-	prog = NULL;
-	num_locals = 0;
-	num_params = 0;
-	opcodes_pos = 0;
-	opcodes_size = 0;
-	up_funcs = NULL;
-	num_up_funcs = 0;
-}
-
-OS::FunctionData::~FunctionData()
-{
-	OS_ASSERT(!prog && !up_funcs);
-}
-*/
-// =====================================================================
-// =====================================================================
-// =====================================================================
-
-OS::Core::FunctionDecl::LocalVar::LocalVar(const StringInternal& p_name): name(p_name)
+OS::Core::FunctionDecl::LocalVar::LocalVar(const String& p_name): name(p_name)
 {
 	start_code_pos = -1;
 	end_code_pos = -1;
@@ -6265,7 +5351,7 @@ bool OS::Core::Compiler::saveToStream(StreamWriter& writer)
 		writer.writeFloat(prog_numbers[i]);	
 	}
 	for(i = 0; i < prog_strings.count; i++){
-		const StringInternal& str = prog_strings[i];
+		const String& str = prog_strings[i];
 		int data_size = str.getDataSize();
 		writer.writeUVariable(data_size);
 		writer.writeBytes(str.toChar(), data_size);
@@ -6322,7 +5408,7 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 	}
 	for(i = 0; i < num_strings; i++){
 		int data_size = reader.readUVariable();
-		StringInternal str(allocator, OS_TEXT('\0'), data_size/sizeof(OS_CHAR));
+		String str(allocator, OS_TEXT('\0'), data_size/sizeof(OS_CHAR));
 		reader.readBytes((void*)str.toChar(), data_size);
 		const_values[num_numbers+i] = allocator->core->newStringValue(str);
 	}
@@ -6343,7 +5429,7 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 			int cached_name_index = reader.readUVariable();
 			OS_ASSERT(cached_name_index >= 0 && cached_name_index < num_strings);
 			FunctionDecl::LocalVar * local_var = func->locals + j;
-			StringInternal var_name = allocator->core->valueToString(const_values[num_numbers + cached_name_index]);
+			String var_name = allocator->core->valueToString(const_values[num_numbers + cached_name_index]);
 			new (local_var) FunctionDecl::LocalVar(var_name);
 			local_var->start_code_pos = reader.readUVariable() + func->opcodes_pos;
 			local_var->end_code_pos = reader.readUVariable() + func->opcodes_pos;
@@ -6436,18 +5522,9 @@ OS::Core::Program::OpcodeType OS::Core::Program::toOpcodeType(Compiler::Expressi
 	case Compiler::EXP_TYPE_MUL: return OP_MUL;
 	case Compiler::EXP_TYPE_DIV: return OP_DIV;
 	case Compiler::EXP_TYPE_MOD: return OP_MOD;
-	case Compiler::EXP_TYPE_MUL_SHIFT: return OP_MUL_SHIFT;
-	case Compiler::EXP_TYPE_DIV_SHIFT: return OP_DIV_SHIFT;
+	case Compiler::EXP_TYPE_LSHIFT: return OP_LSHIFT;
+	case Compiler::EXP_TYPE_RSHIFT: return OP_RSHIFT;
 	case Compiler::EXP_TYPE_POW: return OP_POW;
-
-	/*
-	case Compiler::EXP_TYPE_DOT: return OP_CONCAT;
-	case Compiler::EXP_TYPE_CROSS: return OP_CONCAT;
-	case Compiler::EXP_TYPE_SWAP: return OP_CONCAT;
-	case Compiler::EXP_TYPE_IS: return OP_CONCAT;
-	case Compiler::EXP_TYPE_AS: return OP_CONCAT;
-	case Compiler::EXP_TYPE_IN: return OP_CONCAT;
-	*/
 	}
 	OS_ASSERT(false);
 	return OP_UNKNOWN;
@@ -6457,30 +5534,30 @@ OS::Core::Program::OpcodeType OS::Core::Program::toOpcodeType(Compiler::Expressi
 // =====================================================================
 // =====================================================================
 
-OS::StreamWriter::StreamWriter(OS * p_allocator)
+OS::Core::StreamWriter::StreamWriter(OS * p_allocator)
 {
 	allocator = p_allocator;
 }
 
-OS::StreamWriter::~StreamWriter()
+OS::Core::StreamWriter::~StreamWriter()
 {
 }
 
-void OS::StreamWriter::writeByte(int value)
+void OS::Core::StreamWriter::writeByte(int value)
 {
 	OS_ASSERT(value >= 0 && value <= 0xff);
 	OS_BYTE le_value = toLittleEndianByteOrder((OS_BYTE)value);
 	writeBytes(&le_value, sizeof(le_value));
 }
 
-void OS::StreamWriter::writeByteAtPos(int value, int pos)
+void OS::Core::StreamWriter::writeByteAtPos(int value, int pos)
 {
 	OS_ASSERT(value >= 0 && value <= 0xff);
 	OS_BYTE le_value = toLittleEndianByteOrder((OS_BYTE)value);
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
 }
 
-void OS::StreamWriter::writeUVariable(int value)
+void OS::Core::StreamWriter::writeUVariable(int value)
 {
 	OS_ASSERT(value >= 0);
 	for(;;){
@@ -6494,66 +5571,66 @@ void OS::StreamWriter::writeUVariable(int value)
 	}
 }
 
-void OS::StreamWriter::writeU16(int value)
+void OS::Core::StreamWriter::writeU16(int value)
 {
 	OS_ASSERT(value >= 0 && value <= 0xffff);
 	OS_U16 le_value = toLittleEndianByteOrder((OS_U16)value);
 	writeBytes(&le_value, sizeof(le_value));
 }
 
-void OS::StreamWriter::writeU16AtPos(int value, int pos)
+void OS::Core::StreamWriter::writeU16AtPos(int value, int pos)
 {
 	OS_ASSERT(value >= 0 && value <= 0xffff);
 	OS_U16 le_value = toLittleEndianByteOrder((OS_U16)value);
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
 }
 
-void OS::StreamWriter::writeInt16(int value)
+void OS::Core::StreamWriter::writeInt16(int value)
 {
 	OS_ASSERT((int)(OS_INT16)value == value);
 	OS_INT16 le_value = toLittleEndianByteOrder((OS_INT16)value);
 	writeBytes(&le_value, sizeof(le_value));
 }
 
-void OS::StreamWriter::writeInt16AtPos(int value, int pos)
+void OS::Core::StreamWriter::writeInt16AtPos(int value, int pos)
 {
 	OS_ASSERT((int)(OS_INT16)value == value);
 	OS_INT16 le_value = toLittleEndianByteOrder((OS_INT16)value);
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
 }
 
-void OS::StreamWriter::writeInt32(int value)
+void OS::Core::StreamWriter::writeInt32(int value)
 {
 	OS_INT32 le_value = toLittleEndianByteOrder((OS_INT32)value);
 	writeBytes(&le_value, sizeof(le_value));
 }
 
-void OS::StreamWriter::writeInt32AtPos(int value, int pos)
+void OS::Core::StreamWriter::writeInt32AtPos(int value, int pos)
 {
 	OS_ASSERT((int)(OS_INT32)value == value);
 	OS_INT32 le_value = toLittleEndianByteOrder((OS_INT32)value);
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
 }
 
-void OS::StreamWriter::writeInt64(OS_INT64 value)
+void OS::Core::StreamWriter::writeInt64(OS_INT64 value)
 {
 	OS_INT64 le_value = toLittleEndianByteOrder((OS_INT64)value);
 	writeBytes(&le_value, sizeof(le_value));
 }
 
-void OS::StreamWriter::writeInt64AtPos(OS_INT64 value, int pos)
+void OS::Core::StreamWriter::writeInt64AtPos(OS_INT64 value, int pos)
 {
 	OS_INT64 le_value = toLittleEndianByteOrder((OS_INT64)value);
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
 }
 
-void OS::StreamWriter::writeFloat(OS_FLOAT value)
+void OS::Core::StreamWriter::writeFloat(OS_FLOAT value)
 {
 	OS_FLOAT le_value = toLittleEndianByteOrder((OS_FLOAT)value);
 	writeBytes(&le_value, sizeof(le_value));
 }
 
-void OS::StreamWriter::writeFloatAtPos(OS_FLOAT value, int pos)
+void OS::Core::StreamWriter::writeFloatAtPos(OS_FLOAT value, int pos)
 {
 	OS_FLOAT le_value = toLittleEndianByteOrder((OS_FLOAT)value);
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
@@ -6561,21 +5638,21 @@ void OS::StreamWriter::writeFloatAtPos(OS_FLOAT value, int pos)
 
 // =====================================================================
 
-OS::MemStreamWriter::MemStreamWriter(OS * allocator): StreamWriter(allocator)
+OS::Core::MemStreamWriter::MemStreamWriter(OS * allocator): StreamWriter(allocator)
 {
 }
 
-OS::MemStreamWriter::~MemStreamWriter()
+OS::Core::MemStreamWriter::~MemStreamWriter()
 {
 	allocator->vectorClear(buffer);
 }
 
-int OS::MemStreamWriter::getPos() const
+int OS::Core::MemStreamWriter::getPos() const
 {
 	return buffer.count;
 }
 
-void OS::MemStreamWriter::writeBytes(const void * buf, int len)
+void OS::Core::MemStreamWriter::writeBytes(const void * buf, int len)
 {
 	int pos = buffer.count;
 	allocator->vectorReserveCapacity(buffer, pos + len);
@@ -6583,19 +5660,19 @@ void OS::MemStreamWriter::writeBytes(const void * buf, int len)
 	writeBytesAtPos(buf, len, pos);
 }
 
-void OS::MemStreamWriter::writeBytesAtPos(const void * buf, int len, int pos)
+void OS::Core::MemStreamWriter::writeBytesAtPos(const void * buf, int len, int pos)
 {
 	OS_ASSERT(pos >= 0 && pos <= buffer.count-len);
 	OS_MEMCPY(buffer.buf+pos, buf, len);
 }
 
-void OS::MemStreamWriter::writeByte(int value)
+void OS::Core::MemStreamWriter::writeByte(int value)
 {
 	OS_ASSERT(value >= 0 && value <= 0xff);
 	allocator->vectorAddItem(buffer, (OS_BYTE)value);
 }
 
-void OS::MemStreamWriter::writeByteAtPos(int value, int pos)
+void OS::Core::MemStreamWriter::writeByteAtPos(int value, int pos)
 {
 	OS_ASSERT(value >= 0 && value <= 0xff);
 	OS_ASSERT(pos >= 0 && pos <= buffer.count-1);
@@ -6604,38 +5681,38 @@ void OS::MemStreamWriter::writeByteAtPos(int value, int pos)
 
 // =====================================================================
 
-OS::FileStreamWriter::FileStreamWriter(OS * allocator, const char * filename): StreamWriter(allocator)
+OS::Core::FileStreamWriter::FileStreamWriter(OS * allocator, const char * filename): StreamWriter(allocator)
 {
 	f = fopen(filename, "wb");
 	OS_ASSERT(f);
 }
 
-OS::FileStreamWriter::FileStreamWriter(OS * allocator, FILE * f): StreamWriter(allocator)
+OS::Core::FileStreamWriter::FileStreamWriter(OS * allocator, FILE * f): StreamWriter(allocator)
 {
 	this->f = f;
 	OS_ASSERT(f);
 }
 
-OS::FileStreamWriter::~FileStreamWriter()
+OS::Core::FileStreamWriter::~FileStreamWriter()
 {
 	if(f){
 		fclose(f);
 	}
 }
 
-int OS::FileStreamWriter::getPos() const
+int OS::Core::FileStreamWriter::getPos() const
 {
 	return f ? ftell(f) : 0;
 }
 
-void OS::FileStreamWriter::writeBytes(const void * buf, int len)
+void OS::Core::FileStreamWriter::writeBytes(const void * buf, int len)
 {
 	if(f){
 		fwrite(buf, len, 1, f);
 	}
 }
 
-void OS::FileStreamWriter::writeBytesAtPos(const void * buf, int len, int pos)
+void OS::Core::FileStreamWriter::writeBytesAtPos(const void * buf, int len, int pos)
 {
 	int save_pos = getPos();
 	fseek(f, pos, SEEK_SET);
@@ -6647,30 +5724,30 @@ void OS::FileStreamWriter::writeBytesAtPos(const void * buf, int len, int pos)
 // =====================================================================
 // =====================================================================
 
-OS::StreamReader::StreamReader(OS * p_allocator)
+OS::Core::StreamReader::StreamReader(OS * p_allocator)
 {
 	allocator = p_allocator;
 }
 
-OS::StreamReader::~StreamReader()
+OS::Core::StreamReader::~StreamReader()
 {
 }
 
-OS_BYTE OS::StreamReader::readByte()
+OS_BYTE OS::Core::StreamReader::readByte()
 {
 	OS_BYTE le_value;
 	readBytes(&le_value, sizeof(le_value));
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_BYTE OS::StreamReader::readByteAtPos(int pos)
+OS_BYTE OS::Core::StreamReader::readByteAtPos(int pos)
 {
 	OS_BYTE le_value;
 	readBytesAtPos(&le_value, sizeof(le_value), pos);
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_BYTE OS::StreamReader::readUVariable()
+OS_BYTE OS::Core::StreamReader::readUVariable()
 {
 	int value = readByte();
 	if(!(value & 0x80)){
@@ -6689,70 +5766,70 @@ OS_BYTE OS::StreamReader::readUVariable()
 	return 0; // shut up compiler
 }
 
-OS_U16 OS::StreamReader::readU16()
+OS_U16 OS::Core::StreamReader::readU16()
 {
 	OS_U16 le_value;
 	readBytes(&le_value, sizeof(le_value));
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_U16 OS::StreamReader::readU16AtPos(int pos)
+OS_U16 OS::Core::StreamReader::readU16AtPos(int pos)
 {
 	OS_U16 le_value;
 	readBytesAtPos(&le_value, sizeof(le_value), pos);
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_INT16 OS::StreamReader::readInt16()
+OS_INT16 OS::Core::StreamReader::readInt16()
 {
 	OS_INT16 le_value;
 	readBytes(&le_value, sizeof(le_value));
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_INT16 OS::StreamReader::readInt16AtPos(int pos)
+OS_INT16 OS::Core::StreamReader::readInt16AtPos(int pos)
 {
 	OS_INT16 le_value;
 	readBytesAtPos(&le_value, sizeof(le_value), pos);
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_INT32 OS::StreamReader::readInt32()
+OS_INT32 OS::Core::StreamReader::readInt32()
 {
 	OS_INT32 le_value;
 	readBytes(&le_value, sizeof(le_value));
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_INT32 OS::StreamReader::readInt32AtPos(int pos)
+OS_INT32 OS::Core::StreamReader::readInt32AtPos(int pos)
 {
 	OS_INT32 le_value;
 	readBytesAtPos(&le_value, sizeof(le_value), pos);
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_INT64 OS::StreamReader::readInt64()
+OS_INT64 OS::Core::StreamReader::readInt64()
 {
 	OS_INT64 le_value;
 	readBytes(&le_value, sizeof(le_value));
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_INT64 OS::StreamReader::readInt64AtPos(int pos)
+OS_INT64 OS::Core::StreamReader::readInt64AtPos(int pos)
 {
 	OS_INT64 le_value;
 	readBytesAtPos(&le_value, sizeof(le_value), pos);
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_FLOAT OS::StreamReader::readFloat()
+OS_FLOAT OS::Core::StreamReader::readFloat()
 {
 	OS_FLOAT le_value;
 	readBytes(&le_value, sizeof(le_value));
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_FLOAT OS::StreamReader::readFloatAtPos(int pos)
+OS_FLOAT OS::Core::StreamReader::readFloatAtPos(int pos)
 {
 	OS_FLOAT le_value;
 	readBytesAtPos(&le_value, sizeof(le_value), pos);
@@ -6761,39 +5838,39 @@ OS_FLOAT OS::StreamReader::readFloatAtPos(int pos)
 
 // =====================================================================
 
-OS::MemStreamReader::MemStreamReader(OS * allocator, int buf_size): StreamReader(allocator)
+OS::Core::MemStreamReader::MemStreamReader(OS * allocator, int buf_size): StreamReader(allocator)
 {
 	buffer = (OS_BYTE*)allocator->malloc(buf_size);
 	size = buf_size;
 	pos = 0;
 }
 
-OS::MemStreamReader::MemStreamReader(OS * allocator, OS_BYTE * buf, int buf_size): StreamReader(allocator)
+OS::Core::MemStreamReader::MemStreamReader(OS * allocator, OS_BYTE * buf, int buf_size): StreamReader(allocator)
 {
 	buffer = buf;
 	size = buf_size;
 	pos = 0;
 }
 
-OS::MemStreamReader::~MemStreamReader()
+OS::Core::MemStreamReader::~MemStreamReader()
 {
 	if(allocator){
 		allocator->free(buffer);
 	}
 }
 
-int OS::MemStreamReader::getPos() const
+int OS::Core::MemStreamReader::getPos() const
 {
 	return pos;
 }
 
-void OS::MemStreamReader::skipBytes(int len)
+void OS::Core::MemStreamReader::skipBytes(int len)
 {
 	OS_ASSERT(pos >= 0 && pos+len <= size);
 	pos += len;
 }
 
-bool OS::MemStreamReader::checkBytes(void * src, int len)
+bool OS::Core::MemStreamReader::checkBytes(void * src, int len)
 {
 	OS_ASSERT(pos >= 0 && pos+len <= size);
 	bool r = OS_MEMCMP(buffer+pos, src, len) == 0;
@@ -6801,7 +5878,7 @@ bool OS::MemStreamReader::checkBytes(void * src, int len)
 	return r;
 }
 
-void * OS::MemStreamReader::readBytes(void * dst, int len)
+void * OS::Core::MemStreamReader::readBytes(void * dst, int len)
 {
 	OS_ASSERT(pos >= 0 && pos+len <= size);
 	OS_MEMCPY(dst, buffer+pos, len);
@@ -6809,20 +5886,20 @@ void * OS::MemStreamReader::readBytes(void * dst, int len)
 	return dst;
 }
 
-void * OS::MemStreamReader::readBytesAtPos(void * dst, int len, int pos)
+void * OS::Core::MemStreamReader::readBytesAtPos(void * dst, int len, int pos)
 {
 	OS_ASSERT(pos >= 0 && pos+len <= size);
 	OS_MEMCPY(dst, buffer+pos, len);
 	return dst;
 }
 
-OS_BYTE OS::MemStreamReader::readByte()
+OS_BYTE OS::Core::MemStreamReader::readByte()
 {
 	OS_ASSERT(pos >= 0 && pos+sizeof(OS_BYTE) <= size);
 	return buffer[pos++];
 }
 
-OS_BYTE OS::MemStreamReader::readByteAtPos(int pos)
+OS_BYTE OS::Core::MemStreamReader::readByteAtPos(int pos)
 {
 	OS_ASSERT(pos >= 0 && pos+sizeof(OS_BYTE) <= size);
 	return buffer[pos];
@@ -6830,45 +5907,45 @@ OS_BYTE OS::MemStreamReader::readByteAtPos(int pos)
 
 // =====================================================================
 
-OS::FileStreamReader::FileStreamReader(OS * allocator, const char * filename): StreamReader(allocator)
+OS::Core::FileStreamReader::FileStreamReader(OS * allocator, const char * filename): StreamReader(allocator)
 {
 	f = fopen(filename, "rb");
 	OS_ASSERT(f);
 }
 
-OS::FileStreamReader::FileStreamReader(OS * allocator, FILE * f): StreamReader(allocator)
+OS::Core::FileStreamReader::FileStreamReader(OS * allocator, FILE * f): StreamReader(allocator)
 {
 	this->f = f;
 	OS_ASSERT(f);
 }
 
-OS::FileStreamReader::~FileStreamReader()
+OS::Core::FileStreamReader::~FileStreamReader()
 {
 	if(f){
 		fclose(f);
 	}
 }
 
-int OS::FileStreamReader::getPos() const
+int OS::Core::FileStreamReader::getPos() const
 {
 	return f ? ftell(f) : 0;
 }
 
-void OS::FileStreamReader::skipBytes(int len)
+void OS::Core::FileStreamReader::skipBytes(int len)
 {
 	if(f){
 		fseek(f, len, SEEK_CUR);
 	}
 }
 
-bool OS::FileStreamReader::checkBytes(void * src, int len)
+bool OS::Core::FileStreamReader::checkBytes(void * src, int len)
 {
 	void * buf = alloca(len);
 	readBytes(buf, len);
 	return OS_MEMCMP(buf, src, len) == 0;
 }
 
-void * OS::FileStreamReader::readBytes(void * buf, int len)
+void * OS::Core::FileStreamReader::readBytes(void * buf, int len)
 {
 	if(f){
 		fread(buf, len, 1, f);
@@ -6878,7 +5955,7 @@ void * OS::FileStreamReader::readBytes(void * buf, int len)
 	return buf;
 }
 
-void * OS::FileStreamReader::readBytesAtPos(void * buf, int len, int pos)
+void * OS::Core::FileStreamReader::readBytesAtPos(void * buf, int len, int pos)
 {
 	int save_pos = getPos();
 	fseek(f, pos, SEEK_SET);
@@ -6899,7 +5976,7 @@ OS::Core::PropertyIndex::PropertyIndex(const PropertyIndex& index): string_index
 	int_valid = index.int_valid;
 }
 
-OS::Core::PropertyIndex::PropertyIndex(const StringInternal& index): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(const String& index): string_index(index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -6908,7 +5985,7 @@ OS::Core::PropertyIndex::PropertyIndex(const StringInternal& index): string_inde
 	fixStringIndex();
 }
 
-OS::Core::PropertyIndex::PropertyIndex(const StringInternal& index, const KeepStringIndex&): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(const String& index, const KeepStringIndex&): string_index(index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -6970,7 +6047,7 @@ OS::Core::PropertyIndex::PropertyIndex(OS * allocator, OS_FLOAT index, int preci
 		// string_index = allocator->core->empty_string_data->retain();
 	}else{
 		// string_index = StringData(allocator, index, precision);
-		string_index = StringInternal(allocator, index, precision);
+		string_index = String(allocator, index, precision);
 		is_string_index = true;
 		int_valid = false;
 		hash_value = string_index.hash();
@@ -7033,9 +6110,9 @@ int OS::Core::PropertyIndex::hash() const
 	return hash_value; // int_valid ? (int)int_index : string_index.hash();
 }
 
-OS::Core::StringInternal OS::Core::PropertyIndex::toString() const
+OS::Core::String OS::Core::PropertyIndex::toString() const
 {
-	return is_string_index ? string_index : StringInternal(getAllocator(), int_index);
+	return is_string_index ? string_index : String(getAllocator(), int_index);
 }
 
 void OS::Core::PropertyIndex::fixStringIndex()
@@ -7081,7 +6158,7 @@ OS::Core::Value::Property::Property(const PropertyIndex& index): PropertyIndex(i
 	next = NULL;
 }
 
-OS::Core::Value::Property::Property(const StringInternal& index): PropertyIndex(index)
+OS::Core::Value::Property::Property(const String& index): PropertyIndex(index)
 {
 	value_id = 0;
 	hash_next = NULL;
@@ -7450,26 +6527,10 @@ bool OS::Core::valueToBool(Value * val)
 	return true;
 }
 
-int OS::Core::valueToInt(Value * val)
+OS_INT OS::Core::valueToInt(Value * val)
 {
-	return (int)valueToNumber(val);
+	return (OS_INT)valueToNumber(val);
 }
-
-/*
-OS_FLOAT OS::valueToNumber(Value * val)
-{
-	OS_FLOAT out;
-	isValueNumber(val, &out);
-	return out;
-}
-
-OS::Core::StringInternal OS::valueToString(Value * val)
-{
-	StringInternal out(this);
-	isValueString(val, &out);
-	return out;
-}
-*/
 
 OS_INT OS::Core::Compiler::Expression::toInt()
 {
@@ -7557,11 +6618,11 @@ bool OS::Core::isValueNumber(Value * val, OS_FLOAT * out)
 	return false;
 }
 
-OS::Core::StringInternal OS::Core::Compiler::Expression::toString()
+OS::Core::String OS::Core::Compiler::Expression::toString()
 {
 	switch(type){
 	case EXP_TYPE_CONST_NULL:
-		return StringInternal(getAllocator());
+		return String(getAllocator());
 
 	case EXP_TYPE_CONST_STRING:
 		return token->str;
@@ -7569,35 +6630,35 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::toString()
 	case EXP_TYPE_CONST_NUMBER:
 		// OS_ASSERT(token->str.toFloat() == token->getFloat());
 		// return token->str;
-		return StringInternal(getAllocator(), token->getFloat());
+		return String(getAllocator(), token->getFloat());
 
 	case EXP_TYPE_CONST_TRUE:
-		return StringInternal(getAllocator(), OS_TEXT("1"));
+		return String(getAllocator(), OS_TEXT("1"));
 
 	case EXP_TYPE_CONST_FALSE:
-		return StringInternal(getAllocator());
+		return String(getAllocator());
 	}
 	OS_ASSERT(false);
-	return StringInternal(getAllocator());
+	return String(getAllocator());
 }
 
-OS::Core::StringInternal OS::Core::valueToString(Value * val, bool tostring_enabled, bool prototype_enabled)
+OS::Core::String OS::Core::valueToString(Value * val, bool tostring_method_enabled, bool prototype_enabled)
 {
 	switch(val->type){
 	case OS_VALUE_TYPE_NULL:
-		return StringInternal(allocator);
+		return String(allocator);
 
 	case OS_VALUE_TYPE_BOOL:
-		return val->value.boolean ? StringInternal(allocator, OS_TEXT("1")) : StringInternal(allocator);
+		return val->value.boolean ? String(allocator, OS_TEXT("1")) : String(allocator);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return StringInternal(allocator, val->value.number, OS_DEF_PRECISION);
+		return String(allocator, val->value.number, OS_DEF_PRECISION);
 
 	case OS_VALUE_TYPE_STRING:
-		return StringInternal(val->value.string_data);
+		return String(val->value.string_data);
 
 	case OS_VALUE_TYPE_OBJECT:
-		if(tostring_enabled){
+		if(tostring_method_enabled){
 			Value * func = getPropertyValue(val, PropertyIndex(strings->__tostring, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func){
 				pushValue(func);
@@ -7610,49 +6671,49 @@ OS::Core::StringInternal OS::Core::valueToString(Value * val, bool tostring_enab
 					~Pop(){ core->pop(); }
 				} pop(this);
 
-				return valueToString(stack_values[stack_values.count-1], false);
+				return valueToString(stack_values.lastElement(), false);
 			}
 		}
 
 	// case OS_VALUE_TYPE_ARRAY:
-	// 	return StringInternal(this, (OS_INT)(val->table ? val->table->count : 0));
+	// 	return String(this, (OS_INT)(val->table ? val->table->count : 0));
 	}
-	return StringInternal(allocator);
+	return String(allocator);
 }
 
-bool OS::Core::isValueString(Value * val, StringInternal * out)
+bool OS::Core::isValueString(Value * val, String * out)
 {
 	switch(val->type){
 	case OS_VALUE_TYPE_NULL:
 		if(out){
-			*out = StringInternal(allocator);
+			*out = String(allocator);
 		}
 		return true;
 
 	case OS_VALUE_TYPE_BOOL:
 		if(out){
-			*out = StringInternal(allocator, val->value.boolean ? OS_TEXT("1") : OS_TEXT(""));
+			*out = String(allocator, val->value.boolean ? OS_TEXT("1") : OS_TEXT(""));
 		}
 		return true;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = StringInternal(allocator, val->value.number, OS_DEF_PRECISION);
+			*out = String(allocator, val->value.number, OS_DEF_PRECISION);
 		}
 		return true;
 
 	case OS_VALUE_TYPE_STRING:
 		if(out){
-			*out = StringInternal(val->value.string_data);
+			*out = String(val->value.string_data);
 		}
 		return true;
 
 	// case OS_VALUE_TYPE_OBJECT:
 	// case OS_VALUE_TYPE_ARRAY:
-	// 	return StringInternal(this, (OS_INT)(val->table ? val->table->count : 0));
+	// 	return String(this, (OS_INT)(val->table ? val->table->count : 0));
 	}
 	if(out){
-		*out = StringInternal(allocator);
+		*out = String(allocator);
 	}
 	return false;
 }
@@ -7790,11 +6851,18 @@ OS::Core::Strings::Strings(OS * allocator)
 	__cmp(allocator, OS_TEXT("__cmp")),
 	__tostring(allocator, OS_TEXT("toString")),
 	// __tobool(allocator, OS_TEXT("__tobool")),
+	__concat(allocator, OS_TEXT("__concat")),
+	__bitand(allocator, OS_TEXT("__bitand")),
+	__bitor(allocator, OS_TEXT("__bitor")),
+	__bitxor(allocator, OS_TEXT("__bitxor")),
 	__add(allocator, OS_TEXT("__add")),
 	__sub(allocator, OS_TEXT("__sub")),
 	__mul(allocator, OS_TEXT("__mul")),
 	__div(allocator, OS_TEXT("__div")),
 	__mod(allocator, OS_TEXT("__mod")),
+	__lshift(allocator, OS_TEXT("__lshift")),
+	__rshift(allocator, OS_TEXT("__rshift")),
+	__pow(allocator, OS_TEXT("__pow")),
 
 	syntax_prototype(allocator, OS_TEXT("prototype")),
 	syntax_var(allocator, OS_TEXT("var")),
@@ -8216,7 +7284,7 @@ bool OS::Core::init()
 	true_value = newBoolValue(true);
 	false_value = newBoolValue(false);
 	global_vars = newObjectValue();
-	removeStackValues(PROTOTYPES_NUMBER + 2);
+	// removeStackValues(PROTOTYPES_NUMBER + 2);
 
 	return true;
 }
@@ -8463,11 +7531,6 @@ void OS::Core::resetValue(Value * val)
 				call(val, 0, 0);
 			}
 		}
-		/* if(val->value.table){
-			Value::Table * table = val->value.table;
-			val->value.table = NULL;
-			deleteTable(table);
-		} */
 		break;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -8610,7 +7673,7 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 	if(setter_enabled){
 		Value * self = table_value;
 		if(index.is_string_index){
-			StringInternal setter_name(allocator,
+			String setter_name(allocator,
 				strings->__set.toChar(), strings->__set.getDataSize(),
 				OS_TEXT("@"), sizeof(OS_CHAR),
 				index.string_index.toChar(), index.string_index.getDataSize());
@@ -8700,7 +7763,7 @@ OS::Core::Value * OS::Core::newNumberValue(OS_FLOAT val)
 	return res;
 }
 
-OS::Core::Value * OS::Core::newStringValue(const StringInternal& str)
+OS::Core::Value * OS::Core::newStringValue(const String& str)
 {
 #if 1
 	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
@@ -8732,7 +7795,7 @@ OS::Core::Value * OS::Core::newStringValue(const StringInternal& str)
 OS::Core::Value * OS::Core::newStringValue(const OS_CHAR * val)
 {
 #if 1
-	return newStringValue(StringInternal(allocator, val));
+	return newStringValue(String(allocator, val));
 #else
 	Value * res = newValue();
 	res->prototype = prototypes[PROTOTYPE_STRING]->retain();
@@ -8836,7 +7899,7 @@ OS::Core::Value * OS::Core::pushNumberValue(OS_FLOAT val)
 	return releaseValue(pushValue(newNumberValue(val)));
 }
 
-OS::Core::Value * OS::Core::pushStringValue(const StringInternal& val)
+OS::Core::Value * OS::Core::pushStringValue(const String& val)
 {
 	return releaseValue(pushValue(newStringValue(val)));
 }
@@ -8880,7 +7943,10 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 {
 	struct Lib
 	{
-		static bool isEqualExact(Value * left_value, Value * right_value)
+		Core * core;
+		Value * left_value, * right_value;
+
+		bool isEqualExactly()
 		{
 			if(left_value->type == right_value->type){ // && left_value->prototype == right_value->prototype){
 				switch(left_value->type){
@@ -8894,8 +7960,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 					return left_value->value.boolean == right_value->value.boolean;
 
 				case OS_VALUE_TYPE_STRING:
-					// there are no same strings with diferent string_data, see string_values_table
-					// the same strings are always share one value_id
+					// the same strings are always share one instance, so check only value_id
 					// return left_value->value.string_data == right_value->value.string_data;
 
 				case OS_VALUE_TYPE_ARRAY:
@@ -8911,7 +7976,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 			return false;
 		}
 
-		static int compare(OS_FLOAT num1, OS_FLOAT num2)
+		int compareNumbers(OS_FLOAT num1, OS_FLOAT num2)
 		{
 			if(num1 > num2){
 				return 1;
@@ -8922,137 +7987,283 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 			return 0;
 		}
 
-		static int compare(StringData * left_string_data, OS_FLOAT right_number)
+		int compareStrings(StringData * left_string_data, OS_FLOAT right_number)
 		{
 			OS_CHAR buf[128];
 			Utils::numToStr(buf, right_number);
 			return left_string_data->cmp(buf, OS_STRLEN(buf));
 		}
 
-		static int compare(OS_FLOAT left_number, Value * right_value)
+		int compareStrings(StringData * left_string_data, StringData * right_string_data)
 		{
-			switch(right_value->type){
-			case OS_VALUE_TYPE_NULL:
-				return 1;
+			return left_string_data->cmp(right_string_data);
+		}
 
-			case OS_VALUE_TYPE_NUMBER:
-				return compare(left_number, right_value->value.number);
-
-			case OS_VALUE_TYPE_BOOL:
-				return compare(left_number, right_value->value.boolean);
-
-			case OS_VALUE_TYPE_STRING:
-				return -compare(right_value->value.string_data, left_number);
-
-			default:
-				OS_ASSERT(false);
-
+		int compareObjectToValue(Value * left_value, Value * right_value)
+		{
+			switch(left_value->type){
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
-				{
-					// TODO: check __cmp method
-					// Value * func = getMethod(this
-					break;
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+				switch(right_value->type){
+				case OS_VALUE_TYPE_NULL:
+					return 1;
+
+				case OS_VALUE_TYPE_NUMBER:
+				case OS_VALUE_TYPE_BOOL:
+				case OS_VALUE_TYPE_STRING:
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+					{
+						bool prototype_enabled = true;
+						Value * func = core->getPropertyValue(left_value, 
+							PropertyIndex(core->strings->__cmp, PropertyIndex::KeepStringIndex()), prototype_enabled);
+						if(func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION){
+							core->pushValue(right_value);
+							core->pushValue(func);
+							core->call(left_value, 1, 1);
+							OS_ASSERT(core->stack_values.count >= 1);
+							struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {core};
+							Value * value = core->stack_values.lastElement();
+							if(value->type == OS_VALUE_TYPE_NUMBER){
+								return (int)value->value.number;
+							}
+						}
+						// no break
+					}
 				}
-
-			case OS_VALUE_TYPE_USERDATA:
-			case OS_VALUE_TYPE_USERPTR:
-			case OS_VALUE_TYPE_FUNCTION:
-			case OS_VALUE_TYPE_CFUNCTION:
-			case OS_VALUE_TYPE_THREAD:
-				// return -1;
 				break;
 			}
-			return -1;
+			// generic compare
+			return left_value->value_id - right_value->value_id;
 		}
 
-		static int compare(StringData * left_string_data, Value * right_value)
+		int compareNumberToValue(OS_FLOAT left_number, Value * right_value)
 		{
 			switch(right_value->type){
 			case OS_VALUE_TYPE_NULL:
 				return 1;
 
 			case OS_VALUE_TYPE_NUMBER:
-				return compare(left_string_data, right_value->value.number);
+				return compareNumbers(left_number, right_value->value.number);
 
 			case OS_VALUE_TYPE_BOOL:
-				return compare(left_string_data, right_value->value.boolean);
+				return compareNumbers(left_number, right_value->value.boolean);
 
 			case OS_VALUE_TYPE_STRING:
-				return left_string_data->cmp(right_value->value.string_data);
-
-			default:
-				OS_ASSERT(false);
-
-			case OS_VALUE_TYPE_ARRAY:
-			case OS_VALUE_TYPE_OBJECT:
-
-			case OS_VALUE_TYPE_USERDATA:
-			case OS_VALUE_TYPE_USERPTR:
-			case OS_VALUE_TYPE_FUNCTION:
-			case OS_VALUE_TYPE_CFUNCTION:
-			case OS_VALUE_TYPE_THREAD:
-				// return -1;
-				break;
+				return -compareStrings(right_value->value.string_data, left_number);
 			}
-			return -1;
+			return -compareObjectToValue(right_value, left_value);
 		}
 
-		static int compare(Value * left_value, Value * right_value)
+		int compareStringToValue(StringData * left_string_data, Value * right_value)
+		{
+			switch(right_value->type){
+			case OS_VALUE_TYPE_NULL:
+				return 1;
+
+			case OS_VALUE_TYPE_NUMBER:
+				return compareStrings(left_string_data, right_value->value.number);
+
+			case OS_VALUE_TYPE_BOOL:
+				return compareStrings(left_string_data, right_value->value.boolean);
+
+			case OS_VALUE_TYPE_STRING:
+				return compareStrings(left_string_data, right_value->value.string_data);
+			}
+			return -compareObjectToValue(right_value, left_value);
+		}
+
+		int compareValues()
 		{
 			switch(left_value->type){
 			case OS_VALUE_TYPE_NULL:
 				return right_value->type == OS_VALUE_TYPE_NULL ? 0 : -1;
 
 			case OS_VALUE_TYPE_NUMBER:
-				return compare(left_value->value.number, right_value);
+				return compareNumberToValue(left_value->value.number, right_value);
 
 			case OS_VALUE_TYPE_BOOL:
-				return compare(left_value->value.boolean, right_value);
+				return compareNumberToValue(left_value->value.boolean, right_value);
 
 			case OS_VALUE_TYPE_STRING:
-				return compare(left_value->value.string_data, right_value);
+				return compareStringToValue(left_value->value.string_data, right_value);
+			}
+			return compareObjectToValue(left_value, right_value);
+		}
+
+		Value * pushGenericOpcodeValue(int opcode)
+		{
+			switch(opcode){
+			case Program::OP_CONCAT:
+				return core->pushStringValue(core->valueToString(left_value) + core->valueToString(right_value));
+
+			case Program::OP_BIT_AND:
+				return core->pushNumberValue(core->valueToInt(left_value) & core->valueToInt(right_value));
+
+			case Program::OP_BIT_OR:
+				return core->pushNumberValue(core->valueToInt(left_value) | core->valueToInt(right_value));
+
+			case Program::OP_BIT_XOR:
+				return core->pushNumberValue(core->valueToInt(left_value) ^ core->valueToInt(right_value));
+
+			case Program::OP_ADD: // +
+				return core->pushNumberValue(core->valueToNumber(left_value) + core->valueToNumber(right_value));
+
+			case Program::OP_SUB: // -
+				return core->pushNumberValue(core->valueToNumber(left_value) - core->valueToNumber(right_value));
+
+			case Program::OP_MUL: // *
+				return core->pushNumberValue(core->valueToNumber(left_value) * core->valueToNumber(right_value));
+
+			case Program::OP_DIV: // /
+				return core->pushNumberValue(core->valueToNumber(left_value) / core->valueToNumber(right_value));
+
+			case Program::OP_MOD: // %
+				return core->pushNumberValue(OS_MATH_FMOD(core->valueToNumber(left_value), core->valueToNumber(right_value)));
+
+			case Program::OP_LSHIFT: // <<
+				return core->pushNumberValue(core->valueToInt(left_value) << core->valueToInt(right_value));
+
+			case Program::OP_RSHIFT: // >>
+				return core->pushNumberValue(core->valueToInt(left_value) >> core->valueToInt(right_value));
+
+			case Program::OP_POW: // **
+				return core->pushNumberValue(OS_MATH_POW(core->valueToNumber(left_value), core->valueToNumber(right_value)));
+			}
+			return core->pushConstNullValue();
+		}
+
+		Value * pushObjectMethodOpcodeValue(const String& method_name, Value * object)
+		{
+			bool prototype_enabled = true;
+			Value * func = core->getPropertyValue(object, 
+				PropertyIndex(method_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
+			if(func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION){
+				core->pushValue(left_value);
+				core->pushValue(right_value);
+				core->pushValue(func);
+				core->call(object, 2, 1);
+				OS_ASSERT(core->stack_values.count >= 1);
+				return core->stack_values.lastElement();
+			}
+			return core->pushConstNullValue();
+		}
+
+		Value * pushObjectOpcodeValue(int opcode, Value * object)
+		{
+			switch(opcode){
+			case Program::OP_CONCAT:
+				return pushObjectMethodOpcodeValue(core->strings->__concat, object);
+
+			case Program::OP_BIT_AND:
+				return pushObjectMethodOpcodeValue(core->strings->__bitand, object);
+
+			case Program::OP_BIT_OR:
+				return pushObjectMethodOpcodeValue(core->strings->__bitor, object);
+
+			case Program::OP_BIT_XOR:
+				return pushObjectMethodOpcodeValue(core->strings->__bitxor, object);
+
+			case Program::OP_ADD: // +
+				return pushObjectMethodOpcodeValue(core->strings->__add, object);
+
+			case Program::OP_SUB: // -
+				return pushObjectMethodOpcodeValue(core->strings->__sub, object);
+
+			case Program::OP_MUL: // *
+				return pushObjectMethodOpcodeValue(core->strings->__mul, object);
+
+			case Program::OP_DIV: // /
+				return pushObjectMethodOpcodeValue(core->strings->__div, object);
+
+			case Program::OP_MOD: // %
+				return pushObjectMethodOpcodeValue(core->strings->__mod, object);
+
+			case Program::OP_LSHIFT: // <<
+				return pushObjectMethodOpcodeValue(core->strings->__lshift, object);
+
+			case Program::OP_RSHIFT: // >>
+				return pushObjectMethodOpcodeValue(core->strings->__rshift, object);
+
+			case Program::OP_POW: // **
+				return pushObjectMethodOpcodeValue(core->strings->__pow, object);
+			}
+			return core->pushConstNullValue();
+		}
+
+		Value * pushBinaryOpcodeValue(int opcode)
+		{
+			switch(left_value->type){
+			case OS_VALUE_TYPE_NULL:
+			case OS_VALUE_TYPE_NUMBER:
+			case OS_VALUE_TYPE_BOOL:
+			case OS_VALUE_TYPE_STRING:
+				switch(right_value->type){
+				case OS_VALUE_TYPE_NULL:
+				case OS_VALUE_TYPE_NUMBER:
+				case OS_VALUE_TYPE_BOOL:
+				case OS_VALUE_TYPE_STRING:
+					return pushGenericOpcodeValue(opcode);
+
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+					return pushObjectOpcodeValue(opcode, right_value);
+				}
+				break;
 
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_USERDATA:
 			case OS_VALUE_TYPE_USERPTR:
-			case OS_VALUE_TYPE_FUNCTION:
-			case OS_VALUE_TYPE_CFUNCTION:
-			case OS_VALUE_TYPE_THREAD:
-				break;
+				switch(right_value->type){
+				case OS_VALUE_TYPE_NULL:
+				case OS_VALUE_TYPE_NUMBER:
+				case OS_VALUE_TYPE_BOOL:
+				case OS_VALUE_TYPE_STRING:
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+					return pushObjectOpcodeValue(opcode, left_value);
+				}
 			}
-			return -1;
+			return core->pushConstNullValue();
 		}
-	};
+	} lib = {this, left_value, right_value};
 
 	switch(opcode){
-	case Program::OP_CONCAT:
-
 	case Program::OP_LOGIC_PTR_EQ:
-		return pushConstBoolValue(Lib::isEqualExact(left_value, right_value));
+		return pushConstBoolValue(lib.isEqualExactly());
 
 	case Program::OP_LOGIC_PTR_NE:
-		return pushConstBoolValue(!Lib::isEqualExact(left_value, right_value));
+		return pushConstBoolValue(!lib.isEqualExactly());
 
 	case Program::OP_LOGIC_EQ:
-		return pushConstBoolValue(Lib::compare(left_value, right_value) == 0);
+		return pushConstBoolValue(lib.compareValues() == 0);
 
 	case Program::OP_LOGIC_NE:
-		return pushConstBoolValue(Lib::compare(left_value, right_value) != 0);
+		return pushConstBoolValue(lib.compareValues() != 0);
 
 	case Program::OP_LOGIC_GE:
-		return pushConstBoolValue(Lib::compare(left_value, right_value) >= 0);
+		return pushConstBoolValue(lib.compareValues() >= 0);
 
 	case Program::OP_LOGIC_LE:
-		return pushConstBoolValue(Lib::compare(left_value, right_value) <= 0);
+		return pushConstBoolValue(lib.compareValues() <= 0);
 
 	case Program::OP_LOGIC_GREATER:
-		return pushConstBoolValue(Lib::compare(left_value, right_value) > 0);
+		return pushConstBoolValue(lib.compareValues() > 0);
 
 	case Program::OP_LOGIC_LESS:
-		return pushConstBoolValue(Lib::compare(left_value, right_value) < 0);
+		return pushConstBoolValue(lib.compareValues() < 0);
 
+	/*
+	case Program::OP_CONCAT:
 	case Program::OP_BIT_AND:
 	case Program::OP_BIT_OR:
 	case Program::OP_BIT_XOR:
@@ -9062,12 +8273,14 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 	case Program::OP_MUL: // *
 	case Program::OP_DIV: // /
 	case Program::OP_MOD: // %
-	case Program::OP_MUL_SHIFT: // <<
-	case Program::OP_DIV_SHIFT: // >>
+	case Program::OP_LSHIFT: // <<
+	case Program::OP_RSHIFT: // >>
 	case Program::OP_POW: // **
-		break;
+		return lib.pushBinaryOpcodeValue(opcode);
+	*/
 	}
-	return pushConstNullValue();
+	// return pushConstNullValue();
+	return lib.pushBinaryOpcodeValue(opcode);
 }
 
 void OS::Core::removeStackValues(int offs, int count)
@@ -9080,6 +8293,12 @@ void OS::Core::removeStackValues(int offs, int count)
 	int i, end = start + count;
 	if(end > stack_values.count){
 		end = stack_values.count;
+		if(start >= end){
+			start = end-1;
+			if(start < 0){
+				return;
+			}
+		}
 	}
 	for(i = start; i < end; i++){
 		Value * val = stack_values.buf[i];
@@ -9139,7 +8358,7 @@ void OS::pushString(const OS_CHAR * val)
 	core->pushStringValue(val);
 }
 
-void OS::pushString(const Core::StringInternal& val)
+void OS::pushString(const Core::String& val)
 {
 	core->pushStringValue(val);
 }
@@ -9266,7 +8485,7 @@ bool OS::isString(int offs, String * out)
 	Core::Value * val = core->getStackValue(offs);
 	if(val){
 		if(out){
-			Core::StringInternal str(this);
+			Core::String str(this);
 			if(core->isValueString(val, &str)){
 				*out = str;
 				return true;
@@ -9286,7 +8505,7 @@ bool OS::Value::isString(String * out) const
 {
 	if(value){
 		if(out){
-			Core::StringInternal str(allocator);
+			Core::String str(allocator);
 			if(allocator->core->isValueString(value, &str)){
 				*out = str;
 				return true;
@@ -9493,7 +8712,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 			pushValue(value);
 			call(table_value, 1, 1);
 			OS_ASSERT(stack_values.count > 0);
-			return stack_values[stack_values.count-1];
+			return stack_values.lastElement();
 		}
 	}
 	return pushConstNullValue();
@@ -9509,7 +8728,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 		}
 		if(getter_enabled){
 			if(index.is_string_index){
-				StringInternal getter_name(allocator,
+				String getter_name(allocator,
 					strings->__get.toChar(), strings->__get.getDataSize(),
 					OS_TEXT("@"), sizeof(OS_CHAR),
 					index.string_index.toChar(), index.string_index.getDataSize());
@@ -9519,7 +8738,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 					pushValue(value);
 					call(self, 0, 1);
 					OS_ASSERT(stack_values.count > 0);
-					return stack_values[stack_values.count-1];
+					return stack_values.lastElement();
 				}
 			}
 			value = getPropertyValue(table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled);
@@ -9538,7 +8757,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 				pushValue(value);
 				call(self, 1, 1);
 				OS_ASSERT(stack_values.count > 0);
-				return stack_values[stack_values.count-1];
+				return stack_values.lastElement();
 			}
 		}
 		return pushConstNullValue();
@@ -9560,14 +8779,6 @@ void OS::getProperty(bool prototype_enabled, bool getter_enabled)
 		pushNull();
 	}
 }
-
-/*
-OS::Core::FunctionRunningInstance * OS::Core::newFunctionRunningInstance()
-{
-	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance))) FunctionRunningInstance();
-	return func_running;
-}
-*/
 
 void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance * func_running)
 {
@@ -9615,16 +8826,10 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int ret_va
 	int locals_mem_size = sizeof(Value*) * (func_decl->num_locals + num_extra_params);
 	int parents_mem_size = sizeof(FunctionRunningInstance*) * func_decl->max_up_count;
 	
-	// FunctionRunningInstance * func_running = newFunctionRunningInstance();
 	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance) + locals_mem_size + parents_mem_size)) FunctionRunningInstance();
 	func_running->func = value->retain();
-	
-	/* if(!self){
-		self = func_value_data->self ? func_value_data->self : null_value;
-	} */
 	func_running->self = self->retain();
 	
-	// func_running->num_locals = func_decl->num_locals;
 	func_running->num_params = params;
 	func_running->num_extra_params = num_extra_params;
 	func_running->locals = (Value**)(func_running + 1); // malloc(locals_mem_size);
@@ -9779,7 +8984,7 @@ restart:
 			{
 				i = opcodes.readUVariable();
 				Value * name_value = prog->const_values[prog_num_numbers + i];
-				StringInternal name = valueToString(name_value);
+				String name = valueToString(name_value);
 				pushPropertyValue(env, name_value, PropertyIndex(name), true, true); 
 				break;
 			}
@@ -9790,7 +8995,7 @@ restart:
 				i = opcodes.readUVariable();
 				Value * value = stack_values[stack_values.count-1];
 				Value * name_value = prog->const_values[prog_num_numbers + i];
-				StringInternal name = valueToString(name_value);
+				String name = valueToString(name_value);
 				setPropertyValue(env, name_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), value, true, true);
 				pop();
 				break;
@@ -10017,8 +9222,8 @@ restart:
 		case Program::OP_MUL: // *
 		case Program::OP_DIV: // /
 		case Program::OP_MOD: // %
-		case Program::OP_MUL_SHIFT: // <<
-		case Program::OP_DIV_SHIFT: // >>
+		case Program::OP_LSHIFT: // <<
+		case Program::OP_RSHIFT: // >>
 		case Program::OP_POW: // **
 			{
 				OS_ASSERT(stack_values.count >= 2);
@@ -10084,12 +9289,6 @@ int OS::Core::call(Value * self, int params, int ret_values)
 				return ret_values;
 			}
 		}
-		/* OS_ASSERT(false);
-		pop(params);
-		for(int i = 0; i < ret_values; i++){
-			pushConstNullValue();
-		}
-		return ret_values; */
 	}
 	// OS_ASSERT(false);
 	pop(params);
@@ -10099,7 +9298,7 @@ int OS::Core::call(Value * self, int params, int ret_values)
 	return ret_values;
 }
 
-bool OS::compile(const Core::StringInternal& str)
+bool OS::compile(const Core::String& str)
 {
 	Core::Tokenizer tokenizer(this);
 	tokenizer.parseText(str);
@@ -10110,7 +9309,7 @@ bool OS::compile(const Core::StringInternal& str)
 
 bool OS::compile()
 {
-	Core::StringInternal str(this);
+	Core::String str(this);
 	Core::Value * val = core->getStackValue(-1);
 	if(val && core->isValueString(val, &str)){
 		pop(1);
@@ -10129,14 +9328,14 @@ int OS::call(int params)
 
 int OS::eval(OS_CHAR * str)
 {
-	return eval(Core::StringInternal(this, str));
+	return eval(Core::String(this, str));
 }
 
-int OS::eval(const Core::StringInternal& str)
+int OS::eval(const Core::String& str)
 {
 	pushString(str);
 	compile();
-	return core->call(NULL, 0, 0);
+	return core->call(core->null_value, 0, 0);
 }
 
 // =====================================================================
