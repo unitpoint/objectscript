@@ -827,7 +827,7 @@ namespace ObjectScript
 			typedef Tokenizer::TextData TextData;
 
 			// struct Value;
-			struct VariableIndex
+			struct PropertyIndex
 			{
 				struct KeepStringIndex
 				{
@@ -840,20 +840,20 @@ namespace ObjectScript
 				bool is_string_index;
 				bool int_valid;
 
-				VariableIndex(const VariableIndex& index);
-				VariableIndex(const StringInternal& index);
-				VariableIndex(const StringInternal& index, const KeepStringIndex&);
-				VariableIndex(StringData * index);
-				VariableIndex(StringData * index, const KeepStringIndex&);
-				VariableIndex(OS*, const OS_CHAR * index);
-				VariableIndex(OS*, OS_INT32 index);
-				VariableIndex(OS*, OS_INT64 index);
-				VariableIndex(OS*, OS_FLOAT index, int precision = OS_DEF_PRECISION);
-				~VariableIndex();
+				PropertyIndex(const PropertyIndex& index);
+				PropertyIndex(const StringInternal& index);
+				PropertyIndex(const StringInternal& index, const KeepStringIndex&);
+				PropertyIndex(StringData * index);
+				PropertyIndex(StringData * index, const KeepStringIndex&);
+				PropertyIndex(OS*, const OS_CHAR * index);
+				PropertyIndex(OS*, OS_INT32 index);
+				PropertyIndex(OS*, OS_INT64 index);
+				PropertyIndex(OS*, OS_FLOAT index, int precision = OS_DEF_PRECISION);
+				~PropertyIndex();
 
 				OS * getAllocator() const { return string_index.getAllocator(); }
 
-				int cmp(const VariableIndex& b) const;
+				int cmp(const PropertyIndex& b) const;
 				int hash() const;
 
 				StringInternal toString() const;
@@ -877,39 +877,39 @@ namespace ObjectScript
 
 			struct Value: public ValueGreyListItem
 			{
-				struct Variable: public VariableIndex
+				struct Property: public PropertyIndex
 				{
 					int value_id;  // allow weak usage
 					// Value * value;
 
-					Variable * hash_next;
-					Variable * prev, * next;
+					Property * hash_next;
+					Property * prev, * next;
 
-					Variable(const VariableIndex& index);
-					Variable(const StringInternal& index);
-					Variable(OS*, const OS_CHAR * index);
-					Variable(OS*, OS_INT index);
-					Variable(OS*, int index);
-					Variable(OS*, OS_FLOAT index, int precision = OS_DEF_PRECISION);
-					~Variable();
+					Property(const PropertyIndex& index);
+					Property(const StringInternal& index);
+					Property(OS*, const OS_CHAR * index);
+					Property(OS*, OS_INT index);
+					Property(OS*, int index);
+					Property(OS*, OS_FLOAT index, int precision = OS_DEF_PRECISION);
+					~Property();
 				};
 
 				struct Table
 				{
-					Variable ** heads;
+					Property ** heads;
 					int head_mask;
 					int count;
 
 					OS_INT next_id;
 
-					Variable * first, * last;
+					Property * first, * last;
 
 					Table();    
 					~Table();
 
-					Variable * get(const VariableIndex& index);
-					// void add(Variable * var);
-					// void free(const VariableIndex& index);
+					Property * get(const PropertyIndex& index);
+					// void add(Property * prop);
+					// void free(const PropertyIndex& index);
 				};
 
 				struct Array // : public Table
@@ -1681,20 +1681,20 @@ namespace ObjectScript
 
 			Value::Table * newTable();
 			void deleteTable(Value::Table*);
-			void addTableVariable(Value::Table * table, Value::Variable * var);
-			bool deleteTableVariable(Value::Table * table, const VariableIndex& index);
+			void addTableProperty(Value::Table * table, Value::Property * prop);
+			bool deleteTableProperty(Value::Table * table, const PropertyIndex& index);
 
 			Value::Array * newArray();
 			void deleteArray(Value::Array*);
 
-			Value::Variable * setTableValue(Value::Table * table, VariableIndex& index, Value * val);
-			void setPropertyValue(Value * table_value, Value * index_value, VariableIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
+			Value::Property * setTableValue(Value::Table * table, PropertyIndex& index, Value * val);
+			void setPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
 			void setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled);
 
-			Value * getPropertyValue(Value::Table * table, const VariableIndex& index);
-			Value * getPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled);
+			Value * getPropertyValue(Value::Table * table, const PropertyIndex& index);
+			Value * getPropertyValue(Value * table_value, PropertyIndex& index, bool prototype_enabled);
 
-			Value * pushPropertyValue(Value * table_value, Value * index_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled);
+			Value * pushPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled);
 			Value * pushPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled);
 
 			Value * getStackValue(int offs);
@@ -1812,7 +1812,6 @@ namespace ObjectScript
 			virtual void writeByteAtPos(int value, int pos);
 
 			virtual void writeUVariable(int);
-			// virtual void writeUVariableAtPos(int value, int pos);
 
 			virtual void writeU16(int);
 			virtual void writeU16AtPos(int value, int pos);

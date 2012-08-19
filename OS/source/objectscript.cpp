@@ -2921,18 +2921,18 @@ OS::Core::StringInternal OS::Core::Compiler::Expression::debugPrint(OS::Core::Co
 
 int OS::Core::Compiler::cacheString(const StringInternal& str)
 {
-	VariableIndex index(str, VariableIndex::KeepStringIndex());
-	Value::Variable * var = prog_strings_table->get(index);
-	if(var){
-		Value * value = allocator->core->values.get(var->value_id);
+	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
+	Value::Property * prop = prog_strings_table->get(index);
+	if(prop){
+		Value * value = allocator->core->values.get(prop->value_id);
 		OS_ASSERT(value);
 		return allocator->core->valueToInt(value);
 	}
-	Value * value = allocator->core->pushNumberValue(prog_strings_table->count);
-	var = new (malloc(sizeof(Value::Variable))) Value::Variable(index);
-	var->value_id = value->value_id;
-	value->ref_count++;
-	allocator->core->addTableVariable(prog_strings_table, var);
+	Value * value = allocator->core->pushNumberValue(prog_strings_table->count)->retain();
+	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
+	prop->value_id = value->value_id;
+	// value->ref_count++;
+	allocator->core->addTableProperty(prog_strings_table, prop);
 	allocator->vectorAddItem(prog_strings, str);
 	allocator->pop();
 	OS_ASSERT(prog_strings_table->count == prog_strings.count);
@@ -2941,18 +2941,18 @@ int OS::Core::Compiler::cacheString(const StringInternal& str)
 
 int OS::Core::Compiler::cacheNumber(OS_FLOAT num)
 {
-	VariableIndex index(allocator, num);
-	Value::Variable * var = prog_numbers_table->get(index);
-	if(var){
-		Value * value = allocator->core->values.get(var->value_id);
+	PropertyIndex index(allocator, num);
+	Value::Property * prop = prog_numbers_table->get(index);
+	if(prop){
+		Value * value = allocator->core->values.get(prop->value_id);
 		OS_ASSERT(value);
 		return allocator->core->valueToInt(value);
 	}
-	Value * value = allocator->core->pushNumberValue(prog_numbers_table->count);
-	var = new (malloc(sizeof(Value::Variable))) Value::Variable(index);
-	var->value_id = value->value_id;
-	value->ref_count++;
-	allocator->core->addTableVariable(prog_numbers_table, var);
+	Value * value = allocator->core->pushNumberValue(prog_numbers_table->count)->retain();
+	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
+	prop->value_id = value->value_id;
+	// value->ref_count++;
+	allocator->core->addTableProperty(prog_numbers_table, prop);
 	allocator->vectorAddItem(prog_numbers, num);
 	allocator->pop();
 	OS_ASSERT(prog_numbers_table->count == prog_numbers.count);
@@ -6324,8 +6324,8 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 		OS_FLOAT number = reader.readFloat();
 
 		Value * value = allocator->core->pushNumberValue(number);
-		value->ref_count++;
-		const_values[i] = value;
+		// value->ref_count++;
+		const_values[i] = value->retain();
 		allocator->pop();
 	}
 	for(i = 0; i < num_strings; i++){
@@ -6334,8 +6334,8 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 		reader.readBytes((void*)str.toChar(), data_size);
 
 		Value * value = allocator->core->pushStringValue(str);
-		value->ref_count++;
-		const_values[num_numbers+i] = value;
+		// value->ref_count++;
+		const_values[num_numbers+i] = value->retain();
 		allocator->pop();
 	}
 
@@ -6903,7 +6903,7 @@ void * OS::FileStreamReader::readBytesAtPos(void * buf, int len, int pos)
 // =====================================================================
 // =====================================================================
 
-OS::Core::VariableIndex::VariableIndex(const VariableIndex& index): string_index(index.string_index)
+OS::Core::PropertyIndex::PropertyIndex(const PropertyIndex& index): string_index(index.string_index)
 {
 	int_index = index.int_index;
 	hash_value = index.hash_value;
@@ -6911,7 +6911,7 @@ OS::Core::VariableIndex::VariableIndex(const VariableIndex& index): string_index
 	int_valid = index.int_valid;
 }
 
-OS::Core::VariableIndex::VariableIndex(const StringInternal& index): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(const StringInternal& index): string_index(index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -6920,7 +6920,7 @@ OS::Core::VariableIndex::VariableIndex(const StringInternal& index): string_inde
 	fixStringIndex();
 }
 
-OS::Core::VariableIndex::VariableIndex(const StringInternal& index, const KeepStringIndex&): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(const StringInternal& index, const KeepStringIndex&): string_index(index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -6929,7 +6929,7 @@ OS::Core::VariableIndex::VariableIndex(const StringInternal& index, const KeepSt
 	hash_value = string_index.hash();
 }
 
-OS::Core::VariableIndex::VariableIndex(StringData * index): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(StringData * index): string_index(index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -6938,7 +6938,7 @@ OS::Core::VariableIndex::VariableIndex(StringData * index): string_index(index)
 	fixStringIndex();
 }
 
-OS::Core::VariableIndex::VariableIndex(StringData * index, const KeepStringIndex&): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(StringData * index, const KeepStringIndex&): string_index(index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -6947,7 +6947,7 @@ OS::Core::VariableIndex::VariableIndex(StringData * index, const KeepStringIndex
 	hash_value = string_index.hash();
 }
 
-OS::Core::VariableIndex::VariableIndex(OS * allocator, const OS_CHAR * index): string_index(allocator, index)
+OS::Core::PropertyIndex::PropertyIndex(OS * allocator, const OS_CHAR * index): string_index(allocator, index)
 {
 	int_index = 0;
 	hash_value = 0; // set by fix
@@ -6956,7 +6956,7 @@ OS::Core::VariableIndex::VariableIndex(OS * allocator, const OS_CHAR * index): s
 	fixStringIndex();
 }
 
-OS::Core::VariableIndex::VariableIndex(OS * allocator, OS_INT64 index): string_index(allocator)
+OS::Core::PropertyIndex::PropertyIndex(OS * allocator, OS_INT64 index): string_index(allocator)
 {
 	int_index = (OS_INT)index;
 	hash_value = (int)int_index;
@@ -6964,7 +6964,7 @@ OS::Core::VariableIndex::VariableIndex(OS * allocator, OS_INT64 index): string_i
 	int_valid = true;
 }
 
-OS::Core::VariableIndex::VariableIndex(OS * allocator, OS_INT32 index): string_index(allocator)
+OS::Core::PropertyIndex::PropertyIndex(OS * allocator, OS_INT32 index): string_index(allocator)
 {
 	int_index = (OS_INT)index;
 	hash_value = (int)int_index;
@@ -6972,7 +6972,7 @@ OS::Core::VariableIndex::VariableIndex(OS * allocator, OS_INT32 index): string_i
 	int_valid = true;
 }
 
-OS::Core::VariableIndex::VariableIndex(OS * allocator, OS_FLOAT index, int precision): string_index(allocator)
+OS::Core::PropertyIndex::PropertyIndex(OS * allocator, OS_FLOAT index, int precision): string_index(allocator)
 {
 	int_index = (OS_INT)index;
 	if((OS_FLOAT)int_index == index){
@@ -6990,12 +6990,12 @@ OS::Core::VariableIndex::VariableIndex(OS * allocator, OS_FLOAT index, int preci
 	}
 }
 
-OS::Core::VariableIndex::~VariableIndex()
+OS::Core::PropertyIndex::~PropertyIndex()
 {
 	// string_index->release();
 }
 
-bool OS::Core::VariableIndex::checkIntIndex() const
+bool OS::Core::PropertyIndex::checkIntIndex() const
 {
 	OS_ASSERT(is_string_index);
 	const OS_CHAR * str = string_index.toChar();
@@ -7022,7 +7022,7 @@ bool OS::Core::VariableIndex::checkIntIndex() const
 	return true;
 }
 
-int OS::Core::VariableIndex::cmp(const VariableIndex& b) const
+int OS::Core::PropertyIndex::cmp(const PropertyIndex& b) const
 {
 	if(int_valid && b.int_valid){
 		return (int)(int_index - b.int_index);
@@ -7040,17 +7040,17 @@ int OS::Core::VariableIndex::cmp(const VariableIndex& b) const
 	return string_index.cmp(b.string_index);
 }
 
-int OS::Core::VariableIndex::hash() const
+int OS::Core::PropertyIndex::hash() const
 {
 	return hash_value; // int_valid ? (int)int_index : string_index.hash();
 }
 
-OS::Core::StringInternal OS::Core::VariableIndex::toString() const
+OS::Core::StringInternal OS::Core::PropertyIndex::toString() const
 {
 	return is_string_index ? string_index : StringInternal(getAllocator(), int_index);
 }
 
-void OS::Core::VariableIndex::fixStringIndex()
+void OS::Core::PropertyIndex::fixStringIndex()
 {
 	if(!int_valid && checkIntIndex()){
 		OS_FLOAT fval;
@@ -7085,7 +7085,7 @@ void OS::Core::VariableIndex::fixStringIndex()
 
 // =====================================================================
 
-OS::Core::Value::Variable::Variable(const VariableIndex& index): VariableIndex(index)
+OS::Core::Value::Property::Property(const PropertyIndex& index): PropertyIndex(index)
 {
 	value_id = 0;
 	hash_next = NULL;
@@ -7093,7 +7093,7 @@ OS::Core::Value::Variable::Variable(const VariableIndex& index): VariableIndex(i
 	next = NULL;
 }
 
-OS::Core::Value::Variable::Variable(const StringInternal& index): VariableIndex(index)
+OS::Core::Value::Property::Property(const StringInternal& index): PropertyIndex(index)
 {
 	value_id = 0;
 	hash_next = NULL;
@@ -7101,7 +7101,7 @@ OS::Core::Value::Variable::Variable(const StringInternal& index): VariableIndex(
 	next = NULL;
 }
 
-OS::Core::Value::Variable::Variable(OS * allocator, const OS_CHAR * index): VariableIndex(allocator, index)
+OS::Core::Value::Property::Property(OS * allocator, const OS_CHAR * index): PropertyIndex(allocator, index)
 {
 	value_id = 0;
 	hash_next = NULL;
@@ -7109,7 +7109,7 @@ OS::Core::Value::Variable::Variable(OS * allocator, const OS_CHAR * index): Vari
 	next = NULL;
 }
 
-OS::Core::Value::Variable::Variable(OS * allocator, OS_INT index): VariableIndex(allocator, index)
+OS::Core::Value::Property::Property(OS * allocator, OS_INT index): PropertyIndex(allocator, index)
 {
 	value_id = 0;
 	hash_next = NULL;
@@ -7117,7 +7117,7 @@ OS::Core::Value::Variable::Variable(OS * allocator, OS_INT index): VariableIndex
 	next = NULL;
 }
 
-OS::Core::Value::Variable::Variable(OS * allocator, int index): VariableIndex(allocator, index)
+OS::Core::Value::Property::Property(OS * allocator, int index): PropertyIndex(allocator, index)
 {
 	value_id = 0;
 	hash_next = NULL;
@@ -7125,7 +7125,7 @@ OS::Core::Value::Variable::Variable(OS * allocator, int index): VariableIndex(al
 	next = NULL;
 }
 
-OS::Core::Value::Variable::Variable(OS * allocator, OS_FLOAT index, int precision): VariableIndex(allocator, index, precision)
+OS::Core::Value::Property::Property(OS * allocator, OS_FLOAT index, int precision): PropertyIndex(allocator, index, precision)
 {
 	value_id = 0;
 	hash_next = NULL;
@@ -7133,7 +7133,7 @@ OS::Core::Value::Variable::Variable(OS * allocator, OS_FLOAT index, int precisio
 	next = NULL;
 }
 
-OS::Core::Value::Variable::~Variable()
+OS::Core::Value::Property::~Property()
 {
 	OS_ASSERT(!value_id);
 	OS_ASSERT(!hash_next);
@@ -7166,23 +7166,23 @@ OS::Core::Value::Table * OS::Core::newTable()
 void OS::Core::deleteTable(Value::Table * table)
 {
 	OS_ASSERT(table);
-	Value::Variable * var = table->last, * prev;
+	Value::Property * prop = table->last, * prev;
 
 	table->count = 0;
 	table->first = NULL;
 	table->last = NULL;
 
-	for(; var; var = prev){
-		prev = var->prev;
+	for(; prop; prop = prev){
+		prev = prop->prev;
 
-		releaseValue(var->value_id);
+		releaseValue(prop->value_id);
 
-		var->hash_next = NULL;
-		var->prev = NULL;
-		var->next = NULL;
-		var->value_id = 0;
-		var->~Variable();
-		free(var);
+		prop->hash_next = NULL;
+		prop->prev = NULL;
+		prop->next = NULL;
+		prop->value_id = 0;
+		prop->~Property();
+		free(prop);
 	}
 	
 	// OS_ASSERT(table->count == 0 && !table->first && !table->last);
@@ -7192,24 +7192,24 @@ void OS::Core::deleteTable(Value::Table * table)
 	free(table);
 }
 
-void OS::Core::addTableVariable(Value::Table * table, Value::Variable * var)
+void OS::Core::addTableProperty(Value::Table * table, Value::Property * prop)
 {
-	OS_ASSERT(var->next == NULL);
-	OS_ASSERT(!table->get(*var));
+	OS_ASSERT(prop->next == NULL);
+	OS_ASSERT(!table->get(*prop));
 
 	if((table->count >> 1) >= table->head_mask){
 		int new_size = table->heads ? (table->head_mask+1) * 2 : OS_DEF_VAR_HASH_SIZE;
-		int alloc_size = sizeof(Value::Variable*)*new_size;
-		Value::Variable ** new_heads = (Value::Variable**)malloc(alloc_size);
+		int alloc_size = sizeof(Value::Property*)*new_size;
+		Value::Property ** new_heads = (Value::Property**)malloc(alloc_size);
 		OS_ASSERT(new_heads);
 		OS_MEMSET(new_heads, 0, alloc_size);
 
 		if(new_heads){
-			Value::Variable ** old_heads = table->heads;
+			Value::Property ** old_heads = table->heads;
 			table->heads = new_heads;
 			table->head_mask = new_size-1;
 
-			for(Value::Variable * cur = table->first; cur; cur = cur->next){
+			for(Value::Property * cur = table->first; cur; cur = cur->next){
 				int slot = cur->hash() & table->head_mask;
 				cur->hash_next = table->heads[slot];
 				table->heads[slot] = cur;
@@ -7220,30 +7220,30 @@ void OS::Core::addTableVariable(Value::Table * table, Value::Variable * var)
 		}
 	}
 
-	int slot = var->hash() & table->head_mask;
-	var->hash_next = table->heads[slot];
-	table->heads[slot] = var;
+	int slot = prop->hash() & table->head_mask;
+	prop->hash_next = table->heads[slot];
+	table->heads[slot] = prop;
 
 	if(!table->first){
-		table->first = var;    
+		table->first = prop;    
 	}else{
 		OS_ASSERT(table->last);
-		table->last->next = var;
-		var->prev = table->last;
+		table->last->next = prop;
+		prop->prev = table->last;
 	}
-	table->last = var;
+	table->last = prop;
 
-	if(var->int_valid && table->next_id <= var->int_index){
-		table->next_id = var->int_index + 1;
+	if(prop->int_valid && table->next_id <= prop->int_index){
+		table->next_id = prop->int_index + 1;
 	}
 
 	table->count++;
 }
 
-bool OS::Core::deleteTableVariable(Value::Table * table, const VariableIndex& index)
+bool OS::Core::deleteTableProperty(Value::Table * table, const PropertyIndex& index)
 {
 	int slot = index.hash() & table->head_mask;
-	Value::Variable * cur = table->heads[slot], * chain_prev = NULL;
+	Value::Property * cur = table->heads[slot], * chain_prev = NULL;
 	for(; cur; chain_prev = cur, cur = cur->hash_next){
 		if(cur->cmp(index) == 0){
 			if(table->first == cur){
@@ -7281,7 +7281,7 @@ bool OS::Core::deleteTableVariable(Value::Table * table, const VariableIndex& in
 
 			table->count--;
 
-			cur->~Variable();
+			cur->~Property();
 			free(cur);
 
 			releaseValue(value_id);
@@ -7291,10 +7291,10 @@ bool OS::Core::deleteTableVariable(Value::Table * table, const VariableIndex& in
 	return false;
 }
 
-OS::Core::Value::Variable * OS::Core::Value::Table::get(const VariableIndex& index)
+OS::Core::Value::Property * OS::Core::Value::Table::get(const PropertyIndex& index)
 {
 	if(heads){
-		Variable * cur = heads[index.hash() & head_mask];
+		Property * cur = heads[index.hash() & head_mask];
 		for(; cur; cur = cur->hash_next){
 			if(cur->cmp(index) == 0){
 				return cur;
@@ -7610,7 +7610,7 @@ OS::Core::StringInternal OS::Core::valueToString(Value * val, bool tostring_enab
 
 	case OS_VALUE_TYPE_OBJECT:
 		if(tostring_enabled){
-			Value * func = getPropertyValue(val, VariableIndex(strings->__tostring, VariableIndex::KeepStringIndex()), prototype_enabled);
+			Value * func = getPropertyValue(val, PropertyIndex(strings->__tostring, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func){
 				pushValue(func);
 				call(val, 0, 1);
@@ -7854,7 +7854,7 @@ OS::GenericMemoryManager::GenericMemoryManager()
 	// num_cached_blocks = 0;
 
 	registerPageDesc(sizeof(Core::Value), OS_MEMORY_MANAGER_PAGE_BLOCKS);
-	registerPageDesc(sizeof(Core::Value::Variable), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::Value::Property), OS_MEMORY_MANAGER_PAGE_BLOCKS);
 	registerPageDesc(sizeof(Core::FunctionValueData), OS_MEMORY_MANAGER_PAGE_BLOCKS);
 	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*4, OS_MEMORY_MANAGER_PAGE_BLOCKS);
 	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*8, OS_MEMORY_MANAGER_PAGE_BLOCKS);
@@ -8319,13 +8319,13 @@ int OS::Core::gcProcessGreyList(int max_count)
 int OS::Core::gcProcessGreyValueTable(Value::Table * table)
 {
 	int count = 0;
-	Value::Variable * var = table->first, * var_next;
-	for(; var; var = var_next, count++){
-		var_next = var->next;
-		Value * var_value = values.get(var->value_id);
+	Value::Property * prop = table->first, * prop_next;
+	for(; prop; prop = prop_next, count++){
+		prop_next = prop->next;
+		Value * var_value = values.get(prop->value_id);
 		if(!var_value){
-			VariableIndex index = *var;
-			deleteTableVariable(table, index);
+			PropertyIndex index = *prop;
+			deleteTableProperty(table, index);
 			continue;
 		}
 		gcAddGreyValue(var_value);
@@ -8337,14 +8337,14 @@ int OS::Core::gcProcessStringsCacheTable()
 {
 	int count = 0;
 	Value::Table * table = string_values_table;
-	Value::Variable * var = table->first, * var_next;
-	for(; var; var = var_next, count++){
-		var_next = var->next;
-		Value * var_value = values.get(var->value_id);
+	Value::Property * prop = table->first, * prop_next;
+	for(; prop; prop = prop_next, count++){
+		prop_next = prop->next;
+		Value * var_value = values.get(prop->value_id);
 		OS_ASSERT(!var_value || var_value->type == OS_VALUE_TYPE_STRING);
 		if(!var_value || var_value->ref_count < 2){
-			VariableIndex index = *var;
-			deleteTableVariable(table, index);
+			PropertyIndex index = *prop;
+			deleteTableProperty(table, index);
 			continue;
 		}
 		var_value->gc_color = Value::GC_BLACK;
@@ -8468,7 +8468,7 @@ void OS::Core::resetValue(Value * val)
 	case OS_VALUE_TYPE_OBJECT:
 		{
 			bool prototype_enabled = true;
-			Value * func = getPropertyValue(val, VariableIndex(strings->__destruct, VariableIndex::KeepStringIndex()), prototype_enabled);
+			Value * func = getPropertyValue(val, PropertyIndex(strings->__destruct, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func){
 				pushValue(func);
 				call(val, 0, 0);
@@ -8520,7 +8520,7 @@ void OS::Core::releaseValue(Value * val)
 		OS_ASSERT(val->ref_count == 0);
 		deleteValue(val);
 	}else if(val->type == OS_VALUE_TYPE_STRING && val->ref_count == 1){
-		deleteTableVariable(string_values_table, VariableIndex(val->value.string_data, VariableIndex::KeepStringIndex()));
+		deleteTableProperty(string_values_table, PropertyIndex(val->value.string_data, PropertyIndex::KeepStringIndex()));
 	}
 }
 
@@ -8532,55 +8532,55 @@ void OS::Core::releaseValue(int value_id)
 	}
 }
 
-OS::Core::Value::Variable * OS::Core::setTableValue(Value::Table * table, VariableIndex& index, Value * value)
+OS::Core::Value::Property * OS::Core::setTableValue(Value::Table * table, PropertyIndex& index, Value * value)
 {
 	OS_ASSERT(table);
 	OS_ASSERT(value);
-	Value::Variable * var = table->get(index);
-	if(var){
-		OS_ASSERT(var->value_id);
-		if(var->value_id != value->value_id){
-			int old_value_id = var->value_id;			
-			var->value_id = value->value_id;
+	Value::Property * prop = table->get(index);
+	if(prop){
+		OS_ASSERT(prop->value_id);
+		if(prop->value_id != value->value_id){
+			int old_value_id = prop->value_id;			
+			prop->value_id = value->value_id;
 			value->ref_count++;
 			releaseValue(old_value_id);
 		}
-		return var;
+		return prop;
 	}
-	var = new (malloc(sizeof(Value::Variable))) Value::Variable(index);
-	var->value_id = value->value_id;
+	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
+	prop->value_id = value->value_id;
 	value->ref_count++;
-	addTableVariable(table, var);
-	return var;
+	addTableProperty(table, prop);
+	return prop;
 }
 
-void OS::Core::setPropertyValue(Value * table_value, Value * index_value, VariableIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
 {
 	struct Lib {
-		static void setVar(Core * core, Value::Variable * var, Value * value)
+		static void setVar(Core * core, Value::Property * prop, Value * value)
 		{
-			OS_ASSERT(var->value_id);
-			if(var->value_id != value->value_id){
-				int old_value_id = var->value_id;			
-				var->value_id = value->value_id;
+			OS_ASSERT(prop->value_id);
+			if(prop->value_id != value->value_id){
+				int old_value_id = prop->value_id;			
+				prop->value_id = value->value_id;
 				value->ref_count++;
 				core->releaseValue(old_value_id);
 			}
 		}
 	};
 
-	Value::Variable * var = NULL;
+	Value::Property * prop = NULL;
 	Value::Table * table = table_value->table;
-	if(table && (var = table->get(index))){
-		return Lib::setVar(this, var, value);
+	if(table && (prop = table->get(index))){
+		return Lib::setVar(this, prop, value);
 	}
 	if(prototype_enabled){
 		Value * cur_value = table_value;
 		while(cur_value->prototype){
 			cur_value = cur_value->prototype;
 			Value::Table * cur_table = cur_value->table;
-			if(cur_table && (var = cur_table->get(index))){
-				return Lib::setVar(this, var, value);
+			if(cur_table && (prop = cur_table->get(index))){
+				return Lib::setVar(this, prop, value);
 			}
 		}
 	}
@@ -8593,7 +8593,7 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Variab
 				OS_TEXT("@"), sizeof(OS_CHAR),
 				index.string_index.toChar(), index.string_index.getDataSize());
 
-			Value * func_value = getPropertyValue(table_value, VariableIndex(setter_name, VariableIndex::KeepStringIndex()), prototype_enabled);
+			Value * func_value = getPropertyValue(table_value, PropertyIndex(setter_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func_value){
 				pushValue(value);
 				pushValue(func_value);
@@ -8601,7 +8601,7 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Variab
 				return;
 			}
 		}
-		Value * func_value = getPropertyValue(table_value, VariableIndex(strings->__set, VariableIndex::KeepStringIndex()), prototype_enabled);
+		Value * func_value = getPropertyValue(table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), prototype_enabled);
 		if(func_value){
 			if(index_value){
 				pushValue(index_value);
@@ -8627,13 +8627,13 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Value 
 {
 	switch(index_value->type){
 	case OS_VALUE_TYPE_BOOL:
-		return setPropertyValue(table_value, index_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), val, prototype_enabled, setter_enabled);
+		return setPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)index_value->value.boolean), val, prototype_enabled, setter_enabled);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return setPropertyValue(table_value, index_value, VariableIndex(allocator, index_value->value.number), val, prototype_enabled, setter_enabled);
+		return setPropertyValue(table_value, index_value, PropertyIndex(allocator, index_value->value.number), val, prototype_enabled, setter_enabled);
 
 	case OS_VALUE_TYPE_STRING:
-		return setPropertyValue(table_value, index_value, VariableIndex(index_value->value.string_data), val, prototype_enabled, setter_enabled);
+		return setPropertyValue(table_value, index_value, PropertyIndex(index_value->value.string_data), val, prototype_enabled, setter_enabled);
 	}
 }
 
@@ -8656,8 +8656,8 @@ OS::Core::Value * OS::Core::pushValue(Value * val)
 {
 	OS_ASSERT(val);
 	allocator->vectorAddItem(stack_values, val);
-	val->ref_count++;
-	return val;
+	// val->ref_count++;
+	return val->retain();
 }
 
 OS::Core::Value * OS::Core::pushValueAutoNull(Value * val)
@@ -8716,22 +8716,22 @@ OS::Core::Value * OS::Core::pushNumberValue(OS_FLOAT val)
 OS::Core::Value * OS::Core::pushStringValue(const StringInternal& str)
 {
 #if 1
-	VariableIndex index(str, VariableIndex::KeepStringIndex());
-	Value::Variable * var = string_values_table->get(index);
-	if(var){
-		Value * value = values.get(var->value_id);
+	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
+	Value::Property * prop = string_values_table->get(index);
+	if(prop){
+		Value * value = values.get(prop->value_id);
 		OS_ASSERT(value);
 		return pushValue(value);
 	}
-	Value * value = pushNewNullValue();
+	Value * value = pushNewNullValue()->retain();
 	value->prototype = prototypes[PROTOTYPE_STRING]->retain();
 	value->value.string_data = str.toData()->retain();
 	value->type = OS_VALUE_TYPE_STRING;
 
-	var = new (malloc(sizeof(Value::Variable))) Value::Variable(index);
-	var->value_id = value->value_id;
-	value->ref_count++;
-	addTableVariable(string_values_table, var);
+	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
+	prop->value_id = value->value_id;
+	// value->ref_count++;
+	addTableProperty(string_values_table, prop);
 	return value;
 #else
 	Value * res = pushNewNullValue();
@@ -9362,31 +9362,31 @@ void OS::setProperty(bool prototype_enabled, bool setter_enabled)
 	}
 }
 
-OS::Core::Value * OS::Core::getPropertyValue(Value::Table * table, const VariableIndex& index)
+OS::Core::Value * OS::Core::getPropertyValue(Value::Table * table, const PropertyIndex& index)
 {
 	if(table){
-		Value::Variable * var = table->get(index);
-		if(var){
-			return values.get(var->value_id);		
+		Value::Property * prop = table->get(index);
+		if(prop){
+			return values.get(prop->value_id);		
 		}
 	}
 	return NULL;
 }
 
-OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, VariableIndex& index, bool prototype_enabled)
+OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, PropertyIndex& index, bool prototype_enabled)
 {
-	Value::Variable * var = NULL;
+	Value::Property * prop = NULL;
 	Value::Table * table = table_value->table;
-	if(table && (var = table->get(index))){
-		return values.get(var->value_id);
+	if(table && (prop = table->get(index))){
+		return values.get(prop->value_id);
 	}
 	if(prototype_enabled){
 		Value * cur_value = table_value;
 		while(cur_value->prototype){
 			cur_value = cur_value->prototype;
 			Value::Table * cur_table = cur_value->table;
-			if(cur_table && (var = cur_table->get(index))){
-				return values.get(var->value_id);
+			if(cur_table && (prop = cur_table->get(index))){
+				return values.get(prop->value_id);
 			}
 		}
 	}
@@ -9397,16 +9397,16 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 {
 	switch(index_value->type){
 	case OS_VALUE_TYPE_BOOL:
-		return pushPropertyValue(table_value, index_value, VariableIndex(allocator, (OS_INT)index_value->value.boolean), prototype_enabled, getter_enabled);
+		return pushPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)index_value->value.boolean), prototype_enabled, getter_enabled);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return pushPropertyValue(table_value, index_value, VariableIndex(allocator, index_value->value.number), prototype_enabled, getter_enabled);
+		return pushPropertyValue(table_value, index_value, PropertyIndex(allocator, index_value->value.number), prototype_enabled, getter_enabled);
 
 	case OS_VALUE_TYPE_STRING:
-		return pushPropertyValue(table_value, index_value, VariableIndex(index_value->value.string_data), prototype_enabled, getter_enabled);
+		return pushPropertyValue(table_value, index_value, PropertyIndex(index_value->value.string_data), prototype_enabled, getter_enabled);
 	}
 	if(getter_enabled){
-		Value * value = getPropertyValue(table_value, VariableIndex(strings->__get, VariableIndex::KeepStringIndex()), prototype_enabled);
+		Value * value = getPropertyValue(table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled);
 		if(value){
 			pushValue(index_value);
 			pushValue(value);
@@ -9418,7 +9418,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 	return pushConstNullValue();
 }
 
-OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index_value, VariableIndex& index, bool prototype_enabled, bool getter_enabled)
+OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled)
 {
 	Value * self = table_value;
 	for(;;){
@@ -9433,7 +9433,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 					OS_TEXT("@"), sizeof(OS_CHAR),
 					index.string_index.toChar(), index.string_index.getDataSize());
 
-				value = getPropertyValue(table_value, VariableIndex(getter_name, VariableIndex::KeepStringIndex()), prototype_enabled);
+				value = getPropertyValue(table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
 				if(value){
 					pushValue(value);
 					call(self, 0, 1);
@@ -9441,7 +9441,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 					return stack_values[stack_values.count-1];
 				}
 			}
-			value = getPropertyValue(table_value, VariableIndex(strings->__get, VariableIndex::KeepStringIndex()), prototype_enabled);
+			value = getPropertyValue(table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(value){
 				if(value->type == OS_VALUE_TYPE_OBJECT){
 					table_value = value;
@@ -9659,7 +9659,7 @@ restart:
 					if(!table){
 						table = table_value->table = newTable();
 					}
-					setTableValue(table, VariableIndex(allocator, (OS_INT)table->next_id), value);
+					setTableValue(table, PropertyIndex(allocator, (OS_INT)table->next_id), value);
 				}
 				pop();
 				break;
@@ -9688,7 +9688,7 @@ restart:
 				Value * table_value = stack_values[stack_values.count-2];
 				Value * index_value = prog->const_values[prog_num_numbers + i];
 				Value * value = stack_values[stack_values.count-1];
-				setPropertyValue(table_value, index_value, VariableIndex(valueToString(index_value), VariableIndex::KeepStringIndex()), value, false, false);
+				setPropertyValue(table_value, index_value, PropertyIndex(valueToString(index_value), PropertyIndex::KeepStringIndex()), value, false, false);
 				pop();
 				break;
 			}
@@ -9698,7 +9698,7 @@ restart:
 				i = opcodes.readUVariable();
 				Value * name_value = prog->const_values[prog_num_numbers + i];
 				StringInternal name = valueToString(name_value);
-				pushPropertyValue(env, name_value, VariableIndex(name), true, true); 
+				pushPropertyValue(env, name_value, PropertyIndex(name), true, true); 
 				break;
 			}
 
@@ -9709,7 +9709,7 @@ restart:
 				Value * value = stack_values[stack_values.count-1];
 				Value * name_value = prog->const_values[prog_num_numbers + i];
 				StringInternal name = valueToString(name_value);
-				setPropertyValue(env, name_value, VariableIndex(name, VariableIndex::KeepStringIndex()), value, true, true);
+				setPropertyValue(env, name_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), value, true, true);
 				pop();
 				break;
 			}
@@ -9975,7 +9975,7 @@ int OS::Core::call(Value * self, int params, int ret_values)
 			return ret_values;
 		}else if(val->type == OS_VALUE_TYPE_OBJECT){
 			bool prototype_enabled = true;
-			Value * func = getPropertyValue(val, VariableIndex(strings->__construct, VariableIndex::KeepStringIndex()), prototype_enabled);
+			Value * func = getPropertyValue(val, PropertyIndex(strings->__construct, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION){
 				Value * object = pushObjectValue()->retain(); pop();
 				object->prototype = val->retain();
