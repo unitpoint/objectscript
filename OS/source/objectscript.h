@@ -42,6 +42,7 @@
 #define OS_ASSERT assert
 
 #define OS_MEMCMP memcmp
+#define OS_MEMMOVE memmove
 #define OS_MEMSET memset
 #define OS_MEMCPY memcpy
 #define OS_STRLEN strlen
@@ -73,6 +74,8 @@
 #define OS_DEF_PRECISION 16
 
 #define OS_DEF_FMT_BUF_SIZE 1024*10
+
+#define OS_INFINITE_LOOP_OPCODES 1000000
 
 #define OS_COMPILED_HEADER OS_TEXT("OS.BIN")
 #define OS_COMPILED_VERSION OS_TEXT("0.9")
@@ -107,7 +110,13 @@ namespace ObjectScript
 
 	enum // OS_ValueRegister
 	{
-		OS_GLOBALS = 0x10000000,
+		OS_REGISTER_GLOBALS = 0x10000000,
+	};
+
+	enum
+	{
+		OS_GC_PHASE_MARK,
+		OS_GC_PHASE_SWEEP,
 	};
 
 	enum OS_EFatalError
@@ -138,7 +147,7 @@ namespace ObjectScript
 			virtual int getCachedBytes() = 0;
 		};
 
-		class GenericMemoryManager: public MemoryManager
+		class SmartMemoryManager: public MemoryManager
 		{
 		protected:
 
@@ -201,8 +210,8 @@ namespace ObjectScript
 
 		public:
 
-			GenericMemoryManager();
-			~GenericMemoryManager();
+			SmartMemoryManager();
+			~SmartMemoryManager();
 			
 			void * malloc(int size);
 			void free(void * p);
@@ -359,13 +368,6 @@ namespace ObjectScript
 			// vec.buf = NULL;
 			// vec.capacity = 0;
 			vec.count = 0;
-		}
-
-		template<class T> void vectorReleaseValues(Vector<T>& vec)
-		{
-			while(vec.count > 0){
-				core->releaseValue(vec.buf[--vec.count]);
-			}
 		}
 
 		template<class T> void vectorDeleteItems(Vector<T*>& vec)
@@ -1072,11 +1074,11 @@ namespace ObjectScript
 				};
 
 				int value_id; // allow weak usage
-				int ref_count;
+				// int ref_count;
 				Value * prototype; // retained
 				Value * hash_next;
 
-				Value * gc_grey_prev;
+				// Value * gc_grey_prev;
 				Value * gc_grey_next;
 
 				Table * table;
@@ -1110,20 +1112,6 @@ namespace ObjectScript
 
 				Value(int id);
 				~Value();
-
-				Value * retain()
-				{
-					ref_count++;
-					return this;
-				}
-
-				/* Value * retainSafely()
-				{
-				if(this){
-				ref_count++;
-				}
-				return this;
-				} */
 			};
 
 			class Program;
@@ -1664,6 +1652,8 @@ namespace ObjectScript
 				int next_opcode_pos;
 				int ref_count;
 
+				int gc_time;
+
 				FunctionRunningInstance();
 				~FunctionRunningInstance();
 
@@ -1740,6 +1730,9 @@ namespace ObjectScript
 			} * strings;
 
 			Values values;
+			int num_created_values;
+			int num_destroyed_values;
+
 			Value::Table * string_values_table;
 			Value * global_vars;
 			Value * null_value;
@@ -1761,13 +1754,10 @@ namespace ObjectScript
 
 			// Vector<Value*> autorelease_values;
 			Vector<Value*> stack_values;
-			Vector<Value*> temp_values;
-			Vector<Value*> unused_values;
+			Vector<Value*> autoreleased_values;
 			Vector<FunctionRunningInstance*> call_stack_funcs;
 
-			// Vector<Value*> cache_values;
-
-			// ValueGreyListItem gc_grey_list;
+			/*
 			struct GreyList
 			{
 				Value * first;
@@ -1781,8 +1771,25 @@ namespace ObjectScript
 				void insertBefore(Value * node, Value * new_node);
 				void remove(Value * node);
 			} gc_grey_list;
+			*/
+
+			Value * gc_grey_list_first;
+			bool gc_grey_root_initialized;
 			int gc_values_head_index;
 			int gc_time;
+			int gc_grey_added_count;
+			
+			float gc_start_values_mult;
+			float gc_step_size_mult;
+			int gc_start_next_values;
+			// int gc_root_start_values;
+			// int gc_root_commited_values;
+			// int gc_root_commited_step_size;
+			// int gc_old_values;
+			// int gc_old_created_values;
+			// int gc_old_destroyed_values;
+			int gc_step_size;
+			// int gc_grey_removed_count;
 
 			int fatal_error;
 
@@ -1790,24 +1797,26 @@ namespace ObjectScript
 			void free(void * p);
 
 			void gcInitGreyList();
-			bool isGreyListEmpty();
 			void gcResetGreyList();
 			void gcAddGreyValue(Value*);
 			void gcRemoveGreyValue(Value*);
-			int gcProcessGreyProgram(Program * prog);
-			int gcProcessGreyValueTable(Value::Table * table);
-			int gcProcessGreyValueFunction(Value * func_value);
-			int gcProcessGreyValueFunctionRunning(FunctionRunningInstance*);
-			int gcProcessStringsCacheTable();
-			int gcProcessGreyValue(Value*);
-			int gcProcessGreyList(int max_count);
-			void gcStep(int max_count);
+			void gcProcessGreyProgram(Program * prog);
+			void gcProcessGreyTable(Value::Table * table);
+			void gcProcessGreyValueFunction(Value * func_value);
+			void gcProcessGreyFunctionRunning(FunctionRunningInstance*);
+			void gcProcessStringsCacheTable();
+			void gcProcessGreyValue(Value*);
+			void gcProcessGreyList(int step_size);
+			
+			// return next gc phase
+			int gcStep();
+			void gcStepIfNeeded();
+			void gcFinishSweepPhase();
+			void gcFinishMarkPhase();
+			void gcFull();
 
 			void resetValue(Value*);
 			void deleteValue(Value*);
-			void deleteUnusedValues();
-			Value * releaseValue(Value*);
-			Value * releaseValue(int value_id);
 
 			FunctionValueData * newFunctionValueData();
 			void deleteFunctionValueData(FunctionValueData*);
@@ -1846,8 +1855,14 @@ namespace ObjectScript
 
 			Value * pushOpResultValue(int opcode, Value * left_value, Value * right_value);
 
-			void removeStackValues(int offs = -1, int count = 1);
+			void removeStackValues(int offs, int count);
+			void removeStackValue(int offs = -1);
+			void removeAllStackValues();
 			void pop(int count = 1);
+			int moveStackValues(int offs, int count, int new_offs);
+			int moveStackValue(int offs, int new_offs);
+
+			void syncStackRetValues(int need_ret_values, int cur_ret_values);
 
 			// Value * registerValue(Value * val);
 			Value * unregisterValue(int value_id);
@@ -2015,6 +2030,8 @@ namespace ObjectScript
 		void remove(int start_offs = -1, int count = 1);
 		void removeAll();
 		void pop(int count = 1);
+		int move(int start_offs, int count, int new_offs);
+		int move(int offs, int new_offs);
 
 		void setProperty(bool keep_object_in_stack, bool prototype_enabled = true, bool setter_enabled = true);
 		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
@@ -2041,8 +2058,9 @@ namespace ObjectScript
 		int eval(OS_CHAR * str);
 		int eval(const Core::String& str);
 
-		void gc(int max_count);
-		void gc();
+		// return next gc phase
+		int gc();
+		void gcFull();
 	};
 
 } // namespace OS

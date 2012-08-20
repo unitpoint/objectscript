@@ -47,6 +47,7 @@ struct __test_os__
 
 		os->removeAll();
 
+		/*
 		os->gc();
 		os->gc();
 		os->gc();
@@ -54,6 +55,7 @@ struct __test_os__
 		os->gc();
 		os->gc();
 		os->gc();
+		*/
 
 		// os->eval("abc, x, y = 5, var1*6 + var2*3  x = y-7;");
 		// os->eval("y(8, i)(i*8+j[7, 9])[7, k]");
@@ -80,14 +82,12 @@ struct __test_os__
 			"})(a(),2,3));\n"
 			"b(); 5, t, 6, a(), 6;");
 
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
+		{
+			int mem_usage = os->getAllocatedBytes();
+			os->gcFull();
+			int after_mem_usage = os->getAllocatedBytes();
+			int i = mem_usage;
+		}
 		
 		os->pushNumber(123);
 		os->newObject();
@@ -139,18 +139,12 @@ struct __test_os__
 		OS_FLOAT check_val = os->toNumber();
 
 		os->removeAll();
-		int mem_usage3 = os->getAllocatedBytes();
-
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		int mem_usage4 = os->getAllocatedBytes();
-		
+		{
+			int mem_usage = os->getAllocatedBytes();
+			os->gcFull();
+			int after_mem_usage = os->getAllocatedBytes();
+			int i = mem_usage;
+		}
 		os->release();
 	}
 } __test_os__;
