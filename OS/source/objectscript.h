@@ -77,7 +77,7 @@
 #define OS_COMPILED_HEADER OS_TEXT("OS.BIN")
 #define OS_COMPILED_VERSION OS_TEXT("0.9")
 
-#define OS_MEMORY_MANAGER_PAGE_BLOCKS 128
+#define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
 
 // #define OS_NEW(classname, params) new (allocator->malloc(sizeof(classname))) classname params
 
@@ -184,6 +184,9 @@ namespace ObjectScript
 
 			CachedBlock * cached_blocks[MAX_PAGE_COUNT];
 
+			int stat_malloc_count;
+			int stat_free_count;
+
 			void registerPageDesc(int block_size, int num_blocks);
 			void sortPageDesc();
 
@@ -191,7 +194,7 @@ namespace ObjectScript
 			void * allocFromPageType(int i);
 			void freeMemBlock(MemBlock*);
 
-			void freeCachedMemory();
+			void freeCachedMemory(int new_cached_bytes);
 
 			void * stdAlloc(int size);
 			void stdFree(void * p);
@@ -1023,17 +1026,7 @@ namespace ObjectScript
 			// struct FunctionData;
 			// class Program;
 			struct FunctionValueData;
-			struct Value;
-			struct ValueGreyListItem
-			{
-				Value * gc_grey_prev;
-				Value * gc_grey_next;
-
-				ValueGreyListItem();
-				~ValueGreyListItem();
-			};
-
-			struct Value: public ValueGreyListItem
+			struct Value
 			{
 				struct Property: public PropertyIndex
 				{
@@ -1082,7 +1075,10 @@ namespace ObjectScript
 				int ref_count;
 				Value * prototype; // retained
 				Value * hash_next;
-				
+
+				Value * gc_grey_prev;
+				Value * gc_grey_next;
+
 				Table * table;
 
 				union {
@@ -1619,6 +1615,8 @@ namespace ObjectScript
 
 				MemStreamReader * opcodes;
 
+				int gc_time;
+
 				Program(OS * allocator);
 
 				Program * retain();
@@ -1696,7 +1694,7 @@ namespace ObjectScript
 				String __get;
 				String __set;
 				String __constructor;
-				String __destructor;
+				// String __destructor;
 				String __cmp;
 				String __tostring;
 				// String __tobool;
@@ -1756,20 +1754,35 @@ namespace ObjectScript
 				PROTOTYPE_ARRAY,
 				PROTOTYPE_FUNCTION,
 				// -----------------
-				PROTOTYPES_NUMBER
+				PROTOTYPE_COUNT
 			};
 
-			Value * prototypes[PROTOTYPES_NUMBER];
+			Value * prototypes[PROTOTYPE_COUNT];
 
 			// Vector<Value*> autorelease_values;
 			Vector<Value*> stack_values;
 			Vector<Value*> temp_values;
+			Vector<Value*> unused_values;
 			Vector<FunctionRunningInstance*> call_stack_funcs;
 
 			// Vector<Value*> cache_values;
 
-			ValueGreyListItem gc_grey_list;
+			// ValueGreyListItem gc_grey_list;
+			struct GreyList
+			{
+				Value * first;
+				Value * last;
+				
+				GreyList();
+
+				void insertBeginning(Value * new_node);
+				void insertEnd(Value * new_node);
+				void insertAfter(Value * node, Value * new_node);
+				void insertBefore(Value * node, Value * new_node);
+				void remove(Value * node);
+			} gc_grey_list;
 			int gc_values_head_index;
+			int gc_time;
 
 			int fatal_error;
 
@@ -1781,7 +1794,10 @@ namespace ObjectScript
 			void gcResetGreyList();
 			void gcAddGreyValue(Value*);
 			void gcRemoveGreyValue(Value*);
+			int gcProcessGreyProgram(Program * prog);
 			int gcProcessGreyValueTable(Value::Table * table);
+			int gcProcessGreyValueFunction(Value * func_value);
+			int gcProcessGreyValueFunctionRunning(FunctionRunningInstance*);
 			int gcProcessStringsCacheTable();
 			int gcProcessGreyValue(Value*);
 			int gcProcessGreyList(int max_count);
@@ -1789,6 +1805,7 @@ namespace ObjectScript
 
 			void resetValue(Value*);
 			void deleteValue(Value*);
+			void deleteUnusedValues();
 			Value * releaseValue(Value*);
 			Value * releaseValue(int value_id);
 
@@ -1832,7 +1849,7 @@ namespace ObjectScript
 			void removeStackValues(int offs = -1, int count = 1);
 			void pop(int count = 1);
 
-			Value * registerValue(Value * val);
+			// Value * registerValue(Value * val);
 			Value * unregisterValue(int value_id);
 			void deleteValues();
 
@@ -1924,6 +1941,7 @@ namespace ObjectScript
 			String& append(const OS_CHAR*);
 		};
 
+		/*
 		class Value
 		{
 			friend class OS;
@@ -1959,6 +1977,7 @@ namespace ObjectScript
 			OS_FLOAT toNumber() const;
 			String toString() const;
 		};
+		*/
 
 		static OS * create(MemoryManager * = NULL);
 
@@ -1986,18 +2005,18 @@ namespace ObjectScript
 		void newObject();
 		void newArray();
 
-		void pushValue(const Value&);
-		void pushValue(int offs = -1);
+		// void pushValue(const Value&);
+		void pushStackValue(int offs = -1);
 		void pushValueById(int id);
 
-		Value getValue(int offs = -1);
-		Value getValueById(int id);
+		// Value getValue(int offs = -1);
+		// Value getValueById(int id);
 
 		void remove(int start_offs = -1, int count = 1);
 		void removeAll();
 		void pop(int count = 1);
 
-		void setProperty(bool prototype_enabled = true, bool setter_enabled = true);
+		void setProperty(bool keep_object_in_stack, bool prototype_enabled = true, bool setter_enabled = true);
 		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
 
 		OS_EValueType getType(int offs = -1);
@@ -2021,6 +2040,9 @@ namespace ObjectScript
 		int call(int params = 0);
 		int eval(OS_CHAR * str);
 		int eval(const Core::String& str);
+
+		void gc(int max_count);
+		void gc();
 	};
 
 } // namespace OS

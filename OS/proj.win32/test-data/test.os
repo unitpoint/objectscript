@@ -1,7 +1,14 @@
+var a = {
+	num: 12;
+	__get@number: function(){
+		return this.num;
+	},
+	__add: function(a, b){
+		return a.number + b.number;
+	}
+};
 
-var a = 2;
-var b = 3;
-var c = a * b;
+var b = a + a;
 
 /*
 var math = {

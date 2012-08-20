@@ -2642,6 +2642,7 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 	case EXP_TYPE_GET_REST_ARGUMENTS:
 		OS_ASSERT(exp->list.count == 0);
 		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
+		break;
 
 	case EXP_TYPE_GET_LOCAL_VAR:
 		OS_ASSERT(exp->list.count == 0);
@@ -5306,15 +5307,17 @@ OS::Core::Program::Program(OS * allocator): filename(allocator)
 	const_values = NULL;
 	num_numbers = 0;
 	num_strings = 0;
+	gc_time = -1;
 }
 
 OS::Core::Program::~Program()
 {
 	OS_ASSERT(ref_count == 0);
 	int i;
-	for(i = num_numbers+num_strings-1; i >= 0; i--){
+	// values could be already destroyed by gc or will be destroyed soon
+	/* for(i = num_numbers+num_strings-1; i >= 0; i--){
 		allocator->core->releaseValue(const_values[i]);
-	}
+	} */
 	allocator->free(const_values);
 	const_values = NULL;
 
@@ -6417,9 +6420,10 @@ OS::Core::FunctionValueData * OS::Core::newFunctionValueData()
 
 void OS::Core::deleteFunctionValueData(FunctionValueData * func_data)
 {
-	OS_ASSERT(func_data->prog && func_data->func_decl && func_data->env); //  && func_data->self
+	OS_ASSERT(func_data->prog && func_data->func_decl); // && func_data->env); //  && func_data->self
 
-	releaseValue(func_data->env);
+	// value could be already destroyed by gc or will be destroyed soon
+	// releaseValue(func_data->env);
 	func_data->env = NULL;
 	
 	// releaseValue(func_data->self);
@@ -6473,17 +6477,6 @@ OS::Core::FunctionRunningInstance * OS::Core::FunctionRunningInstance::retain()
 
 // =====================================================================
 
-OS::Core::ValueGreyListItem::ValueGreyListItem()
-{
-	gc_grey_prev = NULL;
-	gc_grey_next = NULL;
-}
-
-OS::Core::ValueGreyListItem::~ValueGreyListItem()
-{
-	OS_ASSERT(!gc_grey_prev && !gc_grey_next);
-}
-
 OS::Core::Value::Value(int p_value_id)
 {
 	value_id = p_value_id;
@@ -6493,16 +6486,21 @@ OS::Core::Value::Value(int p_value_id)
 	// properties = NULL;
 	hash_next = NULL;
 	prototype = NULL;
+	table = NULL;
+	gc_grey_prev = NULL;
+	gc_grey_next = NULL;
 	gc_color = GC_BLACK;
 }
 
 OS::Core::Value::~Value()
 {
 	OS_ASSERT(type == OS_VALUE_TYPE_NULL);
-	OS_ASSERT(!value.number);
+	// OS_ASSERT(!value.number);
 	// OS_ASSERT(!properties);
+	OS_ASSERT(!table);
 	OS_ASSERT(!hash_next);
 	OS_ASSERT(!prototype);
+	OS_ASSERT(gc_color != GC_GREY);
 }
 
 bool OS::Core::valueToBool(Value * val)
@@ -6737,9 +6735,10 @@ OS::Core::Values::~Values()
 	// delete [] heads;
 }
 
-OS::Core::Value * OS::Core::registerValue(Value * value)
+OS::Core::Value * OS::Core::newValue()
 {
-	OS_ASSERT(value->hash_next == NULL);
+	Value * value = new (malloc(sizeof(Value))) Value(values.next_id++);
+
 	if((values.count>>1) >= values.head_mask){
 		int new_size = values.heads ? (values.head_mask+1) * 2 : OS_DEF_VALUES_HASH_SIZE;
 		int alloc_size = sizeof(Value*) * new_size;
@@ -6847,7 +6846,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	__get(allocator, OS_TEXT("__get")),
 	__set(allocator, OS_TEXT("__set")),
 	__constructor(allocator, OS_TEXT("__constructor")),
-	__destructor(allocator, OS_TEXT("__destructor")),
+	// __destructor(allocator, OS_TEXT("__destructor")),
 	__cmp(allocator, OS_TEXT("__cmp")),
 	__tostring(allocator, OS_TEXT("toString")),
 	// __tobool(allocator, OS_TEXT("__tobool")),
@@ -6908,7 +6907,9 @@ OS::GenericMemoryManager::GenericMemoryManager()
 	num_page_desc = 0;
 	OS_MEMSET(pages, 0, sizeof(pages));
 	OS_MEMSET(cached_blocks, 0, sizeof(cached_blocks));
-	// num_cached_blocks = 0;
+	
+	stat_malloc_count = 0;
+	stat_free_count = 0;
 
 	registerPageDesc(sizeof(Core::Value), OS_MEMORY_MANAGER_PAGE_BLOCKS);
 	registerPageDesc(sizeof(Core::Value::Property), OS_MEMORY_MANAGER_PAGE_BLOCKS);
@@ -6932,7 +6933,7 @@ OS::GenericMemoryManager::GenericMemoryManager()
 
 OS::GenericMemoryManager::~GenericMemoryManager()
 {
-	freeCachedMemory();
+	freeCachedMemory(0);
 	// OS_ASSERT(!allocated_bytes);
 	OS_ASSERT(!cached_bytes);
 }
@@ -7029,39 +7030,45 @@ void OS::GenericMemoryManager::freeMemBlock(MemBlock * mem_block)
 	page->num_cached_blocks++;
 }
 
-void OS::GenericMemoryManager::freeCachedMemory()
+void OS::GenericMemoryManager::freeCachedMemory(int new_cached_bytes)
 {
-	if(cached_bytes > 0){
+	if(cached_bytes > new_cached_bytes){
 		for(int i = num_page_desc-1; i >= 0; i--){
-			Page * prev = NULL, * next = NULL;
+			bool found_free_page = false;
 			int num_blocks = page_desc[i].num_blocks;
-			for(Page * page = pages[i]; page; page = next){
-				next = page->next_page;
-				if(page->num_cached_blocks == num_blocks){
-					CachedBlock * prev_cached_block = NULL, * next_cached_block = NULL;
-					for(CachedBlock * cached_block = cached_blocks[i]; cached_block; cached_block = next_cached_block){
-						next_cached_block = cached_block->next;
-						if(cached_block->page == page){
-							if(!prev_cached_block){
-								cached_blocks[i] = next_cached_block;
-								// keep prev_cached_block null
-								continue;
-							}else{
-								prev_cached_block->next = next_cached_block;
-							}
-						}
-						prev_cached_block = cached_block;
-					}
-					if(!prev){
-						pages[i] = page->next_page;
+			CachedBlock * prev_cached_block = NULL, * next_cached_block = NULL;
+			for(CachedBlock * cached_block = cached_blocks[i]; cached_block; cached_block = next_cached_block){
+				next_cached_block = cached_block->next;
+				if(cached_block->page->num_cached_blocks == num_blocks){
+					found_free_page = true;
+					if(!prev_cached_block){
+						cached_blocks[i] = next_cached_block;
 					}else{
-						prev->next_page = page->next_page;
+						prev_cached_block->next = next_cached_block;
+					}
+					// keep prev_cached_block
+					continue;
+				}
+				prev_cached_block = cached_block;
+			}
+			if(found_free_page){
+				Page * prev = NULL, * next;
+				for(Page * page = pages[i]; page; page = next){
+					next = page->next_page;
+					if(page->num_cached_blocks == num_blocks){
+						if(!prev){
+							pages[i] = page->next_page;
+						}else{
+							prev->next_page = page->next_page;
+						}
+						cached_bytes -= page_desc[i].allocated_bytes;
+						stdFree(page);
+					}else{
 						prev = page;
 					}
-					cached_bytes -= page_desc[i].allocated_bytes;
-					stdFree(page);
-				}else{
-					prev = page;
+				}
+				if(cached_bytes <= new_cached_bytes){
+					break;
 				}
 			}
 		}
@@ -7073,7 +7080,7 @@ void * OS::GenericMemoryManager::stdAlloc(int size)
 	// real_malloc_count++;
 	int * p = (int*)::malloc(size + sizeof(int));
 	if(!p && cached_bytes > 0){
-		freeCachedMemory();
+		freeCachedMemory(0);
 		p = (int*)::malloc(size + sizeof(int));
 		if(!p){
 			return NULL;
@@ -7102,11 +7109,39 @@ void * OS::GenericMemoryManager::malloc(int size)
 	if(size <= 0){
 		return NULL;
 	}
-	for(int i = 0; i < num_page_desc; i++){
-		if(size <= page_desc[i].block_size){
-			return allocFromPageType(i);
+	stat_malloc_count++;
+#if 1
+	int start = 0, end = num_page_desc-1;
+	if(size <= page_desc[end].block_size){
+		for(;;){
+			if(start == end){
+				int block_size = page_desc[start].block_size;
+				if(size > block_size){
+					start++;
+				}
+				return allocFromPageType(start);
+			}
+			int mid = (start + end) / 2;
+			int block_size = page_desc[mid].block_size;
+			if(size == block_size){
+				return allocFromPageType(mid);
+			}
+			if(size < block_size){
+				end = mid - 1;
+				continue;
+			}
+			start = mid + 1;
 		}
 	}
+#else
+	if(size <= page_desc[end].block_size){
+		for(int i = 0; i < num_page_desc; i++){
+			if(size <= page_desc[i].block_size){
+				return allocFromPageType(i);
+			}
+		}
+	}
+#endif
 	return stdAlloc(size);
 }
 
@@ -7115,6 +7150,7 @@ void OS::GenericMemoryManager::free(void * ptr)
 	if(!ptr){
 		return;
 	}
+	stat_free_count++;
 	int * p = (int*)ptr - 1;
 	int size = p[0];
 	if(size & 0x80000000){
@@ -7124,6 +7160,9 @@ void OS::GenericMemoryManager::free(void * ptr)
 	MemBlock * mem_block = (MemBlock*)ptr - 1;
 	OS_ASSERT(mem_block->block_size == size);
 	freeMemBlock(mem_block);
+	if(!(stat_free_count % 1024) && cached_bytes > allocated_bytes / 2){
+		freeCachedMemory(cached_bytes / 2);
+	}
 }
 
 int OS::GenericMemoryManager::getPointerSize(void * ptr)
@@ -7227,7 +7266,7 @@ OS::Core::~Core()
 {
 	OS_ASSERT(!strings);
 	int i;
-	for(i = 0; i < PROTOTYPES_NUMBER; i++){
+	for(i = 0; i < PROTOTYPE_COUNT; i++){
 		OS_ASSERT(!prototypes[i]);
 	}
 }
@@ -7276,7 +7315,7 @@ bool OS::Core::init()
 	strings = new (malloc(sizeof(Strings))) Strings(allocator);
 
 	string_values_table = newTable();
-	for(int i = 0; i < PROTOTYPES_NUMBER; i++){
+	for(int i = 0; i < PROTOTYPE_COUNT; i++){
 		prototypes[i] = newValue();
 		prototypes[i]->type = OS_VALUE_TYPE_OBJECT;
 	}
@@ -7284,7 +7323,7 @@ bool OS::Core::init()
 	true_value = newBoolValue(true);
 	false_value = newBoolValue(false);
 	global_vars = newObjectValue();
-	// removeStackValues(PROTOTYPES_NUMBER + 2);
+	// removeStackValues(PROTOTYPE_COUNT + 2);
 
 	return true;
 }
@@ -7309,7 +7348,7 @@ void OS::Core::shutdown()
 	releaseValue(global_vars); global_vars = NULL;
 	deleteTable(string_values_table); string_values_table = NULL;
 
-	for(int i = 0; i < PROTOTYPES_NUMBER; i++){
+	for(int i = 0; i < PROTOTYPE_COUNT; i++){
 		// releaseValue(prototypes[i]);
 		prototypes[i] = NULL;
 	}
@@ -7324,42 +7363,112 @@ void OS::Core::shutdown()
 	empty_string_data = NULL;
 }
 
+OS::Core::GreyList::GreyList()
+{
+	first = NULL;
+	last = NULL;
+}
+
+void OS::Core::GreyList::insertBeginning(Value * new_node)
+{
+     if(!first){
+         first = new_node;
+         last = new_node;
+		 new_node->gc_grey_prev = NULL;
+         new_node->gc_grey_next = NULL;
+	 }else{
+         insertBefore(first, new_node);
+	 }
+}
+
+void OS::Core::GreyList::insertEnd(Value * new_node)
+{
+     if(!last){
+         insertBeginning(new_node);
+	 }else{
+         insertAfter(last, new_node);
+	 }
+}
+
+void OS::Core::GreyList::insertAfter(Value * node, Value * new_node)
+{
+	new_node->gc_grey_prev = node;
+	new_node->gc_grey_next = node->gc_grey_next;
+	if(node->gc_grey_next == NULL){
+		last = new_node;
+	}else{
+		node->gc_grey_next->gc_grey_prev = new_node;
+	}
+	node->gc_grey_next = new_node;
+}
+
+void OS::Core::GreyList::insertBefore(Value * node, Value * new_node)
+{
+     new_node->gc_grey_prev = node->gc_grey_prev;
+     new_node->gc_grey_next = node;
+     if(node->gc_grey_prev == NULL){
+         first = new_node;
+	 }else{
+         node->gc_grey_prev->gc_grey_next = new_node;
+	 }
+     node->gc_grey_prev = new_node;
+}
+
+void OS::Core::GreyList::remove(Value * node)
+{
+   if(!node->gc_grey_prev){
+       OS_ASSERT(first == node);
+	   first = node->gc_grey_next;
+   }else{
+       node->gc_grey_prev->gc_grey_next = node->gc_grey_next;
+   }
+   if(!node->gc_grey_next){
+       OS_ASSERT(last == node);
+	   last = node->gc_grey_prev;
+   }else{
+       node->gc_grey_next->gc_grey_prev = node->gc_grey_prev;
+   }
+   node->gc_grey_next = NULL;
+   node->gc_grey_prev = NULL;
+}
+
 void OS::Core::gcInitGreyList()
 {
-	gc_grey_list.gc_grey_next = gc_grey_list.gc_grey_prev = (Value*)&gc_grey_list;
+	// gc_grey_list.gc_grey_next = gc_grey_list.gc_grey_prev = (Value*)&gc_grey_list;
 }
 
 bool OS::Core::isGreyListEmpty()
 {
-	return gc_grey_list.gc_grey_next == (Value*)&gc_grey_list;
+	return !gc_grey_list.first; // gc_grey_list.gc_grey_next == (Value*)&gc_grey_list;
 }
 
 void OS::Core::gcResetGreyList()
 {
 	while(!isGreyListEmpty()){
-		gcRemoveGreyValue(gc_grey_list.gc_grey_next);
+		gcRemoveGreyValue(gc_grey_list.first);
 	}
-	OS_ASSERT(gc_grey_list.gc_grey_next == (Value*)&gc_grey_list);
-	OS_ASSERT(gc_grey_list.gc_grey_prev == (Value*)&gc_grey_list);
+	// OS_ASSERT(gc_grey_list.gc_grey_next == (Value*)&gc_grey_list);
+	// OS_ASSERT(gc_grey_list.gc_grey_prev == (Value*)&gc_grey_list);
 }
 
 void OS::Core::gcAddGreyValue(Value * value)
 {
+	if(value->gc_color == Value::GC_GREY){
+		return;
+	}
 	OS_ASSERT(!value->gc_grey_next && !value->gc_grey_prev);
-	gc_grey_list.gc_grey_next->gc_grey_prev = value;
-	gc_grey_list.gc_grey_prev->gc_grey_next = value;
-	value->gc_grey_next = gc_grey_list.gc_grey_next;
-	value->gc_grey_prev = gc_grey_list.gc_grey_prev;
+	gc_grey_list.insertEnd(value);
 	value->gc_color = Value::GC_GREY;
+	if(value->prototype){
+		gcAddGreyValue(value->prototype);
+	}
 }
 
 void OS::Core::gcRemoveGreyValue(Value * value)
 {
-	OS_ASSERT(value->gc_grey_next && value->gc_grey_prev);
-	value->gc_grey_next->gc_grey_prev = value->gc_grey_prev;
-	value->gc_grey_prev->gc_grey_next = value->gc_grey_next;
-	value->gc_grey_next = NULL;
-	value->gc_grey_prev = NULL;
+	// OS_ASSERT(value->gc_grey_next && value->gc_grey_prev);
+	OS_ASSERT(value->gc_color == Value::GC_GREY);
+	gc_grey_list.remove(value);
 	value->gc_color = Value::GC_BLACK;
 }
 
@@ -7367,7 +7476,7 @@ int OS::Core::gcProcessGreyList(int max_count)
 {
 	int count = 0;
 	while(count < max_count && !isGreyListEmpty()){
-		Value * cur = gc_grey_list.gc_grey_next;
+		Value * cur = gc_grey_list.first;
 		count += gcProcessGreyValue(cur);
 	}
 	return count;
@@ -7375,44 +7484,102 @@ int OS::Core::gcProcessGreyList(int max_count)
 
 int OS::Core::gcProcessGreyValueTable(Value::Table * table)
 {
-	int count = 0;
+	int count = table->count;
 	Value::Property * prop = table->first, * prop_next;
-	for(; prop; prop = prop_next, count++){
+	for(; prop; prop = prop_next){
 		prop_next = prop->next;
-		Value * var_value = values.get(prop->value_id);
-		if(!var_value){
+		Value * value = values.get(prop->value_id);
+		if(!value){
 			PropertyIndex index = *prop;
 			deleteTableProperty(table, index);
 			continue;
 		}
-		gcAddGreyValue(var_value);
+		gcAddGreyValue(value);
+	}
+	return count;
+}
+
+int OS::Core::gcProcessGreyProgram(Program * prog)
+{
+	if(prog->gc_time == gc_time){
+		return 0;
+	}
+	prog->gc_time = gc_time;
+	int count = prog->num_numbers + prog->num_strings;
+	for(int i = 0; i < count; i++){
+		gcAddGreyValue(prog->const_values[i]);
+	}
+	return count;
+}
+
+int OS::Core::gcProcessGreyValueFunction(Value * func_value)
+{
+	OS_ASSERT(func_value->type == OS_VALUE_TYPE_FUNCTION);
+	FunctionValueData * func_value_data = func_value->value.func;
+	int count = 1;
+	gcAddGreyValue(func_value_data->env);
+	if(func_value_data->parent_inctance){
+		count += gcProcessGreyValueFunctionRunning(func_value_data->parent_inctance);
+	}
+	count += gcProcessGreyProgram(func_value_data->prog);
+	return count;
+}
+
+int OS::Core::gcProcessGreyValueFunctionRunning(FunctionRunningInstance * func_running)
+{
+	gcAddGreyValue(func_running->func);
+	gcAddGreyValue(func_running->self);
+	int i, count = 2;
+	for(i = 0; i < func_running->num_parent_inctances; i++){
+		count += gcProcessGreyValueFunctionRunning(func_running->parent_inctances[i]);
+	}
+	int num_locals = func_running->func->value.func->func_decl->num_locals;
+	for(i = 0; i < num_locals; i++){
+		gcAddGreyValue(func_running->locals[i]);
+	}
+	count += num_locals;
+	if(func_running->arguments){
+		gcAddGreyValue(func_running->arguments);
+		count++;
+	}
+	if(func_running->rest_arguments){
+		gcAddGreyValue(func_running->rest_arguments);
+		count++;
 	}
 	return count;
 }
 
 int OS::Core::gcProcessStringsCacheTable()
 {
-	int count = 0;
 	Value::Table * table = string_values_table;
+	int count = table->count;
 	Value::Property * prop = table->first, * prop_next;
-	for(; prop; prop = prop_next, count++){
+	for(; prop; prop = prop_next){
 		prop_next = prop->next;
-		Value * var_value = values.get(prop->value_id);
-		OS_ASSERT(!var_value || var_value->type == OS_VALUE_TYPE_STRING);
-		if(!var_value || var_value->ref_count < 2){
+		Value * value = values.get(prop->value_id);
+		OS_ASSERT(!value || value->type == OS_VALUE_TYPE_STRING);
+		if(!value || value->ref_count < 2){
+			OS_ASSERT(value->ref_count == 1);
 			PropertyIndex index = *prop;
 			deleteTableProperty(table, index);
 			continue;
 		}
-		var_value->gc_color = Value::GC_BLACK;
-		// gcAddGreyValue(var_value);
+		gcAddGreyValue(value);
+		// value->gc_color = Value::GC_BLACK;
 	}
 	return count;
 }
 
 int OS::Core::gcProcessGreyValue(Value * value)
 {
+	if(value->gc_color != Value::GC_GREY){
+		return 0;
+	}
 	gcRemoveGreyValue(value);
+	int count = 1;
+	if(value->table){
+		count += gcProcessGreyValueTable(value->table);
+	}
 	switch(value->type){
 	case OS_VALUE_TYPE_NULL:
 		// value->gc_color = Value::GC_WHITE; // null is always valid to be freed
@@ -7425,25 +7592,32 @@ int OS::Core::gcProcessGreyValue(Value * value)
 
 	case OS_VALUE_TYPE_ARRAY:
 		OS_ASSERT(false);
-		return 1;
+		break;
 
 	case OS_VALUE_TYPE_OBJECT:
-		return 1 + gcProcessGreyValueTable(value->table);
+		break;
+
+	case OS_VALUE_TYPE_FUNCTION:
+		return count + gcProcessGreyValueFunction(value);
 
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 	case OS_VALUE_TYPE_THREAD:
 		break;
 	}
-	return 1;
+	return count;
 }
 
 void OS::Core::gcStep(int max_count)
 {
+	gc_time++;
+
 	max_count -= temp_values.count;
 	allocator->vectorReleaseValues(temp_values);
+
+	max_count -= unused_values.count;
+	deleteUnusedValues();
 
 	if(gc_values_head_index >= 0){
 		OS_ASSERT(gc_values_head_index <= values.head_mask);
@@ -7453,6 +7627,9 @@ void OS::Core::gcStep(int max_count)
 				next = value->hash_next;
 				if(value->gc_color == Value::GC_WHITE){
 					deleteValue(value);
+					if(gc_values_head_index < 0){
+						return;
+					}
 				}else{
 					value->gc_color = Value::GC_WHITE;
 				}
@@ -7464,14 +7641,25 @@ void OS::Core::gcStep(int max_count)
 			return;
 		}
 		gc_values_head_index = -1;
+		return;
 	}
 	if(isGreyListEmpty()){
 		gcAddGreyValue(global_vars);
-		for(int i = 0; i < stack_values.count; i++, max_count--){
+		gcAddGreyValue(null_value);
+		gcAddGreyValue(true_value);
+		gcAddGreyValue(false_value);
+		max_count -= 4;
+		int i;
+		for(i = 0; i < PROTOTYPE_COUNT; i++){
+			gcAddGreyValue(prototypes[i]);
+		}
+		for(i = 0; i < stack_values.count; i++, max_count--){
 			gcAddGreyValue(stack_values[i]);
 		}
+		for(i = 0; i < call_stack_funcs.count; i++){
+			max_count -= gcProcessGreyValueFunctionRunning(call_stack_funcs[i]);
+		}
 		max_count -= gcProcessStringsCacheTable();
-		// TODO: add local vars of running functions
 	}
 	gcProcessGreyList(max_count);
 	if(isGreyListEmpty()){
@@ -7523,14 +7711,17 @@ void OS::Core::resetValue(Value * val)
 		break;
 
 	case OS_VALUE_TYPE_OBJECT:
-		{
+		// when object is destroying, some properties could be already destroyed
+		// so destructor can't use self properties and can break gc process
+		// so disable destructors
+		/* {
 			bool prototype_enabled = true;
 			Value * func = getPropertyValue(val, PropertyIndex(strings->__destructor, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func){
 				pushValue(func);
 				call(val, 0, 0);
 			}
-		}
+		} */
 		break;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -7547,7 +7738,8 @@ void OS::Core::resetValue(Value * val)
 		deleteTable(table);
 	}
 	if(val->prototype){
-		releaseValue(val->prototype);
+		// prototype could be already destroyed by gc or will be destroyed soon
+		// releaseValue(val->prototype);
 		val->prototype = NULL;
 	}
 	val->type = OS_VALUE_TYPE_NULL;
@@ -7556,13 +7748,23 @@ void OS::Core::resetValue(Value * val)
 void OS::Core::deleteValue(Value * val)
 {
 	OS_ASSERT(val);
-	resetValue(val);
 	unregisterValue(val->value_id);
-	if(val->gc_grey_next){
+	resetValue(val);
+	if(val->gc_color == Value::GC_GREY){
 		gcRemoveGreyValue(val);
 	}
+	val->ref_count = 0;
 	val->~Value();
 	free(val);
+}
+
+void OS::Core::deleteUnusedValues()
+{
+	while(unused_values.count > 0){
+		Value * value = unused_values.lastElement();
+		unused_values.count--;
+		deleteValue(value);
+	}
 }
 
 OS::Core::Value * OS::Core::releaseValue(Value * val)
@@ -7570,11 +7772,17 @@ OS::Core::Value * OS::Core::releaseValue(Value * val)
 	OS_ASSERT(val);
 	if(--val->ref_count <= 0){
 		OS_ASSERT(val->ref_count == 0);
+#if 1	// destructors are disabled so gc can't be broken due to value destroy process, delete value just here
 		deleteValue(val);
+#else
+		allocator->vectorAddItem(unused_values, val);
+#endif
 		return NULL;
+#if 0 // gc will delete unused strings
 	}else if(val->type == OS_VALUE_TYPE_STRING && val->ref_count == 1){
 		deleteTableProperty(string_values_table, PropertyIndex(val->value.string_data, PropertyIndex::KeepStringIndex()));
 		return NULL;
+#endif
 	}
 	return val;
 }
@@ -7592,6 +7800,13 @@ OS::Core::Value::Property * OS::Core::setTableValue(Value::Table * table, Proper
 {
 	OS_ASSERT(table);
 	OS_ASSERT(value);
+
+	// TODO: no need to do something here ???
+	/* if(value->gc_color == Value::GC_WHITE){
+		gcAddGreyValue(value);
+		gc_values_head_index = -1;
+	} */
+
 	Value::Property * prop = table->get(index);
 	if(prop){
 		OS_ASSERT(prop->value_id);
@@ -7613,14 +7828,20 @@ OS::Core::Value::Property * OS::Core::setTableValue(Value::Table * table, Proper
 void OS::Core::setPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
 {
 	struct Lib {
-		static void setVar(Core * core, Value::Property * prop, Value * value)
+		static void setVar(Core * core, Value * table_value, Value::Property * prop, Value * value)
 		{
 			OS_ASSERT(prop->value_id);
 			if(prop->value_id != value->value_id){
-				int old_value_id = prop->value_id;			
+				int old_value_id = prop->value_id;
 				prop->value_id = value->value_id;
 				value->ref_count++;
 				core->releaseValue(old_value_id);
+
+				// TODO: no need to do something here ???
+				/* if(table_value->gc_color != Value::GC_WHITE && value->gc_color == Value::GC_WHITE){
+					gcAddGreyValue(value);
+					gc_values_head_index = -1;
+				} */
 			}
 		}
 	};
@@ -7628,7 +7849,7 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 	Value::Property * prop = NULL;
 	Value::Table * table = table_value->table;
 	if(table && (prop = table->get(index))){
-		return Lib::setVar(this, prop, value);
+		return Lib::setVar(this, table_value, prop, value);
 	}
 
 	if(index.is_string_index && index.string_index == strings->syntax_prototype){
@@ -7665,7 +7886,7 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 			cur_value = cur_value->prototype;
 			Value::Table * cur_table = cur_value->table;
 			if(cur_table && (prop = cur_table->get(index))){
-				return Lib::setVar(this, prop, value);
+				return Lib::setVar(this, table_value, prop, value);
 			}
 		}
 	}
@@ -7726,8 +7947,10 @@ OS::Core::Value * OS::Core::getStackValue(int offs)
 {
 	if(offs < 0){
 		offs += stack_values.count;
+		if(offs < 0){
+			return NULL;
+		}
 	}
-	OS_ASSERT(offs >= 0);
 	if(offs < stack_values.count){
 		return stack_values.buf[offs];
 	}
@@ -7735,14 +7958,6 @@ OS::Core::Value * OS::Core::getStackValue(int offs)
 		return global_vars;
 	}
 	return NULL;
-}
-
-OS::Core::Value * OS::Core::newValue()
-{
-	Value * val = new (malloc(sizeof(Value))) Value(values.next_id++);
-	return registerValue(val);
-	// allocator->vectorAddItem(stack_values, registerValue(val));
-	// return val;
 }
 
 OS::Core::Value * OS::Core::newBoolValue(bool val)
@@ -7770,8 +7985,10 @@ OS::Core::Value * OS::Core::newStringValue(const String& str)
 	Value::Property * prop = string_values_table->get(index);
 	if(prop){
 		Value * value = values.get(prop->value_id);
-		OS_ASSERT(value);
-		return value->retain();
+		if(value){
+			return value->retain();
+		}
+		deleteTableProperty(string_values_table, index);
 	}
 	Value * value = newValue();
 	value->prototype = prototypes[PROTOTYPE_STRING]->retain();
@@ -8390,12 +8607,14 @@ void OS::newArray()
 	core->pushArrayValue();
 }
 
+/*
 void OS::pushValue(const Value& value)
 {
 	core->pushValueAutoNull(value.value);
 }
+*/
 
-void OS::pushValue(int offs)
+void OS::pushStackValue(int offs)
 {
 	core->pushValueAutoNull(core->getStackValue(offs));
 }
@@ -8405,6 +8624,7 @@ void OS::pushValueById(int id)
 	core->pushValueAutoNull(core->values.get(id));
 }
 
+/*
 OS::Value OS::getValue(int offs)
 {
 	return Value(this, core->getStackValue(offs));
@@ -8414,6 +8634,7 @@ OS::Value OS::getValueById(int id)
 {
 	return Value(this, core->values.get(id));
 }
+*/
 
 void OS::remove(int start_offs, int count)
 {
@@ -8460,6 +8681,7 @@ bool OS::isNumber(int offs, OS_FLOAT * out)
 	return false;
 }
 
+/*
 bool OS::Value::isNumber(OS_FLOAT * out) const
 {
 	if(value){
@@ -8470,6 +8692,7 @@ bool OS::Value::isNumber(OS_FLOAT * out) const
 	}
 	return false;
 }
+*/
 
 OS::String OS::toString(int offs)
 {
@@ -8501,6 +8724,7 @@ bool OS::isString(int offs, String * out)
 	return false;
 }
 
+/*
 bool OS::Value::isString(String * out) const
 {
 	if(value){
@@ -8520,6 +8744,7 @@ bool OS::Value::isString(String * out) const
 	}
 	return false;
 }
+*/
 
 OS_EValueType OS::getType(int offs)
 {
@@ -8527,10 +8752,12 @@ OS_EValueType OS::getType(int offs)
 	return val ? val->type : OS_VALUE_TYPE_NULL;
 }
 
+/*
 OS_EValueType OS::Value::getType() const
 {
 	return value ? value->type : OS_VALUE_TYPE_NULL;
 }
+*/
 
 OS_EValueType OS::getTypeById(int id)
 {
@@ -8544,10 +8771,12 @@ bool OS::isType(OS_EValueType type, int offs)
 	return val && val->type == type;
 }
 
+/*
 bool OS::Value::isType(OS_EValueType type) const
 {
 	return value && value->type == type;
 }
+*/
 
 bool OS::isObject(int offs)
 {
@@ -8562,6 +8791,7 @@ bool OS::isObject(int offs)
 	return false;
 }
 
+/*
 bool OS::Value::isObject() const
 {
 	if(value){
@@ -8573,16 +8803,19 @@ bool OS::Value::isObject() const
 	}
 	return false;
 }
+*/
 
 bool OS::isArray(int offs)
 {
 	return isType(OS_VALUE_TYPE_ARRAY, offs);
 }
 
+/*
 bool OS::Value::isArray() const
 {
 	return isType(OS_VALUE_TYPE_ARRAY);
 }
+*/
 
 bool OS::isFunction(int offs)
 {
@@ -8597,6 +8830,7 @@ bool OS::isFunction(int offs)
 	return false;
 }
 
+/*
 bool OS::Value::isFunction() const
 {
 	if(value){
@@ -8608,6 +8842,7 @@ bool OS::Value::isFunction() const
 	}
 	return false;
 }
+*/
 
 bool OS::Core::isValueInstanceOf(Value * val, Value * prototype_val)
 {
@@ -8636,6 +8871,7 @@ bool OS::isInstanceOf(int value_offs, int prototype_offs)
 	return false;
 }
 
+/*
 bool OS::Value::isInstanceOf(const Value& prototype_value) const
 {
 	if(value && prototype_value.value && allocator == prototype_value.allocator){
@@ -8643,8 +8879,9 @@ bool OS::Value::isInstanceOf(const Value& prototype_value) const
 	}
 	return false;
 }
+*/
 
-void OS::setProperty(bool prototype_enabled, bool setter_enabled)
+void OS::setProperty(bool keep_object_in_stack, bool prototype_enabled, bool setter_enabled)
 {
 	if(core->stack_values.count >= 3){
 		Core::Value * table_arg = core->stack_values.buf[core->stack_values.count - 3];
@@ -8652,10 +8889,10 @@ void OS::setProperty(bool prototype_enabled, bool setter_enabled)
 		Core::Value * value_arg = core->stack_values.buf[core->stack_values.count - 1];
 		OS_ASSERT(table_arg && index_arg && value_arg);
 		core->setPropertyValue(table_arg, index_arg, value_arg, prototype_enabled, setter_enabled);
-		pop(3);
+		pop(3 - (int)keep_object_in_stack);
 	}else{
 		// error
-		pop(3);
+		pop(3 - (int)keep_object_in_stack);
 	}
 }
 
@@ -8782,26 +9019,31 @@ void OS::getProperty(bool prototype_enabled, bool getter_enabled)
 
 void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance * func_running)
 {
-	OS_ASSERT(func_running->func && func_running->func->type == OS_VALUE_TYPE_FUNCTION);
-	OS_ASSERT(func_running->func->value.func->func_decl);
-	OS_ASSERT(func_running->self);
+	// OS_ASSERT(func_running->func && func_running->func->type == OS_VALUE_TYPE_FUNCTION);
+	// OS_ASSERT(func_running->func->value.func->func_decl);
+	// OS_ASSERT(func_running->self);
+	// OS_ASSERT(func_running->func->value.func->parent_inctance != func_running);
 
 	if(--func_running->ref_count > 0){
 		return;
 	}
 
 	int i;
-	FunctionDecl * func_decl = func_running->func->value.func->func_decl;
-	for(i = 0; i < func_decl->num_locals; i++){
+	// func_running->func could be already destroyed by gc or will be destroyed soon
+	// FunctionDecl * func_decl = func_running->func->value.func->func_decl;
+	// locals could be already destroyed by gc or will be destroyed soon
+	/* for(i = 0; i < func_decl->num_locals; i++){
 		releaseValue(func_running->locals[i]);
-	}
+	} */
 	// free(func_running->locals);
 	func_running->locals = NULL;
 
-	releaseValue(func_running->func); 
+	// value could be already destroyed by gc or will be destroyed soon
+	// releaseValue(func_running->func); 
 	func_running->func = NULL;
 
-	releaseValue(func_running->self);
+	// value could be already destroyed by gc or will be destroyed soon
+	// releaseValue(func_running->self);
 	func_running->self = NULL;
 
 	for(i = 0; i < func_running->num_parent_inctances; i++){
@@ -8877,7 +9119,7 @@ restart:
 	FunctionRunningInstance * func_running = call_stack_funcs[call_stack_funcs.count-1];
 	FunctionValueData * func_value_data = func_running->func->value.func;
 	FunctionDecl * func_decl = func_value_data->func_decl;
-	Value * env = func_value_data->env ? func_value_data->env : global_vars;
+	Value * env = func_value_data->env; // ? func_value_data->env : global_vars;
 	Program * prog = func_value_data->prog;
 
 	MemStreamReader opcodes(NULL, prog->opcodes->buffer + func_decl->opcodes_pos, func_decl->opcodes_size);
@@ -8885,7 +9127,10 @@ restart:
 
 	int prog_num_numbers = prog->num_numbers;
 	OS * allocator = this->allocator;
-	for(;;){
+	for(int step_count = 0;;){
+		if(!(++step_count % 16)){
+			gcStep(values.count);
+		}
 		int opcode = opcodes.readByte(), i;
 		switch(opcode){
 		case Program::OP_PUSH_NUMBER:
@@ -8923,7 +9168,7 @@ restart:
 				func_value_data->func_decl = func_decl;
 				func_value_data->env = env->retain();
 				// func_value_data->self = func_running->self->retain();
-				func_value_data->parent_inctance = func_running->retain();
+				func_value_data->parent_inctance = func_running->retain(); // func_running->func->value.func->prog == prog ? func_running->retain() : NULL;
 				func_value->value.func = func_value_data;
 				func_value->type = OS_VALUE_TYPE_FUNCTION;
 	
@@ -8953,7 +9198,7 @@ restart:
 			}
 
 		case Program::OP_OBJECT_SET_BY_EXP:
-			allocator->setProperty(false, false);
+			allocator->setProperty(true, false, false);
 			break;
 
 		case Program::OP_OBJECT_SET_BY_INDEX:
@@ -9152,8 +9397,9 @@ restart:
 				if(cur_ret_values > ret_values){
 					pop(cur_ret_values - ret_values);
 				}else{
-					while(cur_ret_values++ < ret_values){
+					while(cur_ret_values < ret_values){
 						pushConstNullValue();
+						cur_ret_values++;
 					}
 				}
 				break;
@@ -9161,7 +9407,7 @@ restart:
 
 		case Program::OP_SET_PROPERTY:
 			{
-				allocator->setProperty();
+				allocator->setProperty(false);
 				break;
 			}
 
@@ -9172,8 +9418,9 @@ restart:
 				if(cur_ret_values > ret_values){
 					pop(cur_ret_values - ret_values);
 				}else{
-					while(cur_ret_values++ < ret_values){
+					while(cur_ret_values < ret_values){
 						pushConstNullValue();
+						cur_ret_values++;
 					}
 				}
 				// func_running->next_opcode_pos = opcodes.getPos();
@@ -9258,8 +9505,9 @@ int OS::Core::call(Value * self, int params, int ret_values)
 			if(func_ret_values > ret_values){
 				pop(func_ret_values - ret_values);
 			}else{ 
-				while(func_ret_values++ < ret_values){
+				while(func_ret_values < ret_values){
 					pushConstNullValue();
+					func_ret_values++;
 				}
 			}
 			releaseValue(val);
@@ -9282,8 +9530,9 @@ int OS::Core::call(Value * self, int params, int ret_values)
 				if(func_ret_values > ret_values){
 					pop(func_ret_values - ret_values);
 				}else{ 
-					while(func_ret_values++ < ret_values){
+					while(func_ret_values < ret_values){
 						pushConstNullValue();
+						func_ret_values++;
 					}
 				}
 				return ret_values;
@@ -9338,10 +9587,21 @@ int OS::eval(const Core::String& str)
 	return core->call(core->null_value, 0, 0);
 }
 
+void OS::gc(int max_count)
+{
+	core->gcStep(max_count);
+}
+
+void OS::gc()
+{
+	core->gcStep(core->values.count * 2);
+}
+
 // =====================================================================
 // =====================================================================
 // =====================================================================
 
+/*
 OS::Value::Value(OS * p_allocator, Core::Value * p_value)
 {
 	allocator = p_allocator->retain();
@@ -9381,3 +9641,4 @@ int OS::Value::getId() const
 {
 	return value ? value->value_id : 0;
 }
+*/
