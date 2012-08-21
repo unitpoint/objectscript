@@ -111,6 +111,7 @@ namespace ObjectScript
 	enum // OS_ValueRegister
 	{
 		OS_REGISTER_GLOBALS = 0x10000000,
+		OS_REGISTER_USERPOOL
 	};
 
 	enum
@@ -787,9 +788,6 @@ namespace ObjectScript
 					OPERATOR_CONCAT,    // ..
 					REST_ARGUMENTS,  // ...
 
-					// OPERATOR_PRECOMP,   // #
-					// OPERATOR_DOLLAR,    // $
-
 					OPERATOR_LOGIC_AND, // &&
 					OPERATOR_LOGIC_OR,  // ||
 
@@ -808,6 +806,8 @@ namespace ObjectScript
 
 					OPERATOR_QUESTION,  // ?
 					OPERATOR_COLON,     // :
+
+					OPERATOR_LENGTH,	// #
 
 					OPERATOR_BIT_AND, // &
 					OPERATOR_BIT_OR,  // |
@@ -1134,6 +1134,7 @@ namespace ObjectScript
 					EXP_TYPE_VALUE,
 					EXP_TYPE_PARAMS,
 					EXP_TYPE_FUNCTION,
+					EXP_TYPE_EXTENDS,
 					EXP_TYPE_RETURN,
 					EXP_TYPE_TAIL_CALL,
 					EXP_TYPE_ARRAY,
@@ -1183,6 +1184,13 @@ namespace ObjectScript
 					EXP_TYPE_CONST_TRUE,
 					EXP_TYPE_CONST_FALSE,
 
+					EXP_TYPE_LOGIC_BOOL,    // !!
+					EXP_TYPE_LOGIC_NOT,     // !
+					EXP_TYPE_BIT_NOT, // ~
+					EXP_TYPE_PLUS,    // +
+					EXP_TYPE_NEG,     // -
+					EXP_TYPE_LENGTH,  // #
+
 					EXP_TYPE_CONCAT, // ..
 
 					EXP_TYPE_LOGIC_AND, // &&
@@ -1196,10 +1204,6 @@ namespace ObjectScript
 					EXP_TYPE_LOGIC_LE,  // <
 					EXP_TYPE_LOGIC_GREATER, // >
 					EXP_TYPE_LOGIC_LESS,    // <
-					EXP_TYPE_LOGIC_NOT,     // !
-
-					EXP_TYPE_PLUS,    // +
-					EXP_TYPE_NEG,     // -
 
 					// EXP_TYPE_INC,     // ++
 					// EXP_TYPE_DEC,     // --
@@ -1215,7 +1219,6 @@ namespace ObjectScript
 					EXP_TYPE_BIT_AND, // &
 					EXP_TYPE_BIT_OR,  // |
 					EXP_TYPE_BIT_XOR, // ^
-					EXP_TYPE_BIT_NOT, // ~
 
 					EXP_TYPE_BIT_AND_ASSIGN, // &=
 					EXP_TYPE_BIT_OR_ASSIGN,  // |=
@@ -1448,8 +1451,9 @@ namespace ObjectScript
 				Scope * expectTextExpression();
 				Scope * expectCodeExpression(Scope*, int ret_values);
 				Scope * expectFunctionExpression(Scope*);
+				Expression * expectExtendsExpression(Scope*);
 				Expression * expectVarExpression(Scope*);
-				Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param, bool allow_var);
+				Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param, bool allow_var, bool allow_finish_exp = true);
 				Expression * expectObjectExpression(Scope*);
 				Expression * expectArrayExpression(Scope*);
 				Expression * finishParamsExpression(Scope*, Expression * params);
@@ -1557,8 +1561,16 @@ namespace ObjectScript
 					OP_GET_PROPERTY,
 					OP_SET_PROPERTY,
 
+					OP_EXTENDS,
 					OP_RETURN,
 					OP_POP,
+
+					OP_LOGIC_BOOL,
+					OP_LOGIC_NOT,
+					OP_BIT_NOT,
+					OP_PLUS,
+					OP_NEG,
+					OP_LENGTH,
 
 					OP_CONCAT, // ..
 
@@ -1572,12 +1584,10 @@ namespace ObjectScript
 					OP_LOGIC_LE,
 					OP_LOGIC_GREATER,
 					OP_LOGIC_LESS,
-					OP_LOGIC_NOT,
 
 					OP_BIT_AND,
 					OP_BIT_OR,
 					OP_BIT_XOR,
-					OP_BIT_NOT,
 
 					OP_ADD, // +
 					OP_SUB, // -
@@ -1692,6 +1702,10 @@ namespace ObjectScript
 				String __bitand;
 				String __bitor;
 				String __bitxor;
+				String __bitnot;
+				String __plus;
+				String __neg;
+				String __len;
 				String __add;
 				String __sub;
 				String __mul;
@@ -1701,6 +1715,7 @@ namespace ObjectScript
 				String __rshift;
 				String __pow;
 
+				String syntax_extends;
 				String syntax_prototype;
 				String syntax_var;
 				String syntax_this;
@@ -1734,10 +1749,11 @@ namespace ObjectScript
 			int num_destroyed_values;
 
 			Value::Table * string_values_table;
-			Value * global_vars;
 			Value * null_value;
 			Value * true_value;
 			Value * false_value;
+			Value * global_vars;
+			Value * user_pool;
 
 			enum {
 				PROTOTYPE_BOOL,
@@ -1853,6 +1869,10 @@ namespace ObjectScript
 			Value * pushObjectValue(Value * prototype);
 			Value * pushArrayValue();
 
+			// unary operator
+			Value * pushOpResultValue(int opcode, Value * value);
+
+			// binary operator
 			Value * pushOpResultValue(int opcode, Value * left_value, Value * right_value);
 
 			void removeStackValues(int offs, int count);
@@ -2035,6 +2055,9 @@ namespace ObjectScript
 
 		void setProperty(bool keep_object_in_stack, bool prototype_enabled = true, bool setter_enabled = true);
 		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
+
+		// returns length of object, array, string or result of __len method
+		int getLen(int offs = -1);
 
 		OS_EValueType getType(int offs = -1);
 		OS_EValueType getTypeById(int id);

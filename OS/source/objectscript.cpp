@@ -1365,73 +1365,73 @@ bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 bool OS::Core::Tokenizer::operator_initialized = false;
 OS::Core::Tokenizer::OperatorDesc OS::Core::Tokenizer::operator_desc[] = 
 {
-	{ OPERATOR_INDIRECT, OS_TEXT(".") }, // , OP_LEVEL_10},
+	{ OPERATOR_INDIRECT, OS_TEXT(".") },
 	{ OPERATOR_CONCAT, OS_TEXT("..") },
-	{ REST_ARGUMENTS, OS_TEXT("...") }, // , OP_LEVEL_10},
-	// { OPERATOR_PRECOMP, OS_TEXT("#") }, // ,  OP_LEVEL_0},  
-	// { OPERATOR_DOLLAR, OS_TEXT("$") }, // , OP_LEVEL_0},  
+	{ REST_ARGUMENTS, OS_TEXT("...") },
 
-	{ OPERATOR_RESERVED, OS_TEXT("->") }, // , OP_LEVEL_10},  
-	{ OPERATOR_RESERVED, OS_TEXT("::") }, // , OP_LEVEL_0},  
+	{ OPERATOR_RESERVED, OS_TEXT("->") },
+	{ OPERATOR_RESERVED, OS_TEXT("::") },
 
-	{ OPERATOR_LOGIC_AND, OS_TEXT("&&") }, // , OP_LEVEL_1},
-	{ OPERATOR_LOGIC_OR,  OS_TEXT("||") }, // , OP_LEVEL_0},
-	{ OPERATOR_LOGIC_PTR_EQ, OS_TEXT("===") }, // , OP_LEVEL_2},
-	{ OPERATOR_LOGIC_PTR_NE, OS_TEXT("!==") }, // , OP_LEVEL_2},
-	{ OPERATOR_LOGIC_EQ,  OS_TEXT("==") }, // , OP_LEVEL_2},
-	{ OPERATOR_LOGIC_NE,  OS_TEXT("!=") }, // , OP_LEVEL_2},
-	{ OPERATOR_LOGIC_GE,  OS_TEXT(">=") }, // , OP_LEVEL_2},
-	{ OPERATOR_LOGIC_LE,  OS_TEXT("<=") }, // , OP_LEVEL_2},
-	{ OPERATOR_LOGIC_GREATER, OS_TEXT(">") }, // , OP_LEVEL_2},
-	{ OPERATOR_LOGIC_LESS,    OS_TEXT("<") }, // , OP_LEVEL_2},
-	{ OPERATOR_LOGIC_NOT,     OS_TEXT("!") }, // , OP_LEVEL_9},
+	{ OPERATOR_LOGIC_AND, OS_TEXT("&&") },
+	{ OPERATOR_LOGIC_OR,  OS_TEXT("||") },
+	{ OPERATOR_LOGIC_PTR_EQ, OS_TEXT("===") },
+	{ OPERATOR_LOGIC_PTR_NE, OS_TEXT("!==") },
+	{ OPERATOR_LOGIC_EQ,  OS_TEXT("==") },
+	{ OPERATOR_LOGIC_NE,  OS_TEXT("!=") },
+	{ OPERATOR_LOGIC_GE,  OS_TEXT(">=") },
+	{ OPERATOR_LOGIC_LE,  OS_TEXT("<=") },
+	{ OPERATOR_LOGIC_GREATER, OS_TEXT(">") },
+	{ OPERATOR_LOGIC_LESS,    OS_TEXT("<") },
+	{ OPERATOR_LOGIC_NOT,     OS_TEXT("!") },
 
-	{ OPERATOR_INC,     OS_TEXT("++") }, // , OP_LEVEL_9},
-	{ OPERATOR_DEC,     OS_TEXT("--") }, // , OP_LEVEL_9},
+	{ OPERATOR_INC,     OS_TEXT("++") },
+	{ OPERATOR_DEC,     OS_TEXT("--") },
 
-	{ OPERATOR_QUESTION,  OS_TEXT("?") }, // , OP_LEVEL_5},
-	{ OPERATOR_COLON,     OS_TEXT(":") }, // , OP_LEVEL_5},
+	{ OPERATOR_QUESTION,  OS_TEXT("?") },
+	{ OPERATOR_COLON,     OS_TEXT(":") },
+	
+	{ OPERATOR_LENGTH,    OS_TEXT("#") },
 
-	{ OPERATOR_BIT_AND, OS_TEXT("&") }, // , OP_LEVEL_5},
-	{ OPERATOR_BIT_OR,  OS_TEXT("|") }, // , OP_LEVEL_5},
-	{ OPERATOR_BIT_XOR, OS_TEXT("^") }, // , OP_LEVEL_5},
-	{ OPERATOR_BIT_NOT, OS_TEXT("~") }, // , OP_LEVEL_9},
-	{ OPERATOR_CONCAT, OS_TEXT("..") }, // , OP_LEVEL_6},
-	{ OPERATOR_ADD, OS_TEXT("+") }, // , OP_LEVEL_6},
-	{ OPERATOR_SUB, OS_TEXT("-") }, // , OP_LEVEL_6},
-	{ OPERATOR_MUL, OS_TEXT("*") }, // , OP_LEVEL_7},
-	{ OPERATOR_DIV, OS_TEXT("/") }, // , OP_LEVEL_7},
-	{ OPERATOR_MOD, OS_TEXT("%") }, // , OP_LEVEL_7},
-	{ OPERATOR_LSHIFT, OS_TEXT("<<") }, // , OP_LEVEL_7},
-	{ OPERATOR_RSHIFT, OS_TEXT(">>") }, // , OP_LEVEL_7},
-	{ OPERATOR_POW, OS_TEXT("**") }, // , OP_LEVEL_8},
+	{ OPERATOR_BIT_AND, OS_TEXT("&") },
+	{ OPERATOR_BIT_OR,  OS_TEXT("|") },
+	{ OPERATOR_BIT_XOR, OS_TEXT("^") },
+	{ OPERATOR_BIT_NOT, OS_TEXT("~") },
+	{ OPERATOR_CONCAT, OS_TEXT("..") },
+	{ OPERATOR_ADD, OS_TEXT("+") },
+	{ OPERATOR_SUB, OS_TEXT("-") },
+	{ OPERATOR_MUL, OS_TEXT("*") },
+	{ OPERATOR_DIV, OS_TEXT("/") },
+	{ OPERATOR_MOD, OS_TEXT("%") },
+	{ OPERATOR_LSHIFT, OS_TEXT("<<") },
+	{ OPERATOR_RSHIFT, OS_TEXT(">>") },
+	{ OPERATOR_POW, OS_TEXT("**") },
 
-	{ OPERATOR_BIT_AND_ASSIGN, OS_TEXT("&=") }, // , OP_LEVEL_3},
-	{ OPERATOR_BIT_OR_ASSIGN,  OS_TEXT("|=") }, // , OP_LEVEL_3},
-	{ OPERATOR_BIT_XOR_ASSIGN, OS_TEXT("^=") }, // , OP_LEVEL_3},
-	{ OPERATOR_BIT_NOT_ASSIGN, OS_TEXT("~=") }, // , OP_LEVEL_3},
-	{ OPERATOR_ADD_ASSIGN, OS_TEXT("+=") }, // , OP_LEVEL_3},
-	{ OPERATOR_SUB_ASSIGN, OS_TEXT("-=") }, // , OP_LEVEL_3},
-	{ OPERATOR_MUL_ASSIGN, OS_TEXT("*=") }, // , OP_LEVEL_3},
-	{ OPERATOR_DIV_ASSIGN, OS_TEXT("/=") }, // , OP_LEVEL_3},
-	{ OPERATOR_MOD_ASSIGN, OS_TEXT("%=") }, // , OP_LEVEL_3},
-	{ OPERATOR_LSHIFT_ASSIGN, OS_TEXT("<<=") }, // , OP_LEVEL_3},
-	{ OPERATOR_RSHIFT_ASSIGN, OS_TEXT(">>=") }, // , OP_LEVEL_3},
-	{ OPERATOR_POW_ASSIGN, OS_TEXT("**=") }, // , OP_LEVEL_3},
+	{ OPERATOR_BIT_AND_ASSIGN, OS_TEXT("&=") },
+	{ OPERATOR_BIT_OR_ASSIGN,  OS_TEXT("|=") },
+	{ OPERATOR_BIT_XOR_ASSIGN, OS_TEXT("^=") },
+	{ OPERATOR_BIT_NOT_ASSIGN, OS_TEXT("~=") },
+	{ OPERATOR_ADD_ASSIGN, OS_TEXT("+=") },
+	{ OPERATOR_SUB_ASSIGN, OS_TEXT("-=") },
+	{ OPERATOR_MUL_ASSIGN, OS_TEXT("*=") },
+	{ OPERATOR_DIV_ASSIGN, OS_TEXT("/=") },
+	{ OPERATOR_MOD_ASSIGN, OS_TEXT("%=") },
+	{ OPERATOR_LSHIFT_ASSIGN, OS_TEXT("<<=") },
+	{ OPERATOR_RSHIFT_ASSIGN, OS_TEXT(">>=") },
+	{ OPERATOR_POW_ASSIGN, OS_TEXT("**=") },
 
-	{ OPERATOR_ASSIGN, OS_TEXT("=") }, // , OP_LEVEL_3},
+	{ OPERATOR_ASSIGN, OS_TEXT("=") },
 
-	{ BEGIN_CODE_BLOCK, OS_TEXT("{") }, // , OP_LEVEL_0 },
-	{ END_CODE_BLOCK, OS_TEXT("}") }, // , OP_LEVEL_0 },
+	{ BEGIN_CODE_BLOCK, OS_TEXT("{") },
+	{ END_CODE_BLOCK, OS_TEXT("}") },
 
-	{ BEGIN_BRACKET_BLOCK, OS_TEXT("(") }, // , OP_LEVEL_0 },
-	{ END_BRACKET_BLOCK, OS_TEXT(")") }, // , OP_LEVEL_0 },
+	{ BEGIN_BRACKET_BLOCK, OS_TEXT("(") },
+	{ END_BRACKET_BLOCK, OS_TEXT(")") },
 
-	{ BEGIN_ARRAY_BLOCK, OS_TEXT("[") }, // , OP_LEVEL_0 },
-	{ END_ARRAY_BLOCK, OS_TEXT("]") }, // , OP_LEVEL_0 },
+	{ BEGIN_ARRAY_BLOCK, OS_TEXT("[") },
+	{ END_ARRAY_BLOCK, OS_TEXT("]") },
 
-	{ CODE_SEPARATOR, OS_TEXT(";") }, // , OP_LEVEL_0 },
-	{ PARAM_SEPARATOR, OS_TEXT(",") } // , OP_LEVEL_0 }
+	{ CODE_SEPARATOR, OS_TEXT(";") },
+	{ PARAM_SEPARATOR, OS_TEXT(",") }
 };
 
 const int OS::Core::Tokenizer::operator_count = sizeof(operator_desc) / sizeof(operator_desc[0]);
@@ -1949,16 +1949,18 @@ bool OS::Core::Compiler::Expression::isOperator() const
 bool OS::Core::Compiler::Expression::isUnaryOperator() const
 {
 	switch(type){
-	case EXP_TYPE_LOGIC_NOT:     // !
-	case EXP_TYPE_PLUS:    // +
-	case EXP_TYPE_NEG:     // -
-		// case EXP_TYPE_INC:     // ++
-		//case EXP_TYPE_DEC:     // --
-	case EXP_TYPE_PRE_INC:     // ++
-	case EXP_TYPE_PRE_DEC:     // --
-	case EXP_TYPE_POST_INC:    // ++
-	case EXP_TYPE_POST_DEC:    // --
-	case EXP_TYPE_BIT_NOT:      // ~
+	case EXP_TYPE_LOGIC_BOOL:	// !!
+	case EXP_TYPE_LOGIC_NOT:	// !
+	case EXP_TYPE_PLUS:			// +
+	case EXP_TYPE_NEG:			// -
+	case EXP_TYPE_LENGTH:		// #
+		// case EXP_TYPE_INC:	// ++
+		//case EXP_TYPE_DEC:	// --
+	case EXP_TYPE_PRE_INC:		// ++
+	case EXP_TYPE_PRE_DEC:		// --
+	case EXP_TYPE_POST_INC:		// ++
+	case EXP_TYPE_POST_DEC:		// --
+	case EXP_TYPE_BIT_NOT:		// ~
 		return true;
 	}
 	return false;
@@ -1967,7 +1969,8 @@ bool OS::Core::Compiler::Expression::isUnaryOperator() const
 bool OS::Core::Compiler::Expression::isLogicOperator() const
 {
 	switch(type){
-	case EXP_TYPE_LOGIC_NOT: // !
+	case EXP_TYPE_LOGIC_BOOL:	// !!
+	case EXP_TYPE_LOGIC_NOT:	// !
 
 	case EXP_TYPE_LOGIC_AND: // &&
 	case EXP_TYPE_LOGIC_OR:  // ||
@@ -2152,26 +2155,26 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
 		OS_ASSERT(list.count == 1);
-		out += list[0]->debugPrint(compiler, depth+1);
+		out += list[0]->debugPrint(compiler, depth);
 		out += String::format(allocator, OS_TEXT("%sset by name: [%s]\n"), spaces, token->str.toChar());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
 		OS_ASSERT(list.count == 1);
-		out += list[0]->debugPrint(compiler, depth+1);
+		out += list[0]->debugPrint(compiler, depth);
 		out += String::format(allocator, OS_TEXT("%sset by index: [%d]\n"), spaces, token->getInt());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
 		OS_ASSERT(list.count == 2);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
+		out += list[0]->debugPrint(compiler, depth);
+		out += list[1]->debugPrint(compiler, depth);
 		out += String::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX:
 		OS_ASSERT(list.count == 1);
-		out += list[0]->debugPrint(compiler, depth+1);
+		out += list[0]->debugPrint(compiler, depth);
 		out += String::format(allocator, OS_TEXT("%sset like array\n"), spaces);
 		break;
 
@@ -2266,6 +2269,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 	case EXP_TYPE_GET_PROPERTY:
 	// case EXP_TYPE_GET_PROPERTY_DIM:
 	// case EXP_TYPE_SET_AUTO_VAR_DIM:
+	case EXP_TYPE_EXTENDS:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
@@ -2287,14 +2291,16 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
 
-	case EXP_TYPE_PLUS:     // +
-	case EXP_TYPE_NEG:     // -
-	case EXP_TYPE_LOGIC_NOT:     // !
-	case EXP_TYPE_BIT_NOT: // ~
-	case EXP_TYPE_PRE_INC:     // ++
-	case EXP_TYPE_PRE_DEC:     // --
-	case EXP_TYPE_POST_INC:    // ++
-	case EXP_TYPE_POST_DEC:    // --
+	case EXP_TYPE_PLUS:			// +
+	case EXP_TYPE_NEG:			// -
+	case EXP_TYPE_LENGTH:		// #
+	case EXP_TYPE_LOGIC_BOOL:	// !!
+	case EXP_TYPE_LOGIC_NOT:	// !
+	case EXP_TYPE_BIT_NOT:		// ~
+	case EXP_TYPE_PRE_INC:		// ++
+	case EXP_TYPE_PRE_DEC:		// --
+	case EXP_TYPE_POST_INC:		// ++
+	case EXP_TYPE_POST_DEC:		// --
 		{
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
@@ -2579,6 +2585,14 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 			break;
 		}
 
+	case EXP_TYPE_EXTENDS:
+		OS_ASSERT(exp->list.count == 2);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog_opcodes->writeByte(Program::OP_EXTENDS);
+		break;
+
 	case EXP_TYPE_OBJECT:
 		// OS_ASSERT(exp->list.count >= 0);
 		prog_opcodes->writeByte(Program::OP_PUSH_NEW_OBJECT);
@@ -2743,6 +2757,13 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 		prog_opcodes->writeByte(Program::OP_POP);
 		break;
 
+	case EXP_TYPE_LOGIC_BOOL:
+	case EXP_TYPE_LOGIC_NOT:
+	case EXP_TYPE_BIT_NOT:
+	case EXP_TYPE_PLUS:
+	case EXP_TYPE_NEG:
+	case EXP_TYPE_LENGTH:
+
 	case EXP_TYPE_CONCAT:
 
 	case EXP_TYPE_LOGIC_AND:
@@ -2755,12 +2776,10 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 	case EXP_TYPE_LOGIC_LE:
 	case EXP_TYPE_LOGIC_GREATER:
 	case EXP_TYPE_LOGIC_LESS:
-	case EXP_TYPE_LOGIC_NOT:
 
 	case EXP_TYPE_BIT_AND:
 	case EXP_TYPE_BIT_OR:
 	case EXP_TYPE_BIT_XOR:
-	case EXP_TYPE_BIT_NOT:
 
 	case EXP_TYPE_ADD:
 	case EXP_TYPE_SUB:
@@ -3037,6 +3056,7 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::toExpressionType(TokenTyp
 	case Tokenizer::OPERATOR_INDIRECT: return EXP_TYPE_INDIRECT;
 
 	case Tokenizer::OPERATOR_CONCAT: return EXP_TYPE_CONCAT;
+	case Tokenizer::OPERATOR_LENGTH: return EXP_TYPE_LENGTH;
 
 	case Tokenizer::OPERATOR_LOGIC_AND: return EXP_TYPE_LOGIC_AND;
 	case Tokenizer::OPERATOR_LOGIC_OR: return EXP_TYPE_LOGIC_OR;
@@ -3126,13 +3146,12 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::toOpcodeLevel(ExpressionType
 	case EXP_TYPE_LOGIC_LESS:    // <
 		return OP_LEVEL_2;
 
-	case EXP_TYPE_LOGIC_NOT:     // !
-		return OP_LEVEL_9;
-
-	case EXP_TYPE_PLUS:
-		return OP_LEVEL_9;
-
-	case EXP_TYPE_NEG:
+	case EXP_TYPE_LOGIC_BOOL:	// !!
+	case EXP_TYPE_LOGIC_NOT:    // !
+	case EXP_TYPE_PLUS:			// +
+	case EXP_TYPE_NEG:			// -
+	case EXP_TYPE_LENGTH:		// #
+	case EXP_TYPE_BIT_NOT:		// ~
 		return OP_LEVEL_9;
 
 	/*
@@ -3166,9 +3185,6 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::toOpcodeLevel(ExpressionType
 
 	case EXP_TYPE_BIT_XOR: // ^
 		return OP_LEVEL_5;
-
-	case EXP_TYPE_BIT_NOT: // ~
-		return OP_LEVEL_9;
 
 	case EXP_TYPE_BIT_AND_ASSIGN: // &=
 		return OP_LEVEL_3;
@@ -3364,7 +3380,6 @@ OS::Core::Tokenizer::TokenData * OS::Core::Compiler::expectToken()
 	if(isError()){
 		return NULL;
 	}
-
 	if(!readToken()){
 		setError(ERROR_EXPECT_TOKEN, recent_token);
 		return NULL;
@@ -3458,23 +3473,19 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 		}
 		break;
 	}
-	// int active_locals = exp->active_locals;
 	while(exp->ret_values > ret_values){
 		int new_ret_values = exp->ret_values-1;
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_POP_VALUE, exp->token, exp);
 		exp->ret_values = new_ret_values;
-		// exp->active_locals = active_locals;
 	}
 	if(exp->ret_values < ret_values){
 		if(exp->type != EXP_TYPE_PARAMS){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, exp->token, exp);
 			exp->ret_values = exp->list[0]->ret_values;
-			// exp->active_locals = active_locals;
 		}
 		while(exp->ret_values < ret_values){
 			Expression * null_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NULL, exp->token);
 			null_exp->ret_values = 1;
-			// null_exp->active_locals = active_locals;
 			exp->list.add(null_exp);
 			exp->ret_values++;
 		}
@@ -3498,7 +3509,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newSingleValueExpression(Ex
 			// int active_locals = exp->active_locals;
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_VALUE, exp->token, exp);
 			exp->ret_values = 1;
-			// exp->active_locals = active_locals;
 			break;
 		}
 	}
@@ -3933,7 +3943,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 			}
 			exp2 = expectExpressionValues(exp2, 1);
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_EXP, name_token, exp, exp2);
-			// exp->active_locals = scope->function->num_locals;
 		}else if(isNextToken(Tokenizer::OPERATOR_COLON)){
 			ExpressionType exp_type = EXP_TYPE_OBJECT_SET_BY_NAME;
 			switch(name_token->getType()){
@@ -3964,7 +3973,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 			}
 			exp = expectExpressionValues(exp, 1);
 			exp = new (malloc(sizeof(Expression))) Expression(exp_type, name_token, exp);
-			// exp->active_locals = scope->function->num_locals;
 		}else{
 			exp = expectSingleExpression(scope, true, false, false);
 			if(!exp){
@@ -3972,7 +3980,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 			}
 			exp = expectExpressionValues(exp, 1);
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX, name_token, exp);
-			// exp->active_locals = scope->function->num_locals;
 		}
 		OS_ASSERT(exp);
 		lib.obj_exp->list.add(exp);
@@ -4106,6 +4113,29 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 	return NULL; // shut up compiler
 }
 
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectExtendsExpression(Scope * scope)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_extends);
+	TokenData * save_token = recent_token;
+	if(!expectToken()){
+		return NULL;
+	}
+	Expression * exp = expectSingleExpression(scope, false, false, false, false);
+	if(!exp){
+		return NULL;
+	}
+	Expression * exp2 = expectSingleExpression(scope, false, false, false);
+	if(!exp2){
+		allocator->deleteObj(exp);
+		return NULL;
+	}
+	exp = expectExpressionValues(exp, 1);
+	exp2 = expectExpressionValues(exp2, 1);
+	exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_EXTENDS, save_token, exp, exp2);
+	exp->ret_values = 1;
+	return exp;
+}
+
 OS::Core::Compiler::Scope * OS::Core::Compiler::expectFunctionExpression(Scope * parent)
 {
 	Scope * scope = new (malloc(sizeof(Scope))) Scope(parent, EXP_TYPE_FUNCTION, recent_token);
@@ -4223,7 +4253,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			scope->addLocalVar(exp->token->str, exp->local_var);
 			exp->type = EXP_TYPE_NEW_LOCAL_VAR;
 			exp->ret_values = 0;
-			// exp->active_locals = scope->function->num_locals;
 			return ret_exp;
 
 		default:
@@ -4610,7 +4639,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			exp2->active_locals = scope->function->num_locals;
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_INDIRECT, exp2->token, exp, exp2);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->num_locals;
 			readToken();
 			continue;
 
@@ -4714,7 +4742,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			// exp2->active_locals = scope->function->num_locals;
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL, token, exp, exp2);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->num_locals;
 			continue;
 
 		case Tokenizer::BEGIN_BRACKET_BLOCK: // (
@@ -4725,7 +4752,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			}
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL, token, exp, exp2);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->num_locals;
 			continue;
 
 		case Tokenizer::BEGIN_ARRAY_BLOCK: // [
@@ -4736,7 +4762,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			}
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL_DIM, token, exp, exp2);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->num_locals;
 			if(0 && !allow_binary_operator){
 				return exp;
 			}
@@ -4749,7 +4774,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 	return NULL; // shut up compiler
 }
 
-OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scope * scope, bool allow_binary_operator, bool allow_param, bool allow_var)
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scope * scope, bool allow_binary_operator, bool allow_param, 
+	bool allow_var, bool allow_finish_exp)
 {
 	TokenData * token = recent_token; // readToken();
 	if(!token){
@@ -4761,6 +4787,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 	switch(token_type){
 	// begin unary operators
 	case Tokenizer::OPERATOR_ADD:
+		if(!expectToken()){
+			return NULL;
+		}
 		exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			return NULL;
@@ -4768,10 +4797,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PLUS, exp->token, exp);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->num_locals;
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_SUB:
+		if(!expectToken()){
+			return NULL;
+		}
 		exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			return NULL;
@@ -4779,10 +4810,25 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NEG, exp->token, exp);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->num_locals;
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+
+	case Tokenizer::OPERATOR_LENGTH:
+		if(!expectToken()){
+			return NULL;
+		}
+		exp = expectSingleExpression(scope, false, false, false);
+		if(!exp){
+			return NULL;
+		}
+		OS_ASSERT(exp->ret_values == 1);
+		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_LENGTH, exp->token, exp);
+		exp->ret_values = 1;
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_BIT_NOT:
+		if(!expectToken()){
+			return NULL;
+		}
 		exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			return NULL;
@@ -4790,19 +4836,26 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_BIT_NOT, exp->token, exp);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->num_locals;
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_LOGIC_NOT:
+		if(!expectToken()){
+			return NULL;
+		}
 		exp = expectSingleExpression(scope, false, false, false);
 		if(!exp){
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
-		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_LOGIC_NOT, exp->token, exp);
-		exp->ret_values = 1;
-		// exp->active_locals = scope->function->num_locals;
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		if(exp->type == EXP_TYPE_LOGIC_NOT){
+			exp->type = EXP_TYPE_LOGIC_BOOL;
+		}else if(exp->type == EXP_TYPE_LOGIC_BOOL){
+			exp->type = EXP_TYPE_LOGIC_NOT;
+		}else{
+			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_LOGIC_NOT, exp->token, exp);
+			exp->ret_values = 1;
+		}
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::OPERATOR_INC:
 	case Tokenizer::OPERATOR_DEC:
@@ -4816,7 +4869,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::BEGIN_ARRAY_BLOCK:
 		exp = expectArrayExpression(scope);
@@ -4824,7 +4877,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::BEGIN_BRACKET_BLOCK:
 		readToken();
@@ -4856,7 +4909,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		switch(recent_token->getType()){
 		case Tokenizer::END_BRACKET_BLOCK:
 			readToken();
-			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 		default:
 			setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
@@ -4867,23 +4920,21 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 	case Tokenizer::STRING:
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_STRING, token);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->num_locals;
 		readToken();
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::NUM_INT:
 	case Tokenizer::NUM_FLOAT:
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NUMBER, token);
 		exp->ret_values = 1;
-		// exp->active_locals = scope->function->num_locals;
 		readToken();
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::REST_ARGUMENTS:
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_REST_ARGUMENTS, token);
 		exp->ret_values = 1;
 		readToken();
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 
 	case Tokenizer::NAME:
 		if(token->str == allocator->core->strings->syntax_var){
@@ -4898,7 +4949,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 		}
 		if(token->str == allocator->core->strings->syntax_return){
 			return expectReturnExpression(scope);
@@ -4907,35 +4958,39 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_THIS, token);
 			exp->ret_values = 1;
 			readToken();
-			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 		}
 		if(token->str == allocator->core->strings->syntax_arguments){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_ARGUMENTS, token);
 			exp->ret_values = 1;
 			readToken();
-			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 		}
 		if(token->str == allocator->core->strings->syntax_null){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NULL, token);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->num_locals;
 			readToken();
-			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 		}
 		if(token->str == allocator->core->strings->syntax_true){
 			token->setInt(1);
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_TRUE, token);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->num_locals;
 			readToken();
-			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 		}
 		if(token->str == allocator->core->strings->syntax_false){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_FALSE, token);
 			exp->ret_values = 1;
-			// exp->active_locals = scope->function->num_locals;
 			readToken();
-			return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		}
+		if(token->str == allocator->core->strings->syntax_extends){
+			exp = expectExtendsExpression(scope);
+			if(!exp){
+				return NULL;
+			}
+			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 		}
 		if(token->str == allocator->core->strings->syntax_break || token->str == allocator->core->strings->syntax_continue){
 			setError(ERROR_SYNTAX, token);
@@ -4977,7 +5032,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		exp->ret_values = 1;
 		exp->active_locals = scope->function->num_locals;
 		readToken();
-		return finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
 	}
 	return NULL;
 }
@@ -5070,6 +5125,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_VALUE:
 		return OS_TEXT("single value");
 
+	case EXP_TYPE_EXTENDS:
+		return OS_TEXT("extends");
+
 	case EXP_TYPE_RETURN:
 		return OS_TEXT("return");
 
@@ -5159,6 +5217,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_LOGIC_LESS:    // <
 		return OS_TEXT("logic <");
 
+	case EXP_TYPE_LOGIC_BOOL:     // !!
+		return OS_TEXT("logic bool");
+
 	case EXP_TYPE_LOGIC_NOT:     // !
 		return OS_TEXT("logic not");
 
@@ -5167,6 +5228,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 
 	case EXP_TYPE_NEG:
 		return OS_TEXT("neg");
+
+	case EXP_TYPE_LENGTH:
+		return OS_TEXT("length");
 
 		/*
 		case EXP_TYPE_INC:     // ++
@@ -5501,6 +5565,13 @@ OS::Core::Program::OpcodeType OS::Core::Program::toOpcodeType(Compiler::Expressi
 	case Compiler::EXP_TYPE_GET_ARGUMENTS: return OP_PUSH_ARGUMENTS;
 	case Compiler::EXP_TYPE_GET_REST_ARGUMENTS: return OP_PUSH_REST_ARGUMENTS;
 
+	case Compiler::EXP_TYPE_LOGIC_BOOL: return OP_LOGIC_BOOL;
+	case Compiler::EXP_TYPE_LOGIC_NOT: return OP_LOGIC_NOT;
+	case Compiler::EXP_TYPE_BIT_NOT: return OP_BIT_NOT;
+	case Compiler::EXP_TYPE_PLUS: return OP_PLUS;
+	case Compiler::EXP_TYPE_NEG: return OP_NEG;
+	case Compiler::EXP_TYPE_LENGTH: return OP_LENGTH;
+
 	case Compiler::EXP_TYPE_CONCAT: return OP_CONCAT;
 
 	case Compiler::EXP_TYPE_LOGIC_AND: return OP_LOGIC_AND;
@@ -5513,13 +5584,11 @@ OS::Core::Program::OpcodeType OS::Core::Program::toOpcodeType(Compiler::Expressi
 	case Compiler::EXP_TYPE_LOGIC_LE: return OP_LOGIC_LE;
 	case Compiler::EXP_TYPE_LOGIC_GREATER: return OP_LOGIC_GREATER;
 	case Compiler::EXP_TYPE_LOGIC_LESS: return OP_LOGIC_LESS;
-	case Compiler::EXP_TYPE_LOGIC_NOT: return OP_LOGIC_NOT;
 
 	case Compiler::EXP_TYPE_BIT_AND: return OP_BIT_AND;
 	case Compiler::EXP_TYPE_BIT_OR: return OP_BIT_OR;
 	case Compiler::EXP_TYPE_BIT_XOR: return OP_BIT_XOR;
-	case Compiler::EXP_TYPE_BIT_NOT: return OP_BIT_NOT;
-
+	
 	case Compiler::EXP_TYPE_ADD: return OP_ADD;
 	case Compiler::EXP_TYPE_SUB: return OP_SUB;
 	case Compiler::EXP_TYPE_MUL: return OP_MUL;
@@ -6846,6 +6915,10 @@ OS::Core::Strings::Strings(OS * allocator)
 	__bitand(allocator, OS_TEXT("__bitand")),
 	__bitor(allocator, OS_TEXT("__bitor")),
 	__bitxor(allocator, OS_TEXT("__bitxor")),
+	__bitnot(allocator, OS_TEXT("__bitnot")),
+	__plus(allocator, OS_TEXT("__plus")),
+	__neg(allocator, OS_TEXT("__neg")),
+	__len(allocator, OS_TEXT("__len")),
 	__add(allocator, OS_TEXT("__add")),
 	__sub(allocator, OS_TEXT("__sub")),
 	__mul(allocator, OS_TEXT("__mul")),
@@ -6855,6 +6928,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	__rshift(allocator, OS_TEXT("__rshift")),
 	__pow(allocator, OS_TEXT("__pow")),
 
+	syntax_extends(allocator, OS_TEXT("extends")),
 	syntax_prototype(allocator, OS_TEXT("prototype")),
 	syntax_var(allocator, OS_TEXT("var")),
 	syntax_this(allocator, OS_TEXT("this")),
@@ -7251,6 +7325,7 @@ OS::Core::Core(OS * p_allocator)
 	true_value = NULL;
 	false_value = NULL;
 	global_vars = NULL;
+	user_pool = NULL;
 
 	num_created_values = 0;
 	num_destroyed_values = 0;
@@ -7260,7 +7335,7 @@ OS::Core::Core(OS * p_allocator)
 
 OS::Core::~Core()
 {
-	OS_ASSERT(!strings && !null_value && !true_value && !false_value && !global_vars);
+	OS_ASSERT(!strings && !null_value && !true_value && !false_value && !global_vars && !user_pool);
 	for(int i = 0; i < PROTOTYPE_COUNT; i++){
 		OS_ASSERT(!prototypes[i]);
 	}
@@ -7318,6 +7393,7 @@ bool OS::Core::init()
 	true_value = newBoolValue(true);
 	false_value = newBoolValue(false);
 	global_vars = newObjectValue();
+	user_pool = newObjectValue();
 	// removeStackValues(PROTOTYPE_COUNT + 2);
 
 	return true;
@@ -7339,10 +7415,11 @@ void OS::Core::shutdown()
 	allocator->vectorClear(call_stack_funcs);
 	// vectorClear(cache_values);
 	
-	global_vars = NULL;
 	null_value = NULL;
 	true_value = NULL;
 	false_value = NULL;
+	global_vars = NULL;
+	user_pool = NULL;
 
 	deleteValues();
 	deleteTable(string_values_table);
@@ -7647,10 +7724,11 @@ int OS::Core::gcStep()
 		gc_step_size = (int)((float)values.count * gc_step_size_mult);
 		
 		int old_count = gc_grey_added_count;
-		gcAddGreyValue(global_vars);
 		gcAddGreyValue(null_value);
 		gcAddGreyValue(true_value);
 		gcAddGreyValue(false_value);
+		gcAddGreyValue(global_vars);
+		gcAddGreyValue(user_pool);
 		int i;
 		for(i = 0; i < PROTOTYPE_COUNT; i++){
 			gcAddGreyValue(prototypes[i]);
@@ -7916,7 +7994,10 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 	if(!table){
 		table_value->table = table = newTable();
 	}
-	setTableValue(table, index, value);
+	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
+	prop->value_id = value->value_id;
+	addTableProperty(table, prop);
+	// setTableValue(table, index, value);
 }
 
 void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled)
@@ -7946,6 +8027,9 @@ OS::Core::Value * OS::Core::getStackValue(int offs)
 	}
 	if(offs == OS_REGISTER_GLOBALS){
 		return global_vars;
+	}
+	if(offs == OS_REGISTER_USERPOOL){
+		return user_pool;
 	}
 	return NULL;
 }
@@ -8146,6 +8230,86 @@ OS::Core::Value * OS::Core::pushArrayValue()
 	return pushValue(newArrayValue());
 }
 
+OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * value)
+{
+	struct Lib
+	{
+		Core * core;
+
+		Value * pushSimpleOpcodeValue(int opcode, Value * value)
+		{
+			switch(opcode){
+			case Program::OP_BIT_NOT:
+				return core->pushNumberValue(~core->valueToInt(value));
+
+			case Program::OP_PLUS:
+				if(value->type == OS_VALUE_TYPE_NUMBER){
+					return core->pushValue(value);
+				}
+				return core->pushNumberValue(core->valueToNumber(value));
+
+			case Program::OP_NEG:
+				return core->pushNumberValue(-core->valueToNumber(value));
+
+			case Program::OP_LENGTH:
+				return core->pushNumberValue(core->valueToString(value).getDataSize() / sizeof(OS_CHAR));
+			}
+			return core->pushConstNullValue();
+		}
+
+		Value * pushObjectMethodOpcodeValue(const String& method_name, Value * value)
+		{
+			bool prototype_enabled = true;
+			Value * func = core->getPropertyValue(value, 
+				PropertyIndex(method_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
+			if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+				core->pushValue(func);
+				core->call(value, 0, 1);
+				OS_ASSERT(core->stack_values.count >= 1);
+				return core->stack_values.lastElement();
+			}
+			return core->pushConstNullValue();
+		}
+
+		Value * pushObjectOpcodeValue(int opcode, Value * value)
+		{
+			switch(opcode){
+			case Program::OP_BIT_NOT:
+				return pushObjectMethodOpcodeValue(core->strings->__bitnot, value);
+
+			case Program::OP_PLUS:
+				return pushObjectMethodOpcodeValue(core->strings->__plus, value);
+
+			case Program::OP_NEG:
+				return pushObjectMethodOpcodeValue(core->strings->__neg, value);
+
+			case Program::OP_LENGTH:
+				return pushObjectMethodOpcodeValue(core->strings->__len, value);
+			}
+			return core->pushConstNullValue();
+		}
+
+		Value * pushUnaryOpcodeValue(int opcode, Value * value)
+		{
+			switch(value->type){
+			case OS_VALUE_TYPE_NULL:
+			case OS_VALUE_TYPE_NUMBER:
+			case OS_VALUE_TYPE_BOOL:
+			case OS_VALUE_TYPE_STRING:
+				return pushSimpleOpcodeValue(opcode, value);
+
+			case OS_VALUE_TYPE_ARRAY:
+			case OS_VALUE_TYPE_OBJECT:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+				return pushObjectOpcodeValue(opcode, value);
+			}
+			return core->pushConstNullValue();
+		}
+	} lib = {this};
+	return lib.pushUnaryOpcodeValue(opcode, value);
+}
+
 OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Value * right_value)
 {
 	struct Lib
@@ -8302,7 +8466,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 			return compareObjectToValue(left_value, right_value);
 		}
 
-		Value * pushGenericOpcodeValue(int opcode)
+		Value * pushSimpleOpcodeValue(int opcode)
 		{
 			switch(opcode){
 			case Program::OP_CONCAT:
@@ -8349,7 +8513,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 			bool prototype_enabled = true;
 			Value * func = core->getPropertyValue(object, 
 				PropertyIndex(method_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
-			if(func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION){
+			if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
 				core->pushValue(left_value);
 				core->pushValue(right_value);
 				core->pushValue(func);
@@ -8414,7 +8578,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 				case OS_VALUE_TYPE_NUMBER:
 				case OS_VALUE_TYPE_BOOL:
 				case OS_VALUE_TYPE_STRING:
-					return pushGenericOpcodeValue(opcode);
+					return pushSimpleOpcodeValue(opcode);
 
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
@@ -8468,25 +8632,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 
 	case Program::OP_LOGIC_LESS:
 		return pushConstBoolValue(lib.compareValues() < 0);
-
-	/*
-	case Program::OP_CONCAT:
-	case Program::OP_BIT_AND:
-	case Program::OP_BIT_OR:
-	case Program::OP_BIT_XOR:
-	case Program::OP_BIT_NOT:
-	case Program::OP_ADD: // +
-	case Program::OP_SUB: // -
-	case Program::OP_MUL: // *
-	case Program::OP_DIV: // /
-	case Program::OP_MOD: // %
-	case Program::OP_LSHIFT: // <<
-	case Program::OP_RSHIFT: // >>
-	case Program::OP_POW: // **
-		return lib.pushBinaryOpcodeValue(opcode);
-	*/
 	}
-	// return pushConstNullValue();
 	return lib.pushBinaryOpcodeValue(opcode);
 }
 
@@ -8573,7 +8719,7 @@ int OS::Core::moveStackValues(int offs, int count, int new_offs)
 	if(new_offs > offs){
 		OS_MEMMOVE(stack_values.buf + offs+count, stack_values.buf + offs, sizeof(Value*) * (new_offs - offs));
 	}else{
-		OS_MEMMOVE(stack_values.buf + new_offs, stack_values.buf + new_offs+count, sizeof(Value*) * (offs - new_offs));
+		OS_MEMMOVE(stack_values.buf + new_offs+count, stack_values.buf + new_offs, sizeof(Value*) * (offs - new_offs));
 	}
 	OS_MEMCPY(stack_values.buf + new_offs, temp_values, sizeof(Value*) * count);
 	return new_offs;
@@ -8608,7 +8754,7 @@ int OS::Core::moveStackValue(int offs, int new_offs)
 	if(new_offs > offs){
 		OS_MEMMOVE(stack_values.buf + offs+1, stack_values.buf + offs, sizeof(Value*) * (new_offs - offs));
 	}else{
-		OS_MEMMOVE(stack_values.buf + new_offs, stack_values.buf + new_offs+1, sizeof(Value*) * (offs - new_offs));
+		OS_MEMMOVE(stack_values.buf + new_offs+1, stack_values.buf + new_offs, sizeof(Value*) * (offs - new_offs));
 	}
 	stack_values[new_offs] = value;
 	return new_offs;
@@ -9323,7 +9469,7 @@ restart:
 				i = opcodes.readUVariable();
 				Value * name_value = prog->const_values[prog_num_numbers + i];
 				String name = valueToString(name_value);
-				pushPropertyValue(env, name_value, PropertyIndex(name), true, true); 
+				pushPropertyValue(env, name_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), true, true); 
 				break;
 			}
 
@@ -9488,6 +9634,36 @@ restart:
 				break;
 			}
 
+		case Program::OP_EXTENDS:
+			{
+				OS_ASSERT(stack_values.count >= 2);
+				Value * left_value = stack_values[stack_values.count-2];
+				Value * right_value = stack_values[stack_values.count-1];
+				switch(right_value->type){
+				case OS_VALUE_TYPE_NULL:
+					// null value has no prototype
+					break;
+
+				case OS_VALUE_TYPE_BOOL:
+				case OS_VALUE_TYPE_NUMBER:
+				case OS_VALUE_TYPE_STRING:
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_FUNCTION:
+				case OS_VALUE_TYPE_THREAD:
+					right_value->prototype = left_value;
+					break;
+
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_CFUNCTION:
+					// TODO: warning???
+					break;
+				}
+				removeStackValue(-2);
+				break;
+			}
+
 		case Program::OP_RETURN:
 			{
 				int cur_ret_values = opcodes.readByte();
@@ -9513,11 +9689,32 @@ restart:
 			OS_ASSERT(false);
 			break;
 
+		case Program::OP_LOGIC_BOOL:
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values[stack_values.count-1];
+				pushConstBoolValue(valueToBool(value));
+				removeStackValue(-2);
+				break;
+			}
+
 		case Program::OP_LOGIC_NOT:
 			{
 				OS_ASSERT(stack_values.count >= 1);
 				Value * value = stack_values[stack_values.count-1];
 				pushConstBoolValue(!valueToBool(value));
+				removeStackValue(-2);
+				break;
+			}
+
+		case Program::OP_BIT_NOT:
+		case Program::OP_PLUS:
+		case Program::OP_NEG:
+		case Program::OP_LENGTH:
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values[stack_values.count-1];
+				pushOpResultValue(opcode, value);
 				removeStackValue(-2);
 				break;
 			}
@@ -9534,7 +9731,6 @@ restart:
 		case Program::OP_BIT_AND:
 		case Program::OP_BIT_OR:
 		case Program::OP_BIT_XOR:
-		case Program::OP_BIT_NOT:
 		case Program::OP_ADD: // +
 		case Program::OP_SUB: // -
 		case Program::OP_MUL: // *
@@ -9572,7 +9768,7 @@ int OS::Core::call(Value * self, int params, int ret_values)
 {
 	Value * val = getStackValue(-1);
 	if(val){
-		int offs = moveStackValue(-1, -1-params); // keep val inside of stack to prevent be destroyed
+		int offs = moveStackValue(-1, -1-params); // keep val inside of stack to prevent be destroyed by gc
 		if(val->type == OS_VALUE_TYPE_FUNCTION){
 			enterFunction(val, self, params, ret_values);
 			ret_values = execute();

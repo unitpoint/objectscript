@@ -8,7 +8,15 @@ var a = {
 	}
 };
 
-var b = a + a;
+var len = #a;
+var e = 12;
+var c = +a + ~e + !e + !!e + !!!e;
+
+var b = extends a {
+	num: 1;
+};
+
+var r = a + b;
 
 /*
 var math = {

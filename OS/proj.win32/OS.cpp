@@ -47,16 +47,6 @@ struct __test_os__
 
 		os->removeAll();
 
-		/*
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		os->gc();
-		*/
-
 		// os->eval("abc, x, y = 5, var1*6 + var2*3  x = y-7;");
 		// os->eval("y(8, i)(i*8+j[7, 9])[7, k]");
 		// os->eval("abc, x = 5, 37676  hjhj = y-7;");
