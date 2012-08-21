@@ -1047,6 +1047,17 @@ namespace ObjectScript
 					~Property();
 				};
 
+				struct Table;
+				struct Iterator
+				{
+					Table * table;
+					Property * next_prop;
+					Iterator * next;
+
+					Iterator();
+					~Iterator();
+				};
+
 				struct Table
 				{
 					Property ** heads;
@@ -1056,6 +1067,7 @@ namespace ObjectScript
 					OS_INT next_id;
 
 					Property * first, * last;
+					Iterator * iterators;
 
 					Table();    
 					~Table();
@@ -1063,14 +1075,10 @@ namespace ObjectScript
 					Property * get(const PropertyIndex& index);
 					// void add(Property * prop);
 					// void free(const PropertyIndex& index);
-				};
 
-				struct Array // : public Table
-				{
-					Vector<int> values; // allow weak usage, value id list
-
-					Array();
-					~Array();
+					bool containsIterator(Iterator*);
+					void addIterator(Iterator*);
+					void removeIterator(Iterator*);
 				};
 
 				int value_id; // allow weak usage
@@ -1087,7 +1095,6 @@ namespace ObjectScript
 					bool boolean;
 					OS_FLOAT number;
 					StringData * string_data; // retained
-					Array * arr;
 
 					struct {
 						void * ptr;
@@ -1565,17 +1572,9 @@ namespace ObjectScript
 					OP_RETURN,
 					OP_POP,
 
-					OP_LOGIC_BOOL,
-					OP_LOGIC_NOT,
-					OP_BIT_NOT,
-					OP_PLUS,
-					OP_NEG,
-					OP_LENGTH,
-
-					OP_CONCAT, // ..
-
 					OP_LOGIC_AND,
 					OP_LOGIC_OR,
+
 					OP_LOGIC_PTR_EQ,
 					OP_LOGIC_PTR_NE,
 					OP_LOGIC_EQ,
@@ -1597,6 +1596,18 @@ namespace ObjectScript
 					OP_LSHIFT, // <<
 					OP_RSHIFT, // >>
 					OP_POW, // **
+
+					OP_CONCAT, // ..
+
+					OP_BIT_NOT,
+					OP_PLUS,
+					OP_NEG,
+					OP_LENGTH,
+
+					OP_LOGIC_BOOL,
+					OP_LOGIC_NOT,
+
+					OP_NOP
 				};
 
 				OS * allocator;
@@ -1697,6 +1708,7 @@ namespace ObjectScript
 				// String __destructor;
 				String __cmp;
 				String __tostring;
+				String __valueof;
 				// String __tobool;
 				String __concat;
 				String __bitand;
@@ -1840,17 +1852,17 @@ namespace ObjectScript
 			// FunctionRunningInstance * newFunctionRunningInstance();
 			void releaseFunctionRunningInstance(FunctionRunningInstance*);
 
-			Value * newValue(); // has to be released
-			Value * newBoolValue(bool); // has to be released
-			Value * newNumberValue(OS_FLOAT); // has to be released
-			Value * newStringValue(const String&); // has to be released
-			Value * newStringValue(const OS_CHAR*); // has to be released
-			Value * newCFunctionValue(OS_CFunction func, void * user_param); // has to be released
-			Value * newUserDataValue(int data_size, OS_UserDataDtor dtor); // has to be released
-			Value * newUserPointerValue(void * data, OS_UserDataDtor dtor); // has to be released
-			Value * newObjectValue(); // has to be released
-			Value * newObjectValue(Value * prototype); // has to be released
-			Value * newArrayValue(); // has to be released
+			Value * newValue();
+			Value * newBoolValue(bool);
+			Value * newNumberValue(OS_FLOAT);
+			Value * newStringValue(const String&);
+			Value * newStringValue(const OS_CHAR*);
+			Value * newCFunctionValue(OS_CFunction func, void * user_param);
+			Value * newUserDataValue(int data_size, OS_UserDataDtor dtor);
+			Value * newUserPointerValue(void * data, OS_UserDataDtor dtor);
+			Value * newObjectValue();
+			Value * newObjectValue(Value * prototype);
+			Value * newArrayValue();
 
 			Value * pushValue(Value * val);
 			Value * pushValueAutoNull(Value * val);
@@ -1868,12 +1880,16 @@ namespace ObjectScript
 			Value * pushObjectValue();
 			Value * pushObjectValue(Value * prototype);
 			Value * pushArrayValue();
+			Value * pushValueOf(Value * val);
 
 			// unary operator
 			Value * pushOpResultValue(int opcode, Value * value);
 
 			// binary operator
 			Value * pushOpResultValue(int opcode, Value * left_value, Value * right_value);
+
+			void setGlobalValue(const String& name, Value * value, bool prototype_enabled, bool setter_enabled);
+			void setGlobalValue(const OS_CHAR * name, Value * value, bool prototype_enabled, bool setter_enabled);
 
 			void removeStackValues(int offs, int count);
 			void removeStackValue(int offs = -1);
@@ -1890,8 +1906,8 @@ namespace ObjectScript
 
 			bool valueToBool(Value * val);
 			OS_INT valueToInt(Value * val);
-			OS_FLOAT valueToNumber(Value * val);
-			String valueToString(Value * val, bool tostring_method_enabled = false, bool prototype_enabled = true);
+			OS_FLOAT valueToNumber(Value * val, bool convert_method_enabled = true, bool prototype_enabled = true);
+			String valueToString(Value * val, bool convert_method_enabled = true, bool prototype_enabled = true);
 
 			bool isValueNumber(Value * val, OS_FLOAT * out = NULL);
 			bool isValueString(Value * val, String * out = NULL);
@@ -1901,9 +1917,9 @@ namespace ObjectScript
 			void deleteTable(Value::Table*);
 			void addTableProperty(Value::Table * table, Value::Property * prop);
 			bool deleteTableProperty(Value::Table * table, const PropertyIndex& index);
-
-			Value::Array * newArray();
-			void deleteArray(Value::Array*);
+			bool deleteValueProperty(Value * value, const PropertyIndex& index);
+			void reorderTableNumericKeys(Value::Table * table);
+			void reorderTableKeys(Value::Table * table);
 
 			Value::Property * setTableValue(Value::Table * table, PropertyIndex& index, Value * val);
 			void setPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
@@ -1944,6 +1960,8 @@ namespace ObjectScript
 		void free(void * p);
 
 		int getPointerSize(void * p);
+
+		void registerMathModule();
 
 	public:
 
@@ -2023,8 +2041,14 @@ namespace ObjectScript
 		int getMaxAllocatedBytes();
 		int getCachedBytes();
 
-		void getGlobal(const OS_CHAR*);
-		// void getGlobal(const String&);
+		void getGlobal(const OS_CHAR*, bool prototype_enabled = true, bool getter_enabled = true);
+		void getGlobal(const Core::String&, bool prototype_enabled = true, bool getter_enabled = true);
+
+		void setGlobal(const OS_CHAR*, bool prototype_enabled = true, bool setter_enabled = true);
+		void setGlobal(const Core::String&, bool prototype_enabled = true, bool setter_enabled = true);
+
+		int getStackSize();
+		int getOffs(int offs);
 
 		void pushNull();
 		void pushNumber(OS_INT16);
@@ -2042,6 +2066,8 @@ namespace ObjectScript
 
 		// void pushValue(const Value&);
 		void pushStackValue(int offs = -1);
+		void pushGlobals();
+		void pushUserPool();
 		void pushValueById(int id);
 
 		// Value getValue(int offs = -1);
@@ -2056,7 +2082,45 @@ namespace ObjectScript
 		void setProperty(bool keep_object_in_stack, bool prototype_enabled = true, bool setter_enabled = true);
 		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
 
+		enum {
+			// binary operators
+
+			OP_LOGIC_PTR_EQ,	// ===
+			OP_LOGIC_PTR_NE,	// !==
+			OP_LOGIC_EQ,		// ==
+			OP_LOGIC_NE,		// !=
+			OP_LOGIC_GE,		// >=
+			OP_LOGIC_LE,		// <=
+			OP_LOGIC_GREATER,	// >
+			OP_LOGIC_LESS,		// <
+
+			OP_BIT_AND,	// &
+			OP_BIT_OR,	// |
+			OP_BIT_XOR,	// ^
+
+			OP_ADD, // +
+			OP_SUB, // -
+			OP_MUL, // *
+			OP_DIV, // /
+			OP_MOD, // %
+			OP_LSHIFT, // <<
+			OP_RSHIFT, // >>
+			OP_POW, // **
+
+			OP_CONCAT, // ..
+
+			// unary operators
+
+			OP_BIT_NOT,		// ~
+			OP_PLUS,		// +
+			OP_NEG,			// -
+			OP_LENGTH,		// #
+		};
+
+		void runOp(int opcode);
+
 		// returns length of object, array, string or result of __len method
+		// keep stack not changed
 		int getLen(int offs = -1);
 
 		OS_EValueType getType(int offs = -1);
@@ -2064,6 +2128,7 @@ namespace ObjectScript
 		bool isNumber(int offs = -1, OS_FLOAT * out = NULL);
 		bool isString(int offs = -1, String * out = NULL);
 		bool isType(OS_EValueType, int offs = -1);
+		bool isNull(int offs = -1);
 		bool isObject(int offs = -1);
 		bool isArray(int offs = -1);
 		bool isFunction(int offs = -1);
@@ -2072,6 +2137,7 @@ namespace ObjectScript
 
 		bool toBool(int offs = -1);
 		OS_FLOAT toNumber(int offs = -1);
+		int toInt(int offs = -1);
 		String toString(int offs = -1);
 
 		bool compile(const Core::String&);
@@ -2084,6 +2150,17 @@ namespace ObjectScript
 		// return next gc phase
 		int gc();
 		void gcFull();
+
+		struct Func
+		{
+			const OS_CHAR * name;
+			OS_CFunction func;
+		};
+		void registerFunctions(int object_offs, const Func * list, void * user_param = NULL); // null terminated list
+		void registerFunctions(const Func * list, void * user_param = NULL); // null terminated list
+		bool newLibrary(const OS_CHAR * name); // object
+		void * newLibrary(const OS_CHAR * name, int data_size, OS_UserDataDtor dtor = NULL); // userdata
+		void * newLibrary(const OS_CHAR * name, void * data, OS_UserDataDtor dtor = NULL); // userdata
 	};
 
 } // namespace OS
