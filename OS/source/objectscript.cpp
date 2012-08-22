@@ -10322,7 +10322,13 @@ restart:
 
 		case Program::OP_SET_PROPERTY:
 			{
-				allocator->setProperty(false);
+				OS_ASSERT(stack_values.count >= 3);
+				Core::Value * value_arg = stack_values.buf[stack_values.count - 3];
+				Core::Value * table_arg = stack_values.buf[stack_values.count - 2];
+				Core::Value * index_arg = stack_values.buf[stack_values.count - 1];
+				OS_ASSERT(table_arg && index_arg && value_arg);
+				setPropertyValue(table_arg, index_arg, value_arg, true, true);
+				pop(3);
 				break;
 			}
 
@@ -10397,12 +10403,12 @@ restart:
 					break;
 
 				case OS_VALUE_TYPE_ARRAY:
-					new_value = pushObjectValue(value->prototype);
+					new_value = pushArrayValue();
+					new_value->prototype = value->prototype;
 					break;
 
 				case OS_VALUE_TYPE_OBJECT:
-					new_value = pushArrayValue();
-					new_value->prototype = value->prototype;
+					new_value = pushObjectValue(value->prototype);
 					break;
 
 				case OS_VALUE_TYPE_FUNCTION:

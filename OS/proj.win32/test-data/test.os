@@ -1,9 +1,22 @@
+print({num = 123 num2: 321} "\n")
+print("1 == " Math.min(5, "4", {1, 2}, 1, 3) "\n")
+
+var a = {1,2,3,4,5}
+var b = clone a
+a[0] = 10
+b[10] = b[0] * b[2] // 1 * 3
+print(
+	a "\n"
+	b "\n"
+)
+
+/*
 print ( {qwert:"asd", 10, 11, 12, 15:"df"} )
 
 a, b[r], c.d, d[r,t] = 12*f, f() - b, c[b,c] + 8 * b
 a[b, c], a.f.t[r] = c[b] + 8*b, c.b
 
-print 3 * Math.min(5, "4", {1, 2}, 1, 3)
+print (3 * Math.min(5, "4", {1, 2}, 1, 3))
 
 var a = {
 	num: 12 + f(1 2 3) / a
@@ -59,6 +72,7 @@ c = a[]
 var b2 = extends (extends c {
 	num = 1
 }).num c
+*/
 
 /*
 Object.__clone = function(){
