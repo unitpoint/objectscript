@@ -522,7 +522,7 @@ namespace ObjectScript
 				virtual OS_BYTE readByte();
 				virtual OS_BYTE readByteAtPos(int pos);
 
-				virtual OS_BYTE readUVariable();
+				virtual int readUVariable();
 
 				virtual OS_U16 readU16();
 				virtual OS_U16 readU16AtPos(int pos);
@@ -914,7 +914,7 @@ namespace ObjectScript
 
 				struct Settings
 				{
-					bool saveComment;
+					bool save_comments;
 				} settings;
 
 				TextData * text_data;
@@ -975,8 +975,8 @@ namespace ObjectScript
 				String getLineString(int i) const { return text_data->lines[i]; }
 				int getNumLines() const { return text_data->lines.count; }
 
-				bool getSettingSaveComment() const { return settings.saveComment; }
-				void setSettingSaveComment(bool value){ settings.saveComment = value; }
+				bool getSettingSaveComment() const { return settings.save_comments; }
+				void setSettingSaveComment(bool value){ settings.save_comments = value; }
 
 				bool parseText(const String& text);
 
@@ -1152,6 +1152,16 @@ namespace ObjectScript
 					EXP_TYPE_OBJECT_SET_BY_INDEX,
 					EXP_TYPE_OBJECT_SET_BY_EXP,
 					EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX,
+
+					EXP_TYPE_TYPE_OF,
+					EXP_TYPE_VALUE_OF,
+					// EXP_TYPE_BOOLEAN_OF, == EXP_TYPE_LOGIC_BOOL
+					EXP_TYPE_NUMBER_OF,
+					EXP_TYPE_STRING_OF,
+					EXP_TYPE_ARRAY_OF,
+					EXP_TYPE_OBJECT_OF,
+					EXP_TYPE_USERDATA_OF,
+					EXP_TYPE_FUNCTION_OF,
 
 					EXP_TYPE_GET_THIS,
 					EXP_TYPE_GET_ARGUMENTS,
@@ -1466,15 +1476,16 @@ namespace ObjectScript
 				Expression * expectExtendsExpression(Scope*);
 				Expression * expectCloneExpression(Scope*);
 				Expression * expectDeleteExpression(Scope*);
+				Expression * expectValueOfExpression(Scope*, ExpressionType exp_type);
 				Expression * expectVarExpression(Scope*);
-				Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param, bool allow_var, bool allow_assign);
+				Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param, bool allow_var, bool allow_assign, bool allow_auto_call);
 				Expression * expectObjectExpression(Scope*);
 				Expression * expectArrayExpression(Scope*);
 				Expression * finishParamsExpression(Scope*, Expression * params);
 				Expression * expectParamsExpression(Scope*);
 				Expression * expectParamsExpression(Scope*, Expression * first_param);
 				Expression * expectReturnExpression(Scope*);
-				Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param, bool allow_assign);
+				Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param, bool allow_assign, bool allow_auto_call);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
@@ -1578,7 +1589,6 @@ namespace ObjectScript
 					OP_SET_DIM,
 
 					OP_EXTENDS,
-					OP_CLONE,
 					OP_DELETE_PROP,
 					OP_RETURN,
 					OP_POP,
@@ -1617,6 +1627,16 @@ namespace ObjectScript
 
 					OP_LOGIC_BOOL,
 					OP_LOGIC_NOT,
+
+					OP_TYPE_OF,
+					OP_VALUE_OF,
+					OP_NUMBER_OF,
+					OP_STRING_OF,
+					OP_ARRAY_OF,
+					OP_OBJECT_OF,
+					OP_USERDATA_OF,
+					OP_FUNCTION_OF,
+					OP_CLONE,
 
 					OP_NOP
 				};
@@ -1725,8 +1745,15 @@ namespace ObjectScript
 				String __setdim;
 				String __deldim;
 				String __cmp;
-				String __tostring;
+				// String __tostring;
 				String __valueof;
+				String __booleanof;
+				String __numberof;
+				String __stringof;
+				String __arrayof;
+				String __objectof;
+				String __userdataof;
+				String __functionof;
 				String __clone;
 				// String __tobool;
 				String __concat;
@@ -1746,6 +1773,25 @@ namespace ObjectScript
 				String __rshift;
 				String __pow;
 
+				String typeof_null;
+				String typeof_boolean;
+				String typeof_number;
+				String typeof_string;
+				String typeof_object;
+				String typeof_array;
+				String typeof_userdata;
+				String typeof_function;
+				String typeof_thread;
+
+				String syntax_typeof;
+				String syntax_valueof;
+				String syntax_booleanof;
+				String syntax_numberof;
+				String syntax_stringof;
+				String syntax_arrayof;
+				String syntax_objectof;
+				String syntax_userdataof;
+				String syntax_functionof;
 				String syntax_extends;
 				String syntax_clone;
 				String syntax_delete;
@@ -1886,6 +1932,7 @@ namespace ObjectScript
 			Value * newArrayValue();
 
 			Value * pushValue(Value * val);
+			Value * pushValue(Value * val, int offs);
 			Value * pushValueAutoNull(Value * val);
 			Value * pushConstNullValue();
 			Value * pushConstTrueValue();
@@ -1901,7 +1948,15 @@ namespace ObjectScript
 			Value * pushObjectValue();
 			Value * pushObjectValue(Value * prototype);
 			Value * pushArrayValue();
+			Value * pushTypeOf(Value * val);
+			Value * pushNumberOf(Value * val);
+			Value * pushStringOf(Value * val);
 			Value * pushValueOf(Value * val);
+			Value * pushArrayOf(Value * val);
+			Value * pushObjectOf(Value * val);
+			Value * pushUserDataOf(Value * val);
+			Value * pushFunctionOf(Value * val);
+			Value * pushCloneValue(Value * val);
 
 			// unary operator
 			Value * pushOpResultValue(int opcode, Value * value);
@@ -1955,11 +2010,11 @@ namespace ObjectScript
 
 			Value * getStackValue(int offs);
 
-			void enterFunction(Value * value, Value * self, int params, int ret_values);
+			void enterFunction(Value * value, Value * self, int params, int extra_remove_from_stack, int need_ret_values);
 			int leaveFunction();
 			int execute();
 
-			bool call(Value * self, int params, int ret_values);
+			bool call(int params, int ret_values);
 
 			Core(OS*);
 			~Core();
@@ -1984,6 +2039,7 @@ namespace ObjectScript
 		int getPointerSize(void * p);
 
 		void registerGlobalFunctions();
+		void registerObjectLibrary();
 		void registerMathLibrary();
 
 	public:
@@ -2139,6 +2195,20 @@ namespace ObjectScript
 			OP_PLUS,		// +
 			OP_NEG,			// -
 			OP_LENGTH,		// #
+
+			/*
+			OP_LOGIC_BOOL,
+			OP_LOGIC_NOT,
+
+			OP_VALUE_OF,
+			OP_NUMBER_OF,
+			OP_STRING_OF,
+			OP_ARRAY_OF,
+			OP_OBJECT_OF,
+			OP_USERDATA_OF,
+			OP_FUNCTION_OF,
+			OP_CLONE,
+			*/
 		};
 
 		void runOp(int opcode);

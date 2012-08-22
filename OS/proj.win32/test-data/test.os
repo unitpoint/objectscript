@@ -1,14 +1,47 @@
-print({num = 123 num2: 321} "\n")
-print("1 == " Math.min(5, "4", {1, 2}, 1, 3) "\n")
+;{
+	var a = 23
+	a.rawset('+==+', '--')
+	print( 'rawget ' a.rawget('+==+') "\n" )
+	print(
+		"valueof " valueof a "\n"
+		"stringof " stringof a "\n"
+		"boolof " booleanof a "\n"
+		"numberof " numberof a "\n"
+		"arrayof " arrayof a "\n"
+		"objectof " objectof a "\n"
+		"typeof " typeof a "\n"
+	)
+}
 
-var a = {1,2,3,4,5}
+print( {num = 123 num2: 321} "\n" )
+// print("1 == " Math.min(5 "4" {1 2} 1 3) "\n")
+
+var obj = {
+	__getdim = function(x y){
+		print( "get dim [" x "][" y "] => " this[x][y] "\n" )
+		return this[x][y];
+	}
+	__setdim = function(val x y){
+		print( "set dim ["x"]["y"] = "val"\n" )
+		this[x][y] = val
+	}
+}
+
+var a = extends obj {1.1 2 3 4 5}
 var b = clone a
 a[0] = 10
-b[10] = b[0] * b[2] // 1 * 3
+b[10] = b[0] * b[2] // 1.1 * 3
 print(
 	a "\n"
 	b "\n"
 )
+
+a[0 5] = "0-5"
+print(
+	"val of [0 5] => " a[0 5] "\n"
+	a "\n"
+)
+
 
 /*
 print ( {qwert:"asd", 10, 11, 12, 15:"df"} )

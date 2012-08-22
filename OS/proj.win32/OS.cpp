@@ -8,7 +8,7 @@ using namespace ObjectScript;
 
 static OS::String readFile(OS * os, const char * filename)
 {
-	FILE * f = fopen(filename, "r");
+	FILE * f = fopen(filename, "rb");
 	if(!f){
 		return OS::String(os);
 	}
