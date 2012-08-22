@@ -1,3 +1,66 @@
+print ( {qwert:"asd", 10, 11, 12, 15:"df"} )
+
+a, b[r], c.d, d[r,t] = 12*f, f() - b, c[b,c] + 8 * b
+a[b, c], a.f.t[r] = c[b] + 8*b, c.b
+
+print 3 * Math.min(5, "4", {1, 2}, 1, 3)
+
+var a = {
+	num: 12 + f(1 2 3) / a
+	__get@number: function(){
+		return this.num;
+	}
+	__add = function(a, b){
+		return a.number + b.number;
+	}
+}
+
+var b = extends a {
+	num: 1;
+}
+
+print(
+	" a: " a.number
+)
+
+print(
+	"#a: " #a
+	" a: " a.number
+	" b: " b.number
+	" sum: " a + b
+	)
+
+
+function()
+{
+	return a()
+	return a[b]()
+	return a[b,c]()
+}
+
+a.b = c
+a[b] = c
+a[b, c] = c
+a[] = b
+
+c = a.b
+c = a[b]
+c = a[b, c]
+c = a[]
+
+;{
+	var a = clone b + c
+	delete a.b
+	delete a[b]
+	delete a[b, c]
+	delete a[]
+}
+
+var b2 = extends (extends c {
+	num = 1
+}).num c
+
+/*
 Object.__clone = function(){
 	var r = {};
 	for(var k, v in this){
@@ -117,8 +180,6 @@ Object.__mul = function(a, b, other){
 	return r;
 }
 
-var min = 3 * Math.min(5, "4", {1, 2}, 1, 3);
-
 var a = {
 	num: 12;
 	__get@number: function(){
@@ -138,6 +199,7 @@ var b = extends a {
 };
 
 var r = a + b;
+*/
 
 /*
 var math = {

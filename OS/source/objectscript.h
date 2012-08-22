@@ -738,11 +738,11 @@ namespace ObjectScript
 				{
 					ERROR_NOTHING,
 					ERROR_MULTI_LINE_COMMENT, // multi line comment not end
-					ERROR_CONST_VECTOR_3,       // cant parse const vec3
-					ERROR_CONST_VECTOR_4,     // cant parse const vec4
+					// ERROR_CONST_VECTOR_3,       // cant parse const vec3
+					// ERROR_CONST_VECTOR_4,     // cant parse const vec4
 					ERROR_CONST_STRING,             // string not end
 					ERROR_CONST_STRING_ESCAPE_CHAR, // string escape error
-					ERROR_NAME,               // error name, _ - this is error
+					// ERROR_NAME,               // error name, _ - this is error
 					ERROR_SYNTAX
 				};
 
@@ -1137,13 +1137,15 @@ namespace ObjectScript
 					EXP_TYPE_POST_IF,
 					EXP_TYPE_POP_VALUE,
 					EXP_TYPE_CALL,
+					EXP_TYPE_CALL_WITH_OBJECT_PARAM,
 					EXP_TYPE_CALL_DIM, // temp
 					EXP_TYPE_VALUE,
 					EXP_TYPE_PARAMS,
 					EXP_TYPE_FUNCTION,
 					EXP_TYPE_EXTENDS,
+					EXP_TYPE_CLONE,
+					EXP_TYPE_DELETE,
 					EXP_TYPE_RETURN,
-					EXP_TYPE_TAIL_CALL,
 					EXP_TYPE_ARRAY,
 					EXP_TYPE_OBJECT,
 					EXP_TYPE_OBJECT_SET_BY_NAME,
@@ -1172,10 +1174,13 @@ namespace ObjectScript
 					// EXP_TYPE_GET_LOCAL_VAR_DIM,
 					// EXP_TYPE_GET_AUTO_VAR_DIM,
 
-					EXP_TYPE_GET_DIM,
+					// EXP_TYPE_GET_DIM,
 					EXP_TYPE_SET_DIM,
 
 					EXP_TYPE_CALL_METHOD,
+
+					EXP_TYPE_TAIL_CALL,
+					EXP_TYPE_TAIL_CALL_METHOD,
 
 					// EXP_TYPE_SET_LOCAL_VAR_DIM,
 					// EXP_TYPE_SET_AUTO_VAR_DIM,
@@ -1449,7 +1454,7 @@ namespace ObjectScript
 				TokenData * expectToken();
 
 				Expression * expectExpressionValues(Expression * exp, int ret_values);
-				Expression * newExpressionFromList(ExpressionList& list, int ret_values); // , bool allow_auto_nop);
+				Expression * newExpressionFromList(ExpressionList& list, int ret_values);
 				Expression * newAssingExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
 				// Expression * newIndirectExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
 				Expression * newSingleValueExpression(Expression * exp);
@@ -1459,15 +1464,17 @@ namespace ObjectScript
 				Scope * expectCodeExpression(Scope*, int ret_values);
 				Scope * expectFunctionExpression(Scope*);
 				Expression * expectExtendsExpression(Scope*);
+				Expression * expectCloneExpression(Scope*);
+				Expression * expectDeleteExpression(Scope*);
 				Expression * expectVarExpression(Scope*);
-				Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param, bool allow_var, bool allow_finish_exp = true);
+				Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param, bool allow_var, bool allow_assign);
 				Expression * expectObjectExpression(Scope*);
 				Expression * expectArrayExpression(Scope*);
 				Expression * finishParamsExpression(Scope*, Expression * params);
 				Expression * expectParamsExpression(Scope*);
 				Expression * expectParamsExpression(Scope*, Expression * first_param);
 				Expression * expectReturnExpression(Scope*);
-				Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param);
+				Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param, bool allow_assign);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
@@ -1561,14 +1568,18 @@ namespace ObjectScript
 					OP_SET_UP_LOCAL_VAR,
 
 					OP_CALL,
-					OP_GET_DIM,
-					OP_CALL_METHOD,
 					OP_TAIL_CALL,
+					OP_CALL_METHOD,
+					OP_TAIL_CALL_METHOD,
 
 					OP_GET_PROPERTY,
 					OP_SET_PROPERTY,
 
+					OP_SET_DIM,
+
 					OP_EXTENDS,
+					OP_CLONE,
+					OP_DELETE_PROP,
 					OP_RETURN,
 					OP_POP,
 
@@ -1702,13 +1713,21 @@ namespace ObjectScript
 
 			struct Strings
 			{
-				String __get;
-				String __set;
 				String __constructor;
 				// String __destructor;
+				String __get;
+				String __set;
+				String __del;
+				String __getempty;
+				String __setempty;
+				String __delempty;
+				String __getdim;
+				String __setdim;
+				String __deldim;
 				String __cmp;
 				String __tostring;
 				String __valueof;
+				String __clone;
 				// String __tobool;
 				String __concat;
 				String __bitand;
@@ -1728,6 +1747,8 @@ namespace ObjectScript
 				String __pow;
 
 				String syntax_extends;
+				String syntax_clone;
+				String syntax_delete;
 				String syntax_prototype;
 				String syntax_var;
 				String syntax_this;
@@ -1917,9 +1938,10 @@ namespace ObjectScript
 			void deleteTable(Value::Table*);
 			void addTableProperty(Value::Table * table, Value::Property * prop);
 			bool deleteTableProperty(Value::Table * table, const PropertyIndex& index);
-			bool deleteValueProperty(Value * value, const PropertyIndex& index);
+			void deleteValueProperty(Value * value, Value * index_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
 			void reorderTableNumericKeys(Value::Table * table);
 			void reorderTableKeys(Value::Table * table);
+			void initTableProperties(Value::Table * dst, Value::Table * src);
 
 			Value::Property * setTableValue(Value::Table * table, PropertyIndex& index, Value * val);
 			void setPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
@@ -1937,7 +1959,7 @@ namespace ObjectScript
 			int leaveFunction();
 			int execute();
 
-			int call(Value * self, int params, int ret_values);
+			bool call(Value * self, int params, int ret_values);
 
 			Core(OS*);
 			~Core();
@@ -1961,7 +1983,8 @@ namespace ObjectScript
 
 		int getPointerSize(void * p);
 
-		void registerMathModule();
+		void registerGlobalFunctions();
+		void registerMathLibrary();
 
 	public:
 
@@ -2069,6 +2092,7 @@ namespace ObjectScript
 		void pushGlobals();
 		void pushUserPool();
 		void pushValueById(int id);
+		void pushValueOf(int offs = -1);
 
 		// Value getValue(int offs = -1);
 		// Value getValueById(int id);
@@ -2143,7 +2167,7 @@ namespace ObjectScript
 		bool compile(const Core::String&);
 		bool compile();
 
-		int call(int params = 0);
+		bool call(int params = 0, int ret_values = 0);
 		int eval(OS_CHAR * str);
 		int eval(const Core::String& str);
 
@@ -2156,8 +2180,8 @@ namespace ObjectScript
 			const OS_CHAR * name;
 			OS_CFunction func;
 		};
-		void registerFunctions(int object_offs, const Func * list, void * user_param = NULL); // null terminated list
-		void registerFunctions(const Func * list, void * user_param = NULL); // null terminated list
+		bool registerFunctions(int object_offs, const Func * list, bool override_funcs = true, void * user_param = NULL); // null terminated list
+		bool registerFunctions(const Func * list, bool override_funcs = true, void * user_param = NULL); // null terminated list
 		bool newLibrary(const OS_CHAR * name); // object
 		void * newLibrary(const OS_CHAR * name, int data_size, OS_UserDataDtor dtor = NULL); // userdata
 		void * newLibrary(const OS_CHAR * name, void * data, OS_UserDataDtor dtor = NULL); // userdata

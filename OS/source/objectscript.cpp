@@ -2097,16 +2097,17 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 	case EXP_TYPE_CONST_STRING:
 		{
 			// const OS_CHAR * a = OS_TEXT(""), * b = OS_TEXT("");
+			const OS_CHAR * end = OS_TEXT("");
 			switch(token->getType()){
 			case Tokenizer::NUM_INT: type_name = OS_TEXT("int "); break;
 			case Tokenizer::NUM_FLOAT: type_name = OS_TEXT("float "); break;
 			// case Tokenizer::NUM_VECTOR_3: type_name = OS_TEXT("vec3 "); break;
 			// case Tokenizer::NUM_VECTOR_4: type_name = OS_TEXT("vec4 "); break;
-			case Tokenizer::STRING: type_name = OS_TEXT("string "); break;
-			case Tokenizer::NAME: type_name = OS_TEXT("string "); break;
+			case Tokenizer::STRING: type_name = OS_TEXT("string \""); end = OS_TEXT("\""); break;
+			case Tokenizer::NAME: type_name = OS_TEXT("string \""); end = OS_TEXT("\""); break;
 			default: type_name = OS_TEXT("???"); break;
 			}
-			out += String::format(allocator, OS_TEXT("%spush const %s%s\n"), spaces, type_name, token->str.toChar());
+			out += String::format(allocator, OS_TEXT("%spush const %s%s%s\n"), spaces, type_name, token->str.toChar(), end);
 		}
 		break;
 
@@ -2146,7 +2147,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		out += String::format(allocator, OS_TEXT("%sbegin object %d\n"), spaces, list.count);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += String::format(allocator, OS_TEXT("%s ,\n"), spaces);
+				out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 			}
 			out += list[i]->debugPrint(compiler, depth+1);
 		}
@@ -2155,27 +2156,31 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
 		OS_ASSERT(list.count == 1);
-		out += list[0]->debugPrint(compiler, depth);
-		out += String::format(allocator, OS_TEXT("%sset by name: [%s]\n"), spaces, token->str.toChar());
+		out += String::format(allocator, OS_TEXT("%sbegin set by name\n"), spaces);
+		out += list[0]->debugPrint(compiler, depth+1);
+		out += String::format(allocator, OS_TEXT("%send set by name: [%s]\n"), spaces, token->str.toChar());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
 		OS_ASSERT(list.count == 1);
-		out += list[0]->debugPrint(compiler, depth);
-		out += String::format(allocator, OS_TEXT("%sset by index: [%d]\n"), spaces, token->getInt());
+		out += String::format(allocator, OS_TEXT("%sbegin set by index\n"), spaces);
+		out += list[0]->debugPrint(compiler, depth+1);
+		out += String::format(allocator, OS_TEXT("%send set by index: [%d]\n"), spaces, token->getInt());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
 		OS_ASSERT(list.count == 2);
-		out += list[0]->debugPrint(compiler, depth);
-		out += list[1]->debugPrint(compiler, depth);
-		out += String::format(allocator, OS_TEXT("%sset by exp\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%sbegin set by exp\n"), spaces);
+		out += list[0]->debugPrint(compiler, depth+1);
+		out += list[1]->debugPrint(compiler, depth+1);
+		out += String::format(allocator, OS_TEXT("%send set by exp\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX:
 		OS_ASSERT(list.count == 1);
+		out += String::format(allocator, OS_TEXT("%sbegin set like array\n"), spaces);
 		out += list[0]->debugPrint(compiler, depth);
-		out += String::format(allocator, OS_TEXT("%sset like array\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%send set like array\n"), spaces);
 		break;
 
 	case EXP_TYPE_FUNCTION:
@@ -2249,22 +2254,31 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 
 	case EXP_TYPE_TAIL_CALL:
 		OS_ASSERT(list.count == 2);
-		out += String::format(allocator, OS_TEXT("%sbegin tail call\n"), spaces);
-		out += list[1]->debugPrint(compiler, depth+1);
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
-		out += String::format(allocator, OS_TEXT("%send tail call\n"), spaces);
+		out += list[1]->debugPrint(compiler, depth+1);
+		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		break;
+
+	case EXP_TYPE_TAIL_CALL_METHOD:
+		OS_ASSERT(list.count == 2);
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		out += list[0]->debugPrint(compiler, depth+1);
+		out += list[1]->debugPrint(compiler, depth+1);
+		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_CALL:
+	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[1]->debugPrint(compiler, depth+1);
 		out += list[0]->debugPrint(compiler, depth+1);
+		out += list[1]->debugPrint(compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
 
 	case EXP_TYPE_CALL_DIM:
-	case EXP_TYPE_GET_DIM:
+	// case EXP_TYPE_GET_DIM:
 	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_GET_PROPERTY:
 	// case EXP_TYPE_GET_PROPERTY_DIM:
@@ -2275,6 +2289,21 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		out += list[0]->debugPrint(compiler, depth+1);
 		out += list[1]->debugPrint(compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
+		break;
+
+	case EXP_TYPE_DELETE:
+		OS_ASSERT(list.count == 2);
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		out += list[0]->debugPrint(compiler, depth+1);
+		out += list[1]->debugPrint(compiler, depth+1);
+		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		break;
+
+	case EXP_TYPE_CLONE:
+		OS_ASSERT(list.count == 1);
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
+		out += list[0]->debugPrint(compiler, depth+1);
+		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_VALUE:
@@ -2593,6 +2622,22 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 		prog_opcodes->writeByte(Program::OP_EXTENDS);
 		break;
 
+	case EXP_TYPE_CLONE:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog_opcodes->writeByte(Program::OP_CLONE);
+		break;
+
+	case EXP_TYPE_DELETE:
+		OS_ASSERT(exp->list.count == 2);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog_opcodes->writeByte(Program::OP_DELETE_PROP);
+		break;
+
 	case EXP_TYPE_OBJECT:
 		// OS_ASSERT(exp->list.count >= 0);
 		prog_opcodes->writeByte(Program::OP_PUSH_NEW_OBJECT);
@@ -2686,23 +2731,15 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 		break;
 
 	case EXP_TYPE_CALL:
-		OS_ASSERT(exp->list.count == 2);
-		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
-		if(!writeOpcodes(exp->list[1]) || !writeOpcodes(exp->list[0])){
-			return false;
-		}
-		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
-		prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
-		prog_opcodes->writeByte(exp->ret_values);
-		break;
-
-	case EXP_TYPE_GET_DIM:
-	case EXP_TYPE_CALL_METHOD:
+	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 		OS_ASSERT(exp->list.count == 2);
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
 		if(!writeOpcodes(exp->list)){
 			return false;
 		}
+		/* if(!writeOpcodes(exp->list[1]) || !writeOpcodes(exp->list[0])){
+			return false;
+		} */
 		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
 		prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
 		prog_opcodes->writeByte(exp->ret_values);
@@ -2711,11 +2748,36 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 	case EXP_TYPE_TAIL_CALL:
 		OS_ASSERT(exp->list.count == 2);
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
-		if(!writeOpcodes(exp->list[1]) || !writeOpcodes(exp->list[0])){
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		/* if(!writeOpcodes(exp->list[1]) || !writeOpcodes(exp->list[0])){
+			return false;
+		} */
+		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
+		prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
+		break;
+
+	// case EXP_TYPE_GET_DIM:
+	case EXP_TYPE_CALL_METHOD:
+		OS_ASSERT(exp->list.count == 2);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
+		if(!writeOpcodes(exp->list)){
 			return false;
 		}
 		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
-		prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
+		prog_opcodes->writeByte(exp->list[1]->ret_values-1); // params number
+		prog_opcodes->writeByte(exp->ret_values);
+		break;
+
+	case EXP_TYPE_TAIL_CALL_METHOD:
+		OS_ASSERT(exp->list.count == 2);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
+		prog_opcodes->writeByte(exp->list[1]->ret_values-1); // params number
 		break;
 
 	case EXP_TYPE_GET_PROPERTY:
@@ -2733,6 +2795,15 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 			return false;
 		}
 		prog_opcodes->writeByte(Program::OP_SET_PROPERTY);
+		break;
+
+	case EXP_TYPE_SET_DIM:
+		OS_ASSERT(exp->list.count == 3);
+		if(!writeOpcodes(exp->list)){
+			return false;
+		}
+		prog_opcodes->writeByte(Program::OP_SET_DIM);
+		prog_opcodes->writeByte(exp->list[2]->list.count); // params
 		break;
 
 	case EXP_TYPE_PARAMS:
@@ -3394,14 +3465,16 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 	}
 	switch(exp->type){
 	case EXP_TYPE_CALL:
+	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 	case EXP_TYPE_CALL_DIM:
-	case EXP_TYPE_GET_DIM:
+	// case EXP_TYPE_GET_DIM:
 	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_GET_PROPERTY:
 	// case EXP_TYPE_GET_PROPERTY_DIM:
 	case EXP_TYPE_INDIRECT:
 	// case EXP_TYPE_GET_AUTO_VAR_DIM:
 	case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
+	case EXP_TYPE_TAIL_CALL_METHOD: // ret values are not used for tail call
 		exp->ret_values = ret_values;
 		return exp;
 
@@ -3410,14 +3483,16 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 			Expression * last_exp = exp->list[exp->list.count-1];
 			switch(last_exp->type){
 			case EXP_TYPE_CALL:
+			case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 			case EXP_TYPE_CALL_DIM:
-			case EXP_TYPE_GET_DIM:
+			// case EXP_TYPE_GET_DIM:
 			case EXP_TYPE_CALL_METHOD:
 			case EXP_TYPE_GET_PROPERTY:
 			// case EXP_TYPE_GET_PROPERTY_DIM:
 			case EXP_TYPE_INDIRECT:
 			// case EXP_TYPE_GET_AUTO_VAR_DIM:
 			case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
+			case EXP_TYPE_TAIL_CALL_METHOD: // ret values are not used for tail call
 				last_exp->ret_values = ret_values;
 				exp->ret_values = ret_values;
 				return exp;
@@ -3441,6 +3516,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 		if(exp->ret_values > ret_values){
 			for(int i = exp->list.count-1; exp->ret_values > ret_values && i >= 0; i--){
 				Expression * param_exp = exp->list[i];
+				if(param_exp->type == EXP_TYPE_PARAMS){
+					break;
+				}
 				OS_ASSERT(param_exp->type != EXP_TYPE_PARAMS);
 				OS_ASSERT(param_exp->type != EXP_TYPE_RETURN);
 				OS_ASSERT(param_exp->type != EXP_TYPE_CODE_LIST);
@@ -3452,8 +3530,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 				}
 				switch(param_exp->type){
 				case EXP_TYPE_CALL:
+				case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 				case EXP_TYPE_CALL_DIM:
-				case EXP_TYPE_GET_DIM:
+				// case EXP_TYPE_GET_DIM:
 				case EXP_TYPE_CALL_METHOD:
 				case EXP_TYPE_GET_PROPERTY:
 				// case EXP_TYPE_GET_PROPERTY_DIM:
@@ -3498,8 +3577,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newSingleValueExpression(Ex
 	exp = expectExpressionValues(exp, 1);
 	switch(exp->type){
 	case EXP_TYPE_CALL:
+	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 	case EXP_TYPE_CALL_DIM:
-	case EXP_TYPE_GET_DIM:
+	// case EXP_TYPE_GET_DIM:
 	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_GET_PROPERTY:
 	// case EXP_TYPE_GET_PROPERTY_DIM:
@@ -3565,7 +3645,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			for(int i = exp->list.count-1; i >= 0; i--){
 				Expression * sub_exp = processExpressionSecondPass(scope, exp->list[i]);
 				if(sub_exp->type == EXP_TYPE_PARAMS){
-					OS_ASSERT(false);
+					// OS_ASSERT(false);
 					ExpressionList list(allocator);
 					int j;
 					for(j = 0; j < i; j++){
@@ -3605,7 +3685,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			Expression * sub_exp = exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
 			switch(sub_exp->type){
 			case EXP_TYPE_CALL:
+			case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 				sub_exp->type = EXP_TYPE_TAIL_CALL;
+				allocator->vectorClear(exp->list);
+				allocator->deleteObj(exp);
+				return sub_exp;
+
+			case EXP_TYPE_CALL_METHOD:
+				sub_exp->type = EXP_TYPE_TAIL_CALL_METHOD;
 				allocator->vectorClear(exp->list);
 				allocator->deleteObj(exp);
 				return sub_exp;
@@ -3614,6 +3701,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 		}
 
 	case EXP_TYPE_CALL:
+	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 		{
 			OS_ASSERT(exp->list.count == 2);
 			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
@@ -3632,7 +3720,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				allocator->deleteObj(exp);
 				return left_exp;
 			}
-			if(left_exp->type == EXP_TYPE_GET_DIM){
+			/* if(left_exp->type == EXP_TYPE_GET_DIM){
 				OS_ASSERT(left_exp->list.count == 2);
 				OS_ASSERT(right_exp->type == EXP_TYPE_PARAMS);
 				if(left_exp->list[1]->list.count == 1){
@@ -3649,8 +3737,25 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 					allocator->deleteObj(exp);
 					return left_exp;
 				}
-			}
+			} */
 			return exp;
+		}
+
+	case EXP_TYPE_SET_DIM:
+		{
+			OS_ASSERT(exp->list.count == 3);
+			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
+			exp->list[1] = processExpressionSecondPass(scope, exp->list[1]);
+			exp->list[2] = processExpressionSecondPass(scope, exp->list[2]);
+			Expression * params = exp->list[2];
+			if(params->list.count == 1){
+				exp->list[2] = params->list[0];
+				allocator->vectorClear(params->list);
+				allocator->deleteObj(params);
+				exp->type = EXP_TYPE_SET_PROPERTY;
+				return exp;
+			}
+			break;
 		}
 
 	case EXP_TYPE_CALL_DIM:
@@ -3667,7 +3772,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				allocator->deleteObj(params);
 				exp->type = EXP_TYPE_GET_PROPERTY;
 			}else{
-				exp->type = EXP_TYPE_GET_DIM;
+				// exp->type = EXP_TYPE_GET_DIM;
+				String method_name = !params->list.count ? allocator->core->strings->__getempty : allocator->core->strings->__getdim;
+				TokenData * token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), method_name, Tokenizer::NAME, name_exp->token->line, name_exp->token->pos);
+				Expression * exp_method_name = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_STRING, token);
+				exp_method_name->ret_values = 1;
+				token->release();
+
+				allocator->vectorInsertAtIndex(params->list, 0, exp_method_name);
+				params->ret_values++;
+
+				exp->type = EXP_TYPE_CALL_METHOD;
 			}
 			return exp;
 		}
@@ -3686,6 +3801,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				break;
 
 			case EXP_TYPE_CALL:
+			case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 				right_exp->type = EXP_TYPE_PARAMS;
 				exp_type = EXP_TYPE_CALL_METHOD;
 				OS_ASSERT(right_exp->list.count == 2);
@@ -3728,28 +3844,34 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 				break;
 			}
 		}else{
-			exp = expectSingleExpression(scope, true, true, true);
+			exp = expectSingleExpression(scope, true, true, true, true);
 			if(!exp){
+				if(recent_token->getType() == Tokenizer::CODE_SEPARATOR){
+					if(!readToken()){
+						break;
+					}
+					continue;
+				}
 				break;
 			}
 			list.add(exp);
 			if(!recent_token){
 				break;
 			}
-			switch(recent_token->getType()){
-			case Tokenizer::END_ARRAY_BLOCK:
-			case Tokenizer::END_BRACKET_BLOCK:
-			case Tokenizer::END_CODE_BLOCK:
+			TokenType token_type = recent_token->getType();
+			if(token_type == Tokenizer::END_ARRAY_BLOCK 
+				|| token_type == Tokenizer::END_BRACKET_BLOCK
+				|| token_type == Tokenizer::END_CODE_BLOCK)
+			{
 				break;
 			}
-			if(recent_token->getType() == Tokenizer::CODE_SEPARATOR){
+			if(token_type == Tokenizer::CODE_SEPARATOR){
 				if(!readToken()){
 					break;
 				}
 			}
 		}
 	}
-
 	if(isError()){
 		allocator->deleteObj(scope);
 		return NULL;
@@ -3821,7 +3943,7 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 			}
 			list.add(exp);
 		}else{
-			exp = expectSingleExpression(scope, true, true, true);
+			exp = expectSingleExpression(scope, true, true, true, true);
 			if(!exp){
 				break;
 			}
@@ -3829,6 +3951,13 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 			list.add(exp);
 			if(!recent_token || recent_token->getType() == Tokenizer::END_CODE_BLOCK){
 				break;
+			}
+			switch(recent_token->getType()){
+			case Tokenizer::CODE_SEPARATOR:
+				break;
+
+			default:
+				continue;
 			}
 			if(!expectToken()){
 				break;
@@ -3919,7 +4048,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 		if(name_token->getType() == Tokenizer::BEGIN_ARRAY_BLOCK){
 			readToken();
 			TokenData * save_token = recent_token;
-			exp = expectSingleExpression(scope, true, false, false);
+			exp = expectSingleExpression(scope, true, false, false, false);
 			if(!exp){
 				return lib.error();
 			}
@@ -3937,13 +4066,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 				return lib.error(Tokenizer::OPERATOR_COLON, recent_token);
 			}
 			save_token = readToken();
-			Expression * exp2 = expectSingleExpression(scope, true, false, false);
+			Expression * exp2 = expectSingleExpression(scope, true, false, false, false);
 			if(!exp2){
 				return isError() ? lib.error() : lib.error(ERROR_EXPECT_EXPRESSION, save_token);
 			}
 			exp2 = expectExpressionValues(exp2, 1);
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_EXP, name_token, exp, exp2);
-		}else if(isNextToken(Tokenizer::OPERATOR_COLON)){
+		}else if(isNextToken(Tokenizer::OPERATOR_COLON) || isNextToken(Tokenizer::OPERATOR_ASSIGN)){
 			ExpressionType exp_type = EXP_TYPE_OBJECT_SET_BY_NAME;
 			switch(name_token->getType()){
 			case Tokenizer::STRING:
@@ -3967,14 +4096,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 			}
 			readToken(); // skip OPERATOR_COLON
 			TokenData * save_token = readToken();
-			exp = expectSingleExpression(scope, true, false, false);
+			exp = expectSingleExpression(scope, true, false, false, false);
 			if(!exp){
 				return isError() ? lib.error() : lib.error(ERROR_EXPECT_EXPRESSION, save_token);
 			}
 			exp = expectExpressionValues(exp, 1);
 			exp = new (malloc(sizeof(Expression))) Expression(exp_type, name_token, exp);
 		}else{
-			exp = expectSingleExpression(scope, true, false, false);
+			exp = expectSingleExpression(scope, true, false, false, false);
 			if(!exp){
 				return isError() ? lib.error() : lib.error(ERROR_EXPECT_EXPRESSION, name_token);
 			}
@@ -3987,11 +4116,22 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 			readToken();
 			return lib.obj_exp;
 		}
+#if 11
+		if(!recent_token){
+			return lib.error(Tokenizer::END_CODE_BLOCK, recent_token);
+		}
+		switch(recent_token->getType()){
+		case Tokenizer::PARAM_SEPARATOR:
+		case Tokenizer::CODE_SEPARATOR:
+			readToken();
+		}
+#else
 		if(!recent_token || (recent_token->getType() != Tokenizer::PARAM_SEPARATOR
 				&& recent_token->getType() != Tokenizer::CODE_SEPARATOR)){
 			return lib.error(Tokenizer::PARAM_SEPARATOR, recent_token);
 		}
 		readToken();
+#endif
 	}
 	return NULL; // shut up compiler
 }
@@ -4002,7 +4142,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 	// params->active_locals = scope->function->num_locals;
 	readToken();
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, true, false, false);
+		Expression * exp = expectSingleExpression(scope, true, false, false, false);
 		if(!exp){
 			if(isError()){
 				allocator->deleteObj(params);
@@ -4014,14 +4154,26 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 				return NULL;
 			}
 			readToken();
-			return params;
+			return finishParamsExpression(scope, params);
 		}
 		exp = expectExpressionValues(exp, 1);
 		params->list.add(exp);
 		if(recent_token && recent_token->getType() == Tokenizer::END_ARRAY_BLOCK){
 			readToken();
-			return params;
+			return finishParamsExpression(scope, params);
 		}
+#if 11
+		if(!recent_token){
+			setError(Tokenizer::END_ARRAY_BLOCK, recent_token);
+			allocator->deleteObj(params);
+			return NULL;
+		}
+		switch(recent_token->getType()){
+		case Tokenizer::PARAM_SEPARATOR:
+		case Tokenizer::CODE_SEPARATOR:
+			readToken();
+		}
+#else
 		if(!recent_token || (recent_token->getType() != Tokenizer::PARAM_SEPARATOR
 				&& recent_token->getType() != Tokenizer::CODE_SEPARATOR)){
 			setError(Tokenizer::PARAM_SEPARATOR, recent_token);
@@ -4029,6 +4181,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 			return NULL;
 		}
 		readToken();
+#endif
 	}
 	return NULL; // shut up compiler
 }
@@ -4056,7 +4209,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 	TokenType end_exp_type = is_dim ? Tokenizer::END_ARRAY_BLOCK : Tokenizer::END_BRACKET_BLOCK;
 	readToken();
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, true, false, false);
+		Expression * exp = expectSingleExpression(scope, true, false, false, false);
 		if(!exp){
 			if(isError()){
 				allocator->deleteObj(params);
@@ -4068,7 +4221,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 				return NULL;
 			}
 			readToken();
-			return params;
+			return finishParamsExpression(scope, params);
 		}
 		// exp = expectExpressionValues(exp, 1);
 		params->list.add(exp);
@@ -4077,12 +4230,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 			readToken();
 			return finishParamsExpression(scope, params);
 		}
-		if(!recent_token || recent_token->getType() != Tokenizer::PARAM_SEPARATOR){
-			setError(Tokenizer::PARAM_SEPARATOR, recent_token);
+		if(!recent_token){ // || recent_token->getType() != Tokenizer::PARAM_SEPARATOR){
+			// setError(Tokenizer::PARAM_SEPARATOR, recent_token);
+			setError(end_exp_type, recent_token);
 			allocator->deleteObj(params);
 			return NULL;
 		}
-		readToken();
+		if(recent_token->getType() == Tokenizer::PARAM_SEPARATOR){
+			readToken();
+		}
 	}
 	return NULL; // shut up compiler
 }
@@ -4094,7 +4250,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 	params->ret_values = 1;
 	readToken();
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, false, false, false);
+		Expression * exp = expectSingleExpression(scope, true, false, false, false);
 		if(!exp){
 			if(isError()){
 				allocator->deleteObj(params);
@@ -4124,7 +4280,18 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExtendsExpression(Sco
 	if(!exp){
 		return NULL;
 	}
-	Expression * exp2 = expectSingleExpression(scope, false, false, false);
+	if(exp->type == EXP_TYPE_CALL_WITH_OBJECT_PARAM){
+		OS_ASSERT(exp->list.count == 2);
+		Expression * params = exp->list[1];
+		OS_ASSERT(params->type == EXP_TYPE_PARAMS && params->list.count == 1);
+		exp->list[1] = params->list[0];
+		allocator->vectorClear(params->list);
+		allocator->deleteObj(params);
+		exp->type = EXP_TYPE_EXTENDS;
+		exp->ret_values = 1;
+		return exp;
+	}
+	Expression * exp2 = expectSingleExpression(scope, false, false, false, false);
 	if(!exp2){
 		allocator->deleteObj(exp);
 		return NULL;
@@ -4134,6 +4301,74 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExtendsExpression(Sco
 	exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_EXTENDS, save_token, exp, exp2);
 	exp->ret_values = 1;
 	return exp;
+}
+
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectCloneExpression(Scope * scope)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_clone);
+	TokenData * save_token = recent_token;
+	if(!expectToken()){
+		return NULL;
+	}
+	Expression * exp = expectSingleExpression(scope, false, false, false, false);
+	if(!exp){
+		return NULL;
+	}
+	exp = expectExpressionValues(exp, 1);
+	exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CLONE, save_token, exp);
+	exp->ret_values = 1;
+	return exp;
+}
+
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectDeleteExpression(Scope * scope)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_delete);
+	TokenData * save_token = recent_token;
+	if(!expectToken()){
+		return NULL;
+	}
+	Expression * exp = expectSingleExpression(scope, false, false, false, false);
+	if(!exp){
+		return NULL;
+	}
+	if(exp->type == EXP_TYPE_INDIRECT){
+		OS_ASSERT(exp->list.count == 2);
+		Expression * field = exp->list[1];
+		if(field->type == EXP_TYPE_NAME){
+			field->type = EXP_TYPE_CONST_STRING;
+		}
+		exp->type = EXP_TYPE_DELETE;
+		exp->ret_values = 0;
+		return exp;
+	}
+	if(exp->type == EXP_TYPE_CALL_DIM){
+		OS_ASSERT(exp->list.count == 2);
+		Expression * params = exp->list[1];
+		if(params->list.count == 1){
+			exp->list[1] = params->list[0];
+			allocator->vectorClear(params->list);
+			allocator->deleteObj(params);
+			exp->type = EXP_TYPE_DELETE;
+			exp->ret_values = 0;
+			return exp;
+		}
+		Expression * object = exp->list[0];
+
+		String method_name = !params->list.count ? allocator->core->strings->__delempty : allocator->core->strings->__deldim;
+		TokenData * token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), method_name, Tokenizer::NAME, object->token->line, object->token->pos);
+		Expression * exp_method_name = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_STRING, token);
+		exp_method_name->ret_values = 1;
+		token->release();
+
+		Expression * indirect = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_INDIRECT, object->token, object, exp_method_name);
+		exp->list[0] = indirect;
+		exp->type = EXP_TYPE_CALL;
+		exp->ret_values = 1;
+		return exp;
+	}
+	setError(ERROR_SYNTAX, exp->token);
+	allocator->deleteObj(exp);
+	return NULL;
 }
 
 OS::Core::Compiler::Scope * OS::Core::Compiler::expectFunctionExpression(Scope * parent)
@@ -4198,7 +4433,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 		return NULL;
 	}
 	// ungetToken();
-	Expression * exp = expectSingleExpression(scope, true, true, false);
+	Expression * exp = expectSingleExpression(scope, true, true, false, true);
 	Expression * ret_exp = exp;
 	while(exp){
 		switch(exp->type){
@@ -4280,7 +4515,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectReturnExpression(Scop
 		return ret_exp;
 	}
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, true, false, false);
+		Expression * exp = expectSingleExpression(scope, true, false, false, false);
 		if(!exp){
 			allocator->deleteObj(ret_exp);
 			return NULL;
@@ -4310,6 +4545,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectReturnExpression(Scop
 				return NULL;
 			}
 			continue;
+
+		default:
+#if 11
+			continue;
+#endif
 		}
 		setError(ERROR_SYNTAX, recent_token);
 		allocator->deleteObj(ret_exp);
@@ -4459,6 +4699,21 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 			return values_exp;
 		}
 	}
+	OS_ASSERT(left_exp->type != EXP_TYPE_PARAMS);
+	if(right_exp->type == EXP_TYPE_PARAMS){
+		Expression * params = right_exp;
+		OS_ASSERT(params->list.count > 0);
+		if(params->list.count == 1){
+			right_exp = params->list[0];
+			allocator->vectorClear(params->list);
+			allocator->deleteObj(params);
+		}else{
+			right_exp = params->list[0];
+			right_exp = newBinaryExpression(scope, exp_type, token, left_exp, right_exp);
+			params->list[0] = right_exp;
+			return params;
+		}
+	}
 	left_exp = expectExpressionValues(left_exp, 1);
 	right_exp = expectExpressionValues(right_exp, 1);
 	Expression * exp = new (malloc(sizeof(Expression))) Expression(exp_type, token, left_exp, right_exp);
@@ -4537,6 +4792,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 				break;
 
 			case EXP_TYPE_CALL:
+			case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 				OS_ASSERT(false);
 				return NULL;
 
@@ -4576,13 +4832,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 	return new (malloc(sizeof(Expression))) Expression(EXP_TYPE_ASSIGN, var_exp->token, var_exp, value_exp);
 }
 
-OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param)
+OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, 
+	bool allow_param)
 {
 	TokenData * binary_operator = recent_token;
 	OS_ASSERT(binary_operator->isTypeOf(Tokenizer::BINARY_OPERATOR));
 	readToken();
-	Expression * exp2 = expectSingleExpression(scope, false, allow_param, false);
+	Expression * exp2 = expectSingleExpression(scope, false, allow_param, false, false);
 	if(!exp2){
+		/* if(!isError()){
+			return exp;
+		} */
 		allocator->deleteObj(exp);
 		return NULL;
 	}
@@ -4616,7 +4876,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 	return newBinaryExpression(scope, left_exp_type, binary_operator, exp, exp2);
 }
 
-OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope * scope, Expression * exp, bool allow_binary_operator, bool allow_param)
+OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope * scope, Expression * exp, bool allow_binary_operator, 
+	bool allow_param, bool allow_assign)
 {
 	for(;;){
 		if(!recent_token){
@@ -4676,8 +4937,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::OPERATOR_LSHIFT: // <<
 		case Tokenizer::OPERATOR_RSHIFT: // >>
 		case Tokenizer::OPERATOR_POW: // **
-
-			if(!allow_binary_operator && token_type != Tokenizer::OPERATOR_INDIRECT){
+			if(!allow_binary_operator){ // && token_type != Tokenizer::OPERATOR_INDIRECT){
 				return exp;
 			}
 			exp = finishBinaryOperator(scope, OP_LEVEL_NOTHING, exp, allow_param);
@@ -4702,22 +4962,21 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			return NULL;
 
 		case Tokenizer::OPERATOR_ASSIGN: // =
-			if(!allow_binary_operator){
+			if(!allow_assign){ // allow_binary_operator){
 				return exp;
 			}
 			exp = finishBinaryOperator(scope, OP_LEVEL_NOTHING, exp, allow_param);
 			if(!exp){
 				return NULL;
 			}
-			continue;
+			return exp;
+			// continue;
 
-		/*
 		case Tokenizer::END_ARRAY_BLOCK:
 		case Tokenizer::END_BRACKET_BLOCK:
 		case Tokenizer::END_CODE_BLOCK:
 		case Tokenizer::CODE_SEPARATOR:
-			return NULL;
-		*/
+			return exp;
 
 		case Tokenizer::PARAM_SEPARATOR:
 			if(!allow_param){
@@ -4740,9 +4999,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			exp2 = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, exp2->token, exp2);
 			exp2->ret_values = 1;
 			// exp2->active_locals = scope->function->num_locals;
-			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL, token, exp, exp2);
+			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL_WITH_OBJECT_PARAM, token, exp, exp2);
 			exp->ret_values = 1;
 			continue;
+
+		default:
+			return exp;
 
 		case Tokenizer::BEGIN_BRACKET_BLOCK: // (
 			exp2 = expectParamsExpression(scope);
@@ -4766,16 +5028,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 				return exp;
 			}
 			continue;
-
-		default:
-			return exp;
 		}
 	}
 	return NULL; // shut up compiler
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scope * scope, bool allow_binary_operator, bool allow_param, 
-	bool allow_var, bool allow_finish_exp)
+	bool allow_var, bool allow_assign)
 {
 	TokenData * token = recent_token; // readToken();
 	if(!token){
@@ -4790,59 +5049,59 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		if(!expectToken()){
 			return NULL;
 		}
-		exp = expectSingleExpression(scope, false, false, false);
+		exp = expectSingleExpression(scope, false, false, false, false);
 		if(!exp){
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PLUS, exp->token, exp);
 		exp->ret_values = 1;
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::OPERATOR_SUB:
 		if(!expectToken()){
 			return NULL;
 		}
-		exp = expectSingleExpression(scope, false, false, false);
+		exp = expectSingleExpression(scope, false, false, false, false);
 		if(!exp){
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NEG, exp->token, exp);
 		exp->ret_values = 1;
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::OPERATOR_LENGTH:
 		if(!expectToken()){
 			return NULL;
 		}
-		exp = expectSingleExpression(scope, false, false, false);
+		exp = expectSingleExpression(scope, false, false, false, false);
 		if(!exp){
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_LENGTH, exp->token, exp);
 		exp->ret_values = 1;
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::OPERATOR_BIT_NOT:
 		if(!expectToken()){
 			return NULL;
 		}
-		exp = expectSingleExpression(scope, false, false, false);
+		exp = expectSingleExpression(scope, false, false, false, false);
 		if(!exp){
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_BIT_NOT, exp->token, exp);
 		exp->ret_values = 1;
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::OPERATOR_LOGIC_NOT:
 		if(!expectToken()){
 			return NULL;
 		}
-		exp = expectSingleExpression(scope, false, false, false);
+		exp = expectSingleExpression(scope, false, false, false, false);
 		if(!exp){
 			return NULL;
 		}
@@ -4855,7 +5114,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_LOGIC_NOT, exp->token, exp);
 			exp->ret_values = 1;
 		}
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::OPERATOR_INC:
 	case Tokenizer::OPERATOR_DEC:
@@ -4864,12 +5123,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 	// end unary operators
 
 	case Tokenizer::BEGIN_CODE_BLOCK:
+		/* if(!allow_assign){
+			return NULL;
+		} */
 		exp = expectObjectExpression(scope);
 		if(!exp){
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::BEGIN_ARRAY_BLOCK:
 		exp = expectArrayExpression(scope);
@@ -4877,11 +5139,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::BEGIN_BRACKET_BLOCK:
 		readToken();
-		exp = expectSingleExpression(scope, true, false, false);
+		exp = expectSingleExpression(scope, true, false, false, false);
 		if(!exp){
 			return NULL;
 		}
@@ -4909,7 +5171,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		switch(recent_token->getType()){
 		case Tokenizer::END_BRACKET_BLOCK:
 			readToken();
-			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 		default:
 			setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
@@ -4921,20 +5183,20 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_STRING, token);
 		exp->ret_values = 1;
 		readToken();
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::NUM_INT:
 	case Tokenizer::NUM_FLOAT:
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NUMBER, token);
 		exp->ret_values = 1;
 		readToken();
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::REST_ARGUMENTS:
 		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_REST_ARGUMENTS, token);
 		exp->ret_values = 1;
 		readToken();
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 
 	case Tokenizer::NAME:
 		if(token->str == allocator->core->strings->syntax_var){
@@ -4949,7 +5211,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			if(!exp){
 				return NULL;
 			}
-			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 		}
 		if(token->str == allocator->core->strings->syntax_return){
 			return expectReturnExpression(scope);
@@ -4958,39 +5220,49 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_THIS, token);
 			exp->ret_values = 1;
 			readToken();
-			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 		}
 		if(token->str == allocator->core->strings->syntax_arguments){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_ARGUMENTS, token);
 			exp->ret_values = 1;
 			readToken();
-			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 		}
 		if(token->str == allocator->core->strings->syntax_null){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NULL, token);
 			exp->ret_values = 1;
 			readToken();
-			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 		}
 		if(token->str == allocator->core->strings->syntax_true){
 			token->setInt(1);
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_TRUE, token);
 			exp->ret_values = 1;
 			readToken();
-			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 		}
 		if(token->str == allocator->core->strings->syntax_false){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_FALSE, token);
 			exp->ret_values = 1;
 			readToken();
-			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 		}
 		if(token->str == allocator->core->strings->syntax_extends){
 			exp = expectExtendsExpression(scope);
 			if(!exp){
 				return NULL;
 			}
-			return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+			return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
+		}
+		if(token->str == allocator->core->strings->syntax_clone){
+			exp = expectCloneExpression(scope);
+			if(!exp){
+				return NULL;
+			}
+			return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
+		}
+		if(token->str == allocator->core->strings->syntax_delete){
+			return expectDeleteExpression(scope);
 		}
 		if(token->str == allocator->core->strings->syntax_break || token->str == allocator->core->strings->syntax_continue){
 			setError(ERROR_SYNTAX, token);
@@ -5032,7 +5304,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		exp->ret_values = 1;
 		exp->active_locals = scope->function->num_locals;
 		readToken();
-		return !allow_finish_exp ? exp : finishValueExpression(scope, exp, allow_binary_operator, allow_param);
+		return finishValueExpression(scope, exp, allow_binary_operator, allow_param, allow_assign);
 	}
 	return NULL;
 }
@@ -5111,22 +5383,35 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 		return OS_TEXT("pop");
 
 	case EXP_TYPE_CALL:
+	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
 		return OS_TEXT("call");
 
 	case EXP_TYPE_CALL_DIM:
 		return OS_TEXT("dim");
 
-	case EXP_TYPE_GET_DIM:
-		return OS_TEXT("get dim");
+	// case EXP_TYPE_GET_DIM:
+	//	return OS_TEXT("get dim");
 
 	case EXP_TYPE_CALL_METHOD:
 		return OS_TEXT("call method");
+
+	case EXP_TYPE_TAIL_CALL_METHOD:
+		return OS_TEXT("tail call method");
+
+	case EXP_TYPE_TAIL_CALL:
+		return OS_TEXT("tail call");
 
 	case EXP_TYPE_VALUE:
 		return OS_TEXT("single value");
 
 	case EXP_TYPE_EXTENDS:
 		return OS_TEXT("extends");
+
+	case EXP_TYPE_CLONE:
+		return OS_TEXT("clone");
+
+	case EXP_TYPE_DELETE:
+		return OS_TEXT("delete");
 
 	case EXP_TYPE_RETURN:
 		return OS_TEXT("return");
@@ -5557,9 +5842,11 @@ OS::Core::Program::OpcodeType OS::Core::Program::toOpcodeType(Compiler::Expressi
 {
 	switch(exp_type){
 	case Compiler::EXP_TYPE_CALL: return OP_CALL;
-	case Compiler::EXP_TYPE_GET_DIM: return OP_GET_DIM;
+	case Compiler::EXP_TYPE_CALL_WITH_OBJECT_PARAM: return OP_CALL;
+	// case Compiler::EXP_TYPE_GET_DIM: return OP_GET_DIM;
 	case Compiler::EXP_TYPE_CALL_METHOD: return OP_CALL_METHOD;
 	case Compiler::EXP_TYPE_TAIL_CALL: return OP_TAIL_CALL;
+	case Compiler::EXP_TYPE_TAIL_CALL_METHOD: return OP_TAIL_CALL_METHOD;
 
 	case Compiler::EXP_TYPE_GET_THIS: return OP_PUSH_THIS;
 	case Compiler::EXP_TYPE_GET_ARGUMENTS: return OP_PUSH_ARGUMENTS;
@@ -6483,14 +6770,45 @@ bool OS::Core::deleteTableProperty(Value::Table * table, const PropertyIndex& in
 	return false;
 }
 
-bool OS::Core::deleteValueProperty(Value * value, const PropertyIndex& index)
+void OS::Core::deleteValueProperty(Value * table_value, Value * index_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled)
 {
-	OS_ASSERT(value->table);
-	int r = deleteTableProperty(value->table, index);
-	if(r && value->type == OS_VALUE_TYPE_ARRAY){
-		reorderTableNumericKeys(value->table);
+	Value::Table * table = table_value->table;
+	if(table && deleteTableProperty(table, index)){
+		if(table_value->type == OS_VALUE_TYPE_ARRAY){
+			reorderTableNumericKeys(table);
+		}
+		return;
 	}
-	return r;
+	if(prototype_enabled){
+		Value * cur_value = table_value;
+		while(cur_value->prototype){
+			cur_value = cur_value->prototype;
+			Value::Table * cur_table = cur_value->table;
+			if(cur_table && deleteTableProperty(cur_table, index)){
+				if(cur_value->type == OS_VALUE_TYPE_ARRAY){
+					reorderTableNumericKeys(cur_table);
+				}
+				return;
+			}
+		}
+	}
+	if(index.is_string_index && index.string_index == strings->syntax_prototype){
+		return;
+	}
+	if(del_method_enabled){
+		Value * func_value = getPropertyValue(table_value, PropertyIndex(strings->__del, PropertyIndex::KeepStringIndex()), prototype_enabled);
+		if(func_value){
+			pushValue(func_value);
+			if(index_value){
+				pushValue(index_value);
+			}else if(index.is_string_index){
+				pushStringValue(index.string_index);
+			}else{
+				pushNumberValue(index.int_index);
+			}
+			call(table_value, 1, 0);
+		}
+	}
 }
 
 void OS::Core::reorderTableNumericKeys(Value::Table * table)
@@ -6519,6 +6837,17 @@ void OS::Core::reorderTableKeys(Value::Table * table)
 		}
 	}
 	table->next_id = i;
+}
+
+void OS::Core::initTableProperties(Value::Table * dst, Value::Table * src)
+{
+	OS_ASSERT(dst->count == 0);
+	for(Value::Property * prop = src->first; prop; prop = prop->next){
+		Value * value = values.get(prop->value_id);
+		if(value){
+			setTableValue(dst, PropertyIndex(*prop), value);
+		}
+	}
 }
 
 OS::Core::Value::Property * OS::Core::Value::Table::get(const PropertyIndex& index)
@@ -6983,13 +7312,21 @@ OS::Core::Value * OS::Core::Values::get(int value_id)
 
 OS::Core::Strings::Strings(OS * allocator)
 	:
-	__get(allocator, OS_TEXT("__get")),
-	__set(allocator, OS_TEXT("__set")),
 	__constructor(allocator, OS_TEXT("__constructor")),
 	// __destructor(allocator, OS_TEXT("__destructor")),
+	__get(allocator, OS_TEXT("__get")),
+	__set(allocator, OS_TEXT("__set")),
+	__del(allocator, OS_TEXT("__del")),
+	__getempty(allocator, OS_TEXT("__getempty")),
+	__setempty(allocator, OS_TEXT("__setempty")),
+	__delempty(allocator, OS_TEXT("__delempty")),
+	__getdim(allocator, OS_TEXT("__getdim")),
+	__setdim(allocator, OS_TEXT("__setdim")),
+	__deldim(allocator, OS_TEXT("__deldim")),
 	__cmp(allocator, OS_TEXT("__cmp")),
 	__tostring(allocator, OS_TEXT("toString")),
 	__valueof(allocator, OS_TEXT("valueOf")),
+	__clone(allocator, OS_TEXT("__clone")),
 	// __tobool(allocator, OS_TEXT("__tobool")),
 	__concat(allocator, OS_TEXT("__concat")),
 	__bitand(allocator, OS_TEXT("__bitand")),
@@ -7009,6 +7346,8 @@ OS::Core::Strings::Strings(OS * allocator)
 	__pow(allocator, OS_TEXT("__pow")),
 
 	syntax_extends(allocator, OS_TEXT("extends")),
+	syntax_clone(allocator, OS_TEXT("clone")),
+	syntax_delete(allocator, OS_TEXT("delete")),
 	syntax_prototype(allocator, OS_TEXT("prototype")),
 	syntax_var(allocator, OS_TEXT("var")),
 	syntax_this(allocator, OS_TEXT("this")),
@@ -7430,7 +7769,8 @@ OS * OS::create(MemoryManager * manager)
 bool OS::init()
 {
 	if(core->init()){
-		registerMathModule();
+		registerGlobalFunctions();
+		registerMathLibrary();
 		return true;
 	}
 	return false;
@@ -8010,6 +8350,18 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 		return;
 	}
 
+	if(prototype_enabled){
+		Value * cur_value = table_value;
+		while(cur_value->prototype){
+			cur_value = cur_value->prototype;
+			Value::Table * cur_table = cur_value->table;
+			if(cur_table && (prop = cur_table->get(index))){
+				prop->value_id = value->value_id;
+				return;
+			}
+		}
+	}
+
 	if(index.is_string_index && index.string_index == strings->syntax_prototype){
 		switch(table_value->type){
 		case OS_VALUE_TYPE_NULL:
@@ -8035,18 +8387,6 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 		return;
 	}
 
-	if(prototype_enabled){
-		Value * cur_value = table_value;
-		while(cur_value->prototype){
-			cur_value = cur_value->prototype;
-			Value::Table * cur_table = cur_value->table;
-			if(cur_table && (prop = cur_table->get(index))){
-				prop->value_id = value->value_id;
-				return;
-			}
-		}
-	}
-
 	if(setter_enabled){
 		Value * self = table_value;
 		if(index.is_string_index){
@@ -8057,14 +8397,15 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 
 			Value * func_value = getPropertyValue(table_value, PropertyIndex(setter_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func_value){
-				pushValue(value);
 				pushValue(func_value);
+				pushValue(value);
 				call(self, 1, 0);
 				return;
 			}
 		}
 		Value * func_value = getPropertyValue(table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), prototype_enabled);
 		if(func_value){
+			pushValue(func_value);
 			if(index_value){
 				pushValue(index_value);
 			}else if(index.is_string_index){
@@ -8073,7 +8414,6 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 				pushNumberValue(index.int_index);
 			}
 			pushValue(value);
-			pushValue(func_value);
 			call(self, 2, 0);
 			return;
 		}
@@ -8091,6 +8431,9 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled)
 {
 	switch(index_value->type){
+	case OS_VALUE_TYPE_NULL:
+		return setPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)0), val, prototype_enabled, setter_enabled);
+
 	case OS_VALUE_TYPE_BOOL:
 		return setPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)index_value->value.boolean), val, prototype_enabled, setter_enabled);
 
@@ -8349,8 +8692,74 @@ OS::Core::Value * OS::Core::pushValueOf(Value * val)
 	}
 	switch(val->type){
 	case OS_VALUE_TYPE_ARRAY:
+		if(!val->table || !val->table->count){
+			return pushStringValue(OS_TEXT("[]"));
+		}
+		{
+			String buf = String(allocator, OS_TEXT("["));
+			bool is_generic_array = true;
+			int need_index = 0;
+			Value::Property * prop = val->table->first;
+			for(int i = 0; prop; prop = prop->next, i++, need_index++){
+				if(prop->int_valid && prop->int_index == need_index){
+					if(i > 100){
+						buf += OS_TEXT("...");
+						break;
+					}
+					if(need_index > 0){
+						buf += OS_TEXT(",");
+					}
+					buf += String(allocator, (OS_INT)need_index);
+					buf += OS_TEXT(":");
+					Value * value = values.get(prop->value_id);
+					if(value){
+						buf += valueToString(value);
+					}
+				}else{
+					is_generic_array = false;
+					break;
+				}
+			}
+			if(is_generic_array){
+				return pushStringValue(buf + OS_TEXT("]"));
+			}
+			// no break
+		}
+
 	case OS_VALUE_TYPE_OBJECT:
-		if(val->table && val->table->count >= 1){
+		if(!val->table || !val->table->count){
+			return pushStringValue(OS_TEXT("{}"));
+		}
+		{
+			String buf = String(allocator, OS_TEXT("{"));
+			int need_index = 0;
+			Value::Property * prop = val->table->first;
+			for(int i = 0; prop; prop = prop->next, i++){
+				if(i > 100){
+					buf += OS_TEXT("...");
+					break;
+				}
+				if(i > 0){
+					buf += OS_TEXT(",");
+				}
+				if(prop->int_valid){
+					if(prop->int_index != need_index){
+						buf += String(allocator, prop->int_index);
+						buf += OS_TEXT(":");
+					}
+					need_index = prop->int_index + 1;
+				}else{ // if(prop->is_string_index){
+					buf += prop->string_index;
+					buf += OS_TEXT(":");
+				}
+				Value * value = values.get(prop->value_id);
+				if(value){
+					buf += valueToString(value);
+				}
+			}
+			return pushStringValue(buf + OS_TEXT("}"));
+		}
+		/* if(val->table && val->table->count >= 1){
 			val = values.get(val->table->first->value_id);
 			switch(val->type){
 			case OS_VALUE_TYPE_NULL:
@@ -8359,9 +8768,9 @@ OS::Core::Value * OS::Core::pushValueOf(Value * val)
 			case OS_VALUE_TYPE_STRING:
 				return pushValue(val);
 			}
-		}
+		} */
 	}
-	pushConstNullValue();
+	return pushConstNullValue();
 }
 
 OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * value)
@@ -8527,8 +8936,8 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 						Value * func = core->getPropertyValue(left_value, 
 							PropertyIndex(core->strings->__cmp, PropertyIndex::KeepStringIndex()), prototype_enabled);
 						if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
-							core->pushValue(right_value);
 							core->pushValue(func);
+							core->pushValue(right_value);
 							core->call(left_value, 1, 1);
 							OS_ASSERT(core->stack_values.count >= 1);
 							struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {core};
@@ -8546,8 +8955,8 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 								func = core->getPropertyValue(right_value, 
 									PropertyIndex(core->strings->__cmp, PropertyIndex::KeepStringIndex()), prototype_enabled);
 								if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
-									core->pushValue(left_value);
 									core->pushValue(func);
+									core->pushValue(left_value);
 									core->call(right_value, 1, 1);
 									OS_ASSERT(core->stack_values.count >= 1);
 									struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {core};
@@ -8675,10 +9084,10 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 			Value * func = core->getPropertyValue(object, 
 				PropertyIndex(method_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
 			if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+				core->pushValue(func);
 				core->pushValue(left_value);
 				core->pushValue(right_value);
 				core->pushValue(left_value == object ? right_value : left_value);
-				core->pushValue(func);
 				core->call(object, 3, 1);
 				OS_ASSERT(core->stack_values.count >= 1);
 				return core->stack_values.lastElement();
@@ -8693,10 +9102,10 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 					func = core->getPropertyValue(other_value, 
 						PropertyIndex(method_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
 					if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+						core->pushValue(func);
 						core->pushValue(left_value);
 						core->pushValue(right_value);
 						core->pushValue(left_value == other_value ? right_value : left_value);
-						core->pushValue(func);
 						core->call(other_value, 3, 1);
 						OS_ASSERT(core->stack_values.count >= 1);
 						return core->stack_values.lastElement();
@@ -9058,6 +9467,16 @@ void OS::pushValueById(int id)
 	core->pushValueAutoNull(core->values.get(id));
 }
 
+void OS::pushValueOf(int offs)
+{
+	Core::Value * value = core->getStackValue(offs);
+	if(value){
+		core->pushValueOf(value);
+	}else{
+		core->pushConstNullValue();
+	}
+}
+
 /*
 OS::Value OS::getValue(int offs)
 {
@@ -9368,9 +9787,6 @@ OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, PropertyIndex&
 	if(table && (prop = table->get(index))){
 		return values.get(prop->value_id);
 	}
-	if(index.is_string_index && index.string_index == strings->syntax_prototype){
-		return table_value->prototype;
-	}
 	if(prototype_enabled){
 		Value * cur_value = table_value;
 		while(cur_value->prototype){
@@ -9380,6 +9796,9 @@ OS::Core::Value * OS::Core::getPropertyValue(Value * table_value, PropertyIndex&
 				return values.get(prop->value_id);
 			}
 		}
+	}
+	if(index.is_string_index && index.string_index == strings->syntax_prototype){
+		return table_value->prototype;
 	}
 	return NULL;
 }
@@ -9397,10 +9816,10 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 		return pushPropertyValue(table_value, index_value, PropertyIndex(index_value->value.string_data), prototype_enabled, getter_enabled);
 	}
 	if(getter_enabled){
-		Value * value = getPropertyValue(table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled);
-		if(value){
+		Value * func = getPropertyValue(table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled);
+		if(func){
+			pushValue(func);
 			pushValue(index_value);
-			pushValue(value);
 			call(table_value, 1, 1);
 			OS_ASSERT(stack_values.count > 0);
 			return stack_values.lastElement();
@@ -9438,6 +9857,7 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 					table_value = value;
 					continue;
 				}
+				pushValue(value);
 				if(index_value){
 					pushValue(index_value);
 				}else if(index.is_string_index){
@@ -9445,7 +9865,6 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 				}else{
 					pushNumberValue(index.int_index);
 				}
-				pushValue(value);
 				call(self, 1, 1);
 				OS_ASSERT(stack_values.count > 0);
 				return stack_values.lastElement();
@@ -9598,11 +10017,13 @@ restart:
 		switch(opcode){
 		case Program::OP_PUSH_NUMBER:
 			i = opcodes.readUVariable();
+			OS_ASSERT(prog->const_values[i]->type == OS_VALUE_TYPE_NUMBER);
 			pushValue(prog->const_values[i]);
 			break;
 
 		case Program::OP_PUSH_STRING:
 			i = opcodes.readUVariable();
+			OS_ASSERT(prog->const_values[prog_num_numbers + i]->type == OS_VALUE_TYPE_STRING);
 			pushValue(prog->const_values[prog_num_numbers + i]);
 			break;
 
@@ -9692,7 +10113,9 @@ restart:
 			{
 				i = opcodes.readUVariable();
 				Value * name_value = prog->const_values[prog_num_numbers + i];
-				String name = valueToString(name_value);
+				OS_ASSERT(name_value->type == OS_VALUE_TYPE_STRING);
+				StringData * name = name_value->value.string_data;
+				// String name = valueToString(name_value);
 				pushPropertyValue(env, name_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), true, true); 
 				break;
 			}
@@ -9703,7 +10126,9 @@ restart:
 				i = opcodes.readUVariable();
 				Value * value = stack_values[stack_values.count-1];
 				Value * name_value = prog->const_values[prog_num_numbers + i];
-				String name = valueToString(name_value);
+				OS_ASSERT(name_value->type == OS_VALUE_TYPE_STRING);
+				StringData * name = name_value->value.string_data;
+				// String name = valueToString(name_value);
 				setPropertyValue(env, name_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), value, true, true);
 				pop();
 				break;
@@ -9794,35 +10219,8 @@ restart:
 				int ret_values = opcodes.readByte();
 				
 				OS_ASSERT(stack_values.count >= 1 + params);
-				call(func_running->self, params, ret_values);
-				break;
-			}
-
-		case Program::OP_GET_DIM:
-			{
-				OS_ASSERT(false);
-				int params = opcodes.readByte();
-				int ret_values = opcodes.readByte();
-				
-				OS_ASSERT(stack_values.count >= 1 + params);
-				break;
-			}
-
-		case Program::OP_CALL_METHOD:
-			{
-				int params = opcodes.readByte() - 1;
-				int ret_values = opcodes.readByte();
-				
-				OS_ASSERT(stack_values.count >= 2 + params);
-				Value * table_value = stack_values[stack_values.count-2-params];
-				Value * index_value = stack_values[stack_values.count-1-params];
-				Value * value = pushPropertyValue(table_value, index_value, true, true);
-				Value * self = func_running->self;
-				if(self->prototype != table_value){
-					self = table_value;
-				}
-				call(self, params, ret_values);
-				removeStackValues(-2-ret_values, 2);
+				// call(func_running->self, params, ret_values);
+				call(null_value, params, ret_values);
 				break;
 			}
 
@@ -9834,14 +10232,84 @@ restart:
 				
 				OS_ASSERT(stack_values.count >= 1 + params);
 				Value * func_value = stack_values[stack_values.count-1-params];
-				removeStackValue(-1-params);
 
 				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
-				call_stack_funcs.count--;
-				// TODO: check cfunction here
-				enterFunction(func_value, NULL, params, ret_values);
-				releaseFunctionRunningInstance(func_running);
-				goto restart;
+				
+				switch(func_value->type){
+				case OS_VALUE_TYPE_CFUNCTION:
+					call(null_value, params, ret_values);
+					break;
+
+				case OS_VALUE_TYPE_FUNCTION:
+					call_stack_funcs.count--;
+					enterFunction(func_value, null_value, params, ret_values);
+					releaseFunctionRunningInstance(func_running);
+					removeStackValue(-1);
+					goto restart;
+
+				default:
+					// TODO: warn or error here???
+					removeStackValue(-1-params);
+					pushConstNullValue();
+				}
+				break;
+			}
+
+		case Program::OP_CALL_METHOD:
+			{
+				int params = opcodes.readByte();
+				int ret_values = opcodes.readByte();
+				
+				OS_ASSERT(stack_values.count >= 2 + params);
+				Value * table_value = stack_values[stack_values.count-2-params];
+				Value * index_value = stack_values[stack_values.count-1-params];
+				Value * value = pushPropertyValue(table_value, index_value, true, true);
+				moveStackValue(-1, -1-params);
+				Value * self = func_running->self;
+				if(self->prototype != table_value){
+					self = table_value;
+				}
+				call(self, params, ret_values);
+				removeStackValues(-2-ret_values, 2);
+				break;
+			}
+
+		case Program::OP_TAIL_CALL_METHOD:
+			{
+				int params = opcodes.readByte();
+				int ret_values = func_running->need_ret_values;
+				
+				OS_ASSERT(stack_values.count >= 2 + params);
+				Value * table_value = stack_values[stack_values.count-2-params];
+				Value * index_value = stack_values[stack_values.count-1-params];
+				Value * func_value = pushPropertyValue(table_value, index_value, true, true);
+				moveStackValue(-1, -1-params);
+				Value * self = func_running->self;
+				if(self->prototype != table_value){
+					self = table_value;
+				}
+
+				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
+				
+				switch(func_value->type){
+				case OS_VALUE_TYPE_CFUNCTION:
+					call(self, params, ret_values);
+					removeStackValues(-2-ret_values, 2);
+					break;
+
+				case OS_VALUE_TYPE_FUNCTION:
+					call_stack_funcs.count--;
+					enterFunction(func_value, self, params, ret_values);
+					releaseFunctionRunningInstance(func_running);
+					removeStackValue(-3);
+					goto restart;
+
+				default:
+					// TODO: warn or error here???
+					removeStackValue(-3-params);
+					pushConstNullValue();
+				}
+				break;
 			}
 
 		case Program::OP_GET_PROPERTY:
@@ -9855,6 +10323,28 @@ restart:
 		case Program::OP_SET_PROPERTY:
 			{
 				allocator->setProperty(false);
+				break;
+			}
+
+		case Program::OP_SET_DIM:
+			{
+				int params = opcodes.readByte();
+				
+				OS_ASSERT(stack_values.count >= 2 + params);
+				moveStackValue(-2-params, -params); // put value to the first param
+				params++;
+
+				Value * table_value = stack_values[stack_values.count-1-params];
+				Value * func = getPropertyValue(table_value, 
+					PropertyIndex(strings->__setdim, PropertyIndex::KeepStringIndex()), true);
+				if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+					pushValue(func);
+					moveStackValue(-1, -1-params); // put func value before params
+					call(table_value, params, 0);
+					removeStackValue(-1); // remove table_value
+				}else{
+					pop(params+1);
+				}
 				break;
 			}
 
@@ -9875,7 +10365,7 @@ restart:
 				case OS_VALUE_TYPE_OBJECT:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_THREAD:
-					right_value->prototype = left_value;
+					right_value->prototype = left_value->type == OS_VALUE_TYPE_NULL ? NULL : left_value;
 					break;
 
 				case OS_VALUE_TYPE_USERDATA:
@@ -9885,6 +10375,101 @@ restart:
 					break;
 				}
 				removeStackValue(-2);
+				break;
+			}
+
+		case Program::OP_CLONE:
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values[stack_values.count-1], * new_value;
+				switch(value->type){
+				case OS_VALUE_TYPE_NULL:
+				case OS_VALUE_TYPE_BOOL:
+					new_value = pushValue(value);
+					break;
+
+				case OS_VALUE_TYPE_NUMBER:
+					new_value = pushNumberValue(value->value.number);
+					break;
+
+				case OS_VALUE_TYPE_STRING:
+					new_value = pushStringValue(value->value.string_data);
+					break;
+
+				case OS_VALUE_TYPE_ARRAY:
+					new_value = pushObjectValue(value->prototype);
+					break;
+
+				case OS_VALUE_TYPE_OBJECT:
+					new_value = pushArrayValue();
+					new_value->prototype = value->prototype;
+					break;
+
+				case OS_VALUE_TYPE_FUNCTION:
+				case OS_VALUE_TYPE_THREAD:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_CFUNCTION:
+					new_value = pushValue(value);
+					break;
+				
+				default:
+					new_value = pushConstNullValue();
+					break;
+				}
+				if(new_value->type != OS_VALUE_TYPE_NULL && new_value != value && value->table){
+					new_value->table = newTable();
+					initTableProperties(new_value->table, value->table);
+				}
+				removeStackValue(-2);
+
+				switch(new_value->type){
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+					{
+						bool prototype_enabled = true;
+						Value * func = getPropertyValue(new_value, 
+							PropertyIndex(strings->__clone, PropertyIndex::KeepStringIndex()), prototype_enabled);
+						if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+							pushValue(func);
+							call(new_value, 0, 1);
+							OS_ASSERT(stack_values.count >= 1);
+							removeStackValue(-2);
+						}
+					}
+				}
+				break;
+			}
+
+		case Program::OP_DELETE_PROP:
+			{
+				OS_ASSERT(stack_values.count >= 2);
+				Value * table_value = stack_values[stack_values.count-2];
+				Value * index_value = stack_values[stack_values.count-1];
+				index_value = pushValueOf(index_value);
+				switch(index_value->type){
+				case OS_VALUE_TYPE_NULL:
+					deleteValueProperty(table_value, index_value, PropertyIndex(allocator, 0), true, true);
+					break;
+
+				case OS_VALUE_TYPE_BOOL:
+					deleteValueProperty(table_value, index_value, PropertyIndex(allocator, index_value->value.boolean), true, true);
+					break;
+
+				case OS_VALUE_TYPE_NUMBER:
+					deleteValueProperty(table_value, index_value, PropertyIndex(allocator, index_value->value.number), true, true);
+					break;
+
+				case OS_VALUE_TYPE_STRING:
+					deleteValueProperty(table_value, index_value, PropertyIndex(index_value->value.string_data), true, true);
+					break;
+
+				default:
+					OS_ASSERT(false);
+				}
+				pop(3);
 				break;
 			}
 
@@ -10094,8 +10679,20 @@ int OS::getLen(int offs)
 	return len;
 }
 
-void OS::registerFunctions(int object_offs, const Func * list, void * user_param)
+bool OS::registerFunctions(int object_offs, const Func * list, bool override_funcs, void * user_param)
 {
+	if(!override_funcs){
+		for(; list->func; list++){
+			pushStackValue(object_offs);
+			pushString(list->name);
+			getProperty(false, false);
+			if(!isNull()){
+				pop();
+				return false;
+			}
+			pop();
+		}
+	}
 	pushStackValue(object_offs);
 	for(; list->func; list++){
 		pushString(list->name);
@@ -10103,11 +10700,12 @@ void OS::registerFunctions(int object_offs, const Func * list, void * user_param
 		setProperty(true, false, false);
 	}
 	pop();
+	return false;
 }
 
-void OS::registerFunctions(const Func * list, void * user_param)
+bool OS::registerFunctions(const Func * list, bool override_funcs, void * user_param)
 {
-	registerFunctions(-1, list, user_param);
+	return registerFunctions(-1, list, override_funcs, user_param);
 }
 
 bool OS::newLibrary(const OS_CHAR * name)
@@ -10207,7 +10805,28 @@ void OS::setGlobal(const Core::String& name, bool prototype_enabled, bool setter
 	setProperty(false, prototype_enabled, setter_enabled);
 }
 
-void OS::registerMathModule()
+void OS::registerGlobalFunctions()
+{
+	struct Lib {
+		static int print(OS * os, int params, void*)
+		{
+			for(int i = 0; i < params; i++){
+				String str = os->toString(-params + i);
+				printf("%s", str.toChar());
+			}
+			return 0;
+		}
+	};
+	Func list[] = {
+		{OS_TEXT("print"), Lib::print},
+		{}
+	};
+	pushGlobals();
+	registerFunctions(list);
+	pop();
+}
+
+void OS::registerMathLibrary()
 {
 	struct Lib {
 		static int minmax(OS * os, int params, int opcode)
@@ -10263,16 +10882,17 @@ void OS::Core::syncStackRetValues(int need_ret_values, int cur_ret_values)
 	}
 }
 
-int OS::Core::call(Value * self, int params, int ret_values)
+bool OS::Core::call(Value * self, int params, int ret_values)
 {
-	Value * val = getStackValue(-1);
+	OS_ASSERT(self);
+	Value * val = getStackValue(-1-params);
 	if(val){
-		int offs = moveStackValue(-1, -1-params); // keep val inside of stack to prevent be destroyed by gc
+		int offs = stack_values.count-1-params; // moveStackValue(-1, -1-params); // keep val inside of stack to prevent be destroyed by gc
 		if(val->type == OS_VALUE_TYPE_FUNCTION){
 			enterFunction(val, self, params, ret_values);
 			ret_values = execute();
 			removeStackValue(offs);
-			return ret_values;
+			return true;
 		}else if(val->type == OS_VALUE_TYPE_CFUNCTION){
 			int stack_size_without_params = stack_values.count - params-1;
 			int func_ret_values = val->value.cfunc.func(allocator, params, val->value.cfunc.user_param);
@@ -10280,25 +10900,26 @@ int OS::Core::call(Value * self, int params, int ret_values)
 			OS_ASSERT(remove_values >= 0);
 			removeStackValues(stack_size_without_params, remove_values);
 			syncStackRetValues(ret_values, func_ret_values);
-			return ret_values;
+			return true;
 		}else if(val->type == OS_VALUE_TYPE_OBJECT){
 			bool prototype_enabled = true;
 			Value * func = getPropertyValue(val, PropertyIndex(strings->__constructor, PropertyIndex::KeepStringIndex()), prototype_enabled);
-			if(func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION){
+			if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
 				Value * object = val != self ? newObjectValue(val) : self;
 				pushValue(object);
 				pushValue(func);
+				moveStackValues(-2, 2, -2-params);
 				call(object, params, 0);
 				syncStackRetValues(ret_values, 1); // object is already located inside of stack
 				removeStackValue(offs);
-				return ret_values;
+				return true;
 			}
 		}
 	}
 	// OS_ASSERT(false);
-	pop(params);
+	pop(params+1);
 	syncStackRetValues(ret_values, 0);
-	return ret_values;
+	return false;
 }
 
 bool OS::compile(const Core::String& str)
@@ -10323,10 +10944,15 @@ bool OS::compile()
 	return false;
 }
 
-int OS::call(int params)
+bool OS::call(int params, int ret_values)
 {
-	pop();
-	return 0;
+	bool ret = false;
+	Core::Value * self = core->getStackValue(-2-params);
+	if(self){
+		ret = core->call(self, params, ret_values);
+	}
+	remove(-1-ret_values);
+	return ret;
 }
 
 int OS::eval(OS_CHAR * str)
