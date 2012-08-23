@@ -90,7 +90,7 @@ namespace ObjectScript
 	class OS;
 
 	typedef void (*OS_UserDataDtor)(OS*, void * data, void * user_param);
-	typedef int (*OS_CFunction)(OS*, int params, int upvalues, void * user_param);
+	typedef int (*OS_CFunction)(OS*, int params, int upvalues, int need_ret_values, void * user_param);
 
 	enum OS_EValueType
 	{
@@ -1507,6 +1507,7 @@ namespace ObjectScript
 				Expression * expectParamsExpression(Scope*, Expression * first_param);
 				Expression * expectReturnExpression(Scope*);
 				Expression * expectIfExpression(Scope*);
+				Expression * expectForExpression(Scope*);
 				Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param, bool allow_assign, bool allow_auto_call);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
@@ -1697,13 +1698,14 @@ namespace ObjectScript
 			struct FunctionRunningInstance;
 			struct FunctionValueData
 			{
-				FunctionRunningInstance * parent_inctance;
+				// FunctionRunningInstance * parent_inctance;
 				Program * prog;
 				FunctionDecl * func_decl;
 				// Value * self; // TODO: ???
 				Value * env;
 
-				// Value::Table * table;
+				FunctionRunningInstance ** parent_inctances;
+				// int num_parent_inctances;
 
 				FunctionValueData();
 				~FunctionValueData();
@@ -1714,8 +1716,9 @@ namespace ObjectScript
 				Value * func;
 				Value * self; // TODO: ???
 
-				FunctionRunningInstance ** parent_inctances;
-				int num_parent_inctances;
+				FunctionRunningInstance * parent_inctance;
+				// FunctionRunningInstance ** parent_inctances;
+				// int num_parent_inctances;
 
 				Value ** locals;
 				int num_params;
@@ -1938,7 +1941,7 @@ namespace ObjectScript
 			void resetValue(Value*);
 			void deleteValue(Value*);
 
-			FunctionValueData * newFunctionValueData();
+			FunctionValueData * newFunctionValueData(FunctionRunningInstance * func_running, Program*, FunctionDecl*);
 			void deleteFunctionValueData(FunctionValueData*);
 
 			// FunctionRunningInstance * newFunctionRunningInstance();
@@ -2070,7 +2073,10 @@ namespace ObjectScript
 		void initGlobalFunctions();
 		void initObjectClass();
 		void initArrayClass();
+		void initFunctionClass();
+		void initStringClass();
 		void initMathLibrary();
+		void startupScript();
 
 	public:
 
@@ -2171,10 +2177,10 @@ namespace ObjectScript
 		int getId(int offs = -1);
 		
 		void pushNull();
-		void pushNumber(OS_INT16);
-		void pushNumber(OS_INT32);
-		void pushNumber(OS_INT64);
-		void pushNumber(double);
+		// void pushNumber(OS_INT16);
+		// void pushNumber(OS_INT32);
+		// void pushNumber(OS_INT64);
+		void pushNumber(OS_FLOAT);
 		void pushBool(bool);
 		void pushString(const OS_CHAR*);
 		void pushString(const Core::String&);
@@ -2191,7 +2197,7 @@ namespace ObjectScript
 		void pushValueById(int id);
 
 		int getStackSize();
-		int getOffs(int offs);
+		int getAbsoluteOffs(int offs);
 		void remove(int start_offs = -1, int count = 1);
 		void removeAll();
 		void pop(int count = 1);
@@ -2284,8 +2290,8 @@ namespace ObjectScript
 		bool compile();
 
 		int call(int params = 0, int ret_values = 0);
-		int eval(OS_CHAR * str);
-		int eval(const Core::String& str);
+		int eval(const OS_CHAR * str, int params = 0, int ret_values = 0);
+		int eval(const Core::String& str, int params = 0, int ret_values = 0);
 
 		// return next gc phase
 		int gc();

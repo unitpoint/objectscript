@@ -4622,6 +4622,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 	return ret_exp;
 }
 
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope * parent)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_for);
+	
+	Scope * scope = new (malloc(sizeof(Scope))) Scope(parent, EXP_TYPE_SCOPE, recent_token);
+	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) || !expectToken()){
+		allocator->deleteObj(scope);
+		return NULL;
+	}
+}
+
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * scope)
 {
 	OS_ASSERT(recent_token && (recent_token->str == allocator->core->strings->syntax_if 
@@ -5437,6 +5448,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		if(token->str == allocator->core->strings->syntax_if){
 			return expectIfExpression(scope);
 		}
+		if(token->str == allocator->core->strings->syntax_for){
+			return expectForExpression(scope);
+		}
 		if(token->str == allocator->core->strings->syntax_this){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_THIS, token);
 			exp->ret_values = 1;
@@ -6080,18 +6094,13 @@ void OS::Core::Program::pushFunction()
 	}
 
 	int func_index = opcodes->readUVariable();
-	OS_ASSERT(func_index >= 0 && func_index < num_functions);
+	OS_ASSERT(func_index == 0); // func_index >= 0 && func_index < num_functions);
 	FunctionDecl * func_decl = functions + func_index;
+	OS_ASSERT(func_decl->max_up_count == 0);
 
 	Value * func_value = allocator->core->pushNewNullValue();
 	func_value->prototype = allocator->core->prototypes[PROTOTYPE_FUNCTION];
-	FunctionValueData * func_value_data = allocator->core->newFunctionValueData();
-	func_value_data->prog = retain();
-	func_value_data->func_decl = func_decl;
-	func_value_data->env = allocator->core->global_vars;
-	// func_value_data->self = allocator->core->null_value->retain();
-	func_value_data->parent_inctance = NULL; // TODO: ???
-	func_value->value.func = func_value_data;
+	func_value->value.func = allocator->core->newFunctionValueData(NULL, this, func_decl);
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
 
 	OS_ASSERT(func_decl->opcodes_pos == opcodes->pos);
@@ -7158,7 +7167,7 @@ OS::Core::Value::Property * OS::Core::Value::Table::get(const PropertyIndex& ind
 
 OS::Core::FunctionValueData::FunctionValueData()
 {
-	parent_inctance = NULL;
+	parent_inctances = NULL;
 	prog = NULL;
 	func_decl = NULL;
 	// self = NULL;
@@ -7167,13 +7176,27 @@ OS::Core::FunctionValueData::FunctionValueData()
 
 OS::Core::FunctionValueData::~FunctionValueData()
 {
-	OS_ASSERT(!parent_inctance && !prog && !func_decl && !env); //  && !self
+	OS_ASSERT(!parent_inctances && !prog && !func_decl && !env); //  && !self
 }
 
-OS::Core::FunctionValueData * OS::Core::newFunctionValueData()
+OS::Core::FunctionValueData * OS::Core::newFunctionValueData(FunctionRunningInstance * func_running, Program * prog, FunctionDecl * func_decl)
 {
-	FunctionValueData * func_data = new (malloc(sizeof(FunctionValueData))) FunctionValueData();
-	return func_data;
+	OS_ASSERT(!func_decl->max_up_count || func_running);
+	int mem_used = sizeof(FunctionValueData) + sizeof(FunctionRunningInstance*) * func_decl->max_up_count;
+	FunctionValueData * func_value_data = new (malloc(mem_used)) FunctionValueData();
+	func_value_data->parent_inctances = (FunctionRunningInstance**)(func_value_data + 1);
+	for(int i = 0; i < func_decl->max_up_count; i++){
+		OS_ASSERT(func_running);
+		func_value_data->parent_inctances[i] = func_running->retain();
+		OS_ASSERT(func_running->func->type == OS_VALUE_TYPE_FUNCTION && func_running->func->value.func);
+		OS_ASSERT(func_running->func->value.func->prog == func_running->parent_inctance->func->value.func->prog);
+		func_running = func_running->parent_inctance;
+	}
+	func_value_data->prog = prog->retain();
+	func_value_data->func_decl = func_decl;
+	func_value_data->env = allocator->core->global_vars;
+	// func_value_data->self = allocator->core->null_value->retain();
+	return func_value_data;
 }
 
 void OS::Core::deleteFunctionValueData(FunctionValueData * func_data)
@@ -7186,14 +7209,16 @@ void OS::Core::deleteFunctionValueData(FunctionValueData * func_data)
 	
 	// releaseValue(func_data->self);
 	// func_data->self = NULL;
-
+	OS_ASSERT(func_data->func_decl);
+	for(int i = 0; i < func_data->func_decl->max_up_count; i++){
+		releaseFunctionRunningInstance(func_data->parent_inctances[i]);
+	}
+	func_data->parent_inctances = NULL;
 	func_data->func_decl = NULL;
+	
 	func_data->prog->release();
 	func_data->prog = NULL;
-	if(func_data->parent_inctance){
-		releaseFunctionRunningInstance(func_data->parent_inctance); 
-		func_data->parent_inctance = NULL;
-	}
+	
 	func_data->~FunctionValueData();
 	free(func_data);
 }
@@ -7205,8 +7230,8 @@ OS::Core::FunctionRunningInstance::FunctionRunningInstance()
 	func = NULL;
 	self = NULL;
 
-	parent_inctances = NULL;
-	num_parent_inctances = 0;
+	parent_inctance = NULL;
+	// num_parent_inctances = 0;
 
 	locals = NULL;
 	num_params = 0;
@@ -7226,7 +7251,7 @@ OS::Core::FunctionRunningInstance::FunctionRunningInstance()
 OS::Core::FunctionRunningInstance::~FunctionRunningInstance()
 {
 	OS_ASSERT(!ref_count);
-	OS_ASSERT(!func && !self && !parent_inctances && !locals && !arguments && !rest_arguments);
+	OS_ASSERT(!func && !self && !parent_inctance && !locals && !arguments && !rest_arguments);
 }
 
 OS::Core::FunctionRunningInstance * OS::Core::FunctionRunningInstance::retain()
@@ -8087,7 +8112,10 @@ bool OS::init()
 		initGlobalFunctions();
 		initObjectClass();
 		initArrayClass();
+		initStringClass();
+		initFunctionClass();
 		initMathLibrary();
+		startupScript();
 		return true;
 	}
 	return false;
@@ -8289,7 +8317,7 @@ void OS::Core::gcResetGreyList()
 
 void OS::Core::gcAddGreyValue(Value * value)
 {
-	if(value->gc_color == Value::GC_GREY){
+	if(value->gc_color != Value::GC_WHITE){
 		return;
 	}
 	// OS_ASSERT(!value->gc_grey_next && !value->gc_grey_prev);
@@ -8366,14 +8394,15 @@ void OS::Core::gcProcessGreyValueFunction(Value * func_value)
 	OS_ASSERT(func_value->type == OS_VALUE_TYPE_FUNCTION);
 	FunctionValueData * func_value_data = func_value->value.func;
 	gcAddGreyValue(func_value_data->env);
-	if(func_value_data->parent_inctance){
-		gcProcessGreyFunctionRunning(func_value_data->parent_inctance);
+	for(int i = 0; i < func_value_data->func_decl->max_up_count; i++){
+		gcProcessGreyFunctionRunning(func_value_data->parent_inctances[i]);
 	}
 	gcProcessGreyProgram(func_value_data->prog);
 }
 
 void OS::Core::gcProcessGreyFunctionRunning(FunctionRunningInstance * func_running)
 {
+	OS_ASSERT(func_running->func && func_running->func->type == OS_VALUE_TYPE_FUNCTION);
 	if(func_running->gc_time == gc_time){
 		return;
 	}
@@ -8382,8 +8411,8 @@ void OS::Core::gcProcessGreyFunctionRunning(FunctionRunningInstance * func_runni
 	gcAddGreyValue(func_running->func);
 	gcAddGreyValue(func_running->self);
 	int i;
-	for(i = 0; i < func_running->num_parent_inctances; i++){
-		gcProcessGreyFunctionRunning(func_running->parent_inctances[i]);
+	if(func_running->parent_inctance){
+		gcProcessGreyFunctionRunning(func_running->parent_inctance);
 	}
 	int num_locals = func_running->func->value.func->func_decl->num_locals;
 	for(i = 0; i < num_locals; i++){
@@ -8844,6 +8873,7 @@ OS::Core::Value * OS::Core::newCFunctionValue(OS_CFunction func, void * user_par
 		return null_value;
 	}
 	Value * res = newValue();
+	res->prototype = prototypes[PROTOTYPE_FUNCTION];
 	res->value.cfunc.func = func;
 	res->value.cfunc.user_param = user_param;
 	res->type = OS_VALUE_TYPE_CFUNCTION;
@@ -8860,6 +8890,7 @@ OS::Core::Value * OS::Core::newCFunctionValue(OS_CFunction func, int num_upvalue
 		return null_value;
 	}
 	Value * res = newValue();
+	res->prototype = prototypes[PROTOTYPE_FUNCTION];
 	res->value.cfunc_upvalues = (CFuncUpvaluesData*)malloc(sizeof(CFuncUpvaluesData) + sizeof(Value*) * num_upvalues);
 	res->value.cfunc_upvalues->func = func;
 	res->value.cfunc_upvalues->user_param = user_param;
@@ -9260,7 +9291,8 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * value)
 				return core->pushNumberValue(-core->valueToNumber(value));
 
 			case Program::OP_LENGTH:
-				return core->pushNumberValue(core->valueToString(value).getDataSize() / sizeof(OS_CHAR));
+				// return core->pushNumberValue(core->valueToString(value).getDataSize() / sizeof(OS_CHAR));
+				return pushObjectMethodOpcodeValue(core->strings->__len, value);
 			}
 			return core->pushConstNullValue();
 		}
@@ -9860,6 +9892,7 @@ void OS::pushNull()
 	core->pushConstNullValue();
 }
 
+/*
 void OS::pushNumber(OS_INT16 val)
 {
 	core->pushNumberValue((OS_FLOAT)val);
@@ -9874,10 +9907,11 @@ void OS::pushNumber(OS_INT64 val)
 {
 	core->pushNumberValue((OS_FLOAT)val);
 }
+*/
 
-void OS::pushNumber(double val)
+void OS::pushNumber(OS_FLOAT val)
 {
-	core->pushNumberValue((OS_FLOAT)val);
+	core->pushNumberValue(val);
 }
 
 void OS::pushBool(bool val)
@@ -10005,7 +10039,7 @@ int OS::getStackSize()
 	return core->stack_values.count;
 }
 
-int OS::getOffs(int offs)
+int OS::getAbsoluteOffs(int offs)
 {
 	return core->getStackOffs(offs);
 }
@@ -10474,11 +10508,10 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 	// releaseValue(func_running->self);
 	func_running->self = NULL;
 
-	for(i = 0; i < func_running->num_parent_inctances; i++){
-		releaseFunctionRunningInstance(func_running->parent_inctances[i]);
-	}
-	// free(func_running->parent_inctances);
-	func_running->parent_inctances = NULL;
+	func_running->parent_inctance = NULL;
+
+	func_running->arguments = NULL;
+	func_running->rest_arguments = NULL;
 
 	func_running->~FunctionRunningInstance();
 	free(func_running);
@@ -10494,9 +10527,9 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int extra_
 	FunctionDecl * func_decl = func_value_data->func_decl;
 	int num_extra_params = params > func_decl->num_params ? params - func_decl->num_params : 0;
 	int locals_mem_size = sizeof(Value*) * (func_decl->num_locals + num_extra_params);
-	int parents_mem_size = sizeof(FunctionRunningInstance*) * func_decl->max_up_count;
+	// int parents_mem_size = sizeof(FunctionRunningInstance*) * func_decl->max_up_count;
 	
-	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance) + locals_mem_size + parents_mem_size)) FunctionRunningInstance();
+	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance) + locals_mem_size)) FunctionRunningInstance();
 	func_running->func = value;
 	func_running->self = self;
 	
@@ -10518,6 +10551,15 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int extra_
 	}
 	// pop(stack_values.count - clear_stack_to_index);
 
+	func_running->parent_inctance = NULL;
+	if(call_stack_funcs.count > 0){
+		FunctionRunningInstance * cur_running = call_stack_funcs.lastElement();
+		if(cur_running->func->value.func->prog == func_value_data->prog){
+			func_running->parent_inctance = cur_running;
+		}
+	}
+
+	/*
 	func_running->parent_inctances = (FunctionRunningInstance**)((OS_BYTE*)func_running->locals + locals_mem_size); // malloc(sizeof(FunctionRunningInstance*) * func_decl->max_up_count);
 	FunctionRunningInstance * cur_parent = func_value_data->parent_inctance;
 	for(i = 0; i < func_decl->max_up_count; i++){
@@ -10526,6 +10568,7 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int extra_
 		OS_ASSERT(cur_parent->func->type == OS_VALUE_TYPE_FUNCTION && cur_parent->func->value.func);
 		cur_parent = cur_parent->func->value.func->parent_inctance;
 	}
+	*/
 
 	func_running->need_ret_values = need_ret_values;
 	func_running->opcodes_pos = func_decl->opcodes_pos;
@@ -10606,13 +10649,7 @@ restart:
 
 				Value * func_value = allocator->core->pushNewNullValue();
 				func_value->prototype = allocator->core->prototypes[PROTOTYPE_FUNCTION];
-				FunctionValueData * func_value_data = allocator->core->newFunctionValueData();
-				func_value_data->prog = prog->retain();
-				func_value_data->func_decl = func_decl;
-				func_value_data->env = env;
-				// func_value_data->self = func_running->self->retain();
-				func_value_data->parent_inctance = func_running->retain(); // func_running->func->value.func->prog == prog ? func_running->retain() : NULL;
-				func_value->value.func = func_value_data;
+				func_value->value.func = allocator->core->newFunctionValueData(func_running, prog, func_decl);
 				func_value->type = OS_VALUE_TYPE_FUNCTION;
 	
 				// OS_ASSERT(func_decl->opcodes_pos == opcodes.pos);
@@ -10710,16 +10747,33 @@ restart:
 
 		case Program::OP_PUSH_ARGUMENTS:
 			if(!func_running->arguments){
-				// TODO: create arguments value
+				int i;
+				Value * args = pushArrayValue();
+				int num_params = func_running->num_params - func_running->num_extra_params;
+				for(i = 0; i < num_params; i++){
+					setPropertyValue(args, NULL, PropertyIndex(allocator, i), func_running->locals[i], false, false);
+				}
+				for(i = 0; i < func_running->num_extra_params; i++){
+					Value * arg = func_running->locals[i + func_decl->num_locals];
+					setPropertyValue(args, NULL, PropertyIndex(allocator, i), arg, false, false);
+				}
+				func_running->arguments = args;
+			}else{
+				pushValue(func_running->arguments);
 			}
-			pushValueAutoNull(func_running->arguments);
 			break;
 
 		case Program::OP_PUSH_REST_ARGUMENTS:
 			if(!func_running->rest_arguments){
-				// TODO: create rest arguments value
+				Value * args = pushArrayValue();
+				for(int i = 0; i < func_running->num_extra_params; i++){
+					Value * arg = func_running->locals[i + func_decl->num_locals];
+					setPropertyValue(args, NULL, PropertyIndex(allocator, i), arg, false, false);
+				}
+				func_running->rest_arguments = args;
+			}else{
+				pushValue(func_running->rest_arguments);
 			}
-			pushValueAutoNull(func_running->rest_arguments);
 			break;
 
 		case Program::OP_PUSH_LOCAL_VAR:
@@ -10753,7 +10807,7 @@ restart:
 				i = opcodes.readByte();
 				int up_count = opcodes.readByte();
 				if(up_count <= func_decl->max_up_count){
-					FunctionRunningInstance * scope = func_running->parent_inctances[up_count-1];
+					FunctionRunningInstance * scope = func_value_data->parent_inctances[up_count-1];
 					if(i < scope->func->value.func->func_decl->num_locals){
 						pushValue(scope->locals[i]);
 						break;
@@ -10771,7 +10825,7 @@ restart:
 				i = opcodes.readByte();
 				int up_count = opcodes.readByte();
 				if(up_count <= func_decl->max_up_count){
-					FunctionRunningInstance * scope = func_running->parent_inctances[up_count-1];
+					FunctionRunningInstance * scope = func_value_data->parent_inctances[up_count-1];
 					if(i < scope->func->value.func->func_decl->num_locals){
 						scope->locals[i] = value;
 						pop();
@@ -11160,10 +11214,27 @@ restart:
 				break;
 			}
 
+		case Program::OP_LENGTH:
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values[stack_values.count-1];
+				bool prototype_enabled = true;
+				Value * func = getPropertyValue(value, 
+					PropertyIndex(strings->__len, PropertyIndex::KeepStringIndex()), prototype_enabled);
+				if(func && func->isFunction()){
+					pushValue(func);
+					pushValue(value);
+					call(0, 1);
+				}else{
+					pushConstNullValue();
+				}
+				removeStackValue(-2);
+				break;
+			}
+
 		case Program::OP_BIT_NOT:
 		case Program::OP_PLUS:
 		case Program::OP_NEG:
-		case Program::OP_LENGTH:
 			{
 				OS_ASSERT(stack_values.count >= 1);
 				Value * value = stack_values[stack_values.count-1];
@@ -11425,9 +11496,9 @@ void OS::initGlobalFunctions()
 {
 	struct Lib
 	{
-		static int print(OS * os, int params, int upvalues, void*)
+		static int print(OS * os, int params, int upvalues, int, void*)
 		{
-			int params_offs = os->getOffs(-params-upvalues);
+			int params_offs = os->getAbsoluteOffs(-params-upvalues);
 			for(int i = 0; i < params; i++){
 				String str = os->toString(params_offs + i);
 				printf("%s", str.toChar());
@@ -11435,12 +11506,12 @@ void OS::initGlobalFunctions()
 			return 0;
 		}
 
-		static int concat(OS * os, int params, int upvalues, void*)
+		static int concat(OS * os, int params, int upvalues, int, void*)
 		{
 			if(params < 1){
 				return 0;
 			}
-			int params_offs = os->getOffs(-params-upvalues);
+			int params_offs = os->getAbsoluteOffs(-params-upvalues);
 			Core::String str = os->toString(params_offs);
 			for(int i = 1; i < params; i++){
 				str += os->toString(params_offs + i);
@@ -11455,7 +11526,7 @@ void OS::initGlobalFunctions()
 			if(params <= 1){
 				return params;
 			}
-			int params_offs = os->getOffs(-params-upvalues);
+			int params_offs = os->getAbsoluteOffs(-params-upvalues);
 			os->pushStackValue(params_offs); // save temp result
 			for(int i = 1; i < params; i++){
 				os->pushStackValue(-1); // copy temp result
@@ -11471,12 +11542,12 @@ void OS::initGlobalFunctions()
 			return 1;
 		}
 
-		static int min(OS * os, int params, int upvalues, void*)
+		static int min(OS * os, int params, int upvalues, int, void*)
 		{
 			return minmax(os, params, upvalues, OP_LOGIC_LE);
 		}
 
-		static int max(OS * os, int params, int upvalues, void*)
+		static int max(OS * os, int params, int upvalues, int, void*)
 		{
 			return minmax(os, params, upvalues, OP_LOGIC_GE);
 		}
@@ -11499,7 +11570,7 @@ void OS::initObjectClass()
 
 	struct Object
 	{
-		static int rawget(OS * os, int params, int upvalues, void*)
+		static int rawget(OS * os, int params, int upvalues, int, void*)
 		{
 			if(params == 1 && !upvalues){
 				os->getProperty(false, false);
@@ -11508,7 +11579,7 @@ void OS::initObjectClass()
 			return 0;
 		}
 
-		static int rawset(OS * os, int params, int upvalues, void*)
+		static int rawset(OS * os, int params, int upvalues, int, void*)
 		{
 			if(params == 2 && !upvalues){
 				os->setProperty(false, false);
@@ -11517,7 +11588,7 @@ void OS::initObjectClass()
 			return 0;
 		}
 
-		static int iteratorStep(OS * os, int params, int upvalues, void*)
+		static int iteratorStep(OS * os, int params, int upvalues, int, void*)
 		{
 			OS_ASSERT(upvalues == 2);
 			Core::Value * self = os->core->getStackValue(-upvalues + 0);
@@ -11527,12 +11598,12 @@ void OS::initObjectClass()
 				OS_ASSERT(self && iter->table == self->table);
 				if(iter->prop){
 					os->pushBool(true);
-					os->core->pushValueAutoNull(os->core->values.get(iter->prop->value_id));
 					if(iter->prop->int_valid){
 						os->pushNumber(iter->prop->int_index);
 					}else{
 						os->pushString(iter->prop->string_index);
 					}
+					os->core->pushValueAutoNull(os->core->values.get(iter->prop->value_id));
 					iter->prop = iter->prop->next;
 					return 3;
 				}
@@ -11549,7 +11620,7 @@ void OS::initObjectClass()
 			}
 		}
 
-		static int iterator(OS * os, int params, int upvalues, void*)
+		static int iterator(OS * os, int params, int upvalues, int, void*)
 		{
 			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
 			if(self && self->table && self->table->count > 0){
@@ -11569,7 +11640,7 @@ void OS::initObjectClass()
 			return 0;
 		}
 
-		static int length(OS * os, int params, int upvalues, void*)
+		static int length(OS * os, int params, int upvalues, int, void*)
 		{
 			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
 			if(self){
@@ -11579,13 +11650,50 @@ void OS::initObjectClass()
 			return 0;
 		}
 
-		static int valueof(OS * os, int params, int upvalues, void*)
+		static int valueof(OS * os, int params, int upvalues, int, void*)
 		{
 			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
 			if(!self){
 				return 0;
 			}
 			switch(self->type){
+			case OS_VALUE_TYPE_NULL:
+				os->pushString(os->core->strings->typeof_null);
+				return 1;
+
+			case OS_VALUE_TYPE_BOOL:
+				os->pushString(self->value.boolean ? os->core->strings->syntax_true : os->core->strings->syntax_false);
+				return 1;
+
+			case OS_VALUE_TYPE_NUMBER:
+			case OS_VALUE_TYPE_STRING:
+				os->core->pushValue(self);
+				return 1;
+
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+				{
+					Core::String str(os, OS_TEXT("["));
+					str += os->core->strings->typeof_userdata;
+					str += OS_TEXT(":");
+					str += Core::String(os, (OS_INT)self->value_id);
+					str += OS_TEXT("]");
+					os->pushString(str);
+					return 1;
+				}
+
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
+				{
+					Core::String str(os, OS_TEXT("["));
+					str += os->core->strings->typeof_function;
+					str += OS_TEXT(":");
+					str += Core::String(os, (OS_INT)self->value_id);
+					str += OS_TEXT("]");
+					os->pushString(str);
+					return 1;
+				}
 			case OS_VALUE_TYPE_ARRAY:
 				if(!self->table || !self->table->count){
 					os->pushString(OS_TEXT("[]"));
@@ -11605,8 +11713,6 @@ void OS::initObjectClass()
 							if(need_index > 0){
 								buf += OS_TEXT(",");
 							}
-							buf += String(os, (OS_INT)need_index);
-							buf += OS_TEXT(":");
 							Core::Value * value = os->core->values.get(prop->value_id);
 							if(value){
 								buf += os->core->valueToString(value, true);
@@ -11665,7 +11771,8 @@ void OS::initObjectClass()
 	Func list[] = {
 		{OS_TEXT("rawget"), Object::rawget},
 		{OS_TEXT("rawset"), Object::rawset},
-		{OS_TEXT("__len"), Object::length},
+		{core->strings->__len, Object::length},
+		// {OS_TEXT("__get@length"), Object::length},
 		{core->strings->__iter, Object::iterator},
 		{core->strings->__valueof, Object::valueof},
 		{}
@@ -11679,7 +11786,7 @@ void OS::initArrayClass()
 {
 	struct Array
 	{
-		static int length(OS * os, int params, int upvalues, void*)
+		static int length(OS * os, int params, int upvalues, int, void*)
 		{
 			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
 			if(self){
@@ -11690,10 +11797,98 @@ void OS::initArrayClass()
 		}
 	};
 	Func list[] = {
-		{OS_TEXT("__len"), Array::length},
+		{core->strings->__len, Array::length},
+		// {OS_TEXT("__get@length"), Array::length},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_ARRAY]);
+	setFuncs(list);
+	pop();
+}
+
+void OS::initStringClass()
+{
+	struct String
+	{
+		static int length(OS * os, int params, int upvalues, int, void*)
+		{
+			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
+			if(self){
+				if(self->type == OS_VALUE_TYPE_STRING){
+					Core::StringData * string_data = self->value.string_data;
+					os->pushNumber(string_data->getDataSize() / sizeof(OS_CHAR));
+					// os->pushNumber(os->core->valueToString(self).getDataSize() / sizeof(OS_CHAR));
+					return 1;
+				}
+				os->core->pushOpResultValue(Core::Program::OP_LENGTH, self);
+				return 1;
+			}
+			return 0;
+		}
+	};
+	Func list[] = {
+		{core->strings->__len, String::length},
+		// {OS_TEXT("__get@length"), String::length},
+		{}
+	};
+	core->pushValue(core->prototypes[Core::PROTOTYPE_STRING]);
+	setFuncs(list);
+	pop();
+}
+
+void OS::initFunctionClass()
+{
+	struct Function
+	{
+		static int apply(OS * os, int params, int upvalues, int need_ret_values, void*)
+		{
+			int offs = os->getAbsoluteOffs(-params-upvalues);
+			os->pushStackValue(offs-1); // self as func
+			if(params < 1){
+				os->pushNull();
+				return os->call(0, need_ret_values);
+			}
+			os->pushStackValue(offs); // first param - new this
+			
+			Core::Value * array_value = os->core->getStackValue(offs+1);
+			if(array_value && array_value->table){
+				Core::Value::Property * prop = array_value->table->first;
+				for(; prop; prop = prop->next){
+					os->pushValueById(prop->value_id);	
+				}
+				return os->call(array_value->table->count, need_ret_values);
+			}
+			return os->call(0, need_ret_values);
+		}
+		
+		static int call(OS * os, int params, int upvalues, int need_ret_values, void*)
+		{
+			int offs = os->getAbsoluteOffs(-params-upvalues);
+			os->pushStackValue(offs-1); // self as func
+			if(params < 1){
+				os->pushNull(); // this
+				return os->call(0, need_ret_values);
+			}
+			os->pushStackValue(offs); // first param - new this
+			for(int i = 1; i < params; i++){
+				os->pushStackValue(offs + i);
+			}
+			return os->call(params-1, need_ret_values);
+		}
+
+		static int iterator(OS * os, int params, int upvalues, int need_ret_values, void*)
+		{
+			os->pushStackValue(-params-upvalues-1); // self as func
+			return 1;
+		}
+	};
+	Func list[] = {
+		{OS_TEXT("apply"), Function::apply},
+		{OS_TEXT("call"), Function::call},
+		{core->strings->__iter, Function::iterator},
+		{}
+	};
+	core->pushValue(core->prototypes[Core::PROTOTYPE_FUNCTION]);
 	setFuncs(list);
 	pop();
 }
@@ -11705,9 +11900,17 @@ void OS::initMathLibrary()
 	Func list[] = {
 		{}
 	};
-	getGlobalObject(OS_TEXT("math"));
+	getGlobalObject(OS_TEXT("Math"));
 	setFuncs(list);
 	pop();
+}
+
+void OS::startupScript()
+{
+	const OS_CHAR * code = 
+		OS_TEXT("Object.__get@length = function(){ return #this }")
+		;
+	eval(code);
 }
 
 void OS::Core::syncStackRetValues(int need_ret_values, int cur_ret_values)
@@ -11739,7 +11942,7 @@ int OS::Core::call(int params, int ret_values)
 		case OS_VALUE_TYPE_CFUNCTION:
 			{
 				int stack_size_without_params = getStackOffs(-2-params);
-				int func_ret_values = func_value->value.cfunc.func(allocator, params, 0, func_value->value.cfunc.user_param);
+				int func_ret_values = func_value->value.cfunc.func(allocator, params, 0, ret_values, func_value->value.cfunc.user_param);
 				int remove_values = getStackOffs(-func_ret_values) - stack_size_without_params;
 				OS_ASSERT(remove_values >= 0);
 				removeStackValues(stack_size_without_params, remove_values);
@@ -11756,7 +11959,7 @@ int OS::Core::call(int params, int ret_values)
 				for(int i = 0; i < cfunc_upvalues->num_upvalues; i++){
 					pushValue(upvalues[i]);
 				}
-				int func_ret_values = cfunc_upvalues->func(allocator, params, cfunc_upvalues->num_upvalues, cfunc_upvalues->user_param);
+				int func_ret_values = cfunc_upvalues->func(allocator, params, cfunc_upvalues->num_upvalues, ret_values, cfunc_upvalues->user_param);
 				int remove_values = getStackOffs(-func_ret_values) - stack_size_without_params;
 				OS_ASSERT(remove_values >= 0);
 				removeStackValues(stack_size_without_params, remove_values);
@@ -11820,17 +12023,18 @@ int OS::call(int params, int ret_values)
 	return core->call(params, ret_values);
 }
 
-int OS::eval(OS_CHAR * str)
+int OS::eval(const OS_CHAR * str, int params, int ret_values)
 {
-	return eval(Core::String(this, str));
+	return eval(Core::String(this, str), params, ret_values);
 }
 
-int OS::eval(const Core::String& str)
+int OS::eval(const Core::String& str, int params, int ret_values)
 {
 	pushString(str);
 	compile();
 	pushNull();
-	return core->call(0, 0);
+	move(-2, 2, -2-params);
+	return core->call(params, ret_values);
 }
 
 int OS::gc()

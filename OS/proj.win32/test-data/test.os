@@ -1,4 +1,26 @@
 ;{
+	print( "string length: " "123".length "\n" )
+	print( "string #: " #"123" "\n" )
+	
+	var print, valueof_func = print, Object.__valueof
+	
+	print (
+		valueof_func.apply( function(){} ) "\n"
+		valueof_func.apply( true ) "\n"
+		valueof_func.apply( false ) "\n"
+	)
+	print( "len: " {1 2 3}.length "\n" )
+	var f = function(){ if(0) f()
+		if(0) f()
+		print( "this: " this ", args: " arguments "\n" )
+	}
+	var this@1 = "this-1"
+	var this@2 = 22
+	f.apply( this@1 {1 2 3 4 5} )
+	f.call( this@1 1 2 3 4 5 )
+	f.apply( this@2 {11 22 33 44 55} )
+	f.call( this@2 11 22 33 44 55 )
+
 	print( 0 && 1 "\n" )
 	print( 0 || 1 "\n" )
 	
@@ -18,11 +40,23 @@
 	var values = {
 		null true false 0 1 "" "0" "1"
 	}
-	var iter_func = values.__iter()
-	var valid, value, key = iter_func()
-	print(	iter_func " "
-			valid " " value " " key "\n" )
-	print( #values "\n" )
+	;{
+		var iter_func = values.__iter()
+		{
+		// repeat:
+			var valid, k, v = iter_func()
+			// if(!valid) goto break
+			
+			// ...
+			
+			// goto repeat;
+		// break:
+		}
+		
+		print(	iter_func " "
+				valid " " value " " key "\n" )
+		print( #values "\n" )
+	}
 	
 	var func = function(){
 		
