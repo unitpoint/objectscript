@@ -1,4 +1,7 @@
 ;{
+	print( 0 && 1 "\n" )
+	print( 0 || 1 "\n" )
+	
 	var col = (function(){
 		var col = "qwerty"
 		if(!col){

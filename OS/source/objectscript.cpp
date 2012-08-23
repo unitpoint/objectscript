@@ -2673,6 +2673,27 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 			break;
 		}
 
+	case EXP_TYPE_LOGIC_AND: // &&
+	case EXP_TYPE_LOGIC_OR:  // ||
+		{
+			OS_ASSERT(exp->list.count == 2);
+			if(!writeOpcodes(exp->list[0])){
+				return false;
+			}
+			prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
+			
+			int op_jump_pos = prog_opcodes->getPos();
+			prog_opcodes->writeInt32(0);
+
+			if(!writeOpcodes(exp->list[1])){
+				return false;
+			}
+
+			int op_jump_to = prog_opcodes->getPos();
+			prog_opcodes->writeInt32AtPos(op_jump_to - op_jump_pos - sizeof(OS_INT32), op_jump_pos);
+			break;
+		}
+
 	case EXP_TYPE_EXTENDS:
 		OS_ASSERT(exp->list.count == 2);
 		if(!writeOpcodes(exp->list)){
@@ -2910,8 +2931,8 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 
 	case EXP_TYPE_CONCAT:
 
-	case EXP_TYPE_LOGIC_AND:
-	case EXP_TYPE_LOGIC_OR:
+	// case EXP_TYPE_LOGIC_AND:
+	// case EXP_TYPE_LOGIC_OR:
 	case EXP_TYPE_LOGIC_PTR_EQ:
 	case EXP_TYPE_LOGIC_PTR_NE:
 	case EXP_TYPE_LOGIC_EQ:
@@ -4793,11 +4814,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 
 		// case EXP_TYPE_ANY_PARAMS:  // ...
 
+		/*
 		case EXP_TYPE_LOGIC_AND: // &&
 			return lib.switchExpression(left_exp->toInt() == 0, left_exp, right_exp);
 
 		case EXP_TYPE_LOGIC_OR:  // ||
 			return lib.switchExpression(left_exp->toInt() != 0, left_exp, right_exp);
+		*/
 
 		/*
 		case EXP_TYPE_LOGIC_PTR_EQ:  // ===
@@ -11024,12 +11047,30 @@ restart:
 			break;
 
 		case Program::OP_LOGIC_AND:
-			OS_ASSERT(false);
-			break;
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values.lastElement();
+				int offs = opcodes.readInt32();
+				if(!valueToBool(value)){
+					opcodes.movePos(offs);
+				}else{
+					pop();
+				}
+				break;
+			}
 
 		case Program::OP_LOGIC_OR:
-			OS_ASSERT(false);
-			break;
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values.lastElement();
+				int offs = opcodes.readInt32();
+				if(valueToBool(value)){
+					opcodes.movePos(offs);
+				}else{
+					pop();
+				}
+				break;
+			}
 
 		case Program::OP_TYPE_OF:
 			{
