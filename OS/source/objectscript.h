@@ -513,7 +513,7 @@ namespace ObjectScript
 
 				virtual int getPos() const = 0;
 
-				virtual void skipBytes(int len) = 0;
+				virtual void movePos(int len) = 0;
 				virtual bool checkBytes(void*, int len) = 0;
 
 				virtual void * readBytes(void*, int len) = 0;
@@ -555,7 +555,7 @@ namespace ObjectScript
 
 				int getPos() const;
 
-				void skipBytes(int len);
+				void movePos(int len);
 				bool checkBytes(void*, int len);
 
 				void * readBytes(void*, int len);
@@ -577,7 +577,7 @@ namespace ObjectScript
 
 				int getPos() const;
 
-				void skipBytes(int len);
+				void movePos(int len);
 				bool checkBytes(void*, int len);
 
 				void * readBytes(void*, int len);
@@ -1163,7 +1163,11 @@ namespace ObjectScript
 					EXP_TYPE_CLONE,
 					EXP_TYPE_DELETE,
 					EXP_TYPE_RETURN,
+
+					EXP_TYPE_IF,
+
 					EXP_TYPE_ARRAY,
+
 					EXP_TYPE_OBJECT,
 					EXP_TYPE_OBJECT_SET_BY_NAME,
 					EXP_TYPE_OBJECT_SET_BY_INDEX,
@@ -1502,6 +1506,7 @@ namespace ObjectScript
 				Expression * expectParamsExpression(Scope*);
 				Expression * expectParamsExpression(Scope*, Expression * first_param);
 				Expression * expectReturnExpression(Scope*);
+				Expression * expectIfExpression(Scope*);
 				Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param, bool allow_assign, bool allow_auto_call);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
@@ -1604,6 +1609,9 @@ namespace ObjectScript
 					OP_SET_PROPERTY,
 
 					OP_SET_DIM,
+
+					OP_IF_NOT_JUMP,
+					OP_JUMP,
 
 					OP_EXTENDS,
 					OP_DELETE_PROP,

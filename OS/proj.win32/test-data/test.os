@@ -1,4 +1,17 @@
 ;{
+	var col = (function(){
+		var col = "qwerty"
+		if(!col){
+			col = "!true: " .. col
+		}else{
+			col = "!false: " .. col
+		}
+		return col
+	})()
+	print( "col: " col "\n" )
+}
+
+;{
 	var values = {
 		null true false 0 1 "" "0" "1"
 	}
@@ -32,11 +45,16 @@ print( {num = 123 num2: 321} "\n" )
 var obj = {
 	__getdim = function(x y){
 		print( "get dim [" x "][" y "] => " this[x][y] "\n" )
-		return this.rawget(x).rawget(y);
+		return this[x][y];
 	}
 	__setdim = function(val x y){
 		print( "set dim ["x"]["y"] = "val"\n" )
-		this.rawset(x).rawset(y, val);
+		var col = this[x]
+		if(!col){
+			col = {}
+			this[x] = col
+		}
+		col[y] = val
 	}
 }
 

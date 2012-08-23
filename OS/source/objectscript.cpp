@@ -2095,6 +2095,23 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, type_name, ret_values);
 		break;
 
+	case EXP_TYPE_IF:
+		OS_ASSERT(list.count == 2 || list.count == 3);
+		out += String::format(allocator, OS_TEXT("%sbegin if\n"), spaces);
+			out += String::format(allocator, OS_TEXT("%s  begin bool exp\n"), spaces);
+				out += list[0]->debugPrint(compiler, depth+2);
+			out += String::format(allocator, OS_TEXT("%s  end bool exp\n"), spaces);
+			out += String::format(allocator, OS_TEXT("%s  begin then\n"), spaces);
+				out += list[1]->debugPrint(compiler, depth+2);
+			out += String::format(allocator, OS_TEXT("%s  end then\n"), spaces);
+			if(list.count == 3){
+				out += String::format(allocator, OS_TEXT("%s  begin else\n"), spaces);
+					out += list[2]->debugPrint(compiler, depth+2);
+				out += String::format(allocator, OS_TEXT("%s  end else\n"), spaces);
+			}
+		out += String::format(allocator, OS_TEXT("%send if ret values %d\n"), spaces, ret_values);
+		break;
+
 	case EXP_TYPE_CONST_NUMBER:
 	case EXP_TYPE_CONST_STRING:
 		{
@@ -2621,6 +2638,38 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 				var_scope.start_code_pos = start_code_pos;
 				var_scope.end_code_pos = prog_opcodes->buffer.count;
 			}
+			break;
+		}
+
+	case EXP_TYPE_IF:
+		{
+			OS_ASSERT(exp->list.count == 2 || exp->list.count == 3);
+			if(!writeOpcodes(exp->list[0])){
+				return false;
+			}
+			prog_opcodes->writeByte(Program::OP_IF_NOT_JUMP);
+			
+			int if_not_jump_pos = prog_opcodes->getPos();
+			prog_opcodes->writeInt32(0);
+
+			if(!writeOpcodes(exp->list[1])){
+				return false;
+			}
+
+			int if_not_jump_to = prog_opcodes->getPos();
+			if(exp->list.count == 3 && exp->list[2]->list.count > 0){
+				prog_opcodes->writeByte(Program::OP_JUMP);
+
+				int jump_pos = prog_opcodes->getPos();
+				prog_opcodes->writeInt32(0);
+				
+				if_not_jump_to = prog_opcodes->getPos();
+				if(!writeOpcodes(exp->list[2])){
+					return false;
+				}
+				prog_opcodes->writeInt32AtPos(prog_opcodes->getPos() - jump_pos - sizeof(OS_INT32), jump_pos);
+			}
+			prog_opcodes->writeInt32AtPos(if_not_jump_to - if_not_jump_pos - sizeof(OS_INT32), if_not_jump_pos);
 			break;
 		}
 
@@ -4552,8 +4601,80 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 	return ret_exp;
 }
 
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * scope)
+{
+	OS_ASSERT(recent_token && (recent_token->str == allocator->core->strings->syntax_if 
+				|| recent_token->str == allocator->core->strings->syntax_elseif));
+	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) || !expectToken()){
+		return NULL;
+	}
+	Expression * if_exp = expectSingleExpression(scope, true, false, false, false, true);
+	if(!if_exp){
+		return NULL;
+	}
+	if(!recent_token || recent_token->getType() != Tokenizer::END_BRACKET_BLOCK){
+		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
+		allocator->deleteObj(if_exp);
+		return NULL;
+	}
+	if(if_exp->ret_values < 1){
+		setError(ERROR_EXPECT_VALUE, if_exp->token);
+		allocator->deleteObj(if_exp);
+		return NULL;
+	}
+	if_exp = expectExpressionValues(if_exp, 1);
+	if(!expectToken()){
+		allocator->deleteObj(if_exp);
+		return NULL;
+	}
+	Expression * then_exp;
+	if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
+		then_exp = expectCodeExpression(scope, 0);
+	}else{
+		then_exp = expectSingleExpression(scope, true, false, false, false, true);
+	}
+	if(!then_exp){
+		allocator->deleteObj(if_exp);
+		return NULL;
+	}
+	then_exp = expectExpressionValues(then_exp, 0);
+	if(recent_token && recent_token->getType() == Tokenizer::NAME){
+		Expression * else_exp = NULL;
+		if(recent_token->str == allocator->core->strings->syntax_elseif){
+			if(!expectToken()){
+				allocator->deleteObj(if_exp);
+				allocator->deleteObj(then_exp);
+				return NULL;
+			}
+			else_exp = expectIfExpression(scope);
+		}else if(recent_token->str == allocator->core->strings->syntax_else){
+			if(!expectToken()){
+				allocator->deleteObj(if_exp);
+				allocator->deleteObj(then_exp);
+				return NULL;
+			}
+			if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
+				else_exp = expectCodeExpression(scope, 0);
+			}else{
+				else_exp = expectSingleExpression(scope, true, false, false, false, true);
+			}
+		}else{
+			return new (malloc(sizeof(Expression))) Expression(EXP_TYPE_IF, if_exp->token, if_exp, then_exp);
+		}
+		if(!else_exp){
+			allocator->deleteObj(if_exp);
+			allocator->deleteObj(then_exp);
+			return NULL;
+		}
+		else_exp = expectExpressionValues(else_exp, 0);
+		return new (malloc(sizeof(Expression))) Expression(EXP_TYPE_IF, if_exp->token, if_exp, then_exp, else_exp);
+	}
+	return new (malloc(sizeof(Expression))) Expression(EXP_TYPE_IF, if_exp->token, if_exp, then_exp);
+}
+
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectReturnExpression(Scope * scope)
 {
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_return);
 	Expression * ret_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_RETURN, recent_token);
 	// ret_exp->active_locals = scope->function->num_locals;
 	if(!readToken()){
@@ -5290,6 +5411,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		if(token->str == allocator->core->strings->syntax_return){
 			return expectReturnExpression(scope);
 		}
+		if(token->str == allocator->core->strings->syntax_if){
+			return expectIfExpression(scope);
+		}
 		if(token->str == allocator->core->strings->syntax_this){
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_THIS, token);
 			exp->ret_values = 1;
@@ -5872,7 +5996,7 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 	}
 
 	len = OS_STRLEN(OS_COMPILED_VERSION);
-	reader.skipBytes(1);
+	reader.movePos(1);
 	if(!reader.checkBytes(OS_COMPILED_VERSION, len)){
 		return false;
 	}
@@ -5948,7 +6072,7 @@ void OS::Core::Program::pushFunction()
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
 
 	OS_ASSERT(func_decl->opcodes_pos == opcodes->pos);
-	opcodes->skipBytes(func_decl->opcodes_size);
+	opcodes->movePos(func_decl->opcodes_size);
 }
 
 OS::Core::Program * OS::Core::Program::retain()
@@ -6361,7 +6485,7 @@ int OS::Core::MemStreamReader::getPos() const
 	return pos;
 }
 
-void OS::Core::MemStreamReader::skipBytes(int len)
+void OS::Core::MemStreamReader::movePos(int len)
 {
 	OS_ASSERT(pos >= 0 && pos+len <= size);
 	pos += len;
@@ -6428,7 +6552,7 @@ int OS::Core::FileStreamReader::getPos() const
 	return f ? ftell(f) : 0;
 }
 
-void OS::Core::FileStreamReader::skipBytes(int len)
+void OS::Core::FileStreamReader::movePos(int len)
 {
 	if(f){
 		fseek(f, len, SEEK_CUR);
@@ -10340,7 +10464,7 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 void OS::Core::enterFunction(Value * value, Value * self, int params, int extra_remove_from_stack, int need_ret_values)
 {
 	OS_ASSERT(value->type == OS_VALUE_TYPE_FUNCTION);
-	OS_ASSERT(stack_values.count >= params);
+	OS_ASSERT(stack_values.count >= params + extra_remove_from_stack);
 	OS_ASSERT(self);
 
 	FunctionValueData * func_value_data = value->value.func;
@@ -10406,7 +10530,7 @@ restart:
 	Program * prog = func_value_data->prog;
 
 	MemStreamReader opcodes(NULL, prog->opcodes->buffer + func_decl->opcodes_pos, func_decl->opcodes_size);
-	opcodes.skipBytes(func_running->opcodes_pos - func_decl->opcodes_pos);
+	opcodes.movePos(func_running->opcodes_pos - func_decl->opcodes_pos);
 
 	int prog_num_numbers = prog->num_numbers;
 	OS * allocator = this->allocator;
@@ -10454,7 +10578,7 @@ restart:
 		case Program::OP_PUSH_FUNCTION:
 			{
 				int func_index = opcodes.readUVariable();
-				OS_ASSERT(func_index >= 0 && func_index < prog->num_functions);
+				OS_ASSERT(func_index > 0 && func_index < prog->num_functions);
 				FunctionDecl * func_decl = prog->functions + func_index;
 
 				Value * func_value = allocator->core->pushNewNullValue();
@@ -10469,7 +10593,7 @@ restart:
 				func_value->type = OS_VALUE_TYPE_FUNCTION;
 	
 				// OS_ASSERT(func_decl->opcodes_pos == opcodes.pos);
-				opcodes.skipBytes(func_decl->opcodes_size);
+				opcodes.movePos(func_decl->opcodes_size);
 				break;
 			}
 
@@ -10633,6 +10757,25 @@ restart:
 				}
 				OS_ASSERT(false);
 				pop();
+				break;
+			}
+
+		case Program::OP_IF_NOT_JUMP:
+			{
+				OS_ASSERT(stack_values.count >= 1);
+				Value * value = stack_values.lastElement();
+				int offs = opcodes.readInt32();
+				if(!valueToBool(value)){
+					opcodes.movePos(offs);
+				}
+				pop();
+				break;
+			}
+
+		case Program::OP_JUMP:
+			{
+				int offs = opcodes.readInt32();
+				opcodes.movePos(offs);
 				break;
 			}
 
@@ -10964,8 +11107,7 @@ restart:
 			{
 				OS_ASSERT(stack_values.count >= 1);
 				Value * value = stack_values[stack_values.count-1];
-				pushConstBoolValue(valueToBool(value));
-				removeStackValue(-2);
+				stack_values[stack_values.count-1] = valueToBool(value) ? true_value : false_value;
 				break;
 			}
 
@@ -10973,8 +11115,7 @@ restart:
 			{
 				OS_ASSERT(stack_values.count >= 1);
 				Value * value = stack_values[stack_values.count-1];
-				pushConstBoolValue(!valueToBool(value));
-				removeStackValue(-2);
+				stack_values[stack_values.count-1] = !valueToBool(value) ? true_value : false_value;
 				break;
 			}
 
