@@ -1,4 +1,17 @@
 ;{
+	var values = {
+		null true false 0 1 "" "0" "1"
+	}
+	var iter_func = values.__iter()
+	var valid, value, key = iter_func()
+	print(	iter_func " "
+			valid " " value " " key "\n" )
+	print( #values "\n" )
+	
+	var func = function(){
+		
+	}
+	
 	var a = 23
 	a.rawset('+==+', '--')
 	print( 'rawget ' a.rawget('+==+') "\n" )
@@ -19,11 +32,11 @@ print( {num = 123 num2: 321} "\n" )
 var obj = {
 	__getdim = function(x y){
 		print( "get dim [" x "][" y "] => " this[x][y] "\n" )
-		return this[x][y];
+		return this.rawget(x).rawget(y);
 	}
 	__setdim = function(val x y){
 		print( "set dim ["x"]["y"] = "val"\n" )
-		this[x][y] = val
+		this.rawset(x).rawset(y, val);
 	}
 }
 

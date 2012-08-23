@@ -88,9 +88,9 @@ namespace ObjectScript
 {
 
 	class OS;
-	typedef void * (*OS_HeapFunction)(void*, int);
-	typedef void (*OS_UserDataDtor)(OS*, void*);
-	typedef int (*OS_CFunction)(OS*, int params, void*);
+
+	typedef void (*OS_UserDataDtor)(OS*, void * data, void * user_param);
+	typedef int (*OS_CFunction)(OS*, int params, int upvalues, void * user_param);
 
 	enum OS_EValueType
 	{
@@ -105,7 +105,7 @@ namespace ObjectScript
 		OS_VALUE_TYPE_USERPTR,
 		OS_VALUE_TYPE_FUNCTION,
 		OS_VALUE_TYPE_CFUNCTION,
-		OS_VALUE_TYPE_THREAD,
+		OS_VALUE_TYPE_CFUNCTION_UPVALUES,
 	};
 
 	enum // OS_ValueRegister
@@ -1025,6 +1025,21 @@ namespace ObjectScript
 				void fixStringIndex();
 			};
 
+			struct CFuncUpvaluesData
+			{
+				OS_CFunction func;
+				void * user_param;
+				int num_upvalues;
+			};
+
+			struct UserData
+			{
+				int crc;
+				void * ptr;
+				OS_UserDataDtor dtor;
+				void * user_param;
+			};
+
 			// struct FunctionData;
 			// class Program;
 			struct FunctionValueData;
@@ -1048,14 +1063,14 @@ namespace ObjectScript
 				};
 
 				struct Table;
-				struct Iterator
+				struct IteratorState
 				{
 					Table * table;
-					Property * next_prop;
-					Iterator * next;
+					Property * prop;
+					IteratorState * next;
 
-					Iterator();
-					~Iterator();
+					IteratorState();
+					~IteratorState();
 				};
 
 				struct Table
@@ -1067,7 +1082,7 @@ namespace ObjectScript
 					OS_INT next_id;
 
 					Property * first, * last;
-					Iterator * iterators;
+					IteratorState * iterators;
 
 					Table();    
 					~Table();
@@ -1076,9 +1091,9 @@ namespace ObjectScript
 					// void add(Property * prop);
 					// void free(const PropertyIndex& index);
 
-					bool containsIterator(Iterator*);
-					void addIterator(Iterator*);
-					void removeIterator(Iterator*);
+					bool containsIterator(IteratorState*);
+					void addIterator(IteratorState*);
+					void removeIterator(IteratorState*);
 				};
 
 				int value_id; // allow weak usage
@@ -1096,10 +1111,7 @@ namespace ObjectScript
 					OS_FLOAT number;
 					StringData * string_data; // retained
 
-					struct {
-						void * ptr;
-						OS_UserDataDtor dtor;
-					} userdata;
+					UserData * userdata;
 
 					FunctionValueData * func;
 
@@ -1107,6 +1119,9 @@ namespace ObjectScript
 						OS_CFunction func;
 						void * user_param;
 					} cfunc;
+
+					 CFuncUpvaluesData * cfunc_upvalues;
+
 				} value;
 
 				OS_EValueType type;
@@ -1119,6 +1134,8 @@ namespace ObjectScript
 
 				Value(int id);
 				~Value();
+
+				bool isFunction() const;
 			};
 
 			class Program;
@@ -1137,7 +1154,7 @@ namespace ObjectScript
 					EXP_TYPE_POST_IF,
 					EXP_TYPE_POP_VALUE,
 					EXP_TYPE_CALL,
-					EXP_TYPE_CALL_WITH_OBJECT_PARAM,
+					EXP_TYPE_CALL_AUTO_PARAM,
 					EXP_TYPE_CALL_DIM, // temp
 					EXP_TYPE_VALUE,
 					EXP_TYPE_PARAMS,
@@ -1701,7 +1718,7 @@ namespace ObjectScript
 				Value * arguments;
 				Value * rest_arguments;
 
-				int next_opcode_pos;
+				int opcodes_pos;
 				int ref_count;
 
 				int gc_time;
@@ -1745,6 +1762,7 @@ namespace ObjectScript
 				String __setdim;
 				String __deldim;
 				String __cmp;
+				String __iter;
 				// String __tostring;
 				String __valueof;
 				String __booleanof;
@@ -1781,7 +1799,6 @@ namespace ObjectScript
 				String typeof_array;
 				String typeof_userdata;
 				String typeof_function;
-				String typeof_thread;
 
 				String syntax_typeof;
 				String syntax_valueof;
@@ -1925,14 +1942,16 @@ namespace ObjectScript
 			Value * newStringValue(const String&);
 			Value * newStringValue(const OS_CHAR*);
 			Value * newCFunctionValue(OS_CFunction func, void * user_param);
-			Value * newUserDataValue(int data_size, OS_UserDataDtor dtor);
-			Value * newUserPointerValue(void * data, OS_UserDataDtor dtor);
+			Value * newCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
+			Value * newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
+			Value * newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
 			Value * newObjectValue();
 			Value * newObjectValue(Value * prototype);
 			Value * newArrayValue();
 
 			Value * pushValue(Value * val);
-			Value * pushValue(Value * val, int offs);
+			Value * pushStackValue(int offs);
+			Value * insertValue(Value * val, int offs);
 			Value * pushValueAutoNull(Value * val);
 			Value * pushConstNullValue();
 			Value * pushConstTrueValue();
@@ -1943,8 +1962,9 @@ namespace ObjectScript
 			Value * pushStringValue(const String&);
 			Value * pushStringValue(const OS_CHAR*);
 			Value * pushCFunctionValue(OS_CFunction func, void * user_param);
-			Value * pushUserDataValue(int data_size, OS_UserDataDtor dtor);
-			Value * pushUserPointerValue(void * data, OS_UserDataDtor dtor);
+			Value * pushCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
+			Value * pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
+			Value * pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
 			Value * pushObjectValue();
 			Value * pushObjectValue(Value * prototype);
 			Value * pushArrayValue();
@@ -1967,12 +1987,15 @@ namespace ObjectScript
 			void setGlobalValue(const String& name, Value * value, bool prototype_enabled, bool setter_enabled);
 			void setGlobalValue(const OS_CHAR * name, Value * value, bool prototype_enabled, bool setter_enabled);
 
+			int getStackOffs(int offs);
+			Value * getStackValue(int offs);
+
 			void removeStackValues(int offs, int count);
 			void removeStackValue(int offs = -1);
 			void removeAllStackValues();
 			void pop(int count = 1);
-			int moveStackValues(int offs, int count, int new_offs);
-			int moveStackValue(int offs, int new_offs);
+			void moveStackValues(int offs, int count, int new_offs);
+			void moveStackValue(int offs, int new_offs);
 
 			void syncStackRetValues(int need_ret_values, int cur_ret_values);
 
@@ -1981,9 +2004,9 @@ namespace ObjectScript
 			void deleteValues();
 
 			bool valueToBool(Value * val);
-			OS_INT valueToInt(Value * val);
-			OS_FLOAT valueToNumber(Value * val, bool convert_method_enabled = true, bool prototype_enabled = true);
-			String valueToString(Value * val, bool convert_method_enabled = true, bool prototype_enabled = true);
+			OS_INT valueToInt(Value * val, bool valueof_enabled = false);
+			OS_FLOAT valueToNumber(Value * val, bool valueof_enabled = false);
+			String valueToString(Value * val, bool valueof_enabled = false);
 
 			bool isValueNumber(Value * val, OS_FLOAT * out = NULL);
 			bool isValueString(Value * val, String * out = NULL);
@@ -2008,13 +2031,11 @@ namespace ObjectScript
 			Value * pushPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled);
 			Value * pushPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled);
 
-			Value * getStackValue(int offs);
-
 			void enterFunction(Value * value, Value * self, int params, int extra_remove_from_stack, int need_ret_values);
 			int leaveFunction();
 			int execute();
 
-			bool call(int params, int ret_values);
+			int call(int params, int ret_values);
 
 			Core(OS*);
 			~Core();
@@ -2038,9 +2059,10 @@ namespace ObjectScript
 
 		int getPointerSize(void * p);
 
-		void registerGlobalFunctions();
-		void registerObjectLibrary();
-		void registerMathLibrary();
+		void initGlobalFunctions();
+		void initObjectClass();
+		void initArrayClass();
+		void initMathLibrary();
 
 	public:
 
@@ -2120,15 +2142,26 @@ namespace ObjectScript
 		int getMaxAllocatedBytes();
 		int getCachedBytes();
 
+		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
+		void getProperty(const OS_CHAR*, bool prototype_enabled = true, bool getter_enabled = true);
+		void getProperty(const Core::String&, bool prototype_enabled = true, bool getter_enabled = true);
+		
+		void setProperty(bool prototype_enabled = true, bool setter_enabled = true);
+		void setProperty(const OS_CHAR*, bool prototype_enabled = true, bool setter_enabled = true);
+		void setProperty(const Core::String&, bool prototype_enabled = true, bool setter_enabled = true);
+		void addProperty();
+
 		void getGlobal(const OS_CHAR*, bool prototype_enabled = true, bool getter_enabled = true);
 		void getGlobal(const Core::String&, bool prototype_enabled = true, bool getter_enabled = true);
 
 		void setGlobal(const OS_CHAR*, bool prototype_enabled = true, bool setter_enabled = true);
 		void setGlobal(const Core::String&, bool prototype_enabled = true, bool setter_enabled = true);
 
-		int getStackSize();
-		int getOffs(int offs);
+		void getPrototype();
+		void setPrototype();
 
+		int getId(int offs = -1);
+		
 		void pushNull();
 		void pushNumber(OS_INT16);
 		void pushNumber(OS_INT32);
@@ -2137,30 +2170,25 @@ namespace ObjectScript
 		void pushBool(bool);
 		void pushString(const OS_CHAR*);
 		void pushString(const Core::String&);
-		void pushCFunction(OS_CFunction func, void * user_param);
-		void * pushUserData(int data_size, OS_UserDataDtor dtor = NULL);
-		void * pushUserPointer(void * data, OS_UserDataDtor dtor = NULL);
+		void pushCFunction(OS_CFunction func, void * user_param = NULL);
+		void pushCFunction(OS_CFunction func, int upvalues, void * user_param = NULL);
+		void * pushUserData(int crc, int data_size, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserPointer(int crc, void * data, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
 		void newObject();
 		void newArray();
 
-		// void pushValue(const Value&);
 		void pushStackValue(int offs = -1);
 		void pushGlobals();
 		void pushUserPool();
 		void pushValueById(int id);
-		void pushValueOf(int offs = -1);
 
-		// Value getValue(int offs = -1);
-		// Value getValueById(int id);
-
+		int getStackSize();
+		int getOffs(int offs);
 		void remove(int start_offs = -1, int count = 1);
 		void removeAll();
 		void pop(int count = 1);
-		int move(int start_offs, int count, int new_offs);
-		int move(int offs, int new_offs);
-
-		void setProperty(bool keep_object_in_stack, bool prototype_enabled = true, bool setter_enabled = true);
-		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
+		void move(int start_offs, int count, int new_offs);
+		void move(int offs, int new_offs);
 
 		enum {
 			// binary operators
@@ -2226,18 +2254,28 @@ namespace ObjectScript
 		bool isObject(int offs = -1);
 		bool isArray(int offs = -1);
 		bool isFunction(int offs = -1);
+		bool isUserData(int offs = -1);
 		bool isInstanceOf(int value_offs = -2, int prototype_offs = -1);
 		// bool checkType(int offs, OS_EValueType type);
 
+		/*
+		void getValueOf();
+		void getNumberOf();
+		void getStringOf();
+		void getBooleanOf();
+		*/
+
 		bool toBool(int offs = -1);
-		OS_FLOAT toNumber(int offs = -1);
-		int toInt(int offs = -1);
-		String toString(int offs = -1);
+		OS_FLOAT toNumber(int offs = -1, bool valueof_enabled = true);
+		int toInt(int offs = -1, bool valueof_enabled = true);
+		String toString(int offs = -1, bool valueof_enabled = true);
+		void * toUserData(int offs, int crc);
+		void * toUserData(int crc);
 
 		bool compile(const Core::String&);
 		bool compile();
 
-		bool call(int params = 0, int ret_values = 0);
+		int call(int params = 0, int ret_values = 0);
 		int eval(OS_CHAR * str);
 		int eval(const Core::String& str);
 
@@ -2250,11 +2288,9 @@ namespace ObjectScript
 			const OS_CHAR * name;
 			OS_CFunction func;
 		};
-		bool registerFunctions(int object_offs, const Func * list, bool override_funcs = true, void * user_param = NULL); // null terminated list
-		bool registerFunctions(const Func * list, bool override_funcs = true, void * user_param = NULL); // null terminated list
-		bool newLibrary(const OS_CHAR * name); // object
-		void * newLibrary(const OS_CHAR * name, int data_size, OS_UserDataDtor dtor = NULL); // userdata
-		void * newLibrary(const OS_CHAR * name, void * data, OS_UserDataDtor dtor = NULL); // userdata
+		void setFuncs(const Func * list, int upvalues = 0, void * user_param = NULL); // null terminated list
+		void getObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
+		void getGlobalObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
 	};
 
 } // namespace OS

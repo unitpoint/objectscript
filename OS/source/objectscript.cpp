@@ -2271,7 +2271,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		break;
 
 	case EXP_TYPE_CALL:
-	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+	case EXP_TYPE_CALL_AUTO_PARAM:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		out += list[0]->debugPrint(compiler, depth+1);
@@ -2741,7 +2741,7 @@ bool OS::Core::Compiler::writeOpcodes(Expression * exp)
 		break;
 
 	case EXP_TYPE_CALL:
-	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+	case EXP_TYPE_CALL_AUTO_PARAM:
 		OS_ASSERT(exp->list.count == 2);
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
 		if(!writeOpcodes(exp->list)){
@@ -3498,7 +3498,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 	}
 	switch(exp->type){
 	case EXP_TYPE_CALL:
-	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+	case EXP_TYPE_CALL_AUTO_PARAM:
 	case EXP_TYPE_CALL_DIM:
 	// case EXP_TYPE_GET_DIM:
 	case EXP_TYPE_CALL_METHOD:
@@ -3516,7 +3516,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 			Expression * last_exp = exp->list[exp->list.count-1];
 			switch(last_exp->type){
 			case EXP_TYPE_CALL:
-			case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+			case EXP_TYPE_CALL_AUTO_PARAM:
 			case EXP_TYPE_CALL_DIM:
 			// case EXP_TYPE_GET_DIM:
 			case EXP_TYPE_CALL_METHOD:
@@ -3563,7 +3563,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 				}
 				switch(param_exp->type){
 				case EXP_TYPE_CALL:
-				case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+				case EXP_TYPE_CALL_AUTO_PARAM:
 				case EXP_TYPE_CALL_DIM:
 				// case EXP_TYPE_GET_DIM:
 				case EXP_TYPE_CALL_METHOD:
@@ -3610,7 +3610,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newSingleValueExpression(Ex
 	exp = expectExpressionValues(exp, 1);
 	switch(exp->type){
 	case EXP_TYPE_CALL:
-	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+	case EXP_TYPE_CALL_AUTO_PARAM:
 	case EXP_TYPE_CALL_DIM:
 	// case EXP_TYPE_GET_DIM:
 	case EXP_TYPE_CALL_METHOD:
@@ -3718,7 +3718,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			Expression * sub_exp = exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
 			switch(sub_exp->type){
 			case EXP_TYPE_CALL:
-			case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+			case EXP_TYPE_CALL_AUTO_PARAM:
 				sub_exp->type = EXP_TYPE_TAIL_CALL;
 				allocator->vectorClear(exp->list);
 				allocator->deleteObj(exp);
@@ -3734,7 +3734,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 		}
 
 	case EXP_TYPE_CALL:
-	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+	case EXP_TYPE_CALL_AUTO_PARAM:
 		{
 			OS_ASSERT(exp->list.count == 2);
 			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
@@ -3834,7 +3834,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				break;
 
 			case EXP_TYPE_CALL:
-			case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+			case EXP_TYPE_CALL_AUTO_PARAM:
 				right_exp->type = EXP_TYPE_PARAMS;
 				exp_type = EXP_TYPE_CALL_METHOD;
 				OS_ASSERT(right_exp->list.count == 2);
@@ -4313,7 +4313,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExtendsExpression(Sco
 	if(!exp){
 		return NULL;
 	}
-	if(exp->type == EXP_TYPE_CALL_WITH_OBJECT_PARAM){
+	if(exp->type == EXP_TYPE_CALL_AUTO_PARAM){
 		OS_ASSERT(exp->list.count == 2);
 		Expression * params = exp->list[1];
 		OS_ASSERT(params->type == EXP_TYPE_PARAMS && params->list.count == 1);
@@ -4847,7 +4847,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 				break;
 
 			case EXP_TYPE_CALL:
-			case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+			case EXP_TYPE_CALL_AUTO_PARAM:
 				OS_ASSERT(false);
 				return NULL;
 
@@ -4934,7 +4934,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope * scope, Expression * exp, bool allow_binary_operator, 
 	bool allow_param, bool allow_assign, bool allow_auto_call)
 {
-	for(;;){
+	for(;; allow_auto_call = false){
 		if(!recent_token){
 			return exp;
 		}
@@ -5057,12 +5057,28 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			exp2 = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, exp2->token, exp2);
 			exp2->ret_values = 1;
 			// exp2->active_locals = scope->function->num_locals;
-			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL_WITH_OBJECT_PARAM, token, exp, exp2);
+			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL_AUTO_PARAM, token, exp, exp2);
 			exp->ret_values = 1;
+			// allow_auto_call = false;
 			continue;
 
 		default:
-			return exp;
+			if(!allow_auto_call){
+				return exp;
+			}
+			exp2 = expectSingleExpression(scope, allow_binary_operator, false, false, false, false);
+			if(!exp2){
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			OS_ASSERT(exp2->ret_values == 1);
+			exp2 = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, exp2->token, exp2);
+			exp2->ret_values = 1;
+			// exp2->active_locals = scope->function->num_locals;
+			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL_AUTO_PARAM, token, exp, exp2);
+			exp->ret_values = 1;
+			// allow_auto_call = false;
+			continue;
 
 		case Tokenizer::BEGIN_BRACKET_BLOCK: // (
 			exp2 = expectParamsExpression(scope);
@@ -5504,7 +5520,7 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 		return OS_TEXT("pop");
 
 	case EXP_TYPE_CALL:
-	case EXP_TYPE_CALL_WITH_OBJECT_PARAM:
+	case EXP_TYPE_CALL_AUTO_PARAM:
 		return OS_TEXT("call");
 
 	case EXP_TYPE_CALL_DIM:
@@ -5557,38 +5573,6 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 
 	case EXP_TYPE_SET_AUTO_VAR:
 		return OS_TEXT("set auto var");
-
-	/*
-	case EXP_TYPE_THREAD:
-		return OS_TEXT("thread");
-
-	case EXP_TYPE_FOR:
-		return OS_TEXT("for");
-
-	case EXP_TYPE_DO_WHILE:
-		return OS_TEXT("do while");
-
-	case EXP_TYPE_WHILE_DO:
-		return OS_TEXT("while do");
-
-	case EXP_TYPE_SWITCH:
-		return OS_TEXT("switch");
-
-	case EXP_TYPE_SWITCH_CASE:
-		return OS_TEXT("case");
-
-	case EXP_TYPE_SWITCH_CASE_INTERVAL:
-		return OS_TEXT("case interval");
-
-	case EXP_TYPE_SWITCH_DEFAULT:
-		return OS_TEXT("default");
-
-	case EXP_TYPE_BREAK:
-		return OS_TEXT("break");
-
-	case EXP_TYPE_CONTINUE:
-		return OS_TEXT("continue");
-	*/
 
 	case EXP_TYPE_ASSIGN:
 		return OS_TEXT("operator =");
@@ -5987,7 +5971,7 @@ OS::Core::Program::OpcodeType OS::Core::Program::toOpcodeType(Compiler::Expressi
 {
 	switch(exp_type){
 	case Compiler::EXP_TYPE_CALL: return OP_CALL;
-	case Compiler::EXP_TYPE_CALL_WITH_OBJECT_PARAM: return OP_CALL;
+	case Compiler::EXP_TYPE_CALL_AUTO_PARAM: return OP_CALL;
 	// case Compiler::EXP_TYPE_GET_DIM: return OP_GET_DIM;
 	case Compiler::EXP_TYPE_CALL_METHOD: return OP_CALL_METHOD;
 	case Compiler::EXP_TYPE_TAIL_CALL: return OP_TAIL_CALL;
@@ -6721,11 +6705,16 @@ OS::Core::Value::Property::~Property()
 
 // =====================================================================
 
-OS::Core::Value::Iterator::Iterator()
+OS::Core::Value::IteratorState::IteratorState()
 {
 	table = NULL;
-	next_prop = NULL;
+	prop = NULL;
 	next = NULL;
+}
+
+OS::Core::Value::IteratorState::~IteratorState()
+{
+	OS_ASSERT(!table && !prop && !next);
 }
 
 OS::Core::Value::Table::Table()
@@ -6744,9 +6733,9 @@ OS::Core::Value::Table::~Table()
 	OS_ASSERT(!heads);
 }
 
-bool OS::Core::Value::Table::containsIterator(Iterator * iter)
+bool OS::Core::Value::Table::containsIterator(IteratorState * iter)
 {
-	for(Iterator * cur = iterators; cur; cur = cur->next){
+	for(IteratorState * cur = iterators; cur; cur = cur->next){
 		if(cur == iter){
 			OS_ASSERT(iter->table == this);
 			return true;
@@ -6756,21 +6745,21 @@ bool OS::Core::Value::Table::containsIterator(Iterator * iter)
 	return false;
 }
 
-void OS::Core::Value::Table::addIterator(Iterator * iter)
+void OS::Core::Value::Table::addIterator(IteratorState * iter)
 {
 	OS_ASSERT(!containsIterator(iter));
-	OS_ASSERT(!iter->next_prop && !iter->table);
+	OS_ASSERT(!iter->prop && !iter->table);
 	iter->table = this;
-	iter->next_prop = NULL;
+	iter->prop = first;
 	iter->next = iterators;
 	iterators = iter;
 }
 
-void OS::Core::Value::Table::removeIterator(Iterator * iter)
+void OS::Core::Value::Table::removeIterator(IteratorState * iter)
 {
 	OS_ASSERT(containsIterator(iter));
-	Iterator * prev = NULL;
-	for(Iterator * cur = iterators; cur; prev = cur, cur = cur->next){
+	IteratorState * prev = NULL;
+	for(IteratorState * cur = iterators; cur; prev = cur, cur = cur->next){
 		if(cur == iter){
 			if(!prev){
 				iterators = cur->next;
@@ -6779,7 +6768,7 @@ void OS::Core::Value::Table::removeIterator(Iterator * iter)
 			}
 			cur->table = NULL;
 			cur->next = NULL;
-			cur->next_prop = NULL;
+			cur->prop = NULL;
 			return;
 		}
 	}
@@ -6902,9 +6891,9 @@ bool OS::Core::deleteTableProperty(Value::Table * table, const PropertyIndex& in
 				table->heads[slot] = cur->hash_next;
 			}
 
-			for(Value::Iterator * iter = table->iterators; iter; iter = iter->next){
-				if(iter->next_prop == cur){
-					iter->next_prop = cur->next;
+			for(Value::IteratorState * iter = table->iterators; iter; iter = iter->next){
+				if(iter->prop == cur){
+					iter->prop = cur->next;
 				}
 			}
 
@@ -7081,7 +7070,7 @@ OS::Core::FunctionRunningInstance::FunctionRunningInstance()
 	arguments = NULL;
 	rest_arguments = NULL;
 
-	next_opcode_pos = 0;
+	opcodes_pos = 0;
 	ref_count = 1;
 
 	gc_time = -1;
@@ -7133,13 +7122,14 @@ bool OS::Core::valueToBool(Value * val)
 		return false;
 
 	case OS_VALUE_TYPE_BOOL:
-		return val->value.boolean; // number != 0.0f;
+		return val->value.boolean;
 
 	case OS_VALUE_TYPE_NUMBER:
-		return val->value.number && !isnan(val->value.number);
+		// return val->value.number && !isnan(val->value.number);
+		return !isnan(val->value.number);
 
-	case OS_VALUE_TYPE_STRING:
-		return val->value.string_data->data_size > 0;
+	// case OS_VALUE_TYPE_STRING:
+	//	return val->value.string_data->data_size > 0;
 
 	// case OS_VALUE_TYPE_OBJECT:
 	// case OS_VALUE_TYPE_ARRAY:
@@ -7148,9 +7138,9 @@ bool OS::Core::valueToBool(Value * val)
 	return true;
 }
 
-OS_INT OS::Core::valueToInt(Value * val)
+OS_INT OS::Core::valueToInt(Value * val, bool valueof_enabled)
 {
-	return (OS_INT)valueToNumber(val);
+	return (OS_INT)valueToNumber(val, valueof_enabled);
 }
 
 OS_INT OS::Core::Compiler::Expression::toInt()
@@ -7180,7 +7170,7 @@ OS_FLOAT OS::Core::Compiler::Expression::toNumber()
 	return 0;
 }
 
-OS_FLOAT OS::Core::valueToNumber(Value * val, bool convert_method_enabled, bool prototype_enabled)
+OS_FLOAT OS::Core::valueToNumber(Value * val, bool valueof_enabled)
 {
 	switch(val->type){
 	case OS_VALUE_TYPE_NULL:
@@ -7194,12 +7184,8 @@ OS_FLOAT OS::Core::valueToNumber(Value * val, bool convert_method_enabled, bool 
 
 	case OS_VALUE_TYPE_STRING:
 		return val->value.string_data->toFloat();
-
-	// case OS_VALUE_TYPE_OBJECT:
-	// case OS_VALUE_TYPE_ARRAY:
-	//	return val->table ? val->table->count : 0;
 	}
-	if(convert_method_enabled){
+	if(valueof_enabled){
 		val = pushValueOf(val);
 		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this};
 		return valueToNumber(val, false);
@@ -7233,10 +7219,6 @@ bool OS::Core::isValueNumber(Value * val, OS_FLOAT * out)
 			*out = val->value.string_data->toFloat();
 		}
 		return true;
-
-	// case OS_VALUE_TYPE_OBJECT:
-	// case OS_VALUE_TYPE_ARRAY:
-	// 	return val->table ? val->table->count : 0;
 	}
 	if(out){
 		*out = 0;
@@ -7268,7 +7250,7 @@ OS::Core::String OS::Core::Compiler::Expression::toString()
 	return String(getAllocator());
 }
 
-OS::Core::String OS::Core::valueToString(Value * val, bool convert_method_enabled, bool prototype_enabled)
+OS::Core::String OS::Core::valueToString(Value * val, bool valueof_enabled)
 {
 	switch(val->type){
 	case OS_VALUE_TYPE_NULL:
@@ -7283,7 +7265,7 @@ OS::Core::String OS::Core::valueToString(Value * val, bool convert_method_enable
 	case OS_VALUE_TYPE_STRING:
 		return String(val->value.string_data);
 	}
-	if(convert_method_enabled){
+	if(valueof_enabled){
 		/*
 		Value * func = getPropertyValue(val, PropertyIndex(strings->__tostring, PropertyIndex::KeepStringIndex()), prototype_enabled);
 		if(func){
@@ -7482,6 +7464,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	__setdim(allocator, OS_TEXT("__setdim")),
 	__deldim(allocator, OS_TEXT("__deldim")),
 	__cmp(allocator, OS_TEXT("__cmp")),
+	__iter(allocator, OS_TEXT("__iter")),
 	// __tostring(allocator, OS_TEXT("__tostring")),
 	__valueof(allocator, OS_TEXT("__valueof")),
 	__booleanof(allocator, OS_TEXT("__booleanof")),
@@ -7492,7 +7475,6 @@ OS::Core::Strings::Strings(OS * allocator)
 	__userdataof(allocator, OS_TEXT("__userdataof")),
 	__functionof(allocator, OS_TEXT("__functionof")),
 	__clone(allocator, OS_TEXT("__clone")),
-	// __tobool(allocator, OS_TEXT("__tobool")),
 	__concat(allocator, OS_TEXT("__concat")),
 	__bitand(allocator, OS_TEXT("__bitand")),
 	__bitor(allocator, OS_TEXT("__bitor")),
@@ -7518,7 +7500,6 @@ OS::Core::Strings::Strings(OS * allocator)
 	typeof_array(allocator, OS_TEXT("array")),
 	typeof_userdata(allocator, OS_TEXT("userdata")),
 	typeof_function(allocator, OS_TEXT("function")),
-	typeof_thread(allocator, OS_TEXT("thread")),
 
 	syntax_typeof(allocator, OS_TEXT("typeof")),
 	syntax_valueof(allocator, OS_TEXT("valueof")),
@@ -7946,16 +7927,20 @@ OS::Core::~Core()
 OS * OS::create(MemoryManager * manager)
 {
 	OS * os = new OS(manager);
-	os->init();
-	return os;
+	if(os->init()){
+		return os;
+	}
+	delete os;
+	return NULL;
 }
 
 bool OS::init()
 {
 	if(core->init()){
-		registerGlobalFunctions();
-		registerObjectLibrary();
-		registerMathLibrary();
+		initGlobalFunctions();
+		initObjectClass();
+		initArrayClass();
+		initMathLibrary();
 		return true;
 	}
 	return false;
@@ -8297,10 +8282,19 @@ void OS::Core::gcProcessGreyValue(Value * value)
 		gcProcessGreyValueFunction(value);
 		break;
 
+	case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
+		{
+			CFuncUpvaluesData * func = value->value.cfunc_upvalues;
+			Value ** upvalues = (Value**)(func + 1);
+			for(int i = 0; i < func->num_upvalues; i++){
+				gcAddGreyValue(upvalues[i]);
+			}
+			break;
+		}
+
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_CFUNCTION:
-	case OS_VALUE_TYPE_THREAD:
 		break;
 	}
 }
@@ -8444,25 +8438,27 @@ void OS::Core::resetValue(Value * val)
 		break;
 
 	case OS_VALUE_TYPE_USERDATA:
-		if(val->value.userdata.dtor){
-			val->value.userdata.dtor(allocator, val->value.userdata.ptr);
-		}
-		free(val->value.userdata.ptr);
-		val->value.userdata.ptr = NULL;
-		val->value.userdata.dtor = NULL;
-		break;
-
 	case OS_VALUE_TYPE_USERPTR:
-		if(val->value.userdata.dtor){
-			val->value.userdata.dtor(allocator, val->value.userdata.ptr);
+		if(val->value.userdata->dtor){
+			val->value.userdata->dtor(allocator, val->value.userdata->ptr, val->value.userdata->user_param);
 		}
-		val->value.userdata.ptr = NULL;
-		val->value.userdata.dtor = NULL;
+		this->free(val->value.userdata);
+		val->value.userdata = NULL;
 		break;
 
 	case OS_VALUE_TYPE_FUNCTION:
 		deleteFunctionValueData(val->value.func);
 		val->value.func = NULL;
+		break;
+
+	case OS_VALUE_TYPE_CFUNCTION:
+		val->value.cfunc.func = NULL;
+		val->value.cfunc.user_param = NULL;
+		break;
+
+	case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
+		this->free(val->value.cfunc_upvalues);
+		val->value.cfunc_upvalues = NULL;
 		break;
 
 	case OS_VALUE_TYPE_OBJECT:
@@ -8560,13 +8556,13 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 		case OS_VALUE_TYPE_ARRAY:
 		case OS_VALUE_TYPE_OBJECT:
 		case OS_VALUE_TYPE_FUNCTION:
-		case OS_VALUE_TYPE_THREAD:
 			table_value->prototype = value;
 			break;
 
 		case OS_VALUE_TYPE_USERDATA:
 		case OS_VALUE_TYPE_USERPTR:
 		case OS_VALUE_TYPE_CFUNCTION:
+		case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
 			// TODO: warning???
 			break;
 		}
@@ -8631,26 +8627,6 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Value 
 	case OS_VALUE_TYPE_STRING:
 		return setPropertyValue(table_value, index_value, PropertyIndex(index_value->value.string_data), val, prototype_enabled, setter_enabled);
 	}
-}
-
-OS::Core::Value * OS::Core::getStackValue(int offs)
-{
-	if(offs < 0){
-		offs += stack_values.count;
-		if(offs < 0){
-			return NULL;
-		}
-	}
-	if(offs < stack_values.count){
-		return stack_values.buf[offs];
-	}
-	if(offs == OS_REGISTER_GLOBALS){
-		return global_vars;
-	}
-	if(offs == OS_REGISTER_USERPOOL){
-		return user_pool;
-	}
-	return NULL;
 }
 
 OS::Core::Value * OS::Core::newBoolValue(bool val)
@@ -8727,20 +8703,49 @@ OS::Core::Value * OS::Core::newCFunctionValue(OS_CFunction func, void * user_par
 	return res;
 }
 
-OS::Core::Value * OS::Core::newUserDataValue(int data_size, OS_UserDataDtor dtor)
+OS::Core::Value * OS::Core::newCFunctionValue(OS_CFunction func, int num_upvalues, void * user_param)
+{
+	if(num_upvalues <= 0){
+		return newCFunctionValue(func, user_param);
+	}
+	OS_ASSERT(stack_values.count >= num_upvalues);
+	if(!func){
+		return null_value;
+	}
+	Value * res = newValue();
+	res->value.cfunc_upvalues = (CFuncUpvaluesData*)malloc(sizeof(CFuncUpvaluesData) + sizeof(Value*) * num_upvalues);
+	res->value.cfunc_upvalues->func = func;
+	res->value.cfunc_upvalues->user_param = user_param;
+	res->value.cfunc_upvalues->num_upvalues = num_upvalues;
+	Value ** upvalues = (Value**)(res->value.cfunc_upvalues + 1);
+	for(int i = 0; i < num_upvalues; i++){
+		upvalues[i] = stack_values[stack_values.count - num_upvalues + i];
+	}
+	res->type = OS_VALUE_TYPE_CFUNCTION_UPVALUES;
+	pop(num_upvalues);
+	return res;
+}
+
+OS::Core::Value * OS::Core::newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param)
 {
 	Value * res = newValue();
-	res->value.userdata.ptr = malloc(data_size);
-	res->value.userdata.dtor = dtor;
+	res->value.userdata = (UserData*)malloc(sizeof(UserData) + data_size);
+	res->value.userdata->crc = crc;
+	res->value.userdata->dtor = dtor;
+	res->value.userdata->user_param = user_param;
+	res->value.userdata->ptr = res->value.userdata + 1;
 	res->type = OS_VALUE_TYPE_USERDATA;
 	return res;
 }
 
-OS::Core::Value * OS::Core::newUserPointerValue(void * data, OS_UserDataDtor dtor)
+OS::Core::Value * OS::Core::newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param)
 {
 	Value * res = newValue();
-	res->value.userdata.ptr = data;
-	res->value.userdata.dtor = dtor;
+	res->value.userdata = (UserData*)malloc(sizeof(UserData));
+	res->value.userdata->crc = crc;
+	res->value.userdata->dtor = dtor;
+	res->value.userdata->user_param = user_param;
+	res->value.userdata->ptr = data;
 	res->type = OS_VALUE_TYPE_USERPTR;
 	return res;
 }
@@ -8775,6 +8780,11 @@ OS::Core::Value * OS::Core::pushValue(Value * val)
 	OS_ASSERT(val);
 	allocator->vectorAddItem(stack_values, val);
 	return val;
+}
+
+OS::Core::Value * OS::Core::pushStackValue(int offs)
+{
+	return pushValueAutoNull(getStackValue(offs));
 }
 
 OS::Core::Value * OS::Core::pushValueAutoNull(Value * val)
@@ -8827,14 +8837,19 @@ OS::Core::Value * OS::Core::pushCFunctionValue(OS_CFunction func, void * user_pa
 	return pushValue(newCFunctionValue(func, user_param));
 }
 
-OS::Core::Value * OS::Core::pushUserDataValue(int data_size, OS_UserDataDtor dtor)
+OS::Core::Value * OS::Core::pushCFunctionValue(OS_CFunction func, int upvalues, void * user_param)
 {
-	return pushValue(newUserDataValue(data_size, dtor));
+	return pushValue(newCFunctionValue(func, upvalues, user_param));
 }
 
-OS::Core::Value * OS::Core::pushUserPointerValue(void * data, OS_UserDataDtor dtor)
+OS::Core::Value * OS::Core::pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param)
 {
-	return pushValue(newUserPointerValue(data, dtor));
+	return pushValue(newUserDataValue(crc, data_size, dtor, user_param));
+}
+
+OS::Core::Value * OS::Core::pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param)
+{
+	return pushValue(newUserPointerValue(crc, data, dtor, user_param));
 }
 
 OS::Core::Value * OS::Core::pushObjectValue()
@@ -8877,10 +8892,8 @@ OS::Core::Value * OS::Core::pushTypeOf(Value * val)
 
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
 		return pushStringValue(strings->typeof_function);
-
-	case OS_VALUE_TYPE_THREAD:
-		return pushStringValue(strings->typeof_thread);
 	}
 	return pushStringValue(strings->typeof_null);
 }
@@ -8890,7 +8903,12 @@ OS::Core::Value * OS::Core::pushNumberOf(Value * val)
 	if(val->type == OS_VALUE_TYPE_NUMBER){
 		return pushValue(val);
 	}
-	return pushNumberValue(valueToNumber(val));
+	OS_FLOAT number;
+	if(isValueNumber(val, &number)){
+		return pushNumberValue(number);
+	}
+	return pushConstNullValue();
+	// return pushNumberValue(valueToNumber(val));
 }
 
 OS::Core::Value * OS::Core::pushStringOf(Value * val)
@@ -8898,7 +8916,12 @@ OS::Core::Value * OS::Core::pushStringOf(Value * val)
 	if(val->type == OS_VALUE_TYPE_STRING){
 		return pushValue(val);
 	}
-	return pushStringValue(valueToString(val));
+	String str(allocator);
+	if(isValueString(val, &str)){
+		return pushStringValue(str);
+	}
+	return pushConstNullValue();
+	// return pushStringValue(valueToString(val));
 }
 
 OS::Core::Value * OS::Core::pushValueOf(Value * val)
@@ -8913,7 +8936,7 @@ OS::Core::Value * OS::Core::pushValueOf(Value * val)
 	bool prototype_enabled = true;
 	Value * func = getPropertyValue(val, 
 		PropertyIndex(strings->__valueof, PropertyIndex::KeepStringIndex()), prototype_enabled);
-	if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+	if(func && func->isFunction()){
 		pushValue(func);
 		pushValue(val);
 		call(0, 1);
@@ -8926,87 +8949,8 @@ OS::Core::Value * OS::Core::pushValueOf(Value * val)
 		case OS_VALUE_TYPE_STRING:
 			return val;
 		}
+		// TODO: warning
 		pop();
-	}
-	switch(val->type){
-	case OS_VALUE_TYPE_ARRAY:
-		if(!val->table || !val->table->count){
-			return pushStringValue(OS_TEXT("[]"));
-		}
-		{
-			String buf = String(allocator, OS_TEXT("["));
-			bool is_generic_array = true;
-			int need_index = 0;
-			Value::Property * prop = val->table->first;
-			for(int i = 0; prop; prop = prop->next, i++, need_index++){
-				if(prop->int_valid && prop->int_index == need_index){
-					if(i > 100){
-						buf += OS_TEXT("...");
-						break;
-					}
-					if(need_index > 0){
-						buf += OS_TEXT(",");
-					}
-					buf += String(allocator, (OS_INT)need_index);
-					buf += OS_TEXT(":");
-					Value * value = values.get(prop->value_id);
-					if(value){
-						buf += valueToString(value);
-					}
-				}else{
-					is_generic_array = false;
-					break;
-				}
-			}
-			if(is_generic_array){
-				return pushStringValue(buf + OS_TEXT("]"));
-			}
-			// no break
-		}
-
-	case OS_VALUE_TYPE_OBJECT:
-		if(!val->table || !val->table->count){
-			return pushStringValue(OS_TEXT("{}"));
-		}
-		{
-			String buf = String(allocator, OS_TEXT("{"));
-			int need_index = 0;
-			Value::Property * prop = val->table->first;
-			for(int i = 0; prop; prop = prop->next, i++){
-				if(i > 100){
-					buf += OS_TEXT("...");
-					break;
-				}
-				if(i > 0){
-					buf += OS_TEXT(",");
-				}
-				if(prop->int_valid){
-					if(prop->int_index != need_index){
-						buf += String(allocator, prop->int_index);
-						buf += OS_TEXT(":");
-					}
-					need_index = prop->int_index + 1;
-				}else{ // if(prop->is_string_index){
-					buf += prop->string_index;
-					buf += OS_TEXT(":");
-				}
-				Value * value = values.get(prop->value_id);
-				if(value){
-					buf += valueToString(value);
-				}
-			}
-			return pushStringValue(buf + OS_TEXT("}"));
-		}
-		/* if(val->table && val->table->count >= 1){
-			val = values.get(val->table->first->value_id);
-			switch(val->type){
-			case OS_VALUE_TYPE_NULL:
-			case OS_VALUE_TYPE_NUMBER:
-			case OS_VALUE_TYPE_BOOL:
-			case OS_VALUE_TYPE_STRING:
-				return pushValue(val);
-			}
-		} */
 	}
 	return pushConstNullValue();
 }
@@ -9022,9 +8966,7 @@ OS::Core::Value * OS::Core::pushArrayOf(Value * val)
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_STRING:
 		res = pushArrayValue();
-		pushNumberValue(0);
-		pushValue(val);
-		allocator->setProperty(true);
+		setPropertyValue(res, NULL, PropertyIndex(allocator, 0), val, true, true);
 		return res;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -9053,9 +8995,7 @@ OS::Core::Value * OS::Core::pushObjectOf(Value * val)
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_STRING:
 		res = pushObjectValue();
-		pushNumberValue(0);
-		pushValue(val);
-		allocator->setProperty(true);
+		setPropertyValue(res, NULL, PropertyIndex(allocator, 0), val, true, true);
 		return res;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -9080,6 +9020,7 @@ OS::Core::Value * OS::Core::pushFunctionOf(Value * val)
 	switch(val->type){
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
 		return pushValue(val);
 	}
 	return pushConstNullValue();
@@ -9112,10 +9053,10 @@ OS::Core::Value * OS::Core::pushCloneValue(Value * value)
 		break;
 
 	case OS_VALUE_TYPE_FUNCTION:
-	case OS_VALUE_TYPE_THREAD:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_CFUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
 		new_value = pushValue(value);
 		break;
 				
@@ -9138,7 +9079,7 @@ OS::Core::Value * OS::Core::pushCloneValue(Value * value)
 			bool prototype_enabled = true;
 			Value * func = getPropertyValue(new_value, 
 				PropertyIndex(strings->__clone, PropertyIndex::KeepStringIndex()), prototype_enabled);
-			if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+			if(func && func->isFunction()){
 				pushValue(func);
 				pushValue(new_value);
 				call(0, 1);
@@ -9182,7 +9123,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * value)
 			bool prototype_enabled = true;
 			Value * func = core->getPropertyValue(value, 
 				PropertyIndex(method_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
-			if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+			if(func && func->isFunction()){
 				core->pushValue(func);
 				core->pushValue(value);
 				core->call(0, 1);
@@ -9261,7 +9202,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
-				case OS_VALUE_TYPE_THREAD:
+				case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
 					return left_value->value_id == right_value->value_id;
 				}
 			}
@@ -9313,7 +9254,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 						bool prototype_enabled = true;
 						Value * func = core->getPropertyValue(left_value, 
 							PropertyIndex(core->strings->__cmp, PropertyIndex::KeepStringIndex()), prototype_enabled);
-						if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+						if(func && func->isFunction()){
 							core->pushValue(func);
 							core->pushValue(left_value);
 							core->pushValue(right_value);
@@ -9333,7 +9274,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 							case OS_VALUE_TYPE_USERPTR:
 								func = core->getPropertyValue(right_value, 
 									PropertyIndex(core->strings->__cmp, PropertyIndex::KeepStringIndex()), prototype_enabled);
-								if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+								if(func && func->isFunction()){
 									core->pushValue(func);
 									core->pushValue(right_value);
 									core->pushValue(left_value);
@@ -9463,7 +9404,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 			bool prototype_enabled = true;
 			Value * func = core->getPropertyValue(object, 
 				PropertyIndex(method_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
-			if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+			if(func && func->isFunction()){
 				core->pushValue(func);
 				core->pushValue(object);
 				core->pushValue(left_value);
@@ -9482,7 +9423,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 				case OS_VALUE_TYPE_USERPTR:
 					func = core->getPropertyValue(other_value, 
 						PropertyIndex(method_name, PropertyIndex::KeepStringIndex()), prototype_enabled);
-					if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+					if(func && func->isFunction()){
 						core->pushValue(func);
 						core->pushValue(other_value);
 						core->pushValue(left_value);
@@ -9615,15 +9556,8 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * left_value, Va
 
 void OS::Core::setGlobalValue(const String& name, Value * value, bool prototype_enabled, bool setter_enabled)
 {
-#if 1
-	pushValue(global_vars);
-	pushStringValue(name);
-	pushValue(value);
-	allocator->setProperty(false, prototype_enabled, setter_enabled);
-#else
-	pushValue(value);
-	allocator->setGlobal(name, prototype_enabled, setter_enabled);
-#endif
+	setPropertyValue(global_vars, pushStringValue(name), value, prototype_enabled, setter_enabled);
+	pop(); // remove temp string
 }
 
 void OS::Core::setGlobalValue(const OS_CHAR * name, Value * value, bool prototype_enabled, bool setter_enabled)
@@ -9631,13 +9565,35 @@ void OS::Core::setGlobalValue(const OS_CHAR * name, Value * value, bool prototyp
 	setGlobalValue(String(allocator, name), value, prototype_enabled, setter_enabled);
 }
 
+int OS::Core::getStackOffs(int offs)
+{
+	return offs <= 0 ? stack_values.count + offs + 1 : offs;
+}
+
+OS::Core::Value * OS::Core::getStackValue(int offs)
+{
+	offs = offs <= 0 ? stack_values.count + offs : offs - 1;
+	if(offs >= 0 && offs < stack_values.count){
+		return stack_values.buf[offs];
+	}
+	if(offs == OS_REGISTER_GLOBALS - 1){
+		return global_vars;
+	}
+	if(offs == OS_REGISTER_USERPOOL - 1){
+		return user_pool;
+	}
+	OS_ASSERT(false);
+	return NULL;
+}
+
 void OS::Core::removeStackValues(int offs, int count)
 {
-	int start = offs < 0 ? stack_values.count + offs : offs;
-	if(start < 0){
-		OS_ASSERT(false);
+	if(count <= 0){
+		OS_ASSERT(count == 0);
 		return;
-	}else if(start >= stack_values.count){
+	}
+	int start = offs <= 0 ? stack_values.count + offs : offs - 1;
+	if(start < 0 || start >= stack_values.count){
 		OS_ASSERT(false);
 		return;
 	}
@@ -9674,40 +9630,31 @@ void OS::Core::pop(int count)
 	gcStepIfNeeded();
 }
 
-int OS::Core::moveStackValues(int offs, int count, int new_offs)
+void OS::Core::moveStackValues(int offs, int count, int new_offs)
 {
-	if(offs < 0){
-		offs += stack_values.count;
-		if(offs < 0){
-			OS_ASSERT(false);
-			return 0;
-		}
+	if(count <= 0){
+		OS_ASSERT(count == 0);
+		return;
 	}
-	if(offs >= stack_values.count){
+	offs = offs <= 0 ? stack_values.count + offs : offs - 1;
+	if(offs < 0 || offs >= stack_values.count){
 		OS_ASSERT(false);
-		return 0;
+		return;
 	}
 	int end = offs + count;
 	if(end > stack_values.count){
 		OS_ASSERT(false);
-		return 0;
+		return;
 	}
-
-	if(new_offs < 0){
-		new_offs += stack_values.count;
-		if(new_offs < 0){
-			OS_ASSERT(false);
-			return 0;
-		}
-	}
-	if(new_offs >= stack_values.count){
+	new_offs = new_offs <= 0 ? stack_values.count + new_offs : new_offs - 1;
+	if(new_offs < 0 || new_offs >= stack_values.count){
 		OS_ASSERT(false);
-		return 0;
+		return;
 	}
 	int new_end = new_offs + count;
 	if(new_end > stack_values.count){
 		OS_ASSERT(false);
-		return 0;
+		return;
 	}
 	Value ** temp_values = (Value**)alloca(sizeof(Value*) * count);
 	OS_MEMCPY(temp_values, stack_values.buf + offs, sizeof(Value*) * count);
@@ -9717,32 +9664,20 @@ int OS::Core::moveStackValues(int offs, int count, int new_offs)
 		OS_MEMMOVE(stack_values.buf + new_offs+count, stack_values.buf + new_offs, sizeof(Value*) * (offs - new_offs));
 	}
 	OS_MEMCPY(stack_values.buf + new_offs, temp_values, sizeof(Value*) * count);
-	return new_offs;
 }
 
-int OS::Core::moveStackValue(int offs, int new_offs)
+void OS::Core::moveStackValue(int offs, int new_offs)
 {
-	if(offs < 0){
-		offs += stack_values.count;
-		if(offs < 0){
-			OS_ASSERT(false);
-			return 0;
-		}
-	}
-	if(offs >= stack_values.count){
+	offs = offs <= 0 ? stack_values.count + offs : offs - 1;
+	if(offs < 0 || offs >= stack_values.count){
 		OS_ASSERT(false);
-		return 0;
+		return;
 	}
-	if(new_offs < 0){
-		new_offs += stack_values.count;
-		if(new_offs < 0){
-			OS_ASSERT(false);
-			return 0;
-		}
-	}
-	if(new_offs >= stack_values.count){
+
+	new_offs = new_offs <= 0 ? stack_values.count + new_offs : new_offs - 1;
+	if(new_offs < 0 || new_offs >= stack_values.count){
 		OS_ASSERT(false);
-		return 0;
+		return;
 	}
 
 	Value * value = stack_values[offs];
@@ -9752,25 +9687,24 @@ int OS::Core::moveStackValue(int offs, int new_offs)
 		OS_MEMMOVE(stack_values.buf + new_offs+1, stack_values.buf + new_offs, sizeof(Value*) * (offs - new_offs));
 	}
 	stack_values[new_offs] = value;
-	return new_offs;
 }
 
-OS::Core::Value * OS::Core::pushValue(Value * val, int offs)
+OS::Core::Value * OS::Core::insertValue(Value * val, int offs)
 {
 	OS_ASSERT(val);
-	if(offs < 0){
-		offs += stack_values.count;
-		if(offs < 0){
-			OS_ASSERT(false);
-			return NULL;
-		}
-	}
-	if(offs >= stack_values.count){
+	offs = offs <= 0 ? stack_values.count + offs : offs - 1;
+	
+	allocator->vectorReserveCapacity(stack_values, stack_values.count+1);
+	stack_values.count++;
+
+	if(offs < 0 || offs >= stack_values.count){
 		OS_ASSERT(false);
 		return NULL;
 	}
-	allocator->vectorReserveCapacity(stack_values, stack_values.count+1);
-	OS_MEMMOVE(stack_values.buf + offs+1, stack_values.buf + offs, sizeof(Value*) * (stack_values.count++ - offs));
+	int count = stack_values.count - offs - 1;
+	if(count > 0){
+		OS_MEMMOVE(stack_values.buf + offs+1, stack_values.buf + offs, sizeof(Value*) * count);
+	}
 	return stack_values[offs] = val;
 }
 
@@ -9819,16 +9753,21 @@ void OS::pushCFunction(OS_CFunction func, void * user_param)
 	core->pushCFunctionValue(func, user_param);
 }
 
-void * OS::pushUserData(int data_size, OS_UserDataDtor dtor)
+void OS::pushCFunction(OS_CFunction func, int upvalues, void * user_param)
 {
-	Core::Value * val = core->pushUserDataValue(data_size, dtor);
-	return val->value.userdata.ptr;
+	core->pushCFunctionValue(func, upvalues, user_param);
 }
 
-void * OS::pushUserPointer(void * data, OS_UserDataDtor dtor)
+void * OS::pushUserData(int crc, int data_size, OS_UserDataDtor dtor, void * user_param)
 {
-	Core::Value * val = core->pushUserPointerValue(data, dtor);
-	return val->value.userdata.ptr;
+	Core::Value * val = core->pushUserDataValue(crc, data_size, dtor, user_param);
+	return val->value.userdata->ptr;
+}
+
+void * OS::pushUserPointer(int crc, void * data, OS_UserDataDtor dtor, void * user_param)
+{
+	Core::Value * val = core->pushUserPointerValue(crc, data, dtor, user_param);
+	return val->value.userdata->ptr;
 }
 
 void OS::newObject()
@@ -9850,7 +9789,7 @@ void OS::pushValue(const Value& value)
 
 void OS::pushStackValue(int offs)
 {
-	core->pushValueAutoNull(core->getStackValue(offs));
+	core->pushStackValue(offs);
 }
 
 void OS::pushGlobals()
@@ -9868,27 +9807,61 @@ void OS::pushValueById(int id)
 	core->pushValueAutoNull(core->values.get(id));
 }
 
-void OS::pushValueOf(int offs)
+/*
+void OS::getValueOf()
 {
-	Core::Value * value = core->getStackValue(offs);
+	Core::Value * value = core->getStackValue(-1);
 	if(value){
 		core->pushValueOf(value);
+		remove(-2);
 	}else{
-		core->pushConstNullValue();
+		pushNull();
 	}
 }
 
-/*
-OS::Value OS::getValue(int offs)
+void OS::getNumberOf()
 {
-	return Value(this, core->getStackValue(offs));
+	Core::Value * value = core->getStackValue(-1);
+	if(value){
+		core->pushNumberOf(value);
+		remove(-2);
+	}else{
+		pushNull();
+	}
 }
 
-OS::Value OS::getValueById(int id)
+void OS::getStringOf()
 {
-	return Value(this, core->values.get(id));
+	Core::Value * value = core->getStackValue(-1);
+	if(value){
+		core->pushStringOf(value);
+		remove(-2);
+	}else{
+		pushNull();
+	}
+}
+
+void OS::getBooleanOf()
+{
+	Core::Value * value = core->getStackValue(-1);
+	if(value){
+		core->pushConstBoolValue(core->valueToBool(value));
+		remove(-2);
+	}else{
+		pushNull();
+	}
 }
 */
+
+int OS::getStackSize()
+{
+	return core->stack_values.count;
+}
+
+int OS::getOffs(int offs)
+{
+	return core->getStackOffs(offs);
+}
 
 void OS::remove(int start_offs, int count)
 {
@@ -9905,14 +9878,14 @@ void OS::removeAll()
 	core->removeAllStackValues();
 }
 
-int OS::move(int start_offs, int count, int new_offs)
+void OS::move(int start_offs, int count, int new_offs)
 {
-	return core->moveStackValues(start_offs, count, new_offs);
+	core->moveStackValues(start_offs, count, new_offs);
 }
 
-int OS::move(int offs, int new_offs)
+void OS::move(int offs, int new_offs)
 {
-	return core->moveStackValue(offs, new_offs);
+	core->moveStackValue(offs, new_offs);
 }
 
 bool OS::toBool(int offs)
@@ -9924,18 +9897,18 @@ bool OS::toBool(int offs)
 	return false;
 }
 
-OS_FLOAT OS::toNumber(int offs)
+OS_FLOAT OS::toNumber(int offs, bool valueof_enabled)
 {
 	Core::Value * val = core->getStackValue(offs);
 	if(val){
-		return core->valueToNumber(val);
+		return core->valueToNumber(val, valueof_enabled);
 	}
 	return 0;
 }
 
-int OS::toInt(int offs)
+int OS::toInt(int offs, bool valueof_enabled)
 {
-	return (int)toNumber(offs);
+	return (int)toNumber(offs, valueof_enabled);
 }
 
 bool OS::isNumber(int offs, OS_FLOAT * out)
@@ -9950,24 +9923,11 @@ bool OS::isNumber(int offs, OS_FLOAT * out)
 	return false;
 }
 
-/*
-bool OS::Value::isNumber(OS_FLOAT * out) const
-{
-	if(value){
-		return allocator->core->isValueNumber(value, out);
-	}
-	if(out){
-		*out = 0;
-	}
-	return false;
-}
-*/
-
-OS::String OS::toString(int offs)
+OS::String OS::toString(int offs, bool valueof_enabled)
 {
 	Core::Value * val = core->getStackValue(offs);
 	if(val){
-		return core->valueToString(val);
+		return core->valueToString(val, valueof_enabled);
 	}
 	return String(this);
 }
@@ -9993,40 +9953,11 @@ bool OS::isString(int offs, String * out)
 	return false;
 }
 
-/*
-bool OS::Value::isString(String * out) const
-{
-	if(value){
-		if(out){
-			Core::String str(allocator);
-			if(allocator->core->isValueString(value, &str)){
-				*out = str;
-				return true;
-			}
-			return false;
-		}else{
-			return allocator->core->isValueString(value);
-		}
-	}
-	if(out){
-		*out = String(allocator);
-	}
-	return false;
-}
-*/
-
 OS_EValueType OS::getType(int offs)
 {
 	Core::Value * val = core->getStackValue(offs);
 	return val ? val->type : OS_VALUE_TYPE_NULL;
 }
-
-/*
-OS_EValueType OS::Value::getType() const
-{
-	return value ? value->type : OS_VALUE_TYPE_NULL;
-}
-*/
 
 OS_EValueType OS::getTypeById(int id)
 {
@@ -10039,13 +9970,6 @@ bool OS::isType(OS_EValueType type, int offs)
 	Core::Value * val = core->getStackValue(offs);
 	return val && val->type == type;
 }
-
-/*
-bool OS::Value::isType(OS_EValueType type) const
-{
-	return value && value->type == type;
-}
-*/
 
 bool OS::isNull(int offs)
 {
@@ -10063,6 +9987,39 @@ bool OS::isObject(int offs)
 		}
 	}
 	return false;
+}
+
+bool OS::isUserData(int offs)
+{
+	Core::Value * val = core->getStackValue(offs);
+	if(val){
+		switch(val->type){
+		case OS_VALUE_TYPE_USERDATA:
+		case OS_VALUE_TYPE_USERPTR:
+			return true;
+		}
+	}
+	return false;
+}
+
+void * OS::toUserData(int crc)
+{
+	return toUserData(-1, crc);
+}
+
+void * OS::toUserData(int offs, int crc)
+{
+	Core::Value * val = core->getStackValue(offs);
+	if(val){
+		switch(val->type){
+		case OS_VALUE_TYPE_USERDATA:
+		case OS_VALUE_TYPE_USERPTR:
+			if(val->value.userdata->crc == crc){
+				return val->value.userdata->ptr;
+			}
+		}
+	}
+	return NULL;
 }
 
 /*
@@ -10091,32 +10048,22 @@ bool OS::Value::isArray() const
 }
 */
 
-bool OS::isFunction(int offs)
+bool OS::Core::Value::isFunction() const
 {
-	Core::Value * val = core->getStackValue(offs);
-	if(val){
-		switch(val->type){
-		case OS_VALUE_TYPE_CFUNCTION:
-		case OS_VALUE_TYPE_FUNCTION:
-			return true;
-		}
+	switch(type){
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
+		return true;
 	}
 	return false;
 }
 
-/*
-bool OS::Value::isFunction() const
+bool OS::isFunction(int offs)
 {
-	if(value){
-		switch(value->type){
-		case OS_VALUE_TYPE_CFUNCTION:
-		case OS_VALUE_TYPE_FUNCTION:
-			return true;
-		}
-	}
-	return false;
+	Core::Value * val = core->getStackValue(offs);
+	return val && val->isFunction();
 }
-*/
 
 bool OS::Core::isValueInstanceOf(Value * val, Value * prototype_val)
 {
@@ -10155,19 +10102,66 @@ bool OS::Value::isInstanceOf(const Value& prototype_value) const
 }
 */
 
-void OS::setProperty(bool keep_object_in_stack, bool prototype_enabled, bool setter_enabled)
+void OS::setProperty(bool prototype_enabled, bool setter_enabled)
 {
 	if(core->stack_values.count >= 3){
-		Core::Value * table_arg = core->stack_values.buf[core->stack_values.count - 3];
-		Core::Value * index_arg = core->stack_values.buf[core->stack_values.count - 2];
-		Core::Value * value_arg = core->stack_values.buf[core->stack_values.count - 1];
-		OS_ASSERT(table_arg && index_arg && value_arg);
-		core->setPropertyValue(table_arg, index_arg, value_arg, prototype_enabled, setter_enabled);
-		pop(3 - (int)keep_object_in_stack);
+		Core::Value * object = core->stack_values[core->stack_values.count - 3];
+		Core::Value * index = core->stack_values[core->stack_values.count - 2];
+		Core::Value * value = core->stack_values[core->stack_values.count - 1];
+		core->setPropertyValue(object, index, value, prototype_enabled, setter_enabled);
+		pop(3);
 	}else{
 		// error
-		pop(3 - (int)keep_object_in_stack);
+		pop(3);
 	}
+}
+
+void OS::setProperty(const OS_CHAR * name, bool prototype_enabled, bool setter_enabled)
+{
+	getProperty(Core::String(this, name), prototype_enabled, setter_enabled);
+}
+
+void OS::setProperty(const Core::String& name, bool prototype_enabled, bool setter_enabled)
+{
+	pushString(name);
+	move(-1, -2);
+	getProperty(prototype_enabled, setter_enabled);
+}
+
+void OS::addProperty()
+{
+	pushStackValue(-2);
+	runOp(OP_LENGTH);
+	move(-2, -1);
+	setProperty(false, false);
+}
+
+void OS::getPrototype()
+{
+	if(core->stack_values.count >= 1){
+		Core::Value * value = core->stack_values[core->stack_values.count - 1];
+		core->pushValueAutoNull(value->prototype);
+	}else{
+		pushNull();
+	}
+}
+
+void OS::setPrototype()
+{
+	if(core->stack_values.count >= 2){
+		Core::Value * value = core->stack_values[core->stack_values.count - 2];
+		Core::Value * proto = core->stack_values[core->stack_values.count - 1];
+		if(value->type != OS_VALUE_TYPE_NULL){
+			value->prototype = proto;
+		}
+	}
+	pop(2);
+}
+
+int OS::getId(int offs)
+{
+	Core::Value * value = core->getStackValue(offs);
+	return value ? value->value_id : 0;
 }
 
 OS::Core::Value * OS::Core::getPropertyValue(Value::Table * table, const PropertyIndex& index)
@@ -10282,16 +10276,26 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 void OS::getProperty(bool prototype_enabled, bool getter_enabled)
 {
 	if(core->stack_values.count >= 2){
-		Core::Value * table_arg = core->stack_values.buf[core->stack_values.count - 2];
-		Core::Value * index_arg = core->stack_values.buf[core->stack_values.count - 1];
-		OS_ASSERT(table_arg && index_arg);
-		core->pushPropertyValue(table_arg, index_arg, prototype_enabled, getter_enabled);
+		Core::Value * object = core->stack_values[core->stack_values.count - 2];
+		Core::Value * index = core->stack_values[core->stack_values.count - 1];
+		core->pushPropertyValue(object, index, prototype_enabled, getter_enabled);
 		core->removeStackValues(-3, 2);
 	}else{
 		// error
 		pop(2);
 		pushNull();
 	}
+}
+
+void OS::getProperty(const OS_CHAR * name, bool prototype_enabled, bool getter_enabled)
+{
+	getProperty(Core::String(this, name), prototype_enabled, getter_enabled);
+}
+
+void OS::getProperty(const Core::String& name, bool prototype_enabled, bool getter_enabled)
+{
+	pushString(name);
+	getProperty(prototype_enabled, getter_enabled);
 }
 
 void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance * func_running)
@@ -10376,12 +10380,13 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int extra_
 		cur_parent = cur_parent->func->value.func->parent_inctance;
 	}
 
-	func_running->initial_stack_size = stack_values.count;
 	func_running->need_ret_values = need_ret_values;
-	func_running->next_opcode_pos = func_decl->opcodes_pos;
+	func_running->opcodes_pos = func_decl->opcodes_pos;
 	
 	allocator->vectorAddItem(call_stack_funcs, func_running);
 	pop(stack_values.count - clear_stack_to_index);
+
+	func_running->initial_stack_size = stack_values.count;
 }
 
 int OS::Core::leaveFunction()
@@ -10401,7 +10406,7 @@ restart:
 	Program * prog = func_value_data->prog;
 
 	MemStreamReader opcodes(NULL, prog->opcodes->buffer + func_decl->opcodes_pos, func_decl->opcodes_size);
-	opcodes.skipBytes(func_running->next_opcode_pos - func_decl->opcodes_pos);
+	opcodes.skipBytes(func_running->opcodes_pos - func_decl->opcodes_pos);
 
 	int prog_num_numbers = prog->num_numbers;
 	OS * allocator = this->allocator;
@@ -10422,12 +10427,14 @@ restart:
 		switch(opcode){
 		case Program::OP_PUSH_NUMBER:
 			i = opcodes.readUVariable();
+			OS_ASSERT(i >= 0 && i < prog_num_numbers);
 			OS_ASSERT(prog->const_values[i]->type == OS_VALUE_TYPE_NUMBER);
 			pushValue(prog->const_values[i]);
 			break;
 
 		case Program::OP_PUSH_STRING:
 			i = opcodes.readUVariable();
+			OS_ASSERT(i >= 0 && i < prog->num_strings);
 			OS_ASSERT(prog->const_values[prog_num_numbers + i]->type == OS_VALUE_TYPE_STRING);
 			pushValue(prog->const_values[prog_num_numbers + i]);
 			break;
@@ -10473,32 +10480,36 @@ restart:
 		case Program::OP_OBJECT_SET_BY_AUTO_INDEX:
 			{
 				OS_ASSERT(stack_values.count >= 2);
-				Value * table_value = stack_values[stack_values.count-2];
+				Value * object = stack_values[stack_values.count-2];
 				Value * value = stack_values[stack_values.count-1];
-				if(table_value->type == OS_VALUE_TYPE_OBJECT){
-					Core::Value::Table * table = table_value->table;
-					if(!table){
-						table = table_value->table = newTable();
-					}
-					setTableValue(table, PropertyIndex(allocator, (OS_INT)table->next_id), value);
-				}
-				pop();
+				OS_INT num_index = object->table ? object->table->next_id : 0;
+				setPropertyValue(object, NULL, PropertyIndex(allocator, num_index), value, false, false);
+				pop(); // keep object in stack
 				break;
 			}
 
 		case Program::OP_OBJECT_SET_BY_EXP:
-			allocator->setProperty(true, false, false);
-			break;
+			{
+				OS_ASSERT(stack_values.count >= 3);
+				Value * object = stack_values[stack_values.count - 3];
+				Value * value = stack_values[stack_values.count - 2];
+				Value * index = stack_values[stack_values.count - 1];
+				setPropertyValue(object, index, value, false, false);
+				pop(2); // keep object in stack
+				break;
+			}
 
 		case Program::OP_OBJECT_SET_BY_INDEX:
 			{
 				OS_ASSERT(stack_values.count >= 2);
 				i = opcodes.readUVariable();
-				Value * table_value = stack_values[stack_values.count-2];
-				Value * index_value = prog->const_values[i];
+				OS_ASSERT(i >= 0 && i < prog_num_numbers);
+				OS_ASSERT(prog->const_values[i]->type == OS_VALUE_TYPE_NUMBER);
+				Value * object = stack_values[stack_values.count-2];
+				Value * index = prog->const_values[i];
 				Value * value = stack_values[stack_values.count-1];
-				setPropertyValue(table_value, index_value, value, false, false);
-				pop();
+				setPropertyValue(object, index, value, false, false);
+				pop(); // keep object in stack
 				break;
 			}
 
@@ -10506,17 +10517,22 @@ restart:
 			{
 				OS_ASSERT(stack_values.count >= 2);
 				i = opcodes.readUVariable();
+				OS_ASSERT(i >= 0 && i < prog->num_strings);
+				OS_ASSERT(prog->const_values[prog_num_numbers + i]->type == OS_VALUE_TYPE_STRING);
 				Value * table_value = stack_values[stack_values.count-2];
 				Value * index_value = prog->const_values[prog_num_numbers + i];
 				Value * value = stack_values[stack_values.count-1];
-				setPropertyValue(table_value, index_value, PropertyIndex(valueToString(index_value), PropertyIndex::KeepStringIndex()), value, false, false);
-				pop();
+				OS_ASSERT(index_value->type == OS_VALUE_TYPE_STRING);
+				setPropertyValue(table_value, index_value, PropertyIndex(index_value->value.string_data, PropertyIndex::KeepStringIndex()), value, false, false);
+				pop(); // keep object in stack
 				break;
 			}
 
 		case Program::OP_PUSH_AUTO_VAR:
 			{
 				i = opcodes.readUVariable();
+				OS_ASSERT(i >= 0 && i < prog->num_strings);
+				OS_ASSERT(prog->const_values[prog_num_numbers + i]->type == OS_VALUE_TYPE_STRING);
 				Value * name_value = prog->const_values[prog_num_numbers + i];
 				OS_ASSERT(name_value->type == OS_VALUE_TYPE_STRING);
 				StringData * name = name_value->value.string_data;
@@ -10529,6 +10545,8 @@ restart:
 			{
 				OS_ASSERT(stack_values.count >= 1);
 				i = opcodes.readUVariable();
+				OS_ASSERT(i >= 0 && i < prog->num_strings);
+				OS_ASSERT(prog->const_values[prog_num_numbers + i]->type == OS_VALUE_TYPE_STRING);
 				Value * value = stack_values[stack_values.count-1];
 				Value * name_value = prog->const_values[prog_num_numbers + i];
 				OS_ASSERT(name_value->type == OS_VALUE_TYPE_STRING);
@@ -10624,9 +10642,9 @@ restart:
 				int ret_values = opcodes.readByte();
 				
 				OS_ASSERT(stack_values.count >= 1 + params);
-				// call(func_running->self, params, ret_values);
-				pushValue(null_value, -params);
-				// moveStackValue(-1, -1-params);
+				// pushConstNullValue();
+				// moveStackValue(-1, -params);
+				insertValue(null_value, -params);
 				call(params, ret_values);
 				break;
 			}
@@ -10639,13 +10657,13 @@ restart:
 				
 				OS_ASSERT(stack_values.count >= 1 + params);
 				Value * func_value = stack_values[stack_values.count-1-params];
-
 				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
-				
 				switch(func_value->type){
 				case OS_VALUE_TYPE_CFUNCTION:
-					pushValue(null_value, -params);
-					// moveStackValue(-1, -1-params);
+				case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
+					// pushConstNullValue();
+					// moveStackValue(-1, -params);
+					insertValue(null_value, -params);
 					call(params, ret_values);
 					break;
 
@@ -10657,10 +10675,15 @@ restart:
 
 				default:
 					// TODO: warn or error here???
-					removeStackValue(-1-params);
-					pushConstNullValue();
+					pop(1+params);
+					syncStackRetValues(ret_values, 0);
 				}
-				break;
+				OS_ASSERT(stack_values.count == func_running->initial_stack_size + ret_values);
+				// func_running->opcodes_pos = opcodes.getPos();
+				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
+				call_stack_funcs.count--;
+				releaseFunctionRunningInstance(func_running);
+				return ret_values;
 			}
 
 		case Program::OP_CALL_METHOD:
@@ -10702,9 +10725,9 @@ restart:
 				moveStackValues(-2, 2, -2-params);
 
 				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
-				
 				switch(func_value->type){
 				case OS_VALUE_TYPE_CFUNCTION:
+				case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
 					call(params, ret_values);
 					removeStackValues(-2-ret_values, 2);
 					break;
@@ -10718,15 +10741,37 @@ restart:
 				default:
 					// TODO: warn or error here???
 					pop(4+params);
-					pushConstNullValue();
+					syncStackRetValues(ret_values, 0);
 				}
-				break;
+				OS_ASSERT(stack_values.count == func_running->initial_stack_size + ret_values);
+				// func_running->opcodes_pos = opcodes.getPos();
+				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
+				call_stack_funcs.count--;
+				releaseFunctionRunningInstance(func_running);
+				return ret_values;
+			}
+
+		case Program::OP_RETURN:
+			{
+				int cur_ret_values = opcodes.readByte();
+				int ret_values = func_running->need_ret_values;
+				syncStackRetValues(ret_values, cur_ret_values);
+				OS_ASSERT(stack_values.count == func_running->initial_stack_size + ret_values);
+				// func_running->opcodes_pos = opcodes.getPos();
+				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
+				call_stack_funcs.count--;
+				releaseFunctionRunningInstance(func_running);
+				return ret_values;
 			}
 
 		case Program::OP_GET_PROPERTY:
 			{
 				int ret_values = opcodes.readByte();
-				allocator->getProperty();
+				OS_ASSERT(stack_values.count >= 2);
+				Core::Value * table_arg = stack_values.buf[stack_values.count - 2];
+				Core::Value * index_arg = stack_values.buf[stack_values.count - 1];
+				pushPropertyValue(table_arg, index_arg, true, true);
+				removeStackValues(-3, 2);
 				syncStackRetValues(ret_values, 1);
 				break;
 			}
@@ -10737,7 +10782,6 @@ restart:
 				Core::Value * value_arg = stack_values.buf[stack_values.count - 3];
 				Core::Value * table_arg = stack_values.buf[stack_values.count - 2];
 				Core::Value * index_arg = stack_values.buf[stack_values.count - 1];
-				OS_ASSERT(table_arg && index_arg && value_arg);
 				setPropertyValue(table_arg, index_arg, value_arg, true, true);
 				pop(3);
 				break;
@@ -10754,7 +10798,7 @@ restart:
 				Value * table_value = stack_values[stack_values.count-1-params];
 				Value * func = getPropertyValue(table_value, 
 					PropertyIndex(strings->__setdim, PropertyIndex::KeepStringIndex()), true);
-				if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
+				if(func && func->isFunction()){
 					pushValue(func);
 					pushValue(table_value);
 					moveStackValues(-2, 2, -2-params); // put func value before params
@@ -10782,13 +10826,13 @@ restart:
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
 				case OS_VALUE_TYPE_FUNCTION:
-				case OS_VALUE_TYPE_THREAD:
 					right_value->prototype = left_value->type == OS_VALUE_TYPE_NULL ? NULL : left_value;
 					break;
 
 				case OS_VALUE_TYPE_USERDATA:
 				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_CFUNCTION:
+				case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
 					// TODO: warning???
 					break;
 				}
@@ -10810,7 +10854,7 @@ restart:
 				OS_ASSERT(stack_values.count >= 2);
 				Value * table_value = stack_values[stack_values.count-2];
 				Value * index_value = stack_values[stack_values.count-1];
-				index_value = pushValueOf(index_value);
+				// index_value = pushValueOf(index_value);
 				switch(index_value->type){
 				case OS_VALUE_TYPE_NULL:
 					deleteValueProperty(table_value, index_value, PropertyIndex(allocator, 0), true, true);
@@ -10827,25 +10871,9 @@ restart:
 				case OS_VALUE_TYPE_STRING:
 					deleteValueProperty(table_value, index_value, PropertyIndex(index_value->value.string_data), true, true);
 					break;
-
-				default:
-					OS_ASSERT(false);
 				}
-				pop(3);
+				pop(2);
 				break;
-			}
-
-		case Program::OP_RETURN:
-			{
-				int cur_ret_values = opcodes.readByte();
-				int ret_values = func_running->need_ret_values;
-				syncStackRetValues(ret_values, cur_ret_values);
-				OS_ASSERT(stack_values.count == func_running->initial_stack_size + ret_values);
-				// func_running->next_opcode_pos = opcodes.getPos();
-				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
-				call_stack_funcs.count--;
-				releaseFunctionRunningInstance(func_running);
-				return ret_values;
 			}
 
 		case Program::OP_POP:
@@ -11145,105 +11173,42 @@ int OS::getLen(int offs)
 	return len;
 }
 
-bool OS::registerFunctions(int object_offs, const Func * list, bool override_funcs, void * user_param)
+void OS::setFuncs(const Func * list, int upvalues, void * user_param)
 {
-	if(!override_funcs){
-		for(; list->func; list++){
-			pushStackValue(object_offs);
-			pushString(list->name);
-			getProperty(false, false);
-			if(!isNull()){
-				pop();
-				return false;
-			}
-			pop();
-		}
-	}
-	pushStackValue(object_offs);
 	for(; list->func; list++){
+		pushStackValue(-1);
 		pushString(list->name);
-		pushCFunction(list->func, user_param);
-		setProperty(true, false, false);
+		// push upvalues for cfunction
+		for(int i = 0; i < upvalues; i++){
+			pushStackValue(-1-upvalues);
+		}
+		pushCFunction(list->func, upvalues, user_param);
+		setProperty(false, false);
 	}
-	pop();
-	return false;
 }
 
-bool OS::registerFunctions(const Func * list, bool override_funcs, void * user_param)
+void OS::getObject(const OS_CHAR * name, bool prototype_enabled, bool setter_enabled)
 {
-	return registerFunctions(-1, list, override_funcs, user_param);
-}
-
-bool OS::newLibrary(const OS_CHAR * name)
-{
-	pushGlobals();
-	pushString(name);
-	getProperty(false, false);
-	if(!isNull()){
-		pop();
-		pushNull();
-		return false;
+	pushStackValue(-1); // 2: copy parent object
+	pushString(name);	// 3: index
+	getProperty(prototype_enabled, setter_enabled); // 2: value
+	if(isObject()){
+		remove(-2);		// 1: remove parent object
+		return;
 	}
-	pop();
-	newObject();
-	pushGlobals();
-	pushString(name);
-	pushStackValue(-3);
-	setProperty(false, false, false);
-	return true;
+	pop();				// 1: parent object
+	newObject();		// 2: result object
+	pushStackValue(-2);	// 3: copy parent object
+	pushString(name);	// 4: index
+	pushStackValue(-3);	// 5: copy result object
+	setProperty(prototype_enabled, setter_enabled); // 2: parent + result
+	remove(-2);			// 1: remove parent object
 }
 
-void * OS::newLibrary(const OS_CHAR * name, int data_size, OS_UserDataDtor dtor)
+void OS::getGlobalObject(const OS_CHAR * name, bool prototype_enabled, bool setter_enabled)
 {
 	pushGlobals();
-	pushString(name);
-	getProperty(false, false);
-	if(!isNull()){
-		pop();
-		pushNull();
-		return NULL;
-	}
-	pop();
-	void * p = pushUserData(data_size, dtor);
-	pushGlobals();
-	pushString(name);
-	pushStackValue(-3);
-	setProperty(true, false, false);
-	return p;
-}
-
-void * OS::newLibrary(const OS_CHAR * name, void * data, OS_UserDataDtor dtor)
-{
-	pushGlobals();
-	pushString(name);
-	getProperty(false, false);
-	if(!isNull()){
-		pop();
-		pushNull();
-		return NULL;
-	}
-	pop();
-	void * p = pushUserPointer(data, dtor);
-	pushGlobals();
-	pushString(name);
-	pushStackValue(-3);
-	setProperty(true, false, false);
-	return p;
-}
-
-int OS::getStackSize()
-{
-	return core->stack_values.count;
-}
-
-int OS::getOffs(int offs)
-{
-	if(offs < 0){
-		offs += core->stack_values.count;
-		OS_ASSERT(offs >= 0);
-	}
-	OS_ASSERT(offs < core->stack_values.count);
-	return offs;
+	getObject(name, prototype_enabled, setter_enabled);
 }
 
 void OS::getGlobal(const OS_CHAR * name, bool prototype_enabled, bool getter_enabled)
@@ -11265,52 +11230,58 @@ void OS::setGlobal(const OS_CHAR * name, bool prototype_enabled, bool setter_ena
 
 void OS::setGlobal(const Core::String& name, bool prototype_enabled, bool setter_enabled)
 {
-	pushGlobals();
-	pushString(name);
-	move(-3, -1);
-	setProperty(false, prototype_enabled, setter_enabled);
+	if(core->stack_values.count >= 1){
+		Core::Value * object = core->global_vars;
+		Core::Value * value = core->stack_values[core->stack_values.count - 1];
+		Core::Value * index = core->pushStringValue(name);
+		core->setPropertyValue(object, index, value, prototype_enabled, setter_enabled);
+		pop(2);
+	}
 }
 
-void OS::registerGlobalFunctions()
+void OS::initGlobalFunctions()
 {
-	struct Lib {
-		static int print(OS * os, int params, void*)
+	struct Lib
+	{
+		static int print(OS * os, int params, int upvalues, void*)
 		{
+			int params_offs = os->getOffs(-params-upvalues);
 			for(int i = 0; i < params; i++){
-				String str = os->toString(-params + i);
+				String str = os->toString(params_offs + i);
 				printf("%s", str.toChar());
 			}
 			return 0;
 		}
 
-		static int concat(OS * os, int params, void*)
+		static int concat(OS * os, int params, int upvalues, void*)
 		{
 			if(params < 1){
 				return 0;
 			}
-			Core::String str = os->toString(-params);
+			int params_offs = os->getOffs(-params-upvalues);
+			Core::String str = os->toString(params_offs);
 			for(int i = 1; i < params; i++){
-				str += os->toString(-params + i);
+				str += os->toString(params_offs + i);
 			}
 			os->pushString(str);
 			return 1;
 		}
 
-		static int minmax(OS * os, int params, int opcode)
+		static int minmax(OS * os, int params, int upvalues, int opcode)
 		{
 			OS_ASSERT(params >= 0);
 			if(params <= 1){
 				return params;
 			}
-			int params_offs = os->getOffs(-params);
-			os->pushStackValue(params_offs);
+			int params_offs = os->getOffs(-params-upvalues);
+			os->pushStackValue(params_offs); // save temp result
 			for(int i = 1; i < params; i++){
-				os->pushStackValue(-1);
+				os->pushStackValue(-1); // copy temp result
 				os->pushStackValue(params_offs + i);
-				os->runOp(opcode);
+				os->runOp(opcode); // remove params & push op result
 				if(!os->toBool()){
-					os->pop(2);
-					os->pushStackValue(params_offs + i);
+					os->pop(2); // remove op result and temp result
+					os->pushStackValue(params_offs + i); // save temp result
 					continue;
 				}
 				os->pop();
@@ -11318,14 +11289,14 @@ void OS::registerGlobalFunctions()
 			return 1;
 		}
 
-		static int min(OS * os, int params, void*)
+		static int min(OS * os, int params, int upvalues, void*)
 		{
-			return minmax(os, params, OP_LOGIC_LE);
+			return minmax(os, params, upvalues, OP_LOGIC_LE);
 		}
 
-		static int max(OS * os, int params, void*)
+		static int max(OS * os, int params, int upvalues, void*)
 		{
-			return minmax(os, params, OP_LOGIC_GE);
+			return minmax(os, params, upvalues, OP_LOGIC_GE);
 		}
 	};
 	Func list[] = {
@@ -11336,44 +11307,224 @@ void OS::registerGlobalFunctions()
 		{}
 	};
 	pushGlobals();
-	registerFunctions(list);
+	setFuncs(list);
 	pop();
 }
 
-void OS::registerObjectLibrary()
+void OS::initObjectClass()
 {
-	struct Lib {
-		static int rawget(OS * os, int params, void*)
+	static int iterator_crc = (int)&iterator_crc;
+
+	struct Object
+	{
+		static int rawget(OS * os, int params, int upvalues, void*)
 		{
-			os->getProperty(true, false);
-			return 1;
+			if(params == 1 && !upvalues){
+				os->getProperty(false, false);
+				return 1;
+			}
+			return 0;
 		}
 
-		static int rawset(OS * os, int params, void*)
+		static int rawset(OS * os, int params, int upvalues, void*)
 		{
-			os->setProperty(false, true, false);
+			if(params == 2 && !upvalues){
+				os->setProperty(false, false);
+				return 0;
+			}
+			return 0;
+		}
+
+		static int iteratorStep(OS * os, int params, int upvalues, void*)
+		{
+			OS_ASSERT(upvalues == 2);
+			Core::Value * self = os->core->getStackValue(-upvalues + 0);
+			void * p = os->toUserData(-upvalues + 1, iterator_crc);
+			Core::Value::IteratorState * iter = (Core::Value::IteratorState*)p;
+			if(iter->table){
+				OS_ASSERT(self && iter->table == self->table);
+				if(iter->prop){
+					os->pushBool(true);
+					os->core->pushValueAutoNull(os->core->values.get(iter->prop->value_id));
+					if(iter->prop->int_valid){
+						os->pushNumber(iter->prop->int_index);
+					}else{
+						os->pushString(iter->prop->string_index);
+					}
+					iter->prop = iter->prop->next;
+					return 3;
+				}
+				iter->table->removeIterator(iter);
+			}
+			return 0;
+		}
+
+		static void iteratorStateDestructor(OS * os, void * data, void * user_param)
+		{
+			Core::Value::IteratorState * iter = (Core::Value::IteratorState*)data;
+			if(iter->table){
+				iter->table->removeIterator(iter);
+			}
+		}
+
+		static int iterator(OS * os, int params, int upvalues, void*)
+		{
+			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
+			if(self && self->table && self->table->count > 0){
+				typedef Core::Value::IteratorState IteratorState;
+				
+				os->core->pushValue(self);
+
+				IteratorState * iter = (IteratorState*)os->pushUserData(iterator_crc, sizeof(IteratorState), iteratorStateDestructor);
+				iter->table = NULL;
+				iter->next = NULL;
+				iter->prop = NULL;
+				self->table->addIterator(iter);
+
+				os->pushCFunction(iteratorStep, 2);
+				return 1;
+			}
+			return 0;
+		}
+
+		static int length(OS * os, int params, int upvalues, void*)
+		{
+			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
+			if(self){
+				os->pushNumber(self->table ? self->table->count : 0);
+				return 1;
+			}
+			return 0;
+		}
+
+		static int valueof(OS * os, int params, int upvalues, void*)
+		{
+			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
+			if(!self){
+				return 0;
+			}
+			switch(self->type){
+			case OS_VALUE_TYPE_ARRAY:
+				if(!self->table || !self->table->count){
+					os->pushString(OS_TEXT("[]"));
+					return 1;
+				}
+				{
+					String buf = String(os, OS_TEXT("["));
+					bool is_generic_array = true;
+					int need_index = 0;
+					Core::Value::Property * prop = self->table->first;
+					for(int i = 0; prop; prop = prop->next, i++, need_index++){
+						if(prop->int_valid && prop->int_index == need_index){
+							if(i > 100){
+								buf += OS_TEXT("...");
+								break;
+							}
+							if(need_index > 0){
+								buf += OS_TEXT(",");
+							}
+							buf += String(os, (OS_INT)need_index);
+							buf += OS_TEXT(":");
+							Core::Value * value = os->core->values.get(prop->value_id);
+							if(value){
+								buf += os->core->valueToString(value, true);
+							}
+						}else{
+							is_generic_array = false;
+							break;
+						}
+					}
+					if(is_generic_array){
+						os->pushString(buf + OS_TEXT("]"));
+						return 1;
+					}
+					// no break
+				}
+
+			case OS_VALUE_TYPE_OBJECT:
+				if(!self->table || !self->table->count){
+					os->pushString(OS_TEXT("{}"));
+					return 1;
+				}
+				{
+					String buf = String(os, OS_TEXT("{"));
+					int need_index = 0;
+					Core::Value::Property * prop = self->table->first;
+					for(int i = 0; prop; prop = prop->next, i++){
+						if(i > 100){
+							buf += OS_TEXT("...");
+							break;
+						}
+						if(i > 0){
+							buf += OS_TEXT(",");
+						}
+						if(prop->int_valid){
+							if(prop->int_index != need_index){
+								buf += String(os, prop->int_index);
+								buf += OS_TEXT(":");
+							}
+							need_index = prop->int_index + 1;
+						}else{ // if(prop->is_string_index){
+							buf += prop->string_index;
+							buf += OS_TEXT(":");
+						}
+						Core::Value * value = os->core->values.get(prop->value_id);
+						if(value){
+							buf += os->core->valueToString(value, true);
+						}
+					}
+					os->pushString(buf + OS_TEXT("}"));
+					return 1;
+				}
+			}
 			return 0;
 		}
 	};
 	Func list[] = {
-		{OS_TEXT("rawget"), Lib::rawget},
-		{OS_TEXT("rawset"), Lib::rawset},
+		{OS_TEXT("rawget"), Object::rawget},
+		{OS_TEXT("rawset"), Object::rawset},
+		{OS_TEXT("__len"), Object::length},
+		{core->strings->__iter, Object::iterator},
+		{core->strings->__valueof, Object::valueof},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_OBJECT]);
-	registerFunctions(list);
+	setFuncs(list);
 	pop();
 }
 
-void OS::registerMathLibrary()
+void OS::initArrayClass()
+{
+	struct Array
+	{
+		static int length(OS * os, int params, int upvalues, void*)
+		{
+			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
+			if(self){
+				os->pushNumber(self->table ? self->table->next_id : 0);
+				return 1;
+			}
+			return 0;
+		}
+	};
+	Func list[] = {
+		{OS_TEXT("__len"), Array::length},
+		{}
+	};
+	core->pushValue(core->prototypes[Core::PROTOTYPE_ARRAY]);
+	setFuncs(list);
+	pop();
+}
+
+void OS::initMathLibrary()
 {
 	struct Lib {
 	};
 	Func list[] = {
 		{}
 	};
-	newLibrary(OS_TEXT("math"));
-	registerFunctions(list);
+	getGlobalObject(OS_TEXT("math"));
+	setFuncs(list);
 	pop();
 }
 
@@ -11388,46 +11539,74 @@ void OS::Core::syncStackRetValues(int need_ret_values, int cur_ret_values)
 	}
 }
 
-bool OS::Core::call(int params, int ret_values)
+int OS::Core::call(int params, int ret_values)
 {
 	if(stack_values.count >= 2+params){
-		Value * val = stack_values[stack_values.count-2-params]; // getStackValue(-1-params);
-		Value * self = stack_values[stack_values.count-1-params];
-		if(val->type == OS_VALUE_TYPE_FUNCTION){
-			int offs = stack_values.count-2-params;
-			enterFunction(val, self, params, 1, ret_values);
-			ret_values = execute();
-			removeStackValue(offs);
-			return true;
-		}else if(val->type == OS_VALUE_TYPE_CFUNCTION){
-			int stack_size_without_params = stack_values.count - params-2;
-			// pushValue(self);
-			// moveStackValue(-1, -1-params);
-			int func_ret_values = val->value.cfunc.func(allocator, params, val->value.cfunc.user_param);
-			int remove_values = stack_values.count - (stack_size_without_params + func_ret_values);
-			OS_ASSERT(remove_values >= 0);
-			removeStackValues(stack_size_without_params, remove_values);
-			syncStackRetValues(ret_values, func_ret_values);
-			return true;
-		}else if(val->type == OS_VALUE_TYPE_OBJECT){
-			bool prototype_enabled = true;
-			Value * func = getPropertyValue(val, PropertyIndex(strings->__constructor, PropertyIndex::KeepStringIndex()), prototype_enabled);
-			if(func && (func->type == OS_VALUE_TYPE_FUNCTION || func->type == OS_VALUE_TYPE_CFUNCTION)){
-				// TODO: not tested
-				Value * object = val != self ? newObjectValue(val) : self;
-				pushValue(object);
-				pushValue(func);
-				pushValue(object);
-				moveStackValues(-3, 3, -3-params);
-				call(params, 0);
-				syncStackRetValues(ret_values, 1); // object is already located inside of stack
-				// removeStackValues(offs);
-				return true;
+		int end_stack_size = stack_values.count-2-params;
+		Value * func_value = stack_values[stack_values.count-2-params];
+		switch(func_value->type){
+		case OS_VALUE_TYPE_FUNCTION:
+			{
+				Value * self = stack_values[stack_values.count-1-params];
+				enterFunction(func_value, self, params, 2, ret_values);
+				ret_values = execute();
+				OS_ASSERT(stack_values.count == end_stack_size + ret_values);
+				return ret_values;
+			}
+
+		case OS_VALUE_TYPE_CFUNCTION:
+			{
+				int stack_size_without_params = getStackOffs(-2-params);
+				int func_ret_values = func_value->value.cfunc.func(allocator, params, 0, func_value->value.cfunc.user_param);
+				int remove_values = getStackOffs(-func_ret_values) - stack_size_without_params;
+				OS_ASSERT(remove_values >= 0);
+				removeStackValues(stack_size_without_params, remove_values);
+				syncStackRetValues(ret_values, func_ret_values);
+				OS_ASSERT(stack_values.count == end_stack_size + ret_values);
+				return ret_values;
+			}
+
+		case OS_VALUE_TYPE_CFUNCTION_UPVALUES:
+			{
+				int stack_size_without_params = getStackOffs(-2-params);
+				CFuncUpvaluesData * cfunc_upvalues = func_value->value.cfunc_upvalues;
+				Value ** upvalues = (Value**)(cfunc_upvalues + 1);
+				for(int i = 0; i < cfunc_upvalues->num_upvalues; i++){
+					pushValue(upvalues[i]);
+				}
+				int func_ret_values = cfunc_upvalues->func(allocator, params, cfunc_upvalues->num_upvalues, cfunc_upvalues->user_param);
+				int remove_values = getStackOffs(-func_ret_values) - stack_size_without_params;
+				OS_ASSERT(remove_values >= 0);
+				removeStackValues(stack_size_without_params, remove_values);
+				syncStackRetValues(ret_values, func_ret_values);
+				OS_ASSERT(stack_values.count == end_stack_size + ret_values);
+				return ret_values;
+			}
+
+		case OS_VALUE_TYPE_OBJECT:
+			{
+				Value * self = stack_values[stack_values.count-1-params];
+				OS_ASSERT(self == null_value || self == func_value);
+				bool prototype_enabled = true;
+				Value * func = getPropertyValue(func_value, PropertyIndex(strings->__constructor, PropertyIndex::KeepStringIndex()), prototype_enabled);
+				if(func && func->isFunction()){
+					// TODO: not tested
+					Value * object = func_value != self ? newObjectValue(func_value) : self;
+					pushValue(object);
+					pushValue(func);
+					pushValue(object);
+					moveStackValues(-3, 3, -3-params);
+					ret_values = call(params, 0); // ignore result
+					syncStackRetValues(ret_values, 1); // object is already located inside of stack, use it as returned value
+					// removeStackValues(offs);
+					return true;
+				}
+				break;
 			}
 		}
 	}
 	// OS_ASSERT(false);
-	pop(params+1);
+	pop(params + 2);
 	syncStackRetValues(ret_values, 0);
 	return false;
 }
@@ -11454,7 +11633,7 @@ bool OS::compile()
 	return false;
 }
 
-bool OS::call(int params, int ret_values)
+int OS::call(int params, int ret_values)
 {
 	return core->call(params, ret_values);
 }

@@ -84,23 +84,34 @@ struct __test_os__
 		os->pushString("qwerty");
 		os->getProperty();
 		os->pop();
+		
 		os->newObject();
+		
+		os->pushStackValue(-1);
 		os->pushString("qwerty");
 		os->pushNumber(1.23);
-		os->setProperty(true);
+		os->setProperty();
+
+		os->pushStackValue(-1);
 		os->pushNumber(56.0);
 		os->pushNumber(1.23);
-		os->setProperty(true);
+		os->setProperty();
+
+		os->pushStackValue(-1);
 		os->pushNumber(-56);
 		os->pushString("abc");
-		os->setProperty(true);
+		os->setProperty();
+
 		os->pushStackValue();
 		os->pushNumber(-56.0);
 		os->getProperty();
+
 		os->pop();
+
 		os->pushStackValue();
 		os->pushString("-56");
 		os->getProperty();
+
 		// OS::Value value = os->getValue();
 		// os->pushValue(value);
 		OS::String str = os->toString();
@@ -108,7 +119,7 @@ struct __test_os__
 		os->pop();
 
 		os->pushNumber(-56);
-		int * val = (int*)os->pushUserData(sizeof(int));
+		int * val = (int*)os->pushUserData(0, sizeof(int));
 		*val = 1;		
 		os->setProperty(true);
 		os->removeAll();
@@ -116,10 +127,11 @@ struct __test_os__
 		int mem_usage = os->getAllocatedBytes();
 		os->newObject();
 		for(int i = 0; i < 10000; i++){
+			os->pushStackValue(-1);
 			os->pushString(OS::String(os, i)+"-index");
 			// os->pushInt(i);
 			os->pushNumber(1.0 / i);
-			os->setProperty(true);
+			os->setProperty();
 		}
 		int mem_usage2 = os->getAllocatedBytes();
 
