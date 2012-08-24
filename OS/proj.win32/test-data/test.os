@@ -1,4 +1,46 @@
+;{
+	var a;
+	a.prop = b;
+	a[1][2] = b;
+}
 ;{	
+	var r, v
+	r = r && r .. v || v
+
+	Object.join = function(s){
+		var r
+		if(s){
+			for(var k, v in this){
+				r = r && r .. s .. v || v
+			}
+		}else{
+			r = ""
+			for(var k, v in this){
+				// print( "[Object.join] locals: " debuggerlocals "\n  " this "\n" )
+				r = r .. v
+			}
+		}
+		return r
+	}
+	
+	Array.__iter = function(){
+		var i, self = 0, this
+		return function(){
+			if(i < #self){
+				var j = i
+				i = i + 1
+				// debugger
+				return true j self[j]
+			}
+		}
+	}
+	
+	concat = function(){
+		return arguments.join();
+	}
+	
+	print( concat( 1 2 3 "--" 7 ) "\n" )
+	
 	// print 9 < 0 && 1 || -1
 
 	var range = function(a b step){
@@ -7,7 +49,7 @@
 		if(step >= 0){
 			return function(){
 				// debugger
-				print( "locals (step >= 0) " debuggerlocals "\n" )
+				// print( "locals (step >= 0) " debuggerlocals "\n" )
 				if(a <= b){
 					var r = a
 					a = a + step
@@ -17,7 +59,7 @@
 		}
 		return function(){
 			// debugger
-			print( "locals (step < 0) " debuggerlocals "\n" )
+			// print( "locals (step < 0) " debuggerlocals "\n" )
 			if(b <= a){
 				var r = a
 				a = a + step
@@ -26,21 +68,25 @@
 		}
 	}
 	
+	print "-----------------\n"
 	for(var i in range(9 0)){
 		print( "step "i"\n" )
 	}
 	
+	print "-----------------\n"
 	for(var i in range(0 11 2)){
 		print( "step "i"\n" )
 	}
+
 }
 ;{
 	var values = {
 		null true false 0 1 "" "0" "1"
 	}
+	print "-----------------\n"
 	for(var k, v in values){
 		print( k " => " v "\n" )
-		print( "locals " debuggerlocals "\n" )
+		// print( "locals " debuggerlocals "\n" )
 	}
 }
 ;{

@@ -1199,9 +1199,11 @@ namespace ObjectScript
 					EXP_TYPE_GET_REST_ARGUMENTS,
 
 					EXP_TYPE_GET_LOCAL_VAR,
+					EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE,
 					EXP_TYPE_SET_LOCAL_VAR,
 
 					EXP_TYPE_GET_AUTO_VAR,
+					EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE,
 					EXP_TYPE_SET_AUTO_VAR,
 
 					EXP_TYPE_INDIRECT, // temp
@@ -1331,9 +1333,9 @@ namespace ObjectScript
 
 				struct LocalVarDesc
 				{
-					OS_BYTE up_count;
-					OS_BYTE up_scope_count;
-					OS_BYTE index;
+					OS_U16 up_count;
+					OS_U16 up_scope_count;
+					OS_U16 index;
 					ELocalVarType type;
 					// bool is_param;
 
@@ -1343,13 +1345,12 @@ namespace ObjectScript
 				struct Expression
 				{
 					TokenData * token;
-					ExpressionType type;
-					OS_BYTE ret_values;
-					OS_BYTE active_locals;
-					LocalVarDesc local_var;
-
 					ExpressionList list;
-
+					LocalVarDesc local_var;
+					OS_U16 active_locals;
+					OS_U16 ret_values;
+					ExpressionType type;
+					
 					Expression(ExpressionType type, TokenData*);
 					Expression(ExpressionType type, TokenData*, Expression * e1);
 					Expression(ExpressionType type, TokenData*, Expression * e1, Expression * e2);
@@ -1455,9 +1456,9 @@ namespace ObjectScript
 					OP_LEVEL_0, // ,
 					OP_LEVEL_1, // = += -= *= /= %=
 					OP_LEVEL_2, // ?:
-					OP_LEVEL_3, // ..
-					OP_LEVEL_4, // ||
-					OP_LEVEL_5, // &&
+					OP_LEVEL_3, // ||
+					OP_LEVEL_4, // &&
+					OP_LEVEL_5, // ..
 					OP_LEVEL_6, // == !=
 					OP_LEVEL_7, // < <= > >=
 					OP_LEVEL_8, // |
@@ -1553,10 +1554,10 @@ namespace ObjectScript
 				Expression * expectForExpression(Scope*);
 				Expression * expectDebuggerLocalsExpression(Scope*);
 				Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param, bool allow_assign, bool allow_auto_call);
-				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
+				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param, bool& is_finished);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
-				bool findLocalVar(LocalVarDesc&, Scope * scope, const String& name, int active_locals, int max_up_count = 127);
+				bool findLocalVar(LocalVarDesc&, Scope * scope, const String& name, int active_locals, bool all_scopes);
 
 				String debugPrintSourceLine(TokenData*);
 				static const OS_CHAR * getExpName(ExpressionType);
@@ -1633,6 +1634,7 @@ namespace ObjectScript
 					OP_OBJECT_SET_BY_NAME,
 
 					OP_PUSH_AUTO_VAR,
+					OP_PUSH_AUTO_VAR_AUTO_CREATE,
 					OP_SET_AUTO_VAR,
 
 					OP_PUSH_THIS,
@@ -1640,9 +1642,11 @@ namespace ObjectScript
 					OP_PUSH_REST_ARGUMENTS,
 
 					OP_PUSH_LOCAL_VAR,
+					OP_PUSH_LOCAL_VAR_AUTO_CREATE,
 					OP_SET_LOCAL_VAR,
 
 					OP_PUSH_UP_LOCAL_VAR,
+					OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE,
 					OP_SET_UP_LOCAL_VAR,
 
 					OP_CALL,

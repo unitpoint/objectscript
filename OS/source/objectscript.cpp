@@ -1,5 +1,13 @@
 #include "objectscript.h"
 
+#ifdef _MSC_VER
+#define DEBUG_BREAK __debugbreak()
+#else
+#include <signal.h>
+#define DEBUG_BREAK raise(SIGTRAP)
+// #define DEBUG_BREAK __builtin_trap()
+#endif
+
 using namespace ObjectScript;
 
 // =====================================================================
@@ -2470,6 +2478,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		}
 
 	case EXP_TYPE_GET_LOCAL_VAR:
+	case EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE:
 		{
 			OS_ASSERT(list.count == 0);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
@@ -2481,6 +2490,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		}
 
 	case EXP_TYPE_GET_AUTO_VAR:
+	case EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE:
 		{
 			OS_ASSERT(list.count == 0);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
@@ -2811,6 +2821,12 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		prog_opcodes->writeUVariable(cacheString(exp->token->str));
 		break;
 
+	case EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE:
+		OS_ASSERT(exp->list.count == 0);
+		prog_opcodes->writeByte(Program::OP_PUSH_AUTO_VAR_AUTO_CREATE);
+		prog_opcodes->writeUVariable(cacheString(exp->token->str));
+		break;
+
 	case EXP_TYPE_SET_AUTO_VAR:
 		OS_ASSERT(exp->list.count > 0);
 		if(!writeOpcodes(scope, exp->list)){
@@ -2831,10 +2847,22 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list.count == 0);
 		if(!exp->local_var.up_count){
 			prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR);
-			prog_opcodes->writeByte(exp->local_var.index);
+			prog_opcodes->writeUVariable(exp->local_var.index);
 		}else{
 			prog_opcodes->writeByte(Program::OP_PUSH_UP_LOCAL_VAR);
-			prog_opcodes->writeByte(exp->local_var.index);
+			prog_opcodes->writeUVariable(exp->local_var.index);
+			prog_opcodes->writeByte(exp->local_var.up_count);
+		}
+		break;
+
+	case EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE:
+		OS_ASSERT(exp->list.count == 0);
+		if(!exp->local_var.up_count){
+			prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR_AUTO_CREATE);
+			prog_opcodes->writeUVariable(exp->local_var.index);
+		}else{
+			prog_opcodes->writeByte(Program::OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE);
+			prog_opcodes->writeUVariable(exp->local_var.index);
 			prog_opcodes->writeByte(exp->local_var.up_count);
 		}
 		break;
@@ -2846,10 +2874,10 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		}
 		if(!exp->local_var.up_count){
 			prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR);
-			prog_opcodes->writeByte(exp->local_var.index);
+			prog_opcodes->writeUVariable(exp->local_var.index);
 		}else{
 			prog_opcodes->writeByte(Program::OP_SET_UP_LOCAL_VAR);
-			prog_opcodes->writeByte(exp->local_var.index);
+			prog_opcodes->writeUVariable(exp->local_var.index);
 			prog_opcodes->writeByte(exp->local_var.up_count);
 		}
 		break;
@@ -3418,13 +3446,13 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::toOpcodeLevel(ExpressionType
 	// case EXP_TYPE_QUESTION:    // ? :
 	// 	return OP_LEVEL_2;
 
-	case EXP_TYPE_CONCAT: // ..
+	case EXP_TYPE_LOGIC_OR:  // ||
 		return OP_LEVEL_3;
 
-	case EXP_TYPE_LOGIC_OR:  // ||
+	case EXP_TYPE_LOGIC_AND: // &&
 		return OP_LEVEL_4;
 
-	case EXP_TYPE_LOGIC_AND: // &&
+	case EXP_TYPE_CONCAT: // ..
 		return OP_LEVEL_5;
 
 	case EXP_TYPE_LOGIC_PTR_EQ:  // ===
@@ -3820,6 +3848,54 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			break;
 		}
 
+	case EXP_TYPE_DEBUGGER_LOCALS:
+		if(exp->list.count == 0){
+			Expression * obj_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT, exp->token);
+	
+			Vector<String> vars;
+			Scope * start_scope = scope;
+			for(; scope; scope = scope->parent){
+				for(int i = scope->locals.count-1; i >= 0; i--){
+					const Scope::LocalVar& local_var = scope->locals[i];
+					bool found = false;
+					for(int j = 0; j < vars.count; j++){
+						if(vars[j] == local_var.name){
+							found = true;
+							break;
+						}
+					}
+					if(found){
+						continue;
+					}
+					allocator->vectorAddItem(vars, local_var.name);
+
+					TokenData * name_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), local_var.name, 
+						Tokenizer::NAME, exp->token->line, exp->token->pos);
+
+					Expression * var_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_LOCAL_VAR, name_token);
+					OS_ASSERT(scope->function);
+					var_exp->active_locals = scope->function->num_locals;
+					var_exp->ret_values = 1;
+					found = findLocalVar(var_exp->local_var, start_scope, local_var.name, start_scope->function->num_locals, true);
+					OS_ASSERT(found); // && var_exp->local_var.index == local_var.index);
+					if(start_scope->function->max_up_count < var_exp->local_var.up_count){
+						start_scope->function->max_up_count = var_exp->local_var.up_count;
+					}
+
+					Expression * obj_item_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_NAME, name_token, var_exp);
+					allocator->vectorInsertAtIndex(obj_exp->list, 0, obj_item_exp);
+
+					name_token->release();
+				}
+			}
+			allocator->vectorClear(vars);
+			obj_exp->ret_values = 1;
+
+			scope = start_scope;
+			exp->list.add(obj_exp);
+		}
+		break;
+
 	case EXP_TYPE_PARAMS:
 		{
 			for(int i = exp->list.count-1; i >= 0; i--){
@@ -3850,7 +3926,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 		}
 
 	case EXP_TYPE_NAME:
-		if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals)){
+		if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
 			exp->type = EXP_TYPE_GET_LOCAL_VAR;
 			if(scope->function->max_up_count < exp->local_var.up_count){
 				scope->function->max_up_count = exp->local_var.up_count;
@@ -3879,6 +3955,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			}
 			return exp;
 		}
+		break;
 
 	case EXP_TYPE_CALL:
 	case EXP_TYPE_CALL_AUTO_PARAM:
@@ -3933,20 +4010,32 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				allocator->vectorClear(params->list);
 				allocator->deleteObj(params);
 				exp->type = EXP_TYPE_SET_PROPERTY;
-				if(exp->list[1]->type == EXP_TYPE_GET_PROPERTY){
-					Expression * get_prop_exp = exp->list[1];
-					for(;;){
-						get_prop_exp->type = EXP_TYPE_GET_PROPERTY_AUTO_CREATE;
-						OS_ASSERT(get_prop_exp->list.count == 2);
-						if(get_prop_exp->list[0]->type == EXP_TYPE_GET_PROPERTY){
-							get_prop_exp = get_prop_exp->list[0];
-						}else{
-							break;
-						}
+				for(Expression * get_exp = exp->list[1];;){
+					switch(get_exp->type){
+					case EXP_TYPE_GET_PROPERTY:
+						OS_ASSERT(get_exp->list.count == 2);
+						get_exp->type = EXP_TYPE_GET_PROPERTY_AUTO_CREATE;
+						get_exp = get_exp->list[0];
+						continue;
+
+					case EXP_TYPE_GET_LOCAL_VAR:
+						get_exp->type = EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE;
+						break;
+					
+					case EXP_TYPE_GET_AUTO_VAR:
+						get_exp->type = EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE;
+						break;
 					}
+					break;
 				}
 				return exp;
 			}
+			break;
+		}
+
+	case EXP_TYPE_SET_PROPERTY:
+		{
+			exp->type;
 			break;
 		}
 
@@ -4438,7 +4527,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 	params->ret_values = 1;
 	readToken();
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, true, false, false, false, false);
+		Expression * exp = expectSingleExpression(scope, false, false, false, false, false);
 		if(!exp){
 			if(isError()){
 				allocator->deleteObj(params);
@@ -4643,10 +4732,33 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 		return NULL;
 	}
 	// ungetToken();
-	Expression * exp = expectSingleExpression(scope, true, true, false, true, true);
+	Expression * exp = expectSingleExpression(scope, false, true, false, true, false);
 	Expression * ret_exp = exp;
 	while(exp){
 		switch(exp->type){
+		case EXP_TYPE_PARAMS:
+			{
+				Expression * params = exp;
+				for(int i = 0; i < params->list.count; i++){
+					exp = params->list[i];
+					OS_ASSERT(exp->type == EXP_TYPE_NAME);
+					if(exp->type == EXP_TYPE_NAME){
+						if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false)){
+							// setError(ERROR_VAR_ALREADY_EXIST, exp->token);
+							// allocator->deleteObj(ret_exp);
+							// return NULL;
+							OS_ASSERT(true);
+						}else{
+							scope->addLocalVar(exp->token->str, exp->local_var);
+						}
+						exp->type = EXP_TYPE_NEW_LOCAL_VAR;
+						exp->ret_values = 0;
+					}
+				}
+				params->ret_values = 0;
+				return params;
+			}
+
 		case EXP_TYPE_SET_LOCAL_VAR:
 			for(;;){
 				if(exp->local_var.up_scope_count == 0){
@@ -4655,7 +4767,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 					// return NULL;
 					OS_ASSERT(true);
 				}else{
-					// OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, 0));
+					OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false));
 					scope->addLocalVar(exp->token->str, exp->local_var);
 				}
 				OS_ASSERT(exp->list.count == 1);
@@ -4674,7 +4786,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 
 		case EXP_TYPE_SET_AUTO_VAR:
 			for(;;){
-				OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals));
+				OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false));
 				scope->addLocalVar(exp->token->str, exp->local_var);
 				exp->type = EXP_TYPE_SET_LOCAL_VAR;
 				OS_ASSERT(exp->list.count == 1);
@@ -4692,7 +4804,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			break;
 
 		case EXP_TYPE_NAME:
-			if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals)){
+			if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false)){
 				// setError(ERROR_VAR_ALREADY_EXIST, exp->token);
 				// allocator->deleteObj(ret_exp);
 				// return NULL;
@@ -4948,6 +5060,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectDebuggerLocalsExpress
 {
 	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_debugger_locals);
 	
+#if 1
+	Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_DEBUGGER_LOCALS, recent_token);
+	exp->ret_values = 1;
+	readToken();
+	return exp;
+#else
 	Expression * obj_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT, recent_token);
 	
 	Vector<String> vars;
@@ -4955,10 +5073,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectDebuggerLocalsExpress
 	for(; scope; scope = scope->parent){
 		for(int i = scope->locals.count-1; i >= 0; i--){
 			const Scope::LocalVar& local_var = scope->locals[i];
+			bool found = false;
 			for(int j = 0; j < vars.count; j++){
 				if(vars[j] == local_var.name){
-					continue;
+					found = true;
+					break;
 				}
+			}
+			if(found){
+				continue;
 			}
 			allocator->vectorAddItem(vars, local_var.name);
 
@@ -4969,8 +5092,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectDebuggerLocalsExpress
 			OS_ASSERT(scope->function);
 			var_exp->active_locals = scope->function->num_locals;
 			var_exp->ret_values = 1;
-			int found = findLocalVar(var_exp->local_var, start_scope, local_var.name, scope->function->num_locals);
-			OS_ASSERT(found && var_exp->local_var.index == local_var.index);
+			found = findLocalVar(var_exp->local_var, start_scope, local_var.name, start_scope->function->num_locals, true);
+			OS_ASSERT(found); // && var_exp->local_var.index == local_var.index);
+			if(start_scope->function->max_up_count < var_exp->local_var.up_count){
+				start_scope->function->max_up_count = var_exp->local_var.up_count;
+			}
 
 			Expression * obj_item_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_NAME, name_token, var_exp);
 			allocator->vectorInsertAtIndex(obj_exp->list, 0, obj_item_exp);
@@ -4986,6 +5112,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectDebuggerLocalsExpress
 	Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_DEBUGGER_LOCALS, obj_exp->token, obj_exp);
 	exp->ret_values = 1;
 	return exp;
+#endif
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * scope)
@@ -5077,7 +5204,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectReturnExpression(Scop
 		return ret_exp;
 	}
 	for(;;){
-		Expression * exp = expectSingleExpression(scope, true, false, false, false, true);
+		Expression * exp = expectSingleExpression(scope, true, false, false, false, false);
 		if(!exp){
 			allocator->deleteObj(ret_exp);
 			return NULL;
@@ -5285,7 +5412,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 	return exp;
 }
 
-bool OS::Core::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const String& name, int active_locals, int max_up_count)
+bool OS::Core::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const String& name, int active_locals, bool all_scopes)
 {
 	OS_ASSERT(scope);
 	for(int up_count = 0, up_scope_count = 0;;){
@@ -5300,10 +5427,10 @@ bool OS::Core::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const S
 			}
 		}
 		if(scope->parent){
+			if(!all_scopes){
+				return false;
+			}
 			if(scope->type == EXP_TYPE_FUNCTION){
-				if(up_count >= max_up_count){
-					return false;
-				}
 				up_count++;
 			}
 			up_scope_count++;
@@ -5339,10 +5466,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 			case EXP_TYPE_NAME:
 				{
 					OS_ASSERT(var_exp_left->ret_values == 1);
-					if(findLocalVar(var_exp_left->local_var, scope, var_exp_left->token->str, var_exp_left->active_locals)){
-						var_exp_left->type = EXP_TYPE_GET_LOCAL_VAR;
+					if(findLocalVar(var_exp_left->local_var, scope, var_exp_left->token->str, var_exp_left->active_locals, true)){
+						var_exp_left->type = EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE;
 					}else{
-						var_exp_left->type = EXP_TYPE_GET_AUTO_VAR;
+						var_exp_left->type = EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE;
 					}
 					break;
 				}
@@ -5373,7 +5500,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 		break;
 
 	case EXP_TYPE_NAME:
-		if(findLocalVar(var_exp->local_var, scope, var_exp->token->str, var_exp->active_locals)){
+		if(findLocalVar(var_exp->local_var, scope, var_exp->token->str, var_exp->active_locals, true)){
 			var_exp->type = EXP_TYPE_SET_LOCAL_VAR;
 			if(scope->function->max_up_count < var_exp->local_var.up_count){
 				scope->function->max_up_count = var_exp->local_var.up_count;
@@ -5398,7 +5525,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, 
-	bool allow_param)
+	bool allow_param, bool& is_finished)
 {
 	TokenData * binary_operator = recent_token;
 	OS_ASSERT(binary_operator->isTypeOf(Tokenizer::BINARY_OPERATOR));
@@ -5408,12 +5535,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 		/* if(!isError()){
 			return exp;
 		} */
+		is_finished = true;
 		allocator->deleteObj(exp);
 		return NULL;
 	}
 	// exp2 = expectExpressionValues(exp2, 1);
 	if(!recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR)){
 		// return new (malloc(sizeof(Expression))) Expression(toExpressionType(binary_operator->getType()), binary_operator, exp, exp2);
+		is_finished = true;
 		return newBinaryExpression(scope, toExpressionType(binary_operator->getType()), binary_operator, exp, exp2);
 	}
 	ExpressionType left_exp_type = toExpressionType(binary_operator->getType());
@@ -5423,22 +5552,33 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 	if(left_level == right_level){
 		// exp = new (malloc(sizeof(Expression))) Expression(left_exp_type, binary_operator, exp, exp2);
 		exp = newBinaryExpression(scope, left_exp_type, binary_operator, exp, exp2);
-		return finishBinaryOperator(scope, prev_level, exp, allow_param);
+		/* if(!recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR)){
+			return exp;
+		} */
+		return finishBinaryOperator(scope, prev_level, exp, allow_param, is_finished);
 	}
 	if(left_level > right_level){
 		// exp = new (malloc(sizeof(Expression))) Expression(left_exp_type, binary_operator, exp, exp2);
 		exp = newBinaryExpression(scope, left_exp_type, binary_operator, exp, exp2);
 		if(prev_level >= right_level){
+			is_finished = false;
 			return exp;
 		}
-		return finishBinaryOperator(scope, prev_level, exp, allow_param);
+		/* if(!recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR)){
+			return exp;
+		} */
+		return finishBinaryOperator(scope, prev_level, exp, allow_param, is_finished);
 	}
-	exp2 = finishBinaryOperator(scope, left_level, exp2, allow_param);
+	exp2 = finishBinaryOperator(scope, left_level, exp2, allow_param, is_finished);
 	if(!exp2){
 		allocator->deleteObj(exp);
 		return NULL;
 	}
-	return newBinaryExpression(scope, left_exp_type, binary_operator, exp, exp2);
+	exp = newBinaryExpression(scope, left_exp_type, binary_operator, exp, exp2);
+	if(is_finished){ // !recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR)){
+		return exp;
+	}
+	return finishBinaryOperator(scope, prev_level, exp, allow_param, is_finished);
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope * scope, Expression * exp, bool allow_binary_operator, 
@@ -5503,14 +5643,18 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::OPERATOR_LSHIFT: // <<
 		case Tokenizer::OPERATOR_RSHIFT: // >>
 		case Tokenizer::OPERATOR_POW: // **
-			if(!allow_binary_operator){ // && token_type != Tokenizer::OPERATOR_INDIRECT){
-				return exp;
+			{
+				if(!allow_binary_operator){ // && token_type != Tokenizer::OPERATOR_INDIRECT){
+					return exp;
+				}
+				bool is_finished;
+				exp = finishBinaryOperator(scope, OP_LEVEL_NOTHING, exp, allow_param, is_finished);
+				if(!exp){
+					return NULL;
+				}
+				OS_ASSERT(is_finished);
+				continue;
 			}
-			exp = finishBinaryOperator(scope, OP_LEVEL_NOTHING, exp, allow_param);
-			if(!exp){
-				return NULL;
-			}
-			continue;
 
 		case Tokenizer::OPERATOR_BIT_AND_ASSIGN: // &=
 		case Tokenizer::OPERATOR_BIT_OR_ASSIGN:  // |=
@@ -5528,15 +5672,19 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			return NULL;
 
 		case Tokenizer::OPERATOR_ASSIGN: // =
-			if(!allow_assign){ // allow_binary_operator){
+			{
+				if(!allow_assign){ // allow_binary_operator){
+					return exp;
+				}
+				bool is_finished;
+				exp = finishBinaryOperator(scope, OP_LEVEL_NOTHING, exp, allow_param, is_finished);
+				if(!exp){
+					return NULL;
+				}
+				OS_ASSERT(is_finished);
 				return exp;
+				// continue;
 			}
-			exp = finishBinaryOperator(scope, OP_LEVEL_NOTHING, exp, allow_param);
-			if(!exp){
-				return NULL;
-			}
-			return exp;
-			// continue;
 
 		case Tokenizer::END_ARRAY_BLOCK:
 		case Tokenizer::END_BRACKET_BLOCK:
@@ -6126,8 +6274,14 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_GET_LOCAL_VAR:
 		return OS_TEXT("get local var");
 
+	case EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE:
+		return OS_TEXT("get local var auto create");
+
 	case EXP_TYPE_GET_AUTO_VAR:
 		return OS_TEXT("get auto var");
+
+	case EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE:
+		return OS_TEXT("get auto var auto create");
 
 	case EXP_TYPE_SET_LOCAL_VAR:
 		return OS_TEXT("set local var");
@@ -11061,7 +11215,7 @@ void OS::Core::enterFunction(Value * value, Value * self, int params, int extra_
 	
 	allocator->vectorAddItem(call_stack_funcs, func_running);
 
-	// gcProcessGreyFunctionRunning(func_running);
+	gcProcessGreyFunctionRunning(func_running);
 	pop(stack_values.count - clear_stack_to_index);
 
 	func_running->initial_stack_size = stack_values.count;
@@ -11139,6 +11293,7 @@ restart:
 						lines[i] = valueToString(prog_strings[offs]).toChar();
 					}
 				}
+				DEBUG_BREAK;
 				break;
 			}
 
@@ -11240,6 +11395,7 @@ restart:
 			}
 
 		case Program::OP_PUSH_AUTO_VAR:
+		case Program::OP_PUSH_AUTO_VAR_AUTO_CREATE:
 			{
 				i = opcodes.readUVariable();
 				OS_ASSERT(i >= 0 && i < prog_num_strings);
@@ -11248,7 +11404,7 @@ restart:
 				OS_ASSERT(name_value->type == OS_VALUE_TYPE_STRING);
 				StringData * name = name_value->value.string_data;
 				// String name = valueToString(name_value);
-				pushPropertyValue(env, name_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), true, true, false); 
+				pushPropertyValue(env, name_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), true, true, opcode == Program::OP_PUSH_AUTO_VAR_AUTO_CREATE); 
 				break;
 			}
 
@@ -11305,8 +11461,23 @@ restart:
 
 		case Program::OP_PUSH_LOCAL_VAR:
 			{
-				i = opcodes.readByte();
+				i = opcodes.readUVariable();
 				if(i < func_decl->num_locals){
+					pushValue(func_running->locals[i]);
+				}else{
+					OS_ASSERT(false);
+					pushConstNullValue();
+				}
+				break;
+			}
+
+		case Program::OP_PUSH_LOCAL_VAR_AUTO_CREATE:
+			{
+				i = opcodes.readUVariable();
+				if(i < func_decl->num_locals){
+					if(func_running->locals[i]->type == OS_VALUE_TYPE_NULL){
+						func_running->locals[i] = newObjectValue();
+					}
 					pushValue(func_running->locals[i]);
 				}else{
 					OS_ASSERT(false);
@@ -11319,7 +11490,7 @@ restart:
 			{
 				OS_ASSERT(stack_values.count >= 1);
 				Value * value = stack_values[stack_values.count-1];
-				i = opcodes.readByte();
+				i = opcodes.readUVariable();
 				if(i < func_decl->num_locals){
 					func_running->locals[i] = value;
 				}else{
@@ -11331,7 +11502,7 @@ restart:
 
 		case Program::OP_PUSH_UP_LOCAL_VAR:
 			{
-				i = opcodes.readByte();
+				i = opcodes.readUVariable();
 				int up_count = opcodes.readByte();
 				if(up_count <= func_decl->max_up_count){
 #ifdef FUNC_VAL_ONE_PARENT
@@ -11349,11 +11520,34 @@ restart:
 				break;
 			}
 
+		case Program::OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE:
+			{
+				i = opcodes.readUVariable();
+				int up_count = opcodes.readByte();
+				if(up_count <= func_decl->max_up_count){
+#ifdef FUNC_VAL_ONE_PARENT
+					FunctionRunningInstance * scope = func_running->parent_inctances[up_count-1];
+#else
+					FunctionRunningInstance * scope = func_value_data->parent_inctances[up_count-1];
+#endif
+					if(i < scope->func->value.func->func_decl->num_locals){
+						if(scope->locals[i]->type == OS_VALUE_TYPE_NULL){
+							scope->locals[i] = newObjectValue();
+						}
+						pushValue(scope->locals[i]);
+						break;
+					}
+				}
+				OS_ASSERT(false);
+				pushConstNullValue();
+				break;
+			}
+
 		case Program::OP_SET_UP_LOCAL_VAR:
 			{
 				OS_ASSERT(stack_values.count >= 1);
 				Value * value = stack_values[stack_values.count-1];
-				i = opcodes.readByte();
+				i = opcodes.readUVariable();
 				int up_count = opcodes.readByte();
 				if(up_count <= func_decl->max_up_count){
 #ifdef FUNC_VAL_ONE_PARENT
