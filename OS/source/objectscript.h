@@ -71,7 +71,9 @@
 
 #define OS_DEF_VAR_HASH_SIZE 4
 #define OS_DEF_VALUES_HASH_SIZE 16
-#define OS_DEF_PRECISION 16
+
+#define OS_AUTO_PRECISION 20
+#define OS_DEF_PRECISION OS_AUTO_PRECISION
 
 #define OS_DEF_FMT_BUF_SIZE 1024*10
 
@@ -82,7 +84,10 @@
 
 #define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
 
+#define OS_DEBUGGER_SAVE_NUM_LINES 11
+
 // #define OS_NEW(classname, params) new (allocator->malloc(sizeof(classname))) classname params
+#define FUNC_VAL_ONE_PARENT
 
 namespace ObjectScript
 {
@@ -94,7 +99,7 @@ namespace ObjectScript
 
 	enum OS_EValueType
 	{
-		// OS_VALUE_TYPE_UNKNOWN,
+		OS_VALUE_TYPE_UNKNOWN,
 		OS_VALUE_TYPE_NULL,
 		OS_VALUE_TYPE_BOOL,
 		OS_VALUE_TYPE_NUMBER,
@@ -1149,6 +1154,7 @@ namespace ObjectScript
 					EXP_TYPE_NOP,
 					EXP_TYPE_NEW_LOCAL_VAR,
 					EXP_TYPE_SCOPE,
+					EXP_TYPE_LOOP_SCOPE,
 					EXP_TYPE_CODE_LIST,
 					EXP_TYPE_NAME, // temp
 					EXP_TYPE_POST_IF,
@@ -1163,7 +1169,11 @@ namespace ObjectScript
 					EXP_TYPE_CLONE,
 					EXP_TYPE_DELETE,
 					EXP_TYPE_RETURN,
-
+					EXP_TYPE_BREAK,
+					EXP_TYPE_CONTINUE,
+					EXP_TYPE_DEBUGGER,
+					EXP_TYPE_DEBUGGER_LOCALS,
+					
 					EXP_TYPE_IF,
 
 					EXP_TYPE_ARRAY,
@@ -1197,6 +1207,7 @@ namespace ObjectScript
 					EXP_TYPE_INDIRECT, // temp
 
 					EXP_TYPE_GET_PROPERTY,
+					EXP_TYPE_GET_PROPERTY_AUTO_CREATE,
 					EXP_TYPE_SET_PROPERTY,
 
 					// EXP_TYPE_GET_PROPERTY_DIM,
@@ -1312,12 +1323,19 @@ namespace ObjectScript
 					void swap(ExpressionList&);
 				};
 
+				enum ELocalVarType {
+					LOCAL_GENERIC,
+					LOCAL_PARAM,
+					LOCAL_TEMP
+				};
+
 				struct LocalVarDesc
 				{
 					OS_BYTE up_count;
 					OS_BYTE up_scope_count;
 					OS_BYTE index;
-					bool is_param;
+					ELocalVarType type;
+					// bool is_param;
 
 					LocalVarDesc();
 				};
@@ -1379,6 +1397,18 @@ namespace ObjectScript
 						LocalVarCompiled();
 					};
 
+					enum ELoopBreakType
+					{
+						LOOP_CONTINUE,
+						LOOP_BREAK
+					};
+
+					struct LoopBreak
+					{
+						int pos;
+						ELoopBreakType type;
+					};
+
 					// used by function scope
 					int func_index;
 					Vector<LocalVar> locals;
@@ -1389,10 +1419,15 @@ namespace ObjectScript
 					int opcodes_size;
 					int max_up_count;
 
+					Vector<LoopBreak> loop_breaks;
+
 					bool parser_started;
 
 					Scope(Scope * parent, ExpressionType, TokenData*);
 					virtual ~Scope();
+
+					bool addLoopBreak(int pos, ELoopBreakType);
+					void fixLoopBreaks(int scope_start_pos, int scope_end_pos, StreamWriter*);
 
 					void addLocalVar(const String& name);
 					void addLocalVar(const String& name, LocalVarDesc&);
@@ -1416,17 +1451,25 @@ namespace ObjectScript
 
 				enum OpcodeLevel {
 					OP_LEVEL_NOTHING = -1,
-					OP_LEVEL_0, // ||
-					OP_LEVEL_1, // &&
-					OP_LEVEL_2, // <= >= ...
-					OP_LEVEL_3, // = += &= ..
-					OP_LEVEL_4, // |
-					OP_LEVEL_5, // & ^ ~ ?
-					OP_LEVEL_6, // + -
-					OP_LEVEL_7, // * / % << >> dot cross
-					OP_LEVEL_8, // ** as is
-					OP_LEVEL_9, // ++ -- ! 
-					OP_LEVEL_10, // .
+
+					OP_LEVEL_0, // ,
+					OP_LEVEL_1, // = += -= *= /= %=
+					OP_LEVEL_2, // ?:
+					OP_LEVEL_3, // ..
+					OP_LEVEL_4, // ||
+					OP_LEVEL_5, // &&
+					OP_LEVEL_6, // == !=
+					OP_LEVEL_7, // < <= > >=
+					OP_LEVEL_8, // |
+					OP_LEVEL_9, // & ^
+					OP_LEVEL_10, // << >> >>>
+					OP_LEVEL_11, // + -
+					OP_LEVEL_12, // * / %
+					OP_LEVEL_13, // ** as is
+					OP_LEVEL_14, // ++ --
+					OP_LEVEL_15, // unary ! ~ + #
+					OP_LEVEL_16, // .
+
 					OP_LEVEL_COUNT
 				};
 
@@ -1508,6 +1551,7 @@ namespace ObjectScript
 				Expression * expectReturnExpression(Scope*);
 				Expression * expectIfExpression(Scope*);
 				Expression * expectForExpression(Scope*);
+				Expression * expectDebuggerLocalsExpression(Scope*);
 				Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param, bool allow_assign, bool allow_auto_call);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
@@ -1520,8 +1564,8 @@ namespace ObjectScript
 				int cacheString(const String& str);
 				int cacheNumber(OS_FLOAT);
 
-				bool writeOpcodes(Expression*);
-				bool writeOpcodes(ExpressionList&);
+				bool writeOpcodes(Scope*, Expression*);
+				bool writeOpcodes(Scope*, ExpressionList&);
 				bool saveToStream(StreamWriter&);
 
 			public:
@@ -1607,12 +1651,14 @@ namespace ObjectScript
 					OP_TAIL_CALL_METHOD,
 
 					OP_GET_PROPERTY,
+					OP_GET_PROPERTY_AUTO_CREATE,
 					OP_SET_PROPERTY,
 
 					OP_SET_DIM,
 
 					OP_IF_NOT_JUMP,
 					OP_JUMP,
+					OP_DEBUGGER,
 
 					OP_EXTENDS,
 					OP_DELETE_PROP,
@@ -1698,14 +1744,17 @@ namespace ObjectScript
 			struct FunctionRunningInstance;
 			struct FunctionValueData
 			{
-				// FunctionRunningInstance * parent_inctance;
 				Program * prog;
 				FunctionDecl * func_decl;
 				// Value * self; // TODO: ???
 				Value * env;
 
+#ifdef FUNC_VAL_ONE_PARENT
+				FunctionRunningInstance * parent_inctance;
+#else
 				FunctionRunningInstance ** parent_inctances;
 				// int num_parent_inctances;
+#endif
 
 				FunctionValueData();
 				~FunctionValueData();
@@ -1716,9 +1765,12 @@ namespace ObjectScript
 				Value * func;
 				Value * self; // TODO: ???
 
-				FunctionRunningInstance * parent_inctance;
-				// FunctionRunningInstance ** parent_inctances;
+#ifdef FUNC_VAL_ONE_PARENT
+				FunctionRunningInstance ** parent_inctances;
 				// int num_parent_inctances;
+#else
+				FunctionRunningInstance * parent_inctance;
+#endif
 
 				Value ** locals;
 				int num_params;
@@ -1841,10 +1893,11 @@ namespace ObjectScript
 				String syntax_else;
 				String syntax_elseif;
 				String syntax_for;
-				String syntax_do;
-				String syntax_while;
+				String syntax_in;
 				String syntax_break;
 				String syntax_continue;
+				String syntax_debugger;
+				String syntax_debugger_locals;
 
 				int __dummy__;
 
@@ -2039,8 +2092,8 @@ namespace ObjectScript
 			Value * getPropertyValue(Value::Table * table, const PropertyIndex& index);
 			Value * getPropertyValue(Value * table_value, PropertyIndex& index, bool prototype_enabled);
 
-			Value * pushPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled);
-			Value * pushPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled);
+			Value * pushPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
+			Value * pushPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled, bool auto_create);
 
 			void enterFunction(Value * value, Value * self, int params, int extra_remove_from_stack, int need_ret_values);
 			int leaveFunction();
@@ -2076,7 +2129,7 @@ namespace ObjectScript
 		void initFunctionClass();
 		void initStringClass();
 		void initMathLibrary();
-		void startupScript();
+		void initScript();
 
 	public:
 

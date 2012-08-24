@@ -1,17 +1,55 @@
+;{	
+	print 9 < 0 && 1 || -1
+
+	var range = function(a b step){
+		var step = step || (a < b && 1 || -1)
+		if(step == 0) b = a
+		var i = a
+		return function(){
+			// debugger
+			print( "locals " debuggerlocals "\n" )
+			if(i >= a && i <= b){
+				var r = i
+				i = i + step
+				return true r
+			}
+		}
+	}
+	for(var i in range(9 0)){
+		print( "step "i"\n" )
+	}
+}
+/*
 ;{
+	var values = {
+		null true false 0 1 "" "0" "1"
+	}
+	for(var k, v in values){
+		print( k " => " v "\n" )
+		print( "locals " debuggerlocals "\n" )
+	}
+}
+;{
+	var a = {}
+	a[1][2][3] = 12
+	print a[1][2][3] .. "\n"
+	
 	print( "string length: " "123".length "\n" )
 	print( "string #: " #"123" "\n" )
 	
 	var print, valueof_func = print, Object.__valueof
 	
+	// debugger
 	print (
-		valueof_func.apply( function(){} ) "\n"
-		valueof_func.apply( true ) "\n"
+		// valueof_func.apply( function(){} ) "\n"
+		// valueof_func.apply( true ) "\n"
 		valueof_func.apply( false ) "\n"
 	)
+	
 	print( "len: " {1 2 3}.length "\n" )
-	var f = function(){ if(0) f()
-		if(0) f()
+	var f = function(){ 
+		// if(0) f()
+		// if(0) f()
 		print( "this: " this ", args: " arguments "\n" )
 	}
 	var this@1 = "this-1"
@@ -35,7 +73,8 @@
 	})()
 	print( "col: " col "\n" )
 }
-
+*/
+/*
 ;{
 	var values = {
 		null true false 0 1 "" "0" "1"
@@ -109,7 +148,7 @@ print(
 	"val of [0 5] => " a[0 5] "\n"
 	a "\n"
 )
-
+*/
 
 /*
 print ( {qwert:"asd", 10, 11, 12, 15:"df"} )
