@@ -4974,6 +4974,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectDebuggerLocalsExpress
 
 			Expression * obj_item_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT_SET_BY_NAME, name_token, var_exp);
 			allocator->vectorInsertAtIndex(obj_exp->list, 0, obj_item_exp);
+
+			name_token->release();
 		}
 	}
 	allocator->vectorClear(vars);
@@ -11092,7 +11094,7 @@ restart:
 
 	OS * allocator = this->allocator;
 	for(int opcodes_executed = 0;; opcodes_executed++){
-#if 1
+#if 0
 		{
 			int i;
 			for(i = 0; i < prog_num_numbers; i++){

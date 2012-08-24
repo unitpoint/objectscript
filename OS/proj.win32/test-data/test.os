@@ -1,25 +1,39 @@
 ;{	
-	print 9 < 0 && 1 || -1
+	// print 9 < 0 && 1 || -1
 
 	var range = function(a b step){
 		var step = step || (a < b && 1 || -1)
 		if(step == 0) b = a
-		var i = a
+		if(step >= 0){
+			return function(){
+				// debugger
+				print( "locals (step >= 0) " debuggerlocals "\n" )
+				if(a <= b){
+					var r = a
+					a = a + step
+					return true r
+				}
+			}
+		}
 		return function(){
 			// debugger
-			print( "locals " debuggerlocals "\n" )
-			if(i >= a && i <= b){
-				var r = i
-				i = i + step
+			print( "locals (step < 0) " debuggerlocals "\n" )
+			if(b <= a){
+				var r = a
+				a = a + step
 				return true r
 			}
 		}
 	}
+	
 	for(var i in range(9 0)){
 		print( "step "i"\n" )
 	}
+	
+	for(var i in range(0 11 2)){
+		print( "step "i"\n" )
+	}
 }
-/*
 ;{
 	var values = {
 		null true false 0 1 "" "0" "1"
@@ -73,7 +87,7 @@
 	})()
 	print( "col: " col "\n" )
 }
-*/
+
 /*
 ;{
 	var values = {
