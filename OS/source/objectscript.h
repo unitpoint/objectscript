@@ -1247,6 +1247,8 @@ namespace ObjectScript
 					EXP_TYPE_NEG,     // -
 					EXP_TYPE_LENGTH,  // #
 
+					// EXP_TYPE_PARAM_SEPARTOR, // ,
+
 					EXP_TYPE_CONCAT, // ..
 
 					EXP_TYPE_LOGIC_AND, // &&
@@ -1437,6 +1439,7 @@ namespace ObjectScript
 				enum ErrorType {
 					ERROR_NOTHING,
 					ERROR_SYNTAX,
+					ERROR_NESTED_ROOT_BLOCK,
 					ERROR_VAR_ALREADY_EXIST,
 					ERROR_EXPECT_TOKEN_TYPE,
 					ERROR_EXPECT_TOKEN_STR,
@@ -1452,9 +1455,9 @@ namespace ObjectScript
 
 				enum OpcodeLevel {
 					OP_LEVEL_NOTHING = -1,
-
-					OP_LEVEL_0, // ,
+					OP_LEVEL_0,
 					OP_LEVEL_1, // = += -= *= /= %=
+					OP_LEVEL_1_1, // ,
 					OP_LEVEL_2, // ?:
 					OP_LEVEL_3, // ||
 					OP_LEVEL_4, // &&
@@ -1521,12 +1524,40 @@ namespace ObjectScript
 
 				void deleteNops(ExpressionList& list);
 
-				ExpressionType toExpressionType(TokenType);
-				OpcodeLevel toOpcodeLevel(ExpressionType exp_type);
+				ExpressionType getUnaryExpressionType(TokenType);
+				ExpressionType getExpressionType(TokenType);
+				OpcodeLevel getOpcodeLevel(ExpressionType exp_type);
 
 				TokenData * readToken();
 				TokenData * expectToken(TokenType);
 				TokenData * expectToken();
+
+				struct Params
+				{
+					bool allow_root_blocks;
+					bool allow_binary_operator;
+					bool allow_assing;
+					// bool allow_left_side_params;
+					// bool allow_right_side_params;
+					bool allow_params;
+					// bool allow_var;
+					bool allow_auto_call;
+
+					Params();
+					Params(const Params&);
+
+					Params& setAllowRootBlocks(bool);
+					Params& setAllowBinaryOperator(bool);
+					Params& setAllowAssign(bool);
+					Params& setAllowParams(bool);
+					// Params& setAllowLeftSideParams(bool);
+					// Params& setAllowRightSideParams(bool);
+					Params& setAllowAutoCall(bool);
+				};
+
+				Expression * expectSingleExpression(Scope*, const Params& p);
+				Expression * expectSingleExpression(Scope*);
+					// bool allow_binary_operator, bool allow_param, bool allow_var, bool allow_assign, bool allow_auto_call);
 
 				Expression * expectExpressionValues(Expression * exp, int ret_values);
 				Expression * newExpressionFromList(ExpressionList& list, int ret_values);
@@ -1543,18 +1574,17 @@ namespace ObjectScript
 				Expression * expectDeleteExpression(Scope*);
 				Expression * expectValueOfExpression(Scope*, ExpressionType exp_type);
 				Expression * expectVarExpression(Scope*);
-				Expression * expectSingleExpression(Scope*, bool allow_binary_operator, bool allow_param, bool allow_var, bool allow_assign, bool allow_auto_call);
 				Expression * expectObjectExpression(Scope*);
 				Expression * expectArrayExpression(Scope*);
-				Expression * finishParamsExpression(Scope*, Expression * params);
+				// Expression * finishParamsExpression(Scope*, Expression * params);
 				Expression * expectParamsExpression(Scope*);
-				Expression * expectParamsExpression(Scope*, Expression * first_param);
+				// Expression * expectParamsExpression(Scope*, Expression * first_param);
 				Expression * expectReturnExpression(Scope*);
 				Expression * expectIfExpression(Scope*);
 				Expression * expectForExpression(Scope*);
 				Expression * expectDebuggerLocalsExpression(Scope*);
-				Expression * finishValueExpression(Scope*, Expression*, bool allow_binary_operator, bool allow_param, bool allow_assign, bool allow_auto_call);
-				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, bool allow_param, bool& is_finished);
+				Expression * finishValueExpression(Scope*, Expression*, const Params& p); // bool allow_binary_operator, bool allow_param, bool allow_assign, bool allow_auto_call);
+				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, const Params& p, bool& is_finished); // bool allow_param, bool& is_finished);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
 				bool findLocalVar(LocalVarDesc&, Scope * scope, const String& name, int active_locals, bool all_scopes);
