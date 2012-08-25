@@ -210,6 +210,18 @@ static bool parseDecSimple(const OS_CHAR *& str, OS_INT& val)
 	return str > start;
 }
 
+static bool parseFloatSimple(const OS_CHAR *& str, OS_FLOAT& val)
+{
+	OS_FLOAT float_val = 0;
+	const OS_CHAR * start = str;
+	for(; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++)
+	{
+		float_val = float_val * 10 + (OS_INT)(*str - OS_TEXT('0'));
+	}
+	val = float_val;
+	return str > start;
+}
+
 OS::EParseNumType OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_INT& ival, int flags)
 {
 	const OS_CHAR * saveSrc = str;
@@ -253,7 +265,8 @@ OS::EParseNumType OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_I
 	else
 	{
 		// parse int or float
-		parseDecSimple(str, int_val);
+		OS_FLOAT float_val;
+		parseFloatSimple(str, float_val);
 
 		if((flags & PARSE_NUM_FLAG_FLOAT) && *str == OS_TEXT('.')) // parse float
 		{
@@ -299,8 +312,7 @@ OS::EParseNumType OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_I
 				return PARSE_NUM_TYPE_ERROR;
 			}
 
-			OS_FLOAT float_val = (OS_FLOAT)int_val, m = 0.1;
-			OS_ASSERT((OS_INT)float_val == int_val);
+			OS_FLOAT m = 0.1;
 			for(str++; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++, m *= 0.1)
 			{
 				float_val += (OS_FLOAT)(*str - OS_TEXT('0')) * m;
@@ -350,6 +362,12 @@ OS::EParseNumType OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_I
 			fval = 0;
 			ival = 0;
 			return PARSE_NUM_TYPE_ERROR;
+		}
+		int_val = (int)float_val;
+		if((OS_FLOAT)int_val != float_val){
+			fval = sign > 0 ? float_val : -float_val;
+			ival = 0;
+			return PARSE_NUM_TYPE_FLOAT;
 		}
 	}
 	// int_val *= sign;
@@ -2847,6 +2865,14 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		prog_opcodes->writeByte(Program::toOpcodeType(exp->type));
 		break;
 
+	/*
+	case EXP_TYPE_PRE_INC:
+	case EXP_TYPE_PRE_DEC:
+	case EXP_TYPE_POST_INC:
+	case EXP_TYPE_POST_DEC:
+		break;
+	*/
+
 	case EXP_TYPE_GET_LOCAL_VAR:
 		OS_ASSERT(exp->list.count == 0);
 		if(!exp->local_var.up_count){
@@ -3271,6 +3297,10 @@ bool OS::Core::Compiler::compile()
 
 		case ERROR_NESTED_ROOT_BLOCK:
 			dump += OS::Core::String(allocator, " NESTED_ROOT_BLOCK");
+			break;
+
+		case ERROR_VAR_NOT_EXIST:
+			dump += OS::Core::String(allocator, " VAR_NOT_EXIST");
 			break;
 
 		case ERROR_VAR_ALREADY_EXIST:
@@ -3783,6 +3813,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 			}
 		}
 		break;
+
+	case EXP_TYPE_PRE_INC:
+	case EXP_TYPE_PRE_DEC:
+	case EXP_TYPE_POST_INC:
+	case EXP_TYPE_POST_DEC:
+		OS_ASSERT(exp->ret_values == 1);
+		if(!ret_values){
+			exp->ret_values = 0;
+			return exp;
+		}
+		break;
 	}
 	while(exp->ret_values > ret_values){
 		int new_ret_values = exp->ret_values-1;
@@ -3948,6 +3989,105 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				}
 			}
 			return exp;
+		}
+
+	case EXP_TYPE_POST_INC:
+	case EXP_TYPE_POST_DEC:
+		OS_ASSERT(exp->list.count == 1);
+		if(exp->ret_values > 0){
+			OS_ASSERT(exp->ret_values == 1);
+			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
+
+			Expression * var_exp = exp->list[0];
+			OS_ASSERT(var_exp->type == EXP_TYPE_GET_LOCAL_VAR);
+			
+			String temp_var_name = String(allocator, OS_TEXT("#temp")) + String(allocator, (OS_INT)scope->function->num_locals+1);
+			TokenData * temp_var_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), temp_var_name, Tokenizer::NAME, exp->token->line, exp->token->pos);
+			
+			TokenData * num_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), String(allocator, OS_TEXT("1")), Tokenizer::NUM_INT, exp->token->line, exp->token->pos);
+			num_token->setInt(1);
+			
+			Expression * cur_var_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_LOCAL_VAR, var_exp->token);
+			cur_var_exp->ret_values = 1;
+			cur_var_exp->local_var = var_exp->local_var;
+			
+			Expression * result_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CODE_LIST, exp->token);
+			Expression * copy_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_SET_LOCAL_VAR, temp_var_token, cur_var_exp);
+			OS_ASSERT(!findLocalVar(copy_exp->local_var, scope, temp_var_name, scope->function->num_locals, false));
+			scope->addLocalVar(temp_var_name, copy_exp->local_var);
+			result_exp->list.add(copy_exp);
+
+			cur_var_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_LOCAL_VAR, var_exp->token);
+			cur_var_exp->ret_values = 1;
+			cur_var_exp->local_var = var_exp->local_var;
+
+			Expression * num_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NUMBER, num_token);
+			num_exp->ret_values = 1;
+
+			Expression * op_exp = new (malloc(sizeof(Expression))) Expression(exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token, cur_var_exp, num_exp);
+			op_exp->ret_values = 1;
+
+			Expression * set_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_SET_LOCAL_VAR, var_exp->token, op_exp);
+			set_exp->local_var = var_exp->local_var;
+
+			result_exp->list.add(set_exp);
+
+			Expression * get_temp_var_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_LOCAL_VAR, temp_var_token);
+			get_temp_var_exp->ret_values = 1;
+			get_temp_var_exp->local_var = copy_exp->local_var;
+
+			result_exp->list.add(get_temp_var_exp);
+			result_exp->ret_values = 1;
+			
+			temp_var_token->release();
+			num_token->release();
+
+			allocator->deleteObj(exp);
+			return processExpressionSecondPass(scope, result_exp);
+		}
+		exp->type = exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_PRE_INC : EXP_TYPE_PRE_DEC;
+		// no break
+
+	case EXP_TYPE_PRE_INC:
+	case EXP_TYPE_PRE_DEC:
+		{
+			OS_ASSERT(exp->list.count == 1);
+			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
+			
+			Expression * var_exp = exp->list[0];
+			OS_ASSERT(var_exp->type == EXP_TYPE_GET_LOCAL_VAR);
+			
+			TokenData * num_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), String(allocator, OS_TEXT("1")), Tokenizer::NUM_INT, exp->token->line, exp->token->pos);
+			num_token->setInt(1);
+
+			Expression * cur_var_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_LOCAL_VAR, var_exp->token);
+			cur_var_exp->ret_values = 1;
+			cur_var_exp->local_var = var_exp->local_var;
+
+			Expression * num_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_NUMBER, num_token);
+			num_exp->ret_values = 1;
+
+			Expression * op_exp = new (malloc(sizeof(Expression))) Expression(exp->type == EXP_TYPE_PRE_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token, cur_var_exp, num_exp);
+			op_exp->ret_values = 1;
+
+			Expression * set_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_SET_LOCAL_VAR, var_exp->token, op_exp);
+			set_exp->local_var = var_exp->local_var;
+
+			Expression * result_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CODE_LIST, exp->token);
+			result_exp->list.add(set_exp);
+
+			if(exp->ret_values > 0){
+				OS_ASSERT(exp->ret_values == 1);
+				
+				cur_var_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_LOCAL_VAR, var_exp->token);
+				cur_var_exp->ret_values = 1;
+				cur_var_exp->local_var = var_exp->local_var;
+
+				result_exp->list.add(cur_var_exp);
+				result_exp->ret_values = 1;
+			}
+			allocator->deleteObj(exp);
+			return processExpressionSecondPass(scope, result_exp);
 		}
 
 	case EXP_TYPE_NAME:
@@ -5719,6 +5859,27 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			readToken();
 			continue;
 
+		// post ++, post --
+		case Tokenizer::OPERATOR_INC:
+		case Tokenizer::OPERATOR_DEC:
+			if(exp->type != EXP_TYPE_NAME){
+				return exp;
+				/* setError(ERROR_SYNTAX, recent_token);
+				allocator->deleteObj(exp);
+				return NULL; */
+			}
+			OS_ASSERT(exp->ret_values == 1);
+			if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
+				setError(ERROR_VAR_NOT_EXIST, exp->token);
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			exp->type = EXP_TYPE_GET_LOCAL_VAR;
+			exp = new (malloc(sizeof(Expression))) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_POST_INC : EXP_TYPE_POST_DEC, exp->token, exp);
+			exp->ret_values = 1;
+			readToken();
+			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+
 		case Tokenizer::OPERATOR_CONCAT:    // ..
 		// case Tokenizer::REST_ARGUMENTS:  // ...
 
@@ -5975,10 +6136,24 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 
 		return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false)); // allow_binary_operator, allow_param, allow_assign, false);
 
+	// pre ++, pre --
 	case Tokenizer::OPERATOR_INC:
 	case Tokenizer::OPERATOR_DEC:
-		setError(ERROR_SYNTAX, token);
-		return NULL;
+		if(!expectToken(Tokenizer::NAME)){
+			return NULL;
+		}
+		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_GET_LOCAL_VAR, recent_token);
+		exp->ret_values = 1;
+		exp->active_locals = scope->function->num_locals;
+		if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
+			setError(ERROR_VAR_NOT_EXIST, exp->token);
+			allocator->deleteObj(exp);
+			return NULL;
+		}
+		exp = new (malloc(sizeof(Expression))) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_PRE_INC : EXP_TYPE_PRE_DEC, exp->token, exp);
+		exp->ret_values = 1;
+		readToken();
+		return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
 	// end unary operators
 
 	case Tokenizer::BEGIN_CODE_BLOCK:
@@ -6670,14 +6845,42 @@ bool OS::Core::Compiler::saveToStream(StreamWriter& writer)
 	writer.writeByte(len);
 	writer.writeBytes(OS_COMPILED_VERSION, len);
 
-	writer.writeUVariable(prog_numbers.count);
+	MemStreamWriter int_stream(allocator);
+	MemStreamWriter float_stream(allocator);
+	MemStreamWriter double_stream(allocator);
+	int int_count = 0, float_count = 0, double_count = 0;
+	int int_index = 0, float_index = 0, double_index = 0;
+	for(i = 0; i < prog_numbers.count; i++){
+		double val = prog_numbers[i];
+		if(val >= 0 && (double)(int)val == val){
+			int_count++;
+			int_stream.writeUVariable(i - int_index); int_index = i;
+			int_stream.writeUVariable((int)val);
+			continue;
+		}
+		if((double)(float)val == val){
+			float_count++;
+			float_stream.writeUVariable(i - float_index); float_index = i;
+			float_stream.writeFloat((float)val);
+			continue;
+		}
+		double_count++;
+		double_stream.writeUVariable(i - double_index); double_index = i;
+		double_stream.writeDouble(val);
+	}
+
+	// writer.writeUVariable(prog_numbers.count);
+	writer.writeUVariable(int_count);
+	writer.writeUVariable(float_count);
+	writer.writeUVariable(double_count);
 	writer.writeUVariable(prog_strings.count);
 	writer.writeUVariable(prog_functions.count);
 	writer.writeUVariable(prog_opcodes->getPos());
 
-	for(i = 0; i < prog_numbers.count; i++){
-		writer.writeFloat(prog_numbers[i]);	
-	}
+	writer.writeBytes(int_stream.buffer.buf, int_stream.buffer.count);
+	writer.writeBytes(float_stream.buffer.buf, float_stream.buffer.count);
+	writer.writeBytes(double_stream.buffer.buf, double_stream.buffer.count);
+
 	for(i = 0; i < prog_strings.count; i++){
 		const String& str = prog_strings[i];
 		int data_size = str.getDataSize();
@@ -6724,15 +6927,31 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 		return false;
 	}
 
-	num_numbers = reader.readUVariable();
+	int int_count = reader.readUVariable();
+	int float_count = reader.readUVariable();
+	int double_count = reader.readUVariable();
+	num_numbers = int_count + float_count + double_count;
 	num_strings = reader.readUVariable();
 	num_functions = reader.readUVariable();
 	int opcodes_size = reader.readUVariable();
 
 	const_values = (Value**)allocator->malloc(sizeof(Value*) * (num_numbers + num_strings));
-	for(i = 0; i < num_numbers; i++){
-		OS_FLOAT number = reader.readFloat();
-		const_values[i] = allocator->core->newNumberValue(number);
+	
+	int num_index = 0;
+	for(i = 0; i < int_count; i++){
+		num_index += reader.readUVariable();
+		OS_FLOAT number = (OS_FLOAT)reader.readUVariable();
+		const_values[num_index] = allocator->core->newNumberValue(number);
+	}
+	for(num_index = 0, i = 0; i < float_count; i++){
+		num_index += reader.readUVariable();
+		OS_FLOAT number = (OS_FLOAT)reader.readFloat();
+		const_values[num_index] = allocator->core->newNumberValue(number);
+	}
+	for(num_index = 0, i = 0; i < double_count; i++){
+		num_index += reader.readUVariable();
+		OS_FLOAT number = (OS_FLOAT)reader.readDouble();
+		const_values[num_index] = allocator->core->newNumberValue(number);
 	}
 	for(i = 0; i < num_strings; i++){
 		int data_size = reader.readUVariable();
@@ -6965,15 +7184,27 @@ void OS::Core::StreamWriter::writeInt64AtPos(OS_INT64 value, int pos)
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
 }
 
-void OS::Core::StreamWriter::writeFloat(OS_FLOAT value)
+void OS::Core::StreamWriter::writeFloat(float value)
 {
-	OS_FLOAT le_value = toLittleEndianByteOrder((OS_FLOAT)value);
+	float le_value = toLittleEndianByteOrder(value);
 	writeBytes(&le_value, sizeof(le_value));
 }
 
-void OS::Core::StreamWriter::writeFloatAtPos(OS_FLOAT value, int pos)
+void OS::Core::StreamWriter::writeFloatAtPos(float value, int pos)
 {
-	OS_FLOAT le_value = toLittleEndianByteOrder((OS_FLOAT)value);
+	float le_value = toLittleEndianByteOrder(value);
+	writeBytesAtPos(&le_value, sizeof(le_value), pos);
+}
+
+void OS::Core::StreamWriter::writeDouble(double value)
+{
+	double le_value = toLittleEndianByteOrder(value);
+	writeBytes(&le_value, sizeof(le_value));
+}
+
+void OS::Core::StreamWriter::writeDoubleAtPos(double value, int pos)
+{
+	double le_value = toLittleEndianByteOrder(value);
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
 }
 
@@ -7163,16 +7394,30 @@ OS_INT64 OS::Core::StreamReader::readInt64AtPos(int pos)
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_FLOAT OS::Core::StreamReader::readFloat()
+float OS::Core::StreamReader::readFloat()
 {
-	OS_FLOAT le_value;
+	float le_value;
 	readBytes(&le_value, sizeof(le_value));
 	return fromLittleEndianByteOrder(le_value);
 }
 
-OS_FLOAT OS::Core::StreamReader::readFloatAtPos(int pos)
+float OS::Core::StreamReader::readFloatAtPos(int pos)
 {
-	OS_FLOAT le_value;
+	float le_value;
+	readBytesAtPos(&le_value, sizeof(le_value), pos);
+	return fromLittleEndianByteOrder(le_value);
+}
+
+double OS::Core::StreamReader::readDouble()
+{
+	double le_value;
+	readBytes(&le_value, sizeof(le_value));
+	return fromLittleEndianByteOrder(le_value);
+}
+
+double OS::Core::StreamReader::readDoubleAtPos(int pos)
+{
+	double le_value;
 	readBytesAtPos(&le_value, sizeof(le_value), pos);
 	return fromLittleEndianByteOrder(le_value);
 }

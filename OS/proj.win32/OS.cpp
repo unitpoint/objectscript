@@ -30,8 +30,8 @@ struct __test_os__
 		OS * os = OS::create();
 		// const char * filename = "test-data/castlemonster.js";
 		// const char * filename = "test-data/test.os";
-		const char * filename = "test-data/test2.os";
-		// const char * filename = "test-data/test_fannkuch.os";
+		// const char * filename = "test-data/test2.os";
+		const char * filename = "test-data/test_fannkuch.os";
 		OS::String test_prog = readFile(os, filename);
 		
 		os->newObject(); // 1 - t1

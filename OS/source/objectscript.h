@@ -79,7 +79,7 @@
 
 #define OS_INFINITE_LOOP_OPCODES 1000000
 
-#define OS_COMPILED_HEADER OS_TEXT("OS.BIN")
+#define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_COMPILED_VERSION OS_TEXT("0.9")
 
 #define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
@@ -469,8 +469,11 @@ namespace ObjectScript
 				virtual void writeInt64(OS_INT64);
 				virtual void writeInt64AtPos(OS_INT64 value, int pos);
 
-				virtual void writeFloat(OS_FLOAT);
-				virtual void writeFloatAtPos(OS_FLOAT value, int pos);
+				virtual void writeFloat(float);
+				virtual void writeFloatAtPos(float value, int pos);
+
+				virtual void writeDouble(double);
+				virtual void writeDoubleAtPos(double value, int pos);
 			};
 
 			class MemStreamWriter: public StreamWriter
@@ -541,8 +544,11 @@ namespace ObjectScript
 				virtual OS_INT64 readInt64();
 				virtual OS_INT64 readInt64AtPos(int pos);
 
-				virtual OS_FLOAT readFloat();
-				virtual OS_FLOAT readFloatAtPos(int pos);
+				virtual float readFloat();
+				virtual float readFloatAtPos(int pos);
+
+				virtual double readDouble();
+				virtual double readDoubleAtPos(int pos);
 			};
 
 			class MemStreamReader: public StreamReader
@@ -1440,6 +1446,7 @@ namespace ObjectScript
 					ERROR_NOTHING,
 					ERROR_SYNTAX,
 					ERROR_NESTED_ROOT_BLOCK,
+					ERROR_VAR_NOT_EXIST,
 					ERROR_VAR_ALREADY_EXIST,
 					ERROR_EXPECT_TOKEN_TYPE,
 					ERROR_EXPECT_TOKEN_STR,
@@ -1678,6 +1685,16 @@ namespace ObjectScript
 					OP_PUSH_UP_LOCAL_VAR,
 					OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE,
 					OP_SET_UP_LOCAL_VAR,
+
+					/*
+					OP_LOCAL_VAR_INC,
+					OP_PUSH_LOCAL_VAR_PRE_INC,
+					OP_PUSH_LOCAL_VAR_POST_INC,
+
+					OP_LOCAL_VAR_DEC,
+					OP_PUSH_LOCAL_VAR_PRE_DEC,
+					OP_PUSH_LOCAL_VAR_POST_DEC,
+					*/
 
 					OP_CALL,
 					OP_TAIL_CALL,
