@@ -1256,7 +1256,7 @@ namespace ObjectScript
 					EXP_TYPE_LOOP_SCOPE,
 					EXP_TYPE_CODE_LIST,
 					EXP_TYPE_NAME, // temp
-					EXP_TYPE_POST_IF,
+					// EXP_TYPE_POST_IF,
 					EXP_TYPE_POP_VALUE,
 					EXP_TYPE_CALL,
 					EXP_TYPE_CALL_AUTO_PARAM,

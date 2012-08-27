@@ -5432,7 +5432,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 {
 	OS_ASSERT(recent_token && (recent_token->str == allocator->core->strings->syntax_if 
 				|| recent_token->str == allocator->core->strings->syntax_elseif));
-	if(/*!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) ||*/ !expectToken()){
+	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) || !expectToken()){
 		return NULL;
 	}
 	TokenData * token = recent_token;
@@ -5446,7 +5446,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 		return NULL;
 	}
 	if_exp = expectExpressionValues(if_exp, 1);
-	/* if(!recent_token || recent_token->getType() != Tokenizer::END_BRACKET_BLOCK){
+	if(!recent_token || recent_token->getType() != Tokenizer::END_BRACKET_BLOCK){
 		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
 		allocator->deleteObj(if_exp);
 		return NULL;
@@ -5454,7 +5454,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 	if(!expectToken()){
 		allocator->deleteObj(if_exp);
 		return NULL;
-	} */
+	}
 	if(!recent_token){
 		setError(ERROR_EXPECT_TOKEN, recent_token);
 		allocator->deleteObj(if_exp);

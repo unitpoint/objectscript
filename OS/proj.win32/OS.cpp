@@ -209,9 +209,19 @@ static int OS_getTimeSec(OS * os, int params, int upvalues, int, void*)
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	double start_time = getTimeSec();
-
 	OS * os = OS::create();
+
+	if(argc < 2){
+		printf("ObjctScript " OS_VERSION " Copyright (C) 2012 Evgeniy Golovin\n");
+		printf("Latest version and source code: https://github.com/unitpoint/objectscript\n");
+		printf("\n");
+		printf("Usage: %s script [args]\n", getString(os, argv[0]).toChar());
+
+		os->release();
+		exit(1);
+	}
+
+	double start_time = getTimeSec();
 
 	os->setSetting(OS_SETTING_CREATE_DEBUG_INFO, true);
 	os->setSetting(OS_SETTING_CREATE_DEBUG_OPCODES, true);
