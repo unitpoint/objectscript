@@ -51,7 +51,7 @@
 #define OS_STRCHR strchr
 #define OS_STRSTR strstr
 #define OS_ISSPACE isspace
-#define OS_VSNPRINTF vsnprintf
+#define OS_VSNPRINTF vsnprintf_s
 #define OS_SNPRINTF __snprintf__
 
 #define OS_MATH_POW pow
@@ -77,10 +77,16 @@
 
 #define OS_DEF_FMT_BUF_SIZE 1024*10
 
-#define OS_INFINITE_LOOP_OPCODES 1000000
+#define OS_INFINITE_LOOP_OPCODES 10000000000
+#define OS_CALL_STACK_MAX_SIZE 200
 
+#define OS_VERSION OS_TEXT("0.9")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
-#define OS_COMPILED_VERSION OS_TEXT("0.9")
+#define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
+#define OS_SOURCECODE_EXT OS_TEXT(".os")
+#define OS_COMPILED_EXT OS_TEXT(".osc")
+#define OS_DEBUG_INFO_EXT OS_TEXT(".osd")
+#define OS_DEBUG_OPCODES_FILENAME OS_TEXT("os-opcodes.txt")
 
 #define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
 
@@ -96,6 +102,13 @@ namespace ObjectScript
 
 	typedef void (*OS_UserDataDtor)(OS*, void * data, void * user_param);
 	typedef int (*OS_CFunction)(OS*, int params, int upvalues, int need_ret_values, void * user_param);
+
+	enum OS_ESettings
+	{
+		OS_SETTING_CREATE_DEBUG_OPCODES,
+		OS_SETTING_CREATE_DEBUG_INFO,
+		OS_SETTING_RECOMPILE_SOURCECODE,
+	};
 
 	enum OS_EValueType
 	{
@@ -128,6 +141,61 @@ namespace ObjectScript
 	enum OS_EFatalError
 	{
 		OS_FATAL_ERROR_OPCODE,
+	};
+
+	enum
+	{
+		OS_WARNING	= 1<<0,
+		OS_ERROR	= 1<<1
+	};
+
+	enum OS_EOpcode {
+		// binary operators
+
+		OP_LOGIC_PTR_EQ,	// ===
+		OP_LOGIC_PTR_NE,	// !==
+		OP_LOGIC_EQ,		// ==
+		OP_LOGIC_NE,		// !=
+		OP_LOGIC_GE,		// >=
+		OP_LOGIC_LE,		// <=
+		OP_LOGIC_GREATER,	// >
+		OP_LOGIC_LESS,		// <
+
+		OP_BIT_AND,	// &
+		OP_BIT_OR,	// |
+		OP_BIT_XOR,	// ^
+
+		OP_ADD, // +
+		OP_SUB, // -
+		OP_MUL, // *
+		OP_DIV, // /
+		OP_MOD, // %
+		OP_LSHIFT, // <<
+		OP_RSHIFT, // >>
+		OP_POW, // **
+
+		OP_CONCAT, // ..
+
+		// unary operators
+
+		OP_BIT_NOT,		// ~
+		OP_PLUS,		// +
+		OP_NEG,			// -
+		OP_LENGTH,		// #
+
+		/*
+		OP_LOGIC_BOOL,
+		OP_LOGIC_NOT,
+
+		OP_VALUE_OF,
+		OP_NUMBER_OF,
+		OP_STRING_OF,
+		OP_ARRAY_OF,
+		OP_OBJECT_OF,
+		OP_USERDATA_OF,
+		OP_FUNCTION_OF,
+		OP_CLONE,
+		*/
 	};
 
 	class OS
@@ -247,7 +315,7 @@ namespace ObjectScript
 			static EParseNumType parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_INT& ival, int flags);
 
 			static OS_CHAR * numToStr(OS_CHAR*, OS_INT value);
-			static OS_CHAR * numToStr(OS_CHAR*, OS_FLOAT value, int precision);
+			static OS_CHAR * numToStr(OS_CHAR*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
 
 			static OS_INT strToInt(const OS_CHAR*);
 			static OS_FLOAT strToFloat(const OS_CHAR*);
@@ -438,6 +506,7 @@ namespace ObjectScript
 		{
 		public:
 
+			class StreamReader;
 			class StreamWriter
 			{
 			public:
@@ -448,6 +517,11 @@ namespace ObjectScript
 				virtual ~StreamWriter();
 
 				virtual int getPos() const = 0;
+				virtual void setPos(int) = 0;
+				
+				virtual int getSize() const = 0;
+
+				virtual void readFromStream(StreamReader*);
 
 				virtual void writeBytes(const void*, int len) = 0;
 				virtual void writeBytesAtPos(const void*, int len, int pos) = 0;
@@ -481,11 +555,15 @@ namespace ObjectScript
 			public:
 
 				Vector<OS_BYTE> buffer;
+				int pos;
 
 				MemStreamWriter(OS*);
 				~MemStreamWriter();
 
 				int getPos() const;
+				void setPos(int);
+				
+				int getSize() const;
 
 				void writeBytes(const void*, int len);
 				void writeBytesAtPos(const void*, int len, int pos);
@@ -505,6 +583,9 @@ namespace ObjectScript
 				~FileStreamWriter();
 
 				int getPos() const;
+				void setPos(int);
+				
+				int getSize() const;
 
 				void writeBytes(const void*, int len);
 				void writeBytesAtPos(const void*, int len, int pos);
@@ -520,6 +601,9 @@ namespace ObjectScript
 				virtual ~StreamReader();
 
 				virtual int getPos() const = 0;
+				virtual void setPos(int) = 0;
+				
+				virtual int getSize() const = 0;
 
 				virtual void movePos(int len) = 0;
 				virtual bool checkBytes(void*, int len) = 0;
@@ -565,6 +649,9 @@ namespace ObjectScript
 				~MemStreamReader();
 
 				int getPos() const;
+				void setPos(int);
+				
+				int getSize() const;
 
 				void movePos(int len);
 				bool checkBytes(void*, int len);
@@ -587,6 +674,9 @@ namespace ObjectScript
 				~FileStreamReader();
 
 				int getPos() const;
+				void setPos(int);
+				
+				int getSize() const;
 
 				void movePos(int len);
 				bool checkBytes(void*, int len);
@@ -610,6 +700,7 @@ namespace ObjectScript
 
 				int getAllocatedBytes() const { return allocated_bytes; }
 				int getDataSize() const { return data_size; }
+				int getLen() const { return data_size/sizeof(OS_CHAR); }
 
 				const OS_CHAR * toCharSafely() const { return this ? (OS_CHAR*)(this + 1) : OS_TEXT(""); }
 
@@ -697,6 +788,7 @@ namespace ObjectScript
 				// bool isNull() const { return data == NULL; }
 				int getAllocatedBytes() const { return toData()->allocated_bytes; }
 				int getDataSize() const { return toData()->data_size; }
+				int getLen() const { return toData()->getLen(); }
 
 				void clear();
 
@@ -928,11 +1020,12 @@ namespace ObjectScript
 					bool save_comments;
 				} settings;
 
+				OS * allocator;
 				TextData * text_data;
 
 				int cur_line, cur_pos;
-				bool loaded;
-				bool compiled;
+				// bool loaded;
+				// bool compiled;
 
 				Vector<TokenData*> tokens;
 				Error error;
@@ -965,15 +1058,15 @@ namespace ObjectScript
 				Tokenizer(OS*);
 				~Tokenizer();
 
-				void reset();
+				// void reset();
 
 				OS * getAllocator();
 				TextData * getTextData() const { return text_data; }
 
-				bool isLoaded() const { return loaded; }
+				// bool isLoaded() const { return loaded; }
 
-				bool isCompiled() const { return compiled; }
-				void setCompiled(bool value){ compiled = value; }
+				// bool isCompiled() const { return compiled; }
+				// void setCompiled(bool value){ compiled = value; }
 
 				bool isError() const { return error != ERROR_NOTHING; }
 				Error getErrorCode() const { return error; }
@@ -989,7 +1082,7 @@ namespace ObjectScript
 				bool getSettingSaveComment() const { return settings.save_comments; }
 				void setSettingSaveComment(bool value){ settings.save_comments = value; }
 
-				bool parseText(const String& text);
+				bool parseText(const OS_CHAR * text, int len, const String& filename);
 
 				int getNumTokens() const { return tokens.count; }
 				TokenData * getToken(int i) const { return tokens[i]; }
@@ -1446,7 +1539,7 @@ namespace ObjectScript
 					ERROR_NOTHING,
 					ERROR_SYNTAX,
 					ERROR_NESTED_ROOT_BLOCK,
-					ERROR_VAR_NOT_EXIST,
+					ERROR_LOCAL_VAL_NOT_DECLARED,
 					ERROR_VAR_ALREADY_EXIST,
 					ERROR_EXPECT_TOKEN_TYPE,
 					ERROR_EXPECT_TOKEN_STR,
@@ -1503,10 +1596,14 @@ namespace ObjectScript
 				// Program * prog;
 				Value::Table * prog_numbers_table;
 				Value::Table * prog_strings_table;
+				Value::Table * prog_debug_strings_table;
 				Vector<OS_FLOAT> prog_numbers;
 				Vector<String> prog_strings;
+				Vector<String> prog_debug_strings;
 				Vector<Scope*> prog_functions;
 				MemStreamWriter * prog_opcodes;
+				MemStreamWriter * prog_debug_info;
+				int prog_num_debug_infos;
 				int prog_max_up_count;
 
 				bool isError();
@@ -1574,7 +1671,7 @@ namespace ObjectScript
 				Expression * processExpressionSecondPass(Scope * scope, Expression * exp);
 
 				Scope * expectTextExpression();
-				Scope * expectCodeExpression(Scope*, int ret_values);
+				Scope * expectCodeExpression(Scope*, int ret_values = 0);
 				Scope * expectFunctionExpression(Scope*);
 				Expression * expectExtendsExpression(Scope*);
 				Expression * expectCloneExpression(Scope*);
@@ -1599,12 +1696,15 @@ namespace ObjectScript
 				String debugPrintSourceLine(TokenData*);
 				static const OS_CHAR * getExpName(ExpressionType);
 
+				int cacheString(Value::Table * strings_table, Vector<String>& strings, const String& str);
 				int cacheString(const String& str);
+				int cacheDebugString(const String& str);
 				int cacheNumber(OS_FLOAT);
 
 				bool writeOpcodes(Scope*, Expression*);
 				bool writeOpcodes(Scope*, ExpressionList&);
-				bool saveToStream(StreamWriter&);
+				void writeDebugInfo(Expression*);
+				bool saveToStream(StreamWriter * writer, StreamWriter * debug_info_writer);
 
 			public:
 
@@ -1613,7 +1713,7 @@ namespace ObjectScript
 				Compiler(Tokenizer*);
 				virtual ~Compiler();
 
-				bool compile(); // push compiled text as function
+				bool compile(); // compile text and push text root function
 			};
 
 			struct FunctionDecl
@@ -1761,7 +1861,9 @@ namespace ObjectScript
 					OP_FUNCTION_OF,
 					OP_CLONE,
 
-					OP_NOP
+					OP_NOP,
+
+					OPCODE_COUNT
 				};
 
 				OS * allocator;
@@ -1778,6 +1880,17 @@ namespace ObjectScript
 
 				MemStreamReader * opcodes;
 
+				struct DebugInfoItem
+				{
+					int opcode_offs;
+					int line;
+					int pos;
+					String token;
+
+					DebugInfoItem(int opcode_offs, int line, int pos, const String&);
+				};
+				Vector<DebugInfoItem> debug_info;
+
 				int gc_time;
 
 				Program(OS * allocator);
@@ -1787,7 +1900,7 @@ namespace ObjectScript
 
 				static OpcodeType toOpcodeType(Compiler::ExpressionType);
 
-				bool loadFromStream(StreamReader&);
+				bool loadFromStream(StreamReader * reader, StreamReader * debuginfo_reader);
 
 				void pushFunction();
 			};
@@ -1981,7 +2094,6 @@ namespace ObjectScript
 
 			// Vector<Value*> autorelease_values;
 			Vector<Value*> stack_values;
-			Vector<Value*> autoreleased_values;
 			Vector<FunctionRunningInstance*> call_stack_funcs;
 
 			/*
@@ -2020,13 +2132,36 @@ namespace ObjectScript
 
 			int fatal_error;
 
+			struct {
+				bool create_debug_opcodes;
+				bool create_debug_info;
+				bool recompile_sourcecode;
+			} settings;
+
+			/*
+			struct OpcodeTime
+			{
+				Program::OpcodeType opcode;
+				float time;
+
+				OpcodeTime();
+			};
+
+			static OpcodeTime opcode_usage[Program::OPCODE_COUNT];
+			static bool opcode_usage_initialized;
+
+			void sortOpcodeUsage();
+			*/
 			void * malloc(int size);
 			void free(void * p);
 
+			void error(int code, const OS_CHAR * message);
+			void error(int code, const String& message);
+
 			void gcInitGreyList();
 			void gcResetGreyList();
-			void gcAddGreyValue(Value*);
-			void gcRemoveGreyValue(Value*);
+			void gcAddToGreyList(Value*);
+			void gcRemoveFromGreyList(Value*);
 			void gcProcessGreyProgram(Program * prog);
 			void gcProcessGreyTable(Value::Table * table);
 			void gcProcessGreyValueFunction(Value * func_value);
@@ -2073,6 +2208,7 @@ namespace ObjectScript
 			Value * pushConstFalseValue();
 			Value * pushConstBoolValue(bool);
 			Value * pushNewNullValue();
+			Value * pushNumberValue(OS_INT);
 			Value * pushNumberValue(OS_FLOAT);
 			Value * pushStringValue(const String&);
 			Value * pushStringValue(const OS_CHAR*);
@@ -2171,6 +2307,9 @@ namespace ObjectScript
 
 		void * malloc(int size);
 		void free(void * p);
+
+		Core::String changeFilenameExt(const OS_CHAR * filename, const OS_CHAR * ext);
+		Core::String getFilenameExt(const OS_CHAR * filename);
 
 		int getPointerSize(void * p);
 
@@ -2308,56 +2447,7 @@ namespace ObjectScript
 		void move(int start_offs, int count, int new_offs);
 		void move(int offs, int new_offs);
 
-		enum {
-			// binary operators
-
-			OP_LOGIC_PTR_EQ,	// ===
-			OP_LOGIC_PTR_NE,	// !==
-			OP_LOGIC_EQ,		// ==
-			OP_LOGIC_NE,		// !=
-			OP_LOGIC_GE,		// >=
-			OP_LOGIC_LE,		// <=
-			OP_LOGIC_GREATER,	// >
-			OP_LOGIC_LESS,		// <
-
-			OP_BIT_AND,	// &
-			OP_BIT_OR,	// |
-			OP_BIT_XOR,	// ^
-
-			OP_ADD, // +
-			OP_SUB, // -
-			OP_MUL, // *
-			OP_DIV, // /
-			OP_MOD, // %
-			OP_LSHIFT, // <<
-			OP_RSHIFT, // >>
-			OP_POW, // **
-
-			OP_CONCAT, // ..
-
-			// unary operators
-
-			OP_BIT_NOT,		// ~
-			OP_PLUS,		// +
-			OP_NEG,			// -
-			OP_LENGTH,		// #
-
-			/*
-			OP_LOGIC_BOOL,
-			OP_LOGIC_NOT,
-
-			OP_VALUE_OF,
-			OP_NUMBER_OF,
-			OP_STRING_OF,
-			OP_ARRAY_OF,
-			OP_OBJECT_OF,
-			OP_USERDATA_OF,
-			OP_FUNCTION_OF,
-			OP_CLONE,
-			*/
-		};
-
-		void runOp(int opcode);
+		void runOp(OS_EOpcode opcode);
 
 		// returns length of object, array, string or result of __len method
 		// keep stack not changed
@@ -2390,12 +2480,19 @@ namespace ObjectScript
 		void * toUserData(int offs, int crc);
 		void * toUserData(int crc);
 
-		bool compile(const Core::String&);
+		int getSetting(OS_ESettings);
+		int setSetting(OS_ESettings, int);
+
+		bool compileFilename(const Core::String& filename, bool required = false);
+		bool compile(const Core::String& str);
 		bool compile();
 
 		int call(int params = 0, int ret_values = 0);
 		int eval(const OS_CHAR * str, int params = 0, int ret_values = 0);
 		int eval(const Core::String& str, int params = 0, int ret_values = 0);
+
+		int run(const OS_CHAR * filename, bool required = false, int params = 0, int ret_values = 0);
+		int run(const Core::String& filename, bool required = false, int params = 0, int ret_values = 0);
 
 		// return next gc phase
 		int gc();

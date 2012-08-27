@@ -14,11 +14,22 @@ using namespace ObjectScript;
 // =====================================================================
 // =====================================================================
 
+/*
+OS::Core::OpcodeTime OS::Core::opcode_usage[OS::Core::Program::OPCODE_COUNT];
+bool OS::Core::opcode_usage_initialized = false;
+
+double gc_prev_time = 0;
+double gc_full_time = 0;
+double gc_step_time = 0;
+
+double getTimeSec();
+*/
+
 static int __snprintf__(char * buf, size_t num, const char * format, ...)
 {
 	va_list va;
 	va_start(va, format);
-	int ret = OS_VSNPRINTF(buf, num, format, va);
+	int ret = OS_VSNPRINTF(buf, num, num/sizeof(OS_CHAR)-1, format, va);
 	va_end(va);
 	return ret;
 }
@@ -857,7 +868,7 @@ OS::Core::String& OS::Core::String::setFormat(int temp_buf_size, const OS_CHAR *
 OS::Core::String& OS::Core::String::setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list va)
 {
 	String buf(getAllocator(), OS_CHAR(0), temp_buf_size);
-	OS_VSNPRINTF((OS_CHAR*)buf.toChar(), sizeof(OS_CHAR)*temp_buf_size, fmt, va);
+	OS_VSNPRINTF((OS_CHAR*)buf.toChar(), sizeof(OS_CHAR)*(temp_buf_size+1), temp_buf_size, fmt, va);
 	return *this = buf.toChar();
 }
 
@@ -1517,22 +1528,23 @@ void OS::Core::Tokenizer::TextData::release()
 	}
 }
 
-OS::Core::Tokenizer::Tokenizer(OS * allocator)
+OS::Core::Tokenizer::Tokenizer(OS * p_allocator)
 {
+	allocator = p_allocator;
 	initOperatorTable();
 	settings.save_comments = false;
 	error = ERROR_NOTHING;
 	cur_line = 0;
 	cur_pos = 0;
-	loaded = false;
-	compiled = false;
+	// loaded = false;
+	// compiled = false;
 
 	text_data = new (allocator->malloc(sizeof(TextData))) TextData(allocator);
 }
 
 OS * OS::Core::Tokenizer::getAllocator()
 {
-	return text_data->filename.getAllocator();
+	return allocator; // text_data->filename.getAllocator();
 }
 
 OS::Core::Tokenizer::~Tokenizer()
@@ -1549,6 +1561,7 @@ OS::Core::Tokenizer::~Tokenizer()
 	text_data->release();
 }
 
+/*
 void OS::Core::Tokenizer::reset()
 {
 	OS * allocator = getAllocator();
@@ -1559,21 +1572,24 @@ void OS::Core::Tokenizer::reset()
 	loaded = false;
 	compiled = false;
 }
+*/
 
 void OS::Core::Tokenizer::insertToken(int i, TokenData * token)
 {
 	getAllocator()->vectorInsertAtIndex(tokens, i, token);
 }
 
-bool OS::Core::Tokenizer::parseText(const String& text)
+bool OS::Core::Tokenizer::parseText(const OS_CHAR * text, int len, const String& filename)
 {
+	OS_ASSERT(text_data->lines.count == 0);
+
 	OS * allocator = getAllocator();
 
-	text_data->release();
-	text_data = new (allocator->malloc(sizeof(TextData))) TextData(allocator);
+	// text_data->release();
+	// text_data = new (allocator->malloc(sizeof(TextData))) TextData(allocator);
+	text_data->filename = filename;
 
-	int len = text.getDataSize();
-	const OS_CHAR * str = text; // text.toChar();
+	const OS_CHAR * str = text;
 	const OS_CHAR * str_end = str + len;
 	while(str < str_end)
 	{
@@ -1582,15 +1598,11 @@ bool OS::Core::Tokenizer::parseText(const String& text)
 			allocator->vectorAddItem(text_data->lines, String(allocator, str, line_end - str).trim(false, true));
 			str = line_end+1;
 		}else{
-			allocator->vectorAddItem(text_data->lines, String(allocator, str).trim(false, true));
+			allocator->vectorAddItem(text_data->lines, String(allocator, str, str_end - str).trim(false, true));
 			break;
 		}
 	}
-	loaded = true;
-
-	// PrintLines();
-	// lines loaded
-
+	// loaded = true;
 	return parseLines();
 }
 
@@ -2562,22 +2574,32 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 
 // =====================================================================
 
-int OS::Core::Compiler::cacheString(const String& str)
+int OS::Core::Compiler::cacheString(Value::Table * strings_table, Vector<String>& strings, const String& str)
 {
 	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
-	Value::Property * prop = prog_strings_table->get(index);
+	Value::Property * prop = strings_table->get(index);
 	if(prop){
 		Value * value = allocator->core->values.get(prop->value_id);
 		OS_ASSERT(value);
-		return allocator->core->valueToInt(value);
+		return (int)allocator->core->valueToInt(value);
 	}
-	Value * value = allocator->core->newNumberValue(prog_strings_table->count);
+	Value * value = allocator->core->newNumberValue(strings_table->count);
 	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
 	prop->value_id = value->value_id;
-	allocator->core->addTableProperty(prog_strings_table, prop);
-	allocator->vectorAddItem(prog_strings, str);
-	OS_ASSERT(prog_strings_table->count == prog_strings.count);
-	return prog_strings_table->count-1;
+	allocator->core->addTableProperty(strings_table, prop);
+	allocator->vectorAddItem(strings, str);
+	OS_ASSERT(strings_table->count == strings.count);
+	return strings_table->count-1;
+}
+
+int OS::Core::Compiler::cacheString(const String& str)
+{
+	return cacheString(prog_strings_table, prog_strings, str);
+}
+
+int OS::Core::Compiler::cacheDebugString(const String& str)
+{
+	return cacheString(prog_debug_strings_table, prog_debug_strings, str);
 }
 
 int OS::Core::Compiler::cacheNumber(OS_FLOAT num)
@@ -2587,7 +2609,7 @@ int OS::Core::Compiler::cacheNumber(OS_FLOAT num)
 	if(prop){
 		Value * value = allocator->core->values.get(prop->value_id);
 		OS_ASSERT(value);
-		return allocator->core->valueToInt(value);
+		return (int)allocator->core->valueToInt(value);
 	}
 	Value * value = allocator->core->newNumberValue(prog_numbers_table->count);
 	prop = new (malloc(sizeof(Value::Property))) Value::Property(index);
@@ -2596,6 +2618,17 @@ int OS::Core::Compiler::cacheNumber(OS_FLOAT num)
 	allocator->vectorAddItem(prog_numbers, num);
 	OS_ASSERT(prog_numbers_table->count == prog_numbers.count);
 	return prog_numbers_table->count-1;
+}
+
+void OS::Core::Compiler::writeDebugInfo(Expression * exp)
+{
+	if(prog_debug_info){
+		prog_num_debug_infos++;
+		prog_debug_info->writeUVariable(prog_opcodes->getPos());
+		prog_debug_info->writeUVariable(exp->token->line+1);
+		prog_debug_info->writeUVariable(exp->token->pos+1);
+		prog_debug_info->writeUVariable(cacheDebugString(exp->token->str));
+	}
 }
 
 bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list)
@@ -2611,6 +2644,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list)
 bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 {
 	int i;
+	writeDebugInfo(exp);
 	switch(exp->type){
 	default:
 		{
@@ -3215,8 +3249,11 @@ OS::Core::Compiler::Compiler(Tokenizer * p_tokenizer)
 
 	// prog = NULL;
 	prog_strings_table = NULL;
+	prog_debug_strings_table = NULL;
 	prog_numbers_table = NULL;
 	prog_opcodes = NULL;
+	prog_debug_info = NULL;
+	prog_num_debug_infos = 0;
 	prog_max_up_count = 0;
 }
 
@@ -3233,15 +3270,20 @@ OS::Core::Compiler::~Compiler()
 		allocator->core->deleteTable(prog_strings_table);
 		prog_strings_table = NULL;
 	}
+	if(prog_debug_strings_table){
+		allocator->core->deleteTable(prog_debug_strings_table);
+		prog_debug_strings_table = NULL;
+	}
 	allocator->vectorClear(prog_numbers);
 	allocator->vectorClear(prog_strings);
+	allocator->vectorClear(prog_debug_strings);
 	allocator->vectorClear(prog_functions);
 	allocator->deleteObj(prog_opcodes);
 }
 
 bool OS::Core::Compiler::compile()
 {
-	OS_ASSERT(!prog_opcodes && !prog_strings_table && !prog_numbers_table);
+	OS_ASSERT(!prog_opcodes && !prog_strings_table && !prog_debug_strings_table && !prog_numbers_table);
 	OS_ASSERT(!prog_functions.count && !prog_numbers.count && !prog_strings.count);
 	
 	Scope * scope = NULL;
@@ -3254,30 +3296,43 @@ bool OS::Core::Compiler::compile()
 		Expression * exp = processExpressionSecondPass(scope, scope);
 		OS_ASSERT(exp->type == EXP_TYPE_FUNCTION);
 
-		OS::Core::String dump = exp->debugPrint(this, 0);
-		FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
-
 		prog_strings_table = allocator->core->newTable();
 		prog_numbers_table = allocator->core->newTable();
 		prog_opcodes = new (malloc(sizeof(MemStreamWriter))) MemStreamWriter(allocator);
 
+		const String& filename = tokenizer->getTextData()->filename;
+		if(allocator->core->settings.create_debug_opcodes){
+			OS::Core::String dump = exp->debugPrint(this, 0);
+			String dump_filename = filename.getDataSize() 
+				? allocator->changeFilenameExt(filename, allocator->getFilenameExt(OS_DEBUG_OPCODES_FILENAME)) 
+				: String(allocator, OS_DEBUG_OPCODES_FILENAME);
+			FileStreamWriter(allocator, dump_filename).writeBytes(dump.toChar(), dump.getDataSize());
+		}
+		bool create_debug_info = filename.getDataSize() && allocator->core->settings.create_debug_info;
+		if(create_debug_info){
+			prog_debug_strings_table = allocator->core->newTable();
+			prog_debug_info = new (malloc(sizeof(MemStreamWriter))) MemStreamWriter(allocator);
+		}
 		if(!writeOpcodes(scope, exp)){
 		
 		}
 
 		MemStreamWriter mem_writer(allocator);
-		saveToStream(mem_writer);
+		MemStreamWriter debuginfo_mem_writer(allocator);
+		saveToStream(&mem_writer, create_debug_info ? &debuginfo_mem_writer : NULL);
 
-		// TODO: save binary formal of compiled program if needed
-		FileStreamWriter(allocator, "test-data/test.osb").writeBytes(mem_writer.buffer.buf, mem_writer.buffer.count);
+		if(create_debug_info){
+			FileStreamWriter(allocator, allocator->changeFilenameExt(filename, OS_COMPILED_EXT)).writeBytes(mem_writer.buffer.buf, mem_writer.buffer.count);
+			FileStreamWriter(allocator, allocator->changeFilenameExt(filename, OS_DEBUG_INFO_EXT)).writeBytes(debuginfo_mem_writer.buffer.buf, debuginfo_mem_writer.buffer.count);
+		}
 		
 		Program * prog = new (malloc(sizeof(Program))) Program(allocator);
 		prog->filename = tokenizer->getTextData()->filename;
-#if 1
-		prog->loadFromStream(MemStreamReader(NULL, mem_writer.buffer.buf, mem_writer.buffer.count));
-#else
-		prog->loadFromStream(FileStreamReader(allocator, "test-data/test.osb"));
-#endif
+
+		MemStreamReader mem_reader(NULL, mem_writer.buffer.buf, mem_writer.buffer.count);
+		MemStreamReader debuginfo_mem_reader(NULL, debuginfo_mem_writer.buffer.buf, debuginfo_mem_writer.buffer.count);
+		prog->loadFromStream(&mem_reader, create_debug_info ? &debuginfo_mem_reader : NULL);
+
 		prog->pushFunction();
 		prog->release();
 		
@@ -3299,8 +3354,8 @@ bool OS::Core::Compiler::compile()
 			dump += OS::Core::String(allocator, " NESTED_ROOT_BLOCK");
 			break;
 
-		case ERROR_VAR_NOT_EXIST:
-			dump += OS::Core::String(allocator, " VAR_NOT_EXIST");
+		case ERROR_LOCAL_VAL_NOT_DECLARED:
+			dump += OS::Core::String(allocator, " LOCAL_VAL_NOT_DECLARED");
 			break;
 
 		case ERROR_VAR_ALREADY_EXIST:
@@ -3357,7 +3412,8 @@ bool OS::Core::Compiler::compile()
 			dump += OS::Core::String::format(allocator, "[%d] %s\n", error_token->line+1, error_token->text_data->lines[error_token->line].toChar());
 			dump += OS::Core::String::format(allocator, "pos %d, token: %s\n", error_token->pos+1, error_token->str.toChar());
 		}
-		FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
+		printf("%s", dump.toChar());
+		// FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 		
 		allocator->core->pushConstNullValue();
 	}
@@ -4287,41 +4343,24 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 	ExpressionList list(allocator);
 
 	while(!isError()){
-		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
-			exp = expectCodeExpression(scope, 0);
-			if(!exp){
+		exp = expectSingleExpression(scope, p);
+		if(!exp){
+			break;
+		}
+		list.add(exp);
+		if(!recent_token){
+			break;
+		}
+		TokenType token_type = recent_token->getType();
+		if(token_type == Tokenizer::END_ARRAY_BLOCK 
+			|| token_type == Tokenizer::END_BRACKET_BLOCK
+			|| token_type == Tokenizer::END_CODE_BLOCK)
+		{
+			break;
+		}
+		if(token_type == Tokenizer::CODE_SEPARATOR){
+			if(!readToken()){
 				break;
-			}
-			list.add(exp);
-			if(!recent_token){
-				break;
-			}
-		}else{
-			exp = expectSingleExpression(scope, p); // true, true, true, true, true);
-			if(!exp){
-				if(!isError() && recent_token->getType() == Tokenizer::CODE_SEPARATOR){
-					if(!readToken()){
-						break;
-					}
-					continue;
-				}
-				break;
-			}
-			list.add(exp);
-			if(!recent_token){
-				break;
-			}
-			TokenType token_type = recent_token->getType();
-			if(token_type == Tokenizer::END_ARRAY_BLOCK 
-				|| token_type == Tokenizer::END_BRACKET_BLOCK
-				|| token_type == Tokenizer::END_CODE_BLOCK)
-			{
-				break;
-			}
-			if(token_type == Tokenizer::CODE_SEPARATOR){
-				if(!readToken()){
-					break;
-				}
 			}
 		}
 	}
@@ -4337,7 +4376,7 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 	if(list.count == 0){
 		return scope;
 	}
-	int ret_values = list.count == 1 && list[0]->ret_values > 0 ? 1 : 0;
+	int ret_values = list.count == 1 && list[0]->ret_values > 0 && list[0]->type == EXP_TYPE_FUNCTION ? 1 : 0;
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
@@ -4348,6 +4387,7 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 			allocator->deleteObj(exp);
 			return scope;
 		}
+		// exp = expectExpressionValues(exp, 0);
 		scope->list.swap(exp->list);
 		allocator->deleteObj(exp);
 		break;
@@ -4396,30 +4436,20 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 	Expression * exp;
 	ExpressionList list(allocator);
 	while(!isError()){
-		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
-			exp = expectCodeExpression(scope, 0);
-			if(!exp){
-				break;
-			}
-			list.add(exp);
-		}else{
-			exp = expectSingleExpression(scope, p); // true, true, true, true, true);
-			if(!exp){
-				break;
-			}
-			// exp = expectExpressionValues(exp, 1);
-			list.add(exp);
-			if(!recent_token || recent_token->getType() == Tokenizer::END_CODE_BLOCK){
-				break;
-			}
-			switch(recent_token->getType()){
-			case Tokenizer::CODE_SEPARATOR:
-				break;
-
-			default:
-				continue;
-			}
-			if(!expectToken()){
+		exp = expectSingleExpression(scope, p);
+		if(!exp){
+			break;
+		}
+		list.add(exp);
+		TokenType token_type = recent_token->getType();
+		if(token_type == Tokenizer::END_ARRAY_BLOCK 
+			|| token_type == Tokenizer::END_BRACKET_BLOCK
+			|| token_type == Tokenizer::END_CODE_BLOCK)
+		{
+			break;
+		}
+		if(token_type == Tokenizer::CODE_SEPARATOR){
+			if(!readToken()){
 				break;
 			}
 		}
@@ -4911,7 +4941,7 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectFunctionExpression(Scope *
 		return NULL;
 	}
 	
-	scope = expectCodeExpression(scope, 0);
+	scope = expectCodeExpression(scope);
 	return scope;
 }
 
@@ -5045,30 +5075,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 		allocator->deleteObj(scope);
 		return NULL;
 	}
-	if(recent_token->getType() == Tokenizer::CODE_SEPARATOR && isNextTokens(Tokenizer::CODE_SEPARATOR, Tokenizer::END_BRACKET_BLOCK)){
-		// infinite loop
-		readToken();
-		readToken();
-		if(!expectToken()){
-			allocator->deleteObj(scope);
-			return NULL;
-		}
-		Expression * body_exp;
-		Scope * loop_scope = new (malloc(sizeof(Scope))) Scope(scope, EXP_TYPE_LOOP_SCOPE, recent_token);
-		scope->list.add(loop_scope);
-		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
-			body_exp = expectCodeExpression(loop_scope, 0);
-		}else{
-			body_exp = expectSingleExpression(loop_scope); // true, false, false, true, true);
-		}
-		if(!body_exp){
-			allocator->deleteObj(scope);
-			return NULL;
-		}
-		loop_scope->list.add(body_exp);
-		return scope;
-	}
-
 	Expression * exp = expectSingleExpression(scope); // , true, true, true, true, true);
 	if(!exp){
 		allocator->deleteObj(scope);
@@ -5080,7 +5086,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 		allocator->deleteObj(exp);
 		return NULL;
 	}	
-	if(exp->type == EXP_TYPE_PARAMS || exp->type == EXP_TYPE_NEW_LOCAL_VAR || exp->type == EXP_TYPE_NAME){
+	if(recent_token->getType() == Tokenizer::NAME && (exp->type == EXP_TYPE_PARAMS || exp->type == EXP_TYPE_NEW_LOCAL_VAR || exp->type == EXP_TYPE_NAME)){
+		if(recent_token->str != allocator->core->strings->syntax_in){
+			setError(allocator->core->strings->syntax_in, recent_token);
+			allocator->deleteObj(scope);
+			allocator->deleteObj(exp);
+			return NULL;
+		}
 		ExpressionList vars(allocator);
 		if(exp->type == EXP_TYPE_PARAMS){
 			vars.swap(exp->list);
@@ -5099,93 +5111,138 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 				name_exp->type = EXP_TYPE_NEW_LOCAL_VAR;
 			}
 		}
-		if(recent_token->getType() == Tokenizer::NAME){
-			if(recent_token->str != allocator->core->strings->syntax_in){
-				setError(allocator->core->strings->syntax_in, recent_token);
-				allocator->deleteObj(scope);
-				return NULL;
-			}
-			if(!expectToken()){
-				allocator->deleteObj(scope);
-				return NULL;
-			}
-			exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true).setAllowAutoCall(true)); // true, false, false, false, true);
-			if(!recent_token || recent_token->getType() != Tokenizer::END_BRACKET_BLOCK){
-				setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
-				allocator->deleteObj(scope);
-				allocator->deleteObj(exp);
-				return NULL;
-			}
-			if(exp->ret_values < 1){
-				setError(ERROR_EXPECT_VALUE, exp->token);
-				allocator->deleteObj(scope);
-				allocator->deleteObj(exp);
-				return NULL;
-			}
-			exp = expectExpressionValues(exp, 1);
-			if(!expectToken()){
-				allocator->deleteObj(scope);
-				allocator->deleteObj(exp);
-				return NULL;
-			}
-			Expression * body_exp;
-			Scope * loop_scope = new (malloc(sizeof(Scope))) Scope(scope, EXP_TYPE_LOOP_SCOPE, recent_token);
-			if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
-				body_exp = expectCodeExpression(loop_scope, 0);
-			}else{
-				body_exp = expectSingleExpression(loop_scope); // , true, false, false, true, true);
-			}
-			if(!body_exp){
-				allocator->deleteObj(scope);
-				allocator->deleteObj(exp);
-				allocator->deleteObj(loop_scope);
-				return NULL;
-			}
-			body_exp = expectExpressionValues(body_exp, 0);
-
-			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL_METHOD, exp->token, exp);
-			{
-				Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, exp->token);
+		if(!expectToken()){
+			allocator->deleteObj(scope);
+			return NULL;
+		}
+		exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true).setAllowAutoCall(true)); // true, false, false, false, true);
+		if(!recent_token || recent_token->getType() != Tokenizer::END_BRACKET_BLOCK){
+			setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
+			allocator->deleteObj(scope);
+			allocator->deleteObj(exp);
+			return NULL;
+		}
+		if(!exp->ret_values){
+			setError(ERROR_EXPECT_VALUE, exp->token);
+			allocator->deleteObj(scope);
+			allocator->deleteObj(exp);
+			return NULL;
+		}
+		exp = expectExpressionValues(exp, 1);
+		if(!expectToken()){
+			allocator->deleteObj(scope);
+			allocator->deleteObj(exp);
+			return NULL;
+		}
+		Expression * body_exp;
+		Scope * loop_scope = new (malloc(sizeof(Scope))) Scope(scope, EXP_TYPE_LOOP_SCOPE, recent_token);
+		if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
+			body_exp = expectCodeExpression(loop_scope);
+		}else{
+			body_exp = expectSingleExpression(loop_scope); // , true, false, false, true, true);
+		}
+		if(!body_exp){
+			allocator->deleteObj(scope);
+			allocator->deleteObj(exp);
+			allocator->deleteObj(loop_scope);
+			return NULL;
+		}
+		body_exp = expectExpressionValues(body_exp, 0);
+		
+		exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL_METHOD, exp->token, exp);
+		{
+			Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, exp->token);
 				
-				String method_name = allocator->core->strings->__iter;
-				TokenData * token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), method_name, Tokenizer::NAME, exp->token->line, exp->token->pos);
-				Expression * exp_method_name = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_STRING, token);
-				exp_method_name->ret_values = 1;
-				token->release();
+			String method_name = allocator->core->strings->__iter;
+			TokenData * token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), method_name, Tokenizer::NAME, exp->token->line, exp->token->pos);
+			Expression * exp_method_name = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CONST_STRING, token);
+			exp_method_name->ret_values = 1;
+			token->release();
 
-				params->list.add(exp_method_name);
-				params->ret_values = 1;
-				exp->list.add(params);
-			}
-			exp = expectExpressionValues(exp, vars.count + 1);
-			int num_locals = vars.count;
+			params->list.add(exp_method_name);
+			params->ret_values = 1;
+			exp->list.add(params);
+		}
+		exp = expectExpressionValues(exp, vars.count + 1);
+		int num_locals = vars.count;
 
-			// ExpressionList temp_vars(allocator);
-			const int temp_count = 4;
-			const OS_CHAR * temp_names[temp_count] = {
-				OS_TEXT("#func"), OS_TEXT("#state"), OS_TEXT("#state2"), OS_TEXT("#valid")
-			};
-			// LocalVarDesc infos[sizeof(temp_names)];
-			for(int i = 0; i < temp_count; i++){
-				String name(allocator, temp_names[i]);
-				TokenData * token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), name, Tokenizer::NAME, exp->token->line, exp->token->pos);
-				Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NEW_LOCAL_VAR, token);
-				// name_exp->ret_values = 1;
-				vars.add(name_exp);
-				token->release();
+		// ExpressionList temp_vars(allocator);
+		const int temp_count = 2;
+		const OS_CHAR * temp_names[temp_count] = {
+			OS_TEXT("#func"), /*OS_TEXT("#state"), OS_TEXT("#state2"), */ OS_TEXT("#valid")
+		};
+		for(int i = 0; i < temp_count; i++){
+			String name(allocator, temp_names[i]);
+			TokenData * token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), name, Tokenizer::NAME, exp->token->line, exp->token->pos);
+			Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NEW_LOCAL_VAR, token);
+			// name_exp->ret_values = 1;
+			vars.add(name_exp);
+			token->release();
 
-				scope->addLocalVar(name, name_exp->local_var);
+			scope->addLocalVar(name, name_exp->local_var);
+			OS_ASSERT(scope->function);
+			name_exp->active_locals = scope->function->num_locals;
+			name_exp->local_var.type = LOCAL_TEMP;
+		}
+			
+		ExpressionList list(allocator);
+
+		// var func, state, state2 = (in_exp).__iter()
+		{
+			Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, exp->token);
+			for(int i = num_locals; i < vars.count-1; i++){
+				Expression * var_exp = vars[i];
+				Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, var_exp->token);
 				OS_ASSERT(scope->function);
 				name_exp->active_locals = scope->function->num_locals;
-				name_exp->local_var.type = LOCAL_TEMP;
+				name_exp->ret_values = 1;
+				params->list.add(name_exp);
 			}
-			
-			ExpressionList list(allocator);
+			params->ret_values = params->list.count;
 
-			// var func, state, state2 = (in_exp).__iter()
+			String assing_operator(allocator, OS_TEXT("="));
+			TokenData * assign_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), assing_operator, Tokenizer::OPERATOR_ASSIGN, exp->token->line, exp->token->pos);
+			exp = newBinaryExpression(scope, EXP_TYPE_ASSIGN, assign_token, params, exp);
+			OS_ASSERT(exp && exp->type == EXP_TYPE_SET_LOCAL_VAR && !exp->ret_values);
+			assign_token->release();
+
+			list.add(exp); exp = NULL;
+		}
+		/*
+		begin loop
+			var valid, k, v = func(state, state2)
+			if(!valid) break
+
+			body_exp
+
+		end loop
+		*/
+		list.add(loop_scope);
+		{
+			// var valid, k, v
+			Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, loop_scope->token);
+			for(int i = 0; i < num_locals+1; i++){
+				Expression * var_exp = !i ? vars.lastElement() : vars[i-1];
+				Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, var_exp->token);
+				OS_ASSERT(scope->function);
+				name_exp->active_locals = scope->function->num_locals;
+				name_exp->ret_values = 1;
+				params->list.add(name_exp);
+			}
+			params->ret_values = params->list.count;
+
+			// func(state, state2)
+			Expression * call_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL, loop_scope->token);
 			{
-				Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, exp->token);
-				for(int i = num_locals; i < vars.count-1; i++){
+				Expression * var_exp = vars[num_locals]; // func
+				Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, var_exp->token);
+				OS_ASSERT(scope->function);
+				name_exp->active_locals = scope->function->num_locals;
+				name_exp->ret_values = 1;
+				call_exp->list.add(name_exp);
+
+				Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, loop_scope->token);
+				for(int i = num_locals+1; i < vars.count-1; i++){
 					Expression * var_exp = vars[i];
 					Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, var_exp->token);
 					OS_ASSERT(scope->function);
@@ -5194,102 +5251,122 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 					params->list.add(name_exp);
 				}
 				params->ret_values = params->list.count;
-
-				String assing_operator(allocator, OS_TEXT("="));
-				TokenData * assign_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), assing_operator, Tokenizer::OPERATOR_ASSIGN, exp->token->line, exp->token->pos);
-				exp = newBinaryExpression(scope, EXP_TYPE_ASSIGN, assign_token, params, exp);
-				OS_ASSERT(exp && exp->type == EXP_TYPE_SET_LOCAL_VAR && !exp->ret_values);
-				assign_token->release();
-
-				list.add(exp); exp = NULL;
+				call_exp->list.add(params);
 			}
-			/*
-			begin loop
-				var valid, k, v = func(state, state2)
-				if(!valid) break
+			call_exp->ret_values = params->list.count;
 
-				body_exp
+			// var valid, k, v = func(state, state2)
+			String assing_operator(allocator, OS_TEXT("="));
+			TokenData * assign_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), assing_operator, 
+				Tokenizer::OPERATOR_ASSIGN, loop_scope->token->line, loop_scope->token->pos);
+			exp = newBinaryExpression(scope, EXP_TYPE_ASSIGN, assign_token, params, call_exp);
+			OS_ASSERT(exp && exp->type == EXP_TYPE_SET_LOCAL_VAR && !exp->ret_values);
+			assign_token->release();
 
-			end loop
-			*/
-			list.add(loop_scope);
-			{
-				// var valid, k, v
-				Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, loop_scope->token);
-				for(int i = 0; i < num_locals+1; i++){
-					Expression * var_exp = !i ? vars.lastElement() : vars[i-1];
-					Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, var_exp->token);
-					OS_ASSERT(scope->function);
-					name_exp->active_locals = scope->function->num_locals;
-					name_exp->ret_values = 1;
-					params->list.add(name_exp);
-				}
-				params->ret_values = params->list.count;
-
-				// func(state, state2)
-				Expression * call_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_CALL, loop_scope->token);
-				{
-					Expression * var_exp = vars[num_locals]; // func
-					Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, var_exp->token);
-					OS_ASSERT(scope->function);
-					name_exp->active_locals = scope->function->num_locals;
-					name_exp->ret_values = 1;
-					call_exp->list.add(name_exp);
-
-					Expression * params = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_PARAMS, loop_scope->token);
-					for(int i = num_locals+1; i < vars.count-1; i++){
-						Expression * var_exp = vars[i];
-						Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, var_exp->token);
-						OS_ASSERT(scope->function);
-						name_exp->active_locals = scope->function->num_locals;
-						name_exp->ret_values = 1;
-						params->list.add(name_exp);
-					}
-					params->ret_values = params->list.count;
-					call_exp->list.add(params);
-				}
-				call_exp->ret_values = params->list.count;
-
-				// var valid, k, v = func(state, state2)
-				String assing_operator(allocator, OS_TEXT("="));
-				TokenData * assign_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), assing_operator, 
-					Tokenizer::OPERATOR_ASSIGN, loop_scope->token->line, loop_scope->token->pos);
-				exp = newBinaryExpression(scope, EXP_TYPE_ASSIGN, assign_token, params, call_exp);
-				OS_ASSERT(exp && exp->type == EXP_TYPE_SET_LOCAL_VAR && !exp->ret_values);
-				assign_token->release();
-
-				loop_scope->list.add(exp); exp = NULL;
-			}
-
-			// if(!valid) break
-			{
-				Expression * var_exp = vars.lastElement(); // valid var
-				Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, var_exp->token);
-				OS_ASSERT(scope->function);
-				name_exp->active_locals = scope->function->num_locals;
-				name_exp->ret_values = 1;
-
-				Expression * not_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_LOGIC_NOT, loop_scope->token, name_exp);
-				not_exp->ret_values = 1;
-
-				Expression * break_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_BREAK, loop_scope->token);
-				Expression * if_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_IF, loop_scope->token, not_exp, break_exp);
-				loop_scope->list.add(if_exp);
-			}
-			loop_scope->list.add(body_exp);
-
-			// assemble all exps
-			scope->list.swap(vars);
-			scope->list.add(newExpressionFromList(list, 0));
-			return scope;
+			loop_scope->list.add(exp); exp = NULL;
 		}
-	
+
+		// if(!valid) break
+		{
+			Expression * var_exp = vars.lastElement(); // valid var
+			Expression * name_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NAME, var_exp->token);
+			OS_ASSERT(scope->function);
+			name_exp->active_locals = scope->function->num_locals;
+			name_exp->ret_values = 1;
+
+			Expression * not_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_LOGIC_NOT, loop_scope->token, name_exp);
+			not_exp->ret_values = 1;
+
+			Expression * break_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_BREAK, loop_scope->token);
+			Expression * if_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_IF, loop_scope->token, not_exp, break_exp);
+			loop_scope->list.add(if_exp);
+		}
+		loop_scope->list.add(body_exp);
+
+		// assemble all exps
+		scope->list.swap(vars);
+		scope->list.add(newExpressionFromList(list, 0));
+		return scope;
 	}
-	OS_ASSERT(false);
-	setError(ERROR_SYNTAX, exp->token);
-	allocator->deleteObj(scope);
-	allocator->deleteObj(exp);
-	return NULL;
+	Expression * pre_exp = exp;
+	if(recent_token->getType() != Tokenizer::CODE_SEPARATOR){
+		setError(Tokenizer::CODE_SEPARATOR, recent_token);
+		allocator->deleteObj(scope);
+		allocator->deleteObj(pre_exp);
+		return NULL;
+	}
+	readToken();
+	Expression * bool_exp;
+	if(recent_token->getType() == Tokenizer::CODE_SEPARATOR){
+		bool_exp = NULL;
+	}else{
+		bool_exp = expectSingleExpression(scope, Params().setAllowAutoCall(true).setAllowBinaryOperator(true));
+		if(!bool_exp){
+			allocator->deleteObj(scope);
+			allocator->deleteObj(pre_exp);
+			return NULL;
+		}
+	}
+	if(bool_exp && !bool_exp->ret_values){
+		setError(ERROR_EXPECT_VALUE, bool_exp->token);
+		allocator->deleteObj(scope);
+		allocator->deleteObj(pre_exp);
+		allocator->deleteObj(bool_exp);
+		return NULL;
+	}
+	if(recent_token->getType() != Tokenizer::CODE_SEPARATOR){
+		setError(Tokenizer::CODE_SEPARATOR, recent_token);
+		allocator->deleteObj(scope);
+		allocator->deleteObj(pre_exp);
+		allocator->deleteObj(bool_exp);
+		return NULL;
+	}
+	readToken();
+	Expression * post_exp = expectSingleExpression(scope, Params().setAllowAutoCall(true).setAllowBinaryOperator(true));
+	if(!post_exp){
+		allocator->deleteObj(scope);
+		allocator->deleteObj(pre_exp);
+		allocator->deleteObj(bool_exp);
+		return NULL;
+	}
+	if(recent_token->getType() != Tokenizer::END_BRACKET_BLOCK){
+		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
+		allocator->deleteObj(scope);
+		allocator->deleteObj(pre_exp);
+		allocator->deleteObj(bool_exp);
+		allocator->deleteObj(post_exp);
+		return NULL;
+	}
+	readToken();
+
+	Scope * loop_scope = new (malloc(sizeof(Scope))) Scope(scope, EXP_TYPE_LOOP_SCOPE, recent_token);
+	Expression * body_exp = expectSingleExpression(loop_scope);
+	if(!body_exp){
+		allocator->deleteObj(scope);
+		allocator->deleteObj(pre_exp);
+		allocator->deleteObj(bool_exp);
+		allocator->deleteObj(post_exp);
+		return NULL;
+	}
+	if(bool_exp){
+		bool_exp = expectExpressionValues(bool_exp, 1);
+		Expression * not_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_LOGIC_NOT, bool_exp->token, bool_exp);
+		not_exp->ret_values = 1;
+
+		Expression * break_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_BREAK, bool_exp->token);
+		Expression * if_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_IF, bool_exp->token, not_exp, break_exp);
+
+		loop_scope->list.add(if_exp);
+	}
+	body_exp = expectExpressionValues(body_exp, 0);
+	loop_scope->list.add(body_exp);
+
+	post_exp = expectExpressionValues(post_exp, 0);
+	loop_scope->list.add(post_exp);
+	
+	scope->list.add(pre_exp);
+	scope->list.add(loop_scope);
+	return scope;
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectDebuggerLocalsExpression(Scope * scope)
@@ -5355,31 +5432,38 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 {
 	OS_ASSERT(recent_token && (recent_token->str == allocator->core->strings->syntax_if 
 				|| recent_token->str == allocator->core->strings->syntax_elseif));
-	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) || !expectToken()){
+	if(/*!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) ||*/ !expectToken()){
 		return NULL;
 	}
+	TokenData * token = recent_token;
 	Expression * if_exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true)); // true, false, false, false, true);
 	if(!if_exp){
 		return NULL;
 	}
-	if(!recent_token || recent_token->getType() != Tokenizer::END_BRACKET_BLOCK){
-		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
-		allocator->deleteObj(if_exp);
-		return NULL;
-	}
 	if(if_exp->ret_values < 1){
-		setError(ERROR_EXPECT_VALUE, if_exp->token);
+		setError(ERROR_EXPECT_VALUE, token);
 		allocator->deleteObj(if_exp);
 		return NULL;
 	}
 	if_exp = expectExpressionValues(if_exp, 1);
+	/* if(!recent_token || recent_token->getType() != Tokenizer::END_BRACKET_BLOCK){
+		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
+		allocator->deleteObj(if_exp);
+		return NULL;
+	}
 	if(!expectToken()){
+		allocator->deleteObj(if_exp);
+		return NULL;
+	} */
+	if(!recent_token){
+		setError(ERROR_EXPECT_TOKEN, recent_token);
 		allocator->deleteObj(if_exp);
 		return NULL;
 	}
 	Expression * then_exp;
+	token = recent_token;
 	if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
-		then_exp = expectCodeExpression(scope, 0);
+		then_exp = expectCodeExpression(scope);
 	}else{
 		then_exp = expectSingleExpression(scope); // , true, false, false, true, true);
 	}
@@ -5403,8 +5487,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 				allocator->deleteObj(then_exp);
 				return NULL;
 			}
+			token = recent_token;
 			if(recent_token->getType() == Tokenizer::BEGIN_CODE_BLOCK){
-				else_exp = expectCodeExpression(scope, 0);
+				else_exp = expectCodeExpression(scope);
 			}else{
 				else_exp = expectSingleExpression(scope); // , true, false, false, true, true);
 			}
@@ -5438,48 +5523,20 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectReturnExpression(Scop
 	case Tokenizer::CODE_SEPARATOR:
 		return ret_exp;
 	}
-	for(;;){
-		Expression * exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true)); // true, false, false, false, false);
-		if(!exp){
-			allocator->deleteObj(ret_exp);
-			return NULL;
-		}
-		exp = expectExpressionValues(exp, 1);
-		ret_exp->list.add(exp);
-		ret_exp->ret_values++;
-		if(!recent_token){
-			return ret_exp;
-		}
-		switch(recent_token->getType()){
-		/*
-		case Tokenizer::END_ARRAY_BLOCK:
-		case Tokenizer::END_BRACKET_BLOCK:
-			return ret_exp;
-		*/
-		case Tokenizer::END_CODE_BLOCK:
-			return ret_exp;
-
-		case Tokenizer::CODE_SEPARATOR:
-			return ret_exp;
-
-		case Tokenizer::PARAM_SEPARATOR:
-			if(!readToken()){
-				setError(ERROR_SYNTAX, recent_token);
-				allocator->deleteObj(ret_exp);
-				return NULL;
-			}
-			continue;
-
-		default:
-#if 11
-			continue;
-#endif
-		}
-		setError(ERROR_SYNTAX, recent_token);
+	Expression * exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true).setAllowParams(true));
+	if(!exp){
 		allocator->deleteObj(ret_exp);
 		return NULL;
 	}
-	return NULL; // shut up compiler
+	if(exp->type == EXP_TYPE_PARAMS){
+		ret_exp->list.swap(exp->list);
+		ret_exp->ret_values = exp->ret_values;
+		allocator->deleteObj(exp);
+	}else{
+		ret_exp->list.add(exp);
+		ret_exp->ret_values = exp->ret_values;
+	}
+	return ret_exp;
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope * scope, ExpressionType exp_type, TokenData * token, Expression * left_exp, Expression * right_exp)
@@ -5870,7 +5927,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			}
 			OS_ASSERT(exp->ret_values == 1);
 			if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
-				setError(ERROR_VAR_NOT_EXIST, exp->token);
+				setError(ERROR_LOCAL_VAL_NOT_DECLARED, exp->token);
 				allocator->deleteObj(exp);
 				return NULL;
 			}
@@ -6133,7 +6190,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression))) Expression(getUnaryExpressionType(token_type), exp->token, exp);
 		exp->ret_values = 1;
-
 		return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false)); // allow_binary_operator, allow_param, allow_assign, false);
 
 	// pre ++, pre --
@@ -6146,7 +6202,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		exp->ret_values = 1;
 		exp->active_locals = scope->function->num_locals;
 		if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
-			setError(ERROR_VAR_NOT_EXIST, exp->token);
+			setError(ERROR_LOCAL_VAL_NOT_DECLARED, exp->token);
 			allocator->deleteObj(exp);
 			return NULL;
 		}
@@ -6157,9 +6213,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 	// end unary operators
 
 	case Tokenizer::BEGIN_CODE_BLOCK:
-		/* if(!allow_assign){
-			return NULL;
-		} */
+		if(p.allow_root_blocks){
+			return expectCodeExpression(scope);
+		}
 		exp = expectObjectExpression(scope);
 		if(!exp){
 			return NULL;
@@ -6177,26 +6233,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 
 	case Tokenizer::BEGIN_BRACKET_BLOCK:
 		readToken();
-		exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true).setAllowAutoCall(true)); // true, false, false, false, true);
+		exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true).setAllowAutoCall(true));
 		if(!exp){
 			return NULL;
 		}
 		exp = newSingleValueExpression(exp);
 		OS_ASSERT(exp->ret_values == 1);
-		/* if(recent_token && recent_token->getType() == Tokenizer::PARAM_SEPARATOR){
-			exp = expectParamsExpression(scope, exp);
-			if(!exp){
-				return NULL;
-			}
-			OS_ASSERT(exp->type == EXP_TYPE_PARAMS);
-			exp->type = EXP_TYPE_CODE_LIST;
-			int i = 0;
-			for(; i < exp->list.count-1; i++){
-				exp->list[i] = expectExpressionValues(exp->list[i], 0);
-			}
-			exp->list[i] = newSingleValueExpression(exp->list[i]);
-			exp->ret_values = 1; // exp->list[i]->ret_values;
-		} */
 		if(!recent_token){
 			setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
 			allocator->deleteObj(exp);
@@ -6229,6 +6271,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		exp->ret_values = 1;
 		readToken();
 		return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false)); // allow_binary_operator, allow_param, allow_assign, false);
+
+	case Tokenizer::CODE_SEPARATOR:
+	case Tokenizer::END_ARRAY_BLOCK:
+	case Tokenizer::END_BRACKET_BLOCK:
+	case Tokenizer::END_CODE_BLOCK:
+		return new (malloc(sizeof(Expression))) Expression(EXP_TYPE_NOP, token);
 
 	case Tokenizer::NAME:
 		if(token->str == allocator->core->strings->syntax_var){
@@ -6447,6 +6495,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		readToken();
 		return finishValueExpression(scope, exp, p); // allow_binary_operator, allow_param, allow_assign, allow_auto_call);
 	}
+	setError(ERROR_EXPECT_EXPRESSION, token);
 	return NULL;
 }
 
@@ -6835,15 +6884,16 @@ OS::Core::Program::~Program()
 	functions = NULL;
 
 	allocator->deleteObj(opcodes);
+	allocator->vectorClear(debug_info);
 }
 
-bool OS::Core::Compiler::saveToStream(StreamWriter& writer)
+bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debug_info_writer)
 {
-	writer.writeBytes(OS_COMPILED_HEADER, OS_STRLEN(OS_COMPILED_HEADER));
+	writer->writeBytes(OS_COMPILED_HEADER, OS_STRLEN(OS_COMPILED_HEADER));
 
-	int i, len = OS_STRLEN(OS_COMPILED_VERSION);
-	writer.writeByte(len);
-	writer.writeBytes(OS_COMPILED_VERSION, len);
+	int i, len = OS_STRLEN(OS_VERSION)+1;
+	writer->writeByte(len);
+	writer->writeBytes(OS_VERSION, len);
 
 	MemStreamWriter int_stream(allocator);
 	MemStreamWriter float_stream(allocator);
@@ -6869,94 +6919,114 @@ bool OS::Core::Compiler::saveToStream(StreamWriter& writer)
 		double_stream.writeDouble(val);
 	}
 
-	// writer.writeUVariable(prog_numbers.count);
-	writer.writeUVariable(int_count);
-	writer.writeUVariable(float_count);
-	writer.writeUVariable(double_count);
-	writer.writeUVariable(prog_strings.count);
-	writer.writeUVariable(prog_functions.count);
-	writer.writeUVariable(prog_opcodes->getPos());
+	// writer->writeUVariable(prog_numbers.count);
+	writer->writeUVariable(int_count);
+	writer->writeUVariable(float_count);
+	writer->writeUVariable(double_count);
+	writer->writeUVariable(prog_strings.count);
+	writer->writeUVariable(prog_functions.count);
+	writer->writeUVariable(prog_opcodes->getPos());
 
-	writer.writeBytes(int_stream.buffer.buf, int_stream.buffer.count);
-	writer.writeBytes(float_stream.buffer.buf, float_stream.buffer.count);
-	writer.writeBytes(double_stream.buffer.buf, double_stream.buffer.count);
+	writer->writeBytes(int_stream.buffer.buf, int_stream.buffer.count);
+	writer->writeBytes(float_stream.buffer.buf, float_stream.buffer.count);
+	writer->writeBytes(double_stream.buffer.buf, double_stream.buffer.count);
 
 	for(i = 0; i < prog_strings.count; i++){
 		const String& str = prog_strings[i];
 		int data_size = str.getDataSize();
-		writer.writeUVariable(data_size);
-		writer.writeBytes(str.toChar(), data_size);
+		writer->writeUVariable(data_size);
+		writer->writeBytes(str.toChar(), data_size);
 	}
 	for(i = 0; i < prog_functions.count; i++){
 		Compiler::Scope * func_scope = prog_functions[i];
-		writer.writeUVariable(func_scope->parent ? func_scope->parent->func_index+1 : 0); // prog_functions.indexOf(func_scope->parent));
-		writer.writeUVariable(func_scope->num_locals);
-		writer.writeUVariable(func_scope->num_params);
-		writer.writeUVariable(func_scope->max_up_count);
-		writer.writeUVariable(func_scope->opcodes_pos);
-		writer.writeUVariable(func_scope->opcodes_size);
+		writer->writeUVariable(func_scope->parent ? func_scope->parent->func_index+1 : 0); // prog_functions.indexOf(func_scope->parent));
+		writer->writeUVariable(func_scope->num_locals);
+		writer->writeUVariable(func_scope->num_params);
+		writer->writeUVariable(func_scope->max_up_count);
+		writer->writeUVariable(func_scope->opcodes_pos);
+		writer->writeUVariable(func_scope->opcodes_size);
 
 		OS_ASSERT(func_scope->locals_compiled.count == func_scope->num_locals);
 		for(int j = 0; j < func_scope->locals_compiled.count; j++){
 			Compiler::Scope::LocalVarCompiled& var_scope = func_scope->locals_compiled[j];
 			OS_ASSERT(var_scope.start_code_pos >= func_scope->opcodes_pos && var_scope.start_code_pos < func_scope->opcodes_pos+func_scope->opcodes_size);
 			OS_ASSERT(var_scope.end_code_pos > func_scope->opcodes_pos && var_scope.end_code_pos <= func_scope->opcodes_pos+func_scope->opcodes_size);
-			writer.writeUVariable(var_scope.cached_name_index);
-			writer.writeUVariable(var_scope.start_code_pos - func_scope->opcodes_pos);
-			writer.writeUVariable(var_scope.end_code_pos - func_scope->opcodes_pos);
+			writer->writeUVariable(var_scope.cached_name_index);
+			writer->writeUVariable(var_scope.start_code_pos - func_scope->opcodes_pos);
+			writer->writeUVariable(var_scope.end_code_pos - func_scope->opcodes_pos);
 		}
 	}
 
-	writer.writeBytes(prog_opcodes->buffer.buf, prog_opcodes->buffer.count);
+	writer->writeBytes(prog_opcodes->buffer.buf, prog_opcodes->buffer.count);
+
+	if(debug_info_writer){
+		debug_info_writer->writeBytes(OS_DEBUGINFO_HEADER, OS_STRLEN(OS_DEBUGINFO_HEADER));
+
+		len = OS_STRLEN(OS_VERSION)+1;
+		debug_info_writer->writeByte(len);
+		debug_info_writer->writeBytes(OS_VERSION, len);
+
+		debug_info_writer->writeUVariable(prog_debug_strings.count);
+		debug_info_writer->writeUVariable(prog_num_debug_infos);
+
+		for(i = 0; i < prog_debug_strings.count; i++){
+			const String& str = prog_debug_strings[i];
+			int data_size = str.getDataSize();
+			debug_info_writer->writeUVariable(data_size);
+			debug_info_writer->writeBytes(str.toChar(), data_size);
+		}
+
+		debug_info_writer->writeBytes(prog_debug_info->buffer.buf, prog_debug_info->buffer.count);
+	}
 
 	return true;
 }
 
-bool OS::Core::Program::loadFromStream(StreamReader& reader)
+bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * debuginfo_reader)
 {
-	OS_ASSERT(!opcodes && !const_values && !num_numbers && !num_strings);
+	OS_ASSERT(!opcodes && !const_values && !num_numbers && !num_strings && !debug_info.count);
 
 	int i, len = OS_STRLEN(OS_COMPILED_HEADER);
-	if(!reader.checkBytes(OS_COMPILED_HEADER, len)){
+	if(!reader->checkBytes(OS_COMPILED_HEADER, len)){
 		return false;
 	}
 
-	len = OS_STRLEN(OS_COMPILED_VERSION);
-	reader.movePos(1);
-	if(!reader.checkBytes(OS_COMPILED_VERSION, len)){
+	len = OS_STRLEN(OS_VERSION)+1;
+	reader->movePos(1);
+	if(!reader->checkBytes(OS_VERSION, len)){
 		return false;
 	}
 
-	int int_count = reader.readUVariable();
-	int float_count = reader.readUVariable();
-	int double_count = reader.readUVariable();
+	int int_count = reader->readUVariable();
+	int float_count = reader->readUVariable();
+	int double_count = reader->readUVariable();
 	num_numbers = int_count + float_count + double_count;
-	num_strings = reader.readUVariable();
-	num_functions = reader.readUVariable();
-	int opcodes_size = reader.readUVariable();
+	num_strings = reader->readUVariable();
+	num_functions = reader->readUVariable();
+	int opcodes_size = reader->readUVariable();
 
 	const_values = (Value**)allocator->malloc(sizeof(Value*) * (num_numbers + num_strings));
 	
 	int num_index = 0;
 	for(i = 0; i < int_count; i++){
-		num_index += reader.readUVariable();
-		OS_FLOAT number = (OS_FLOAT)reader.readUVariable();
+		num_index += reader->readUVariable();
+		OS_FLOAT number = (OS_FLOAT)reader->readUVariable();
 		const_values[num_index] = allocator->core->newNumberValue(number);
 	}
 	for(num_index = 0, i = 0; i < float_count; i++){
-		num_index += reader.readUVariable();
-		OS_FLOAT number = (OS_FLOAT)reader.readFloat();
+		num_index += reader->readUVariable();
+		OS_FLOAT number = (OS_FLOAT)reader->readFloat();
 		const_values[num_index] = allocator->core->newNumberValue(number);
 	}
 	for(num_index = 0, i = 0; i < double_count; i++){
-		num_index += reader.readUVariable();
-		OS_FLOAT number = (OS_FLOAT)reader.readDouble();
+		num_index += reader->readUVariable();
+		OS_FLOAT number = (OS_FLOAT)reader->readDouble();
 		const_values[num_index] = allocator->core->newNumberValue(number);
 	}
 	for(i = 0; i < num_strings; i++){
-		int data_size = reader.readUVariable();
+		int data_size = reader->readUVariable();
 		String str(allocator, OS_TEXT('\0'), data_size/sizeof(OS_CHAR));
-		reader.readBytes((void*)str.toChar(), data_size);
+		reader->readBytes((void*)str.toChar(), data_size);
 		const_values[num_numbers+i] = allocator->core->newStringValue(str);
 	}
 
@@ -6964,34 +7034,72 @@ bool OS::Core::Program::loadFromStream(StreamReader& reader)
 	for(i = 0; i < num_functions; i++){
 		FunctionDecl * func = functions + i;
 		new (func) FunctionDecl();
-		func->parent_func_index = reader.readUVariable() - 1;
-		func->num_locals = reader.readUVariable();
-		func->num_params = reader.readUVariable();
-		func->max_up_count = reader.readUVariable();
-		func->opcodes_pos = reader.readUVariable();
-		func->opcodes_size = reader.readUVariable();
+		func->parent_func_index = reader->readUVariable() - 1;
+		func->num_locals = reader->readUVariable();
+		func->num_params = reader->readUVariable();
+		func->max_up_count = reader->readUVariable();
+		func->opcodes_pos = reader->readUVariable();
+		func->opcodes_size = reader->readUVariable();
 
 		func->locals = (FunctionDecl::LocalVar*)allocator->malloc(sizeof(FunctionDecl::LocalVar) * func->num_locals);
 		for(int j = 0; j < func->num_locals; j++){
-			int cached_name_index = reader.readUVariable();
+			int cached_name_index = reader->readUVariable();
 			OS_ASSERT(cached_name_index >= 0 && cached_name_index < num_strings);
 			FunctionDecl::LocalVar * local_var = func->locals + j;
 			String var_name = allocator->core->valueToString(const_values[num_numbers + cached_name_index]);
 			new (local_var) FunctionDecl::LocalVar(var_name);
-			local_var->start_code_pos = reader.readUVariable() + func->opcodes_pos;
-			local_var->end_code_pos = reader.readUVariable() + func->opcodes_pos;
+			local_var->start_code_pos = reader->readUVariable() + func->opcodes_pos;
+			local_var->end_code_pos = reader->readUVariable() + func->opcodes_pos;
 		}
 	}
 
 	opcodes = new (allocator->malloc(sizeof(MemStreamReader))) MemStreamReader(allocator, opcodes_size);
-	reader.readBytes(opcodes->buffer, opcodes_size);
+	reader->readBytes(opcodes->buffer, opcodes_size);
+
+	if(debuginfo_reader){
+		len = OS_STRLEN(OS_DEBUGINFO_HEADER);
+		if(!debuginfo_reader->checkBytes(OS_DEBUGINFO_HEADER, len)){
+			return false;
+		}
+
+		len = OS_STRLEN(OS_VERSION)+1;
+		debuginfo_reader->movePos(1);
+		if(!debuginfo_reader->checkBytes(OS_VERSION, len)){
+			return false;
+		}
+		int num_strings = debuginfo_reader->readUVariable();
+		int num_debug_infos = debuginfo_reader->readUVariable();
+
+		Vector<String> strings;
+		for(i = 0; i < num_strings; i++){
+			int data_size = debuginfo_reader->readUVariable();
+			String str(allocator, OS_TEXT('\0'), data_size/sizeof(OS_CHAR));
+			debuginfo_reader->readBytes((void*)str.toChar(), data_size);
+			allocator->vectorAddItem(strings, str);
+		}
+		for(i = 0; i < num_debug_infos; i++){
+			int end_opcode_offs = debuginfo_reader->readUVariable();
+			int line = debuginfo_reader->readUVariable();
+			int pos = debuginfo_reader->readUVariable();
+			int string_index = debuginfo_reader->readUVariable();
+			allocator->vectorAddItem(debug_info, DebugInfoItem(end_opcode_offs, line, pos, strings[string_index]));
+		}
+		allocator->vectorClear(strings);
+	}
 
 	return true;
 }
 
+OS::Core::Program::DebugInfoItem::DebugInfoItem(int p_opcode_offs, int p_line, int p_pos, const String& p_token): token(p_token)
+{
+	opcode_offs = p_opcode_offs;
+	line = p_line;
+	pos = p_pos;
+}
+
 void OS::Core::Program::pushFunction()
 {
-	int i, opcode = opcodes->readByte();
+	int opcode = opcodes->readByte();
 	if(opcode != OP_PUSH_FUNCTION){
 		OS_ASSERT(false);
 		allocator->core->pushConstNullValue();
@@ -7103,6 +7211,19 @@ OS::Core::StreamWriter::~StreamWriter()
 {
 }
 
+void OS::Core::StreamWriter::readFromStream(StreamReader * reader)
+{
+	int size = reader->getSize() - reader->getPos();
+	int buf_size = 1024 * 16;
+	void * buf = allocator->malloc(buf_size < size ? buf_size : size);
+	OS_ASSERT(buf || !size);
+	for(; size > 0; size -= buf_size){
+		int chunk_size = buf_size <= size ? buf_size : size;
+		reader->readBytes(buf, chunk_size);
+		writeBytes(buf, chunk_size);
+	}
+}
+
 void OS::Core::StreamWriter::writeByte(int value)
 {
 	OS_ASSERT(value >= 0 && value <= 0xff);
@@ -7212,6 +7333,7 @@ void OS::Core::StreamWriter::writeDoubleAtPos(double value, int pos)
 
 OS::Core::MemStreamWriter::MemStreamWriter(OS * allocator): StreamWriter(allocator)
 {
+	pos = 0;
 }
 
 OS::Core::MemStreamWriter::~MemStreamWriter()
@@ -7221,15 +7343,30 @@ OS::Core::MemStreamWriter::~MemStreamWriter()
 
 int OS::Core::MemStreamWriter::getPos() const
 {
+	return pos;
+}
+
+void OS::Core::MemStreamWriter::setPos(int new_pos)
+{
+	OS_ASSERT(new_pos >= 0 && new_pos <= buffer.count);
+	pos = new_pos;
+}
+
+int OS::Core::MemStreamWriter::getSize() const
+{
 	return buffer.count;
 }
 
 void OS::Core::MemStreamWriter::writeBytes(const void * buf, int len)
 {
-	int pos = buffer.count;
+	// int pos = buffer.count;
 	allocator->vectorReserveCapacity(buffer, pos + len);
-	buffer.count += len;
-	writeBytesAtPos(buf, len, pos);
+	int save_pos = pos;
+	pos += len;
+	if(buffer.count <= pos){
+		buffer.count = pos;
+	}
+	writeBytesAtPos(buf, len, save_pos);
 }
 
 void OS::Core::MemStreamWriter::writeBytesAtPos(const void * buf, int len, int pos)
@@ -7241,7 +7378,13 @@ void OS::Core::MemStreamWriter::writeBytesAtPos(const void * buf, int len, int p
 void OS::Core::MemStreamWriter::writeByte(int value)
 {
 	OS_ASSERT(value >= 0 && value <= 0xff);
-	allocator->vectorAddItem(buffer, (OS_BYTE)value);
+	if(pos < buffer.count){
+		OS_ASSERT(pos >= 0);
+		buffer[pos++] = (OS_BYTE)value;
+	}else{
+		allocator->vectorAddItem(buffer, (OS_BYTE)value);
+		pos++;
+	}
 }
 
 void OS::Core::MemStreamWriter::writeByteAtPos(int value, int pos)
@@ -7255,7 +7398,8 @@ void OS::Core::MemStreamWriter::writeByteAtPos(int value, int pos)
 
 OS::Core::FileStreamWriter::FileStreamWriter(OS * allocator, const char * filename): StreamWriter(allocator)
 {
-	f = fopen(filename, "wb");
+	errno_t err = fopen_s(&f, filename, "wb");
+	(void)err;
 	OS_ASSERT(f);
 }
 
@@ -7275,6 +7419,26 @@ OS::Core::FileStreamWriter::~FileStreamWriter()
 int OS::Core::FileStreamWriter::getPos() const
 {
 	return f ? ftell(f) : 0;
+}
+
+void OS::Core::FileStreamWriter::setPos(int new_pos)
+{
+	OS_ASSERT(new_pos >= 0 && new_pos <= getSize());
+	if(f){
+		fseek(f, new_pos, SEEK_SET);
+	}
+}
+
+int OS::Core::FileStreamWriter::getSize() const
+{
+	if(f){
+		int save_pos = getPos();
+		fseek(f, 0, SEEK_END);
+		int size = ftell(f);
+		fseek(f, save_pos, SEEK_SET);
+		return size;
+	}
+	return 0;
 }
 
 void OS::Core::FileStreamWriter::writeBytes(const void * buf, int len)
@@ -7450,6 +7614,17 @@ int OS::Core::MemStreamReader::getPos() const
 	return pos;
 }
 
+void OS::Core::MemStreamReader::setPos(int new_pos)
+{
+	OS_ASSERT(new_pos >= 0 && new_pos <= size);
+	pos = new_pos;
+}
+
+int OS::Core::MemStreamReader::getSize() const
+{
+	return size;
+}
+
 void OS::Core::MemStreamReader::movePos(int len)
 {
 	OS_ASSERT(pos+len >= 0 && pos+len <= size);
@@ -7481,13 +7656,13 @@ void * OS::Core::MemStreamReader::readBytesAtPos(void * dst, int len, int pos)
 
 OS_BYTE OS::Core::MemStreamReader::readByte()
 {
-	OS_ASSERT(pos >= 0 && pos+sizeof(OS_BYTE) <= size);
+	OS_ASSERT(pos >= 0 && pos+(int)sizeof(OS_BYTE) <= size);
 	return buffer[pos++];
 }
 
 OS_BYTE OS::Core::MemStreamReader::readByteAtPos(int pos)
 {
-	OS_ASSERT(pos >= 0 && pos+sizeof(OS_BYTE) <= size);
+	OS_ASSERT(pos >= 0 && pos+(int)sizeof(OS_BYTE) <= size);
 	return buffer[pos];
 }
 
@@ -7495,8 +7670,9 @@ OS_BYTE OS::Core::MemStreamReader::readByteAtPos(int pos)
 
 OS::Core::FileStreamReader::FileStreamReader(OS * allocator, const char * filename): StreamReader(allocator)
 {
-	f = fopen(filename, "rb");
-	OS_ASSERT(f);
+	errno_t err = fopen_s(&f, filename, "rb");
+	(void)err;
+	// OS_ASSERT(f);
 }
 
 OS::Core::FileStreamReader::FileStreamReader(OS * allocator, FILE * f): StreamReader(allocator)
@@ -7515,6 +7691,26 @@ OS::Core::FileStreamReader::~FileStreamReader()
 int OS::Core::FileStreamReader::getPos() const
 {
 	return f ? ftell(f) : 0;
+}
+
+void OS::Core::FileStreamReader::setPos(int new_pos)
+{
+	OS_ASSERT(new_pos >= 0 && new_pos <= getSize());
+	if(f){
+		fseek(f, new_pos, SEEK_SET);
+	}
+}
+
+int OS::Core::FileStreamReader::getSize() const
+{
+	if(f){
+		int save_pos = getPos();
+		fseek(f, 0, SEEK_END);
+		int size = ftell(f);
+		fseek(f, save_pos, SEEK_SET);
+		return size;
+	}
+	return 0;
 }
 
 void OS::Core::FileStreamReader::movePos(int len)
@@ -7911,20 +8107,18 @@ void OS::Core::addTableProperty(Value::Table * table, Value::Property * prop)
 		OS_ASSERT(new_heads);
 		OS_MEMSET(new_heads, 0, alloc_size);
 
-		if(new_heads){
-			Value::Property ** old_heads = table->heads;
-			table->heads = new_heads;
-			table->head_mask = new_size-1;
+		Value::Property ** old_heads = table->heads;
+		table->heads = new_heads;
+		table->head_mask = new_size-1;
 
-			for(Value::Property * cur = table->first; cur; cur = cur->next){
-				int slot = cur->hash() & table->head_mask;
-				cur->hash_next = table->heads[slot];
-				table->heads[slot] = cur;
-			}
-
-			// delete [] old_heads;
-			free(old_heads);
+		for(Value::Property * cur = table->first; cur; cur = cur->next){
+			int slot = cur->hash() & table->head_mask;
+			cur->hash_next = table->heads[slot];
+			table->heads[slot] = cur;
 		}
+
+		// delete [] old_heads;
+		free(old_heads);
 	}
 
 	int slot = prop->hash() & table->head_mask;
@@ -8037,7 +8231,7 @@ void OS::Core::deleteValueProperty(Value * table_value, Value * index_value, con
 			}else if(index.is_string_index){
 				pushStringValue(index.string_index);
 			}else{
-				pushNumberValue(index.int_index);
+				pushNumberValue((OS_FLOAT)index.int_index);
 			}
 			call(1, 0);
 		}
@@ -8237,7 +8431,7 @@ OS::Core::Value::Value(int p_value_id)
 	table = NULL;
 	// gc_grey_prev = NULL;
 	gc_grey_next = NULL;
-	gc_color = GC_BLACK;
+	gc_color = GC_WHITE;
 }
 
 OS::Core::Value::~Value()
@@ -8334,11 +8528,13 @@ OS_FLOAT OS::Core::valueToNumber(Value * val, bool valueof_enabled)
 bool OS::Core::isValueNumber(Value * val, OS_FLOAT * out)
 {
 	switch(val->type){
+	/*
 	case OS_VALUE_TYPE_NULL:
 		if(out){
 			*out = 0;
 		}
 		return true;
+	*/
 
 	case OS_VALUE_TYPE_BOOL:
 		if(out){
@@ -8516,11 +8712,11 @@ OS::Core::Value * OS::Core::newValue()
 				free(old_heads);
 			}
 		}
-		if(gc_values_head_index >= 0){
+		/* if(gc_values_head_index >= 0){
 			// restart gc ASAP
 			gc_values_head_index = -1;
 			gc_start_next_values = 0;
-		}
+		} */
 	}
 
 	int slot = value->value_id & values.head_mask;
@@ -8529,6 +8725,8 @@ OS::Core::Value * OS::Core::newValue()
 	values.count++;
 
 	num_created_values++;
+
+	gcAddToGreyList(value);
 
 	return value;
 }
@@ -9050,6 +9248,14 @@ int OS::getCachedBytes()
 	return memory_manager->getCachedBytes();
 }
 
+/*
+OS::Core::OpcodeTime::OpcodeTime()
+{
+	opcode = Program::OP_UNKNOWN;
+	time = 0;
+}
+*/
+
 OS::Core::Core(OS * p_allocator)
 {
 	allocator = p_allocator;
@@ -9066,7 +9272,20 @@ OS::Core::Core(OS * p_allocator)
 	num_created_values = 0;
 	num_destroyed_values = 0;
 
+	settings.create_debug_info = false;
+	settings.create_debug_opcodes = false;
+	settings.recompile_sourcecode = false;
+
 	gcInitGreyList();
+
+	/*
+	if(!opcode_usage_initialized){
+		opcode_usage_initialized = true;
+		for(int i = 0; i < Program::OPCODE_COUNT; i++){
+			opcode_usage[i].opcode = (Program::OpcodeType)i;
+		}
+	}
+	*/
 }
 
 OS::Core::~Core()
@@ -9167,7 +9386,6 @@ void OS::Core::shutdown()
 	stack_values.count = 0;
 	
 	allocator->vectorClear(stack_values);
-	allocator->vectorClear(autoreleased_values);
 
 	while(call_stack_funcs.count > 0){
 		FunctionRunningInstance * func_running = call_stack_funcs[--call_stack_funcs.count];
@@ -9175,6 +9393,8 @@ void OS::Core::shutdown()
 	}
 	allocator->vectorClear(call_stack_funcs);
 	// vectorClear(cache_values);
+
+	gcResetGreyList();
 	
 	null_value = NULL;
 	true_value = NULL;
@@ -9199,6 +9419,76 @@ void OS::Core::shutdown()
 	empty_string_data->ref_count = 1;
 	empty_string_data->release();
 	empty_string_data = NULL;
+}
+
+OS::Core::String OS::changeFilenameExt(const OS_CHAR * filename, const OS_CHAR * ext)
+{
+	int len = OS_STRLEN(filename);
+	for(int i = len-1; i >= 0; i--){
+		if(filename[i] == OS_TEXT('.')){
+			return Core::String(this, filename, i, ext, OS_STRLEN(ext));
+		}
+		if(filename[i] == OS_TEXT('\\') || filename[i] == OS_TEXT('/')){
+			break;
+		}
+	}
+	return Core::String(this, filename, len, ext, OS_STRLEN(ext));
+}
+
+OS::Core::String OS::getFilenameExt(const OS_CHAR * filename)
+{
+	int len = OS_STRLEN(filename);
+	for(int i = len-1; i >= 0; i--){
+		if(filename[i] == OS_TEXT('.')){
+			return Core::String(this, filename+i, len-i);
+		}
+		if(filename[i] == OS_TEXT('\\') || filename[i] == OS_TEXT('/')){
+			break;
+		}
+	}
+	return Core::String(this, OS_TEXT(""));
+}
+
+void OS::Core::error(int code, const OS_CHAR * message)
+{
+	error(code, String(allocator, message));
+}
+
+void OS::Core::error(int code, const String& message)
+{
+	FunctionRunningInstance * func_running = call_stack_funcs.lastElement();
+	FunctionValueData * func_value_data = func_running->func->value.func;
+	Program * prog = func_value_data->prog;
+	Program::DebugInfoItem * debug_info = NULL;
+	if(prog->debug_info.count > 0){
+		int opcodes_offs = func_running->opcodes_pos;
+		for(int i = 0; i < prog->debug_info.count; i++){
+			if(prog->debug_info[i].opcode_offs == opcodes_offs){
+				debug_info = &prog->debug_info[i];
+			}
+			if(prog->debug_info[i].opcode_offs > opcodes_offs){
+				break;
+			}
+		}
+	}
+	const OS_CHAR * error_type = NULL;
+	switch(code){
+	case OS_WARNING:
+		error_type = OS_TEXT("WARNING");
+		break;
+
+	default:
+	case OS_ERROR:
+		error_type = OS_TEXT("ERROR");
+		code = OS_ERROR;
+		break;
+	}
+	if(debug_info){
+		printf("[%s] %s (line: %d, pos: %d, token: %s, filename: %s)\n", error_type, message.toChar(), debug_info->line, debug_info->pos, 
+			debug_info->token.toChar(), prog->filename.toChar());
+	}else{
+		printf("[%s] %s\n", error_type, message.toChar());
+	}
 }
 
 /*
@@ -9280,7 +9570,7 @@ void OS::Core::gcInitGreyList()
 	gc_time = 0;
 	gc_grey_added_count = 0;
 	// gc_grey_removed_count = 0;
-	gc_start_values_mult = 1.5f;
+	gc_start_values_mult = 2.0f;
 	gc_step_size_mult = 0.5f;
 	gc_start_next_values = 16;
 	gc_step_size = 0;
@@ -9289,14 +9579,14 @@ void OS::Core::gcInitGreyList()
 void OS::Core::gcResetGreyList()
 {
 	while(gc_grey_list_first){
-		gcRemoveGreyValue(gc_grey_list_first);
+		gcRemoveFromGreyList(gc_grey_list_first);
 	}
 	gc_grey_root_initialized = false;
 	// OS_ASSERT(gc_grey_list.gc_grey_next == (Value*)&gc_grey_list);
 	// OS_ASSERT(gc_grey_list.gc_grey_prev == (Value*)&gc_grey_list);
 }
 
-void OS::Core::gcAddGreyValue(Value * value)
+void OS::Core::gcAddToGreyList(Value * value)
 {
 	if(value->gc_color != Value::GC_WHITE){
 		return;
@@ -9310,7 +9600,7 @@ void OS::Core::gcAddGreyValue(Value * value)
 	gc_grey_added_count++;
 }
 
-void OS::Core::gcRemoveGreyValue(Value * value)
+void OS::Core::gcRemoveFromGreyList(Value * value)
 {
 	// OS_ASSERT(value->gc_grey_next && value->gc_grey_prev);
 	OS_ASSERT(value->gc_color == Value::GC_GREY);
@@ -9340,7 +9630,7 @@ void OS::Core::gcProcessGreyTable(Value::Table * table)
 			// deleteTableProperty(table, index);
 			continue;
 		}
-		gcAddGreyValue(value);
+		gcAddToGreyList(value);
 	}
 }
 
@@ -9366,7 +9656,7 @@ void OS::Core::gcProcessGreyProgram(Program * prog)
 	prog->gc_time = gc_time;
 	int count = prog->num_numbers + prog->num_strings;
 	for(int i = 0; i < count; i++){
-		gcAddGreyValue(prog->const_values[i]);
+		gcAddToGreyList(prog->const_values[i]);
 	}
 }
 
@@ -9374,7 +9664,7 @@ void OS::Core::gcProcessGreyValueFunction(Value * func_value)
 {
 	OS_ASSERT(func_value->type == OS_VALUE_TYPE_FUNCTION);
 	FunctionValueData * func_value_data = func_value->value.func;
-	gcAddGreyValue(func_value_data->env);
+	gcAddToGreyList(func_value_data->env);
 
 #ifdef FUNC_VAL_ONE_PARENT
 	if(func_value_data->parent_inctance){
@@ -9396,8 +9686,8 @@ void OS::Core::gcProcessGreyFunctionRunning(FunctionRunningInstance * func_runni
 	}
 	func_running->gc_time = gc_time;
 
-	gcAddGreyValue(func_running->func);
-	gcAddGreyValue(func_running->self);
+	gcAddToGreyList(func_running->func);
+	gcAddToGreyList(func_running->self);
 
 	int i;
 	FunctionDecl * func_decl = func_running->func->value.func->func_decl;
@@ -9413,13 +9703,13 @@ void OS::Core::gcProcessGreyFunctionRunning(FunctionRunningInstance * func_runni
 #endif
 	int num_locals = func_decl->num_locals;
 	for(i = 0; i < num_locals; i++){
-		gcAddGreyValue(func_running->locals[i]);
+		gcAddToGreyList(func_running->locals[i]);
 	}
 	if(func_running->arguments){
-		gcAddGreyValue(func_running->arguments);
+		gcAddToGreyList(func_running->arguments);
 	}
 	if(func_running->rest_arguments){
-		gcAddGreyValue(func_running->rest_arguments);
+		gcAddToGreyList(func_running->rest_arguments);
 	}
 }
 
@@ -9427,9 +9717,9 @@ void OS::Core::gcProcessGreyFunctionRunning(FunctionRunningInstance * func_runni
 void OS::Core::gcProcessGreyValue(Value * value)
 {
 	OS_ASSERT(value->gc_color == Value::GC_GREY);
-	gcRemoveGreyValue(value);
+	gcRemoveFromGreyList(value);
 	if(value->prototype){
-		gcAddGreyValue(value->prototype);
+		gcAddToGreyList(value->prototype);
 	}
 	if(value->table){
 		gcProcessGreyTable(value->table);
@@ -9445,9 +9735,6 @@ void OS::Core::gcProcessGreyValue(Value * value)
 		break;
 
 	case OS_VALUE_TYPE_ARRAY:
-		OS_ASSERT(false);
-		break;
-
 	case OS_VALUE_TYPE_OBJECT:
 		break;
 
@@ -9460,7 +9747,7 @@ void OS::Core::gcProcessGreyValue(Value * value)
 			CFuncUpvaluesData * func = value->value.cfunc_upvalues;
 			Value ** upvalues = (Value**)(func + 1);
 			for(int i = 0; i < func->num_upvalues; i++){
-				gcAddGreyValue(upvalues[i]);
+				gcAddToGreyList(upvalues[i]);
 			}
 			break;
 		}
@@ -9474,6 +9761,30 @@ void OS::Core::gcProcessGreyValue(Value * value)
 
 int OS::Core::gcStep()
 {
+	// return OS_GC_PHASE_MARK;
+
+	/*
+	struct CalcUsedTime
+	{
+		double start_time;
+
+		CalcUsedTime()
+		{
+			start_time = getTimeSec();
+		}
+
+		~CalcUsedTime()
+		{
+			if(!gc_prev_time){
+				gc_prev_time = start_time;
+			}
+			gc_step_time = start_time - gc_prev_time;
+			gc_full_time += gc_step_time;
+			gc_prev_time = start_time;
+		}
+	} calc_used_time;
+	*/
+
 	if(values.count == 0){
 		return OS_GC_PHASE_MARK;
 	}
@@ -9492,7 +9803,7 @@ int OS::Core::gcStep()
 					if(gc_values_head_index < 0){
 						return OS_GC_PHASE_MARK;
 					}
-				}else{
+				}else if(value->gc_color == Value::GC_BLACK){
 					value->gc_color = Value::GC_WHITE;
 				}
 			}
@@ -9510,25 +9821,22 @@ int OS::Core::gcStep()
 		gc_grey_root_initialized = true;
 		gc_step_size = (int)((float)values.count * gc_step_size_mult);
 		
-		int old_count = gc_grey_added_count;
-		gcAddGreyValue(null_value);
-		gcAddGreyValue(true_value);
-		gcAddGreyValue(false_value);
-		gcAddGreyValue(global_vars);
-		gcAddGreyValue(user_pool);
+		// int old_count = gc_grey_added_count;
+		gcAddToGreyList(null_value);
+		gcAddToGreyList(true_value);
+		gcAddToGreyList(false_value);
+		gcAddToGreyList(global_vars);
+		gcAddToGreyList(user_pool);
 		int i;
 		for(i = 0; i < PROTOTYPE_COUNT; i++){
-			gcAddGreyValue(prototypes[i]);
+			gcAddToGreyList(prototypes[i]);
 		}
 		gcProcessStringsCacheTable();
-		step_size -= gc_grey_added_count - old_count;
+		// step_size -= gc_grey_added_count - old_count;
 	}
 	int i;
-	for(i = 0; i < stack_values.count; i++, step_size--){
-		gcAddGreyValue(stack_values[i]);
-	}
-	for(i = 0; i < autoreleased_values.count; i++, step_size--){
-		gcAddGreyValue(autoreleased_values[i]);
+	for(i = 0; i < stack_values.count; i++){
+		gcAddToGreyList(stack_values[i]);
 	}
 	for(i = 0; i < call_stack_funcs.count; i++){
 		gcProcessGreyFunctionRunning(call_stack_funcs[i]);
@@ -9680,11 +9988,11 @@ OS::Core::Value::Property * OS::Core::setTableValue(Value::Table * table, Proper
 	OS_ASSERT(table);
 	OS_ASSERT(value);
 
-	// TODO: no need to do something here ???
-	/* if(value->gc_color == Value::GC_WHITE){
-		gcAddGreyValue(value);
-		gc_values_head_index = -1;
-	} */
+	// TODO: correct ???
+	if(value->gc_color == Value::GC_WHITE){
+		gcAddToGreyList(value);
+		// gc_values_head_index = -1;
+	}
 
 	Value::Property * prop = table->get(index);
 	if(prop){
@@ -9699,6 +10007,12 @@ OS::Core::Value::Property * OS::Core::setTableValue(Value::Table * table, Proper
 
 void OS::Core::setPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, Value * value, bool prototype_enabled, bool setter_enabled)
 {
+	// TODO: correct ???
+	if(value->gc_color == Value::GC_WHITE){
+		gcAddToGreyList(value);
+		// gc_values_head_index = -1;
+	}
+
 	Value::Property * prop = NULL;
 	Value::Table * table = table_value->table;
 	if(table && (prop = table->get(index))){
@@ -9769,7 +10083,7 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Proper
 			}else if(index.is_string_index){
 				pushStringValue(index.string_index);
 			}else{
-				pushNumberValue(index.int_index);
+				pushNumberValue((OS_FLOAT)index.int_index);
 			}
 			pushValue(value);
 			call(2, 0);
@@ -9790,7 +10104,9 @@ void OS::Core::setPropertyValue(Value * table_value, Value * index_value, Value 
 {
 	switch(index_value->type){
 	case OS_VALUE_TYPE_NULL:
-		return setPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)0), val, prototype_enabled, setter_enabled);
+		// return setPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)0), val, prototype_enabled, setter_enabled);
+		error(OS_WARNING, OS_TEXT("object set index is null"));
+		return;
 
 	case OS_VALUE_TYPE_BOOL:
 		return setPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)index_value->value.boolean), val, prototype_enabled, setter_enabled);
@@ -9991,6 +10307,11 @@ OS::Core::Value * OS::Core::pushConstBoolValue(bool val)
 OS::Core::Value * OS::Core::pushNewNullValue()
 {
 	return pushValue(newValue());
+}
+
+OS::Core::Value * OS::Core::pushNumberValue(OS_INT val)
+{
+	return pushValue(newNumberValue((OS_FLOAT)val));
 }
 
 OS::Core::Value * OS::Core::pushNumberValue(OS_FLOAT val)
@@ -10277,7 +10598,7 @@ OS::Core::Value * OS::Core::pushOpResultValue(int opcode, Value * value)
 		{
 			switch(opcode){
 			case Program::OP_BIT_NOT:
-				return core->pushNumberValue(~core->valueToInt(value));
+				return core->pushNumberValue((OS_FLOAT)(~core->valueToInt(value)));
 
 			case Program::OP_PLUS:
 				if(value->type == OS_VALUE_TYPE_NUMBER){
@@ -11304,7 +11625,7 @@ void OS::setProperty(const Core::String& name, bool prototype_enabled, bool sett
 {
 	pushString(name);
 	move(-1, -2);
-	getProperty(prototype_enabled, setter_enabled);
+	setProperty(prototype_enabled, setter_enabled);
 }
 
 void OS::addProperty()
@@ -11381,9 +11702,12 @@ OS::Core::Value * OS::Core::pushPropertyValue(Value * table_value, Value * index
 {
 	switch(index_value->type){
 	case OS_VALUE_TYPE_NULL:
+		error(OS_WARNING, OS_TEXT("object get index is null"));
+		/*
 		return pushPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)0), 
 			prototype_enabled, getter_enabled, auto_create);
-		// return pushConstNullValue();
+		*/
+		return pushConstNullValue();
 
 	case OS_VALUE_TYPE_BOOL:
 		return pushPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)index_value->value.boolean), 
@@ -11503,7 +11827,6 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 		return;
 	}
 
-	int i;
 	// func_running->func could be already destroyed by gc or will be destroyed soon
 	// FunctionDecl * func_decl = func_running->func->value.func->func_decl;
 	// locals could be already destroyed by gc or will be destroyed soon
@@ -11536,6 +11859,7 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 
 void OS::Core::enterFunction(Value * value, Value * self, int params, int extra_remove_from_stack, int need_ret_values)
 {
+	OS_ASSERT(call_stack_funcs.count < OS_CALL_STACK_MAX_SIZE);
 	OS_ASSERT(value->type == OS_VALUE_TYPE_FUNCTION);
 	OS_ASSERT(stack_values.count >= params + extra_remove_from_stack);
 	OS_ASSERT(self);
@@ -11629,7 +11953,15 @@ restart:
 	Value ** prog_strings = prog_numbers + prog_num_numbers;
 
 	OS * allocator = this->allocator;
+	/*
+	double time_sec = getTimeSec(), new_time_sec;
+	Program::OpcodeType opcode;
+	for(int opcodes_executed = 0;; opcodes_executed++, 
+			opcode_usage[opcode].time += (float)((new_time_sec = getTimeSec()) - time_sec - gc_step_time), 
+			time_sec = new_time_sec){
+	*/
 	for(int opcodes_executed = 0;; opcodes_executed++){
+		func_running->opcodes_pos = opcodes.pos;
 #if 0
 		{
 			int i;
@@ -12175,7 +12507,7 @@ restart:
 		case Program::OP_CLONE:
 			{
 				OS_ASSERT(stack_values.count >= 1);
-				Value * value = stack_values[stack_values.count-1], * new_value;
+				Value * value = stack_values[stack_values.count-1];
 				pushCloneValue(value);
 				removeStackValue(-2);
 				break;
@@ -12389,7 +12721,7 @@ restart:
 	return 0;
 }
 
-void OS::runOp(int opcode)
+void OS::runOp(OS_EOpcode opcode)
 {
 	struct Lib
 	{
@@ -12632,7 +12964,7 @@ void OS::initGlobalFunctions()
 			return 1;
 		}
 
-		static int minmax(OS * os, int params, int upvalues, int opcode)
+		static int minmax(OS * os, int params, int upvalues, OS_EOpcode opcode)
 		{
 			OS_ASSERT(params >= 0);
 			if(params <= 1){
@@ -12711,7 +13043,7 @@ void OS::initObjectClass()
 				if(iter->prop){
 					os->pushBool(true);
 					if(iter->prop->int_valid){
-						os->pushNumber(iter->prop->int_index);
+						os->pushNumber((OS_FLOAT)iter->prop->int_index);
 					}else{
 						os->pushString(iter->prop->string_index);
 					}
@@ -12863,7 +13195,7 @@ void OS::initObjectClass()
 								buf += String(os, prop->int_index);
 								buf += OS_TEXT(":");
 							}
-							need_index = prop->int_index + 1;
+							need_index = (int)(prop->int_index + 1);
 						}else{ // if(prop->is_string_index){
 							buf += prop->string_index;
 							buf += OS_TEXT(":");
@@ -12902,7 +13234,7 @@ void OS::initArrayClass()
 		{
 			Core::Value * self = os->core->getStackValue(-params-upvalues-1);
 			if(self){
-				os->pushNumber(self->table ? self->table->next_id : 0);
+				os->pushNumber(self->table ? (OS_FLOAT)self->table->next_id : 0);
 				return 1;
 			}
 			return 0;
@@ -13108,10 +13440,39 @@ int OS::Core::call(int params, int ret_values)
 	return false;
 }
 
+bool OS::compileFilename(const Core::String& filename, bool required)
+{
+	{
+		String compiled_filename = changeFilenameExt(filename, OS_COMPILED_EXT);
+		Core::FileStreamReader file(this, compiled_filename);
+		if(file.f){
+			// TODO: check file time with original and load compiled file or the original
+		}
+	}
+
+	Core::FileStreamReader file(this, filename);
+	if(!file.f){
+		if(required){
+			core->error(OS_ERROR, String::format(this, OS_TEXT("required filename %s is not exist"), filename.toChar()));
+			return false;
+		}
+	}
+
+
+	Core::MemStreamWriter file_data(this);
+	file_data.readFromStream(&file);
+
+	Core::Tokenizer tokenizer(this);
+	tokenizer.parseText((OS_CHAR*)file_data.buffer.buf, file_data.buffer.count, filename);
+
+	Core::Compiler compiler(&tokenizer);
+	return compiler.compile();
+}
+
 bool OS::compile(const Core::String& str)
 {
 	Core::Tokenizer tokenizer(this);
-	tokenizer.parseText(str);
+	tokenizer.parseText(str.toChar(), str.getLen(), String(this));
 
 	Core::Compiler compiler(&tokenizer);
 	return compiler.compile();
@@ -13147,6 +13508,81 @@ int OS::eval(const Core::String& str, int params, int ret_values)
 	pushNull();
 	move(-2, 2, -2-params);
 	return core->call(params, ret_values);
+}
+
+int OS::run(const OS_CHAR * filename, bool required, int params, int ret_values)
+{
+	return run(Core::String(this, filename), required, params, ret_values);
+}
+
+int OS::run(const Core::String& filename, bool required, int params, int ret_values)
+{
+	compileFilename(filename, required);
+	pushNull();
+	move(-2, 2, -2-params);
+	int ret = core->call(params, ret_values);
+
+	// core->sortOpcodeUsage();
+
+	return ret;
+}
+
+/*
+void OS::Core::sortOpcodeUsage()
+{
+	struct Lib {
+		static int __cdecl compare(const void * a, const void * b)
+		{
+			OpcodeTime * t1 = (OpcodeTime*)a;
+			OpcodeTime * t2 = (OpcodeTime*)b;
+			if(t1->time < t2->time){
+				return 1;
+			}
+			if(t1->time > t2->time){
+				return -1;
+			}
+			return 0;
+		}
+	};
+	qsort(opcode_usage, Program::OPCODE_COUNT, sizeof(opcode_usage[0]), Lib::compare); 
+}
+*/
+
+int OS::getSetting(OS_ESettings setting)
+{
+	switch(setting){
+	case OS_SETTING_CREATE_DEBUG_INFO:
+		return core->settings.create_debug_info;
+
+	case OS_SETTING_CREATE_DEBUG_OPCODES:
+		return core->settings.create_debug_opcodes;
+
+	case OS_SETTING_RECOMPILE_SOURCECODE:
+		return core->settings.recompile_sourcecode;
+	}
+	return -1;
+}
+
+int OS::setSetting(OS_ESettings setting, int value)
+{
+	int old_val;
+	switch(setting){
+	case OS_SETTING_CREATE_DEBUG_INFO:
+		old_val = core->settings.create_debug_info;
+		core->settings.create_debug_info = value ? true : false;
+		return old_val;
+
+	case OS_SETTING_CREATE_DEBUG_OPCODES:
+		old_val = core->settings.create_debug_opcodes;
+		core->settings.create_debug_opcodes = value ? true : false;
+		return old_val;
+
+	case OS_SETTING_RECOMPILE_SOURCECODE:
+		old_val = core->settings.recompile_sourcecode;
+		core->settings.recompile_sourcecode = value ? true : false;
+		return old_val;
+	}
+	return -1;
 }
 
 int OS::gc()

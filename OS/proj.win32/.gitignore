@@ -6,3 +6,5 @@
 /*.suo
 /*.sdf
 /debug-exp-dump.txt
+/Release/
+/os-opcodes.txt

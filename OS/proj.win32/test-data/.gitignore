@@ -1,2 +1,7 @@
 /debug-exp-dump.txt
 /test.osb
+/*.os
+/*.osc
+/*.osd
+/test_fannkuch.txt
+/old/

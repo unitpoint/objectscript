@@ -3,9 +3,11 @@
 
 #include "stdafx.h"
 #include "..\source\objectscript.h"
+#include <windows.h>
 
 using namespace ObjectScript;
 
+/*
 static OS::String readFile(OS * os, const char * filename)
 {
 	FILE * f = fopen(filename, "rb");
@@ -32,7 +34,9 @@ struct __test_os__
 		// const char * filename = "test-data/test.os";
 		// const char * filename = "test-data/test2.os";
 		const char * filename = "test-data/test_fannkuch.os";
-		OS::String test_prog = readFile(os, filename);
+		// OS::String test_prog = readFile(os, filename);
+
+		os->run(filename);
 		
 		os->newObject(); // 1 - t1
 		os->newObject(); // 2 - t2
@@ -49,6 +53,7 @@ struct __test_os__
 
 		os->removeAll();
 
+		/?
 		// os->eval("abc, x, y = 5, var1*6 + var2*3  x = y-7;");
 		// os->eval("y(8, i)(i*8+j[7, 9])[7, k]");
 		// os->eval("abc, x = 5, 37676  hjhj = y-7;");
@@ -73,6 +78,7 @@ struct __test_os__
 			"			y ** 2;\n"
 			"})(a(),2,3));\n"
 			"b(); 5, t, 6, a(), 6;");
+		?/
 
 		{
 			int mem_usage = os->getAllocatedBytes();
@@ -152,9 +158,88 @@ struct __test_os__
 		os->release();
 	}
 } __test_os__;
+*/
+
+OS::String getString(OS * os, const _TCHAR * str)
+{
+	char buf[1024*10];
+	int i = 0;
+	for(; str[i]; i++){
+		buf[i] = (char)str[i];
+	}
+	buf[i] = 0;
+	return OS::String(os, buf);
+}
+
+static double inv_frequency = 0.0;
+static double start_time = 0.0;
+
+struct __init_time__
+{
+	__init_time__()
+	{
+		LARGE_INTEGER largeInteger;
+
+		if(inv_frequency == 0.0f){
+			QueryPerformanceFrequency(&largeInteger);
+			inv_frequency = double(largeInteger.QuadPart);
+			if(inv_frequency > 0.0f){
+				inv_frequency = 1.0f / inv_frequency;
+			}
+		}
+
+		QueryPerformanceCounter(&largeInteger);
+		start_time = double(largeInteger.QuadPart);
+	}
+} __init_time__;
+
+double getTimeSec()
+{
+	LARGE_INTEGER largeInteger;
+	QueryPerformanceCounter(&largeInteger);
+	double count = double(largeInteger.QuadPart);
+	return inv_frequency * (count - start_time);
+}
+
+static int OS_getTimeSec(OS * os, int params, int upvalues, int, void*)
+{
+	os->pushNumber(getTimeSec());
+	return 1;
+}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	double start_time = getTimeSec();
+
+	OS * os = OS::create();
+
+	os->setSetting(OS_SETTING_CREATE_DEBUG_INFO, true);
+	os->setSetting(OS_SETTING_CREATE_DEBUG_OPCODES, true);
+	os->setSetting(OS_SETTING_RECOMPILE_SOURCECODE, true);
+
+	os->newArray();
+	for(int i = 0; i < argc; i++){
+		os->pushStackValue(-1);
+		os->pushNumber(i-1);
+		os->pushString(getString(os, argv[i]));
+		os->setProperty();
+		// os->addProperty();
+	}
+	os->setGlobal("arg");
+
+	os->pushCFunction(OS_getTimeSec);
+	os->setGlobal("getTimeSec");
+
+	os->run(argc >= 2 && argv[1] ? getString(os, argv[1]) : "test-data/test_fannkuch.os");
+	// os->eval("print arg");
+	{
+		int mem_usage = os->getAllocatedBytes();
+		os->gcFull();
+		int after_mem_usage = os->getAllocatedBytes();
+		int i = mem_usage;
+	}
+
+	os->release();
 	return 0;
 }
 
