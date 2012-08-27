@@ -1,4 +1,4 @@
-objectscript
+ObjectScript
 ============
 
-objectscript is new language that mixes benefits of javascript, lua and php
+ObjectScript is a new programing language that mixes benefits of JavaScript, Lua and PHP
