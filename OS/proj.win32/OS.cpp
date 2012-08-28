@@ -241,6 +241,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	os->setGlobal("getTimeSec");
 
 	os->run(argc >= 2 && argv[1] ? getString(os, argv[1]) : "test-data/test_fannkuch.os");
+	exit(1);
 	// os->eval("print arg");
 	{
 		int mem_usage = os->getAllocatedBytes();

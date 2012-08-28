@@ -1,5 +1,5 @@
-#ifndef __OBJECT_SCRIPT__
-#define __OBJECT_SCRIPT__
+#ifndef __OBJECT_SCRIPT_H__
+#define __OBJECT_SCRIPT_H__
 
 /******************************************************************************
 * Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -92,7 +92,6 @@
 
 #define OS_DEBUGGER_SAVE_NUM_LINES 11
 
-// #define OS_NEW(classname, params) new (allocator->malloc(sizeof(classname))) classname params
 #define FUNC_VAL_ONE_PARENT
 
 namespace ObjectScript
@@ -123,7 +122,7 @@ namespace ObjectScript
 		OS_VALUE_TYPE_USERPTR,
 		OS_VALUE_TYPE_FUNCTION,
 		OS_VALUE_TYPE_CFUNCTION,
-		OS_VALUE_TYPE_CFUNCTION_UPVALUES,
+		OS_VALUE_TYPE_WEAKREF,
 	};
 
 	enum // OS_ValueRegister
@@ -296,23 +295,9 @@ namespace ObjectScript
 			int getCachedBytes();
 		};
 
-		enum EParseNumType
-		{
-			PARSE_NUM_TYPE_ERROR,
-			PARSE_NUM_TYPE_FLOAT,
-			PARSE_NUM_TYPE_INT,
-		};
-
-		enum
-		{
-			PARSE_NUM_FLAG_INT = 0,
-			PARSE_NUM_FLAG_INT_EXPANDED = 1<<0,
-			PARSE_NUM_FLAG_FLOAT = 1<<1,
-		};
-
 		struct Utils
 		{
-			static EParseNumType parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_INT& ival, int flags);
+			static bool parseNum(const OS_CHAR *& str, OS_FLOAT& fval);
 
 			static OS_CHAR * numToStr(OS_CHAR*, OS_INT value);
 			static OS_CHAR * numToStr(OS_CHAR*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
@@ -875,8 +860,8 @@ namespace ObjectScript
 
 					STRING,         // ["].*?["]
 
-					NUM_INT,        // -?[0..9]+
-					NUM_FLOAT,      // -?[0..9][.]?[0..9]+(e[+-]?[0..9]+)?
+					// NUM_INT,        // -?[0..9]+
+					NUMBER,      // -?[0..9][.]?[0..9]+(e[+-]?[0..9]+)?
 					// NUM_VECTOR_3,   // 'NUM_FLOAT NUM_FLOAT NUM_FLOAT'
 					// NUM_VECTOR_4,   // 'NUM_FLOAT NUM_FLOAT NUM_FLOAT NUM_FLOAT'
 					// NULL,           // used in compiler
@@ -974,7 +959,7 @@ namespace ObjectScript
 
 					union
 					{
-						OS_INT int_value;
+						// OS_INT int_value;
 						OS_FLOAT float_value;
 						// OS_FLOAT * vec3;
 						// OS_FLOAT * vec4;
@@ -993,20 +978,15 @@ namespace ObjectScript
 
 					OS * getAllocator() const;
 					TokenType getType() const { return type; }
-					OS_INT getInt() const;
+
 					OS_FLOAT getFloat() const;
-					// const OS_FLOAT * getVec3() const;
-					// const OS_FLOAT * getVec4() const;
 
 					TokenData(TextData * text_data, const String& p_str, TokenType p_type, int p_line, int p_pos);
 
 					TokenData * retain();
 					void release();
 
-					// void setVec4(OS_FLOAT values[4]);
-					// void setVec3(OS_FLOAT values[3]);
 					void setFloat(OS_FLOAT value);
-					void setInt(OS_INT value);
 
 					operator const String& () const { return str; }
 
@@ -1046,11 +1026,11 @@ namespace ObjectScript
 				// private:
 
 				static int __cdecl CompareOperatorDesc(const void * a, const void * b);
-				static void initOperatorTable();
+				static void initOperatorsTable();
 
 				TokenData * addToken(const String& token, TokenType type, int line, int pos);
 
-				TokenType parseNum(const OS_CHAR *& str, OS_FLOAT& fval, OS_INT& ival, bool parse_end_spaces);
+				TokenType parseNum(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces);
 				bool parseLines();
 
 			public:
@@ -1093,7 +1073,141 @@ namespace ObjectScript
 			typedef Tokenizer::TokenData TokenData;
 			typedef Tokenizer::TextData TextData;
 
-			// struct Value;
+			struct Property;
+			struct PropertyIndex;
+			struct Table
+			{
+				struct IteratorState
+				{
+					Table * table;
+					Property * prop;
+					IteratorState * next;
+
+					IteratorState();
+					~IteratorState();
+				};
+
+				Property ** heads;
+				int head_mask;
+				int count;
+
+				OS_INT next_id;
+
+				Property * first, * last;
+				IteratorState * iterators;
+
+				Table();    
+				~Table();
+
+				Property * get(const PropertyIndex& index);
+
+				bool containsIterator(IteratorState*);
+				void addIterator(IteratorState*);
+				void removeIterator(IteratorState*);
+			};
+
+			struct GC_Value
+			{
+				int value_id;
+				// int ref_count;
+				GC_Value * prototype;
+				GC_Value * hash_next;
+
+				// Value * gc_grey_prev;
+				GC_Value * gc_grey_next;
+
+				Table * table;
+
+				OS_EValueType type;
+
+				enum {
+					GC_WHITE,
+					GC_GREY,
+					GC_BLACK
+				} gc_color;
+
+				GC_Value();
+				virtual ~GC_Value();
+			};
+
+			struct GC_ObjectValue: public GC_Value
+			{
+			};
+
+			struct GC_StringValue: public GC_Value
+			{
+				StringData * string_data;
+			};
+
+			struct GC_UserDataValue: public GC_Value
+			{
+				int crc;
+				void * ptr;
+				OS_UserDataDtor dtor;
+				void * user_param;
+			};
+
+			struct GC_CFunctionValue: public GC_Value
+			{
+				OS_CFunction func;
+				void * user_param;
+				int num_upvalues;
+			};
+
+			struct GC_FunctionValue;
+
+			struct WeakRef { WeakRef(){} };
+			struct ValueData
+			{
+				union {
+					bool boolean;
+					OS_FLOAT number;
+					// StringData * string;
+					int value_id;
+					GC_Value * value;
+					GC_ObjectValue * object;
+					GC_StringValue * string;
+					GC_UserDataValue * userdata;
+					GC_FunctionValue * func;
+					GC_CFunctionValue * cfunc;
+				} v;
+
+				OS_EValueType type;
+
+				ValueData();
+				ValueData(bool);
+				ValueData(OS_FLOAT);
+				ValueData(int);
+				ValueData(int, const WeakRef&);
+				// ValueData(const ValueData&);
+				ValueData(GC_Value*);
+
+				// ValueData& operator=(const ValueData&);
+				ValueData& operator=(GC_Value*);
+				
+				void clear();
+
+				GC_Value * getGCValue() const;
+
+				bool isFunction() const;
+				bool isUserData() const;
+			};
+
+			struct Program;
+			struct FunctionDecl;
+			struct FunctionRunningInstance;
+			struct GC_FunctionValue: public GC_Value
+			{
+				Program * prog; // retained
+				FunctionDecl * func_decl;
+				ValueData env;
+
+				FunctionRunningInstance * parent_inctance; // retained
+
+				GC_FunctionValue();
+				~GC_FunctionValue();
+			};
+
 			struct PropertyIndex
 			{
 				struct KeepStringIndex
@@ -1129,120 +1243,23 @@ namespace ObjectScript
 				void fixStringIndex();
 			};
 
-			struct CFuncUpvaluesData
+			struct Property: public PropertyIndex
 			{
-				OS_CFunction func;
-				void * user_param;
-				int num_upvalues;
+				ValueData value;
+
+				Property * hash_next;
+				Property * prev, * next;
+
+				Property(const PropertyIndex& index);
+				Property(const String& index);
+				Property(OS*, const OS_CHAR * index);
+				Property(OS*, OS_INT index);
+				Property(OS*, int index);
+				Property(OS*, OS_FLOAT index, int precision = OS_DEF_PRECISION);
+				~Property();
 			};
 
-			struct UserData
-			{
-				int crc;
-				void * ptr;
-				OS_UserDataDtor dtor;
-				void * user_param;
-			};
 
-			// struct FunctionData;
-			// class Program;
-			struct FunctionValueData;
-			struct Value
-			{
-				struct Property: public PropertyIndex
-				{
-					int value_id;  // allow weak usage
-					// Value * value;
-
-					Property * hash_next;
-					Property * prev, * next;
-
-					Property(const PropertyIndex& index);
-					Property(const String& index);
-					Property(OS*, const OS_CHAR * index);
-					Property(OS*, OS_INT index);
-					Property(OS*, int index);
-					Property(OS*, OS_FLOAT index, int precision = OS_DEF_PRECISION);
-					~Property();
-				};
-
-				struct Table;
-				struct IteratorState
-				{
-					Table * table;
-					Property * prop;
-					IteratorState * next;
-
-					IteratorState();
-					~IteratorState();
-				};
-
-				struct Table
-				{
-					Property ** heads;
-					int head_mask;
-					int count;
-
-					OS_INT next_id;
-
-					Property * first, * last;
-					IteratorState * iterators;
-
-					Table();    
-					~Table();
-
-					Property * get(const PropertyIndex& index);
-					// void add(Property * prop);
-					// void free(const PropertyIndex& index);
-
-					bool containsIterator(IteratorState*);
-					void addIterator(IteratorState*);
-					void removeIterator(IteratorState*);
-				};
-
-				int value_id; // allow weak usage
-				// int ref_count;
-				Value * prototype; // retained
-				Value * hash_next;
-
-				// Value * gc_grey_prev;
-				Value * gc_grey_next;
-
-				Table * table;
-
-				union {
-					bool boolean;
-					OS_FLOAT number;
-					StringData * string_data; // retained
-
-					UserData * userdata;
-
-					FunctionValueData * func;
-
-					struct {
-						OS_CFunction func;
-						void * user_param;
-					} cfunc;
-
-					 CFuncUpvaluesData * cfunc_upvalues;
-
-				} value;
-
-				OS_EValueType type;
-
-				enum {
-					GC_WHITE,
-					GC_GREY,
-					GC_BLACK
-				} gc_color;
-
-				Value(int id);
-				~Value();
-
-				bool isFunction() const;
-			};
-
-			class Program;
 			class Compiler
 			{
 			public:
@@ -1426,7 +1443,8 @@ namespace ObjectScript
 					void swap(ExpressionList&);
 				};
 
-				enum ELocalVarType {
+				enum ELocalVarType
+				{
 					LOCAL_GENERIC,
 					LOCAL_PARAM,
 					LOCAL_TEMP
@@ -1594,9 +1612,9 @@ namespace ObjectScript
 
 				// code generation
 				// Program * prog;
-				Value::Table * prog_numbers_table;
-				Value::Table * prog_strings_table;
-				Value::Table * prog_debug_strings_table;
+				Table * prog_numbers_table;
+				Table * prog_strings_table;
+				Table * prog_debug_strings_table;
 				Vector<OS_FLOAT> prog_numbers;
 				Vector<String> prog_strings;
 				Vector<String> prog_debug_strings;
@@ -1696,7 +1714,7 @@ namespace ObjectScript
 				String debugPrintSourceLine(TokenData*);
 				static const OS_CHAR * getExpName(ExpressionType);
 
-				int cacheString(Value::Table * strings_table, Vector<String>& strings, const String& str);
+				int cacheString(Table * strings_table, Vector<String>& strings, const String& str);
 				int cacheString(const String& str);
 				int cacheDebugString(const String& str);
 				int cacheNumber(OS_FLOAT);
@@ -1868,12 +1886,12 @@ namespace ObjectScript
 
 				OS * allocator;
 				String filename;
-				// Vector<String> strings;
-				// Vector<OS_FLOAT> numbers;
-				// OS_BYTE * opcodes;
-				Value ** const_values;
-				int num_numbers;
+
+				GC_StringValue ** const_strings;
 				int num_strings;
+				
+				OS_FLOAT * const_numbers;
+				int num_numbers;
 
 				FunctionDecl * functions;
 				int num_functions;
@@ -1898,52 +1916,28 @@ namespace ObjectScript
 				Program * retain();
 				void release();
 
-				static OpcodeType toOpcodeType(Compiler::ExpressionType);
+				static OpcodeType getOpcodeType(Compiler::ExpressionType);
 
 				bool loadFromStream(StreamReader * reader, StreamReader * debuginfo_reader);
 
 				void pushFunction();
 			};
 
-			struct FunctionRunningInstance;
-			struct FunctionValueData
-			{
-				Program * prog;
-				FunctionDecl * func_decl;
-				// Value * self; // TODO: ???
-				Value * env;
-
-#ifdef FUNC_VAL_ONE_PARENT
-				FunctionRunningInstance * parent_inctance;
-#else
-				FunctionRunningInstance ** parent_inctances;
-				// int num_parent_inctances;
-#endif
-
-				FunctionValueData();
-				~FunctionValueData();
-			};
-
 			struct FunctionRunningInstance
 			{
-				Value * func;
-				Value * self; // TODO: ???
+				GC_FunctionValue * func;
+				GC_Value * self;
 
-#ifdef FUNC_VAL_ONE_PARENT
 				FunctionRunningInstance ** parent_inctances;
-				// int num_parent_inctances;
-#else
-				FunctionRunningInstance * parent_inctance;
-#endif
 
-				Value ** locals;
+				ValueData * locals;
 				int num_params;
 				int num_extra_params;
 				int initial_stack_size;
 				int need_ret_values;
 
-				Value * arguments;
-				Value * rest_arguments;
+				GC_Value * arguments;
+				GC_Value * rest_arguments;
 
 				int opcodes_pos;
 				int ref_count;
@@ -1958,7 +1952,7 @@ namespace ObjectScript
 
 			struct Values
 			{
-				Value ** heads;
+				GC_Value ** heads;
 				int head_mask;
 				int count;
 
@@ -1969,7 +1963,7 @@ namespace ObjectScript
 
 				// Value * add(Value * obj);
 				// Value * remove(int value_id);
-				Value * get(int value_id);
+				GC_Value * get(int value_id);
 			};
 
 			OS * allocator;
@@ -2072,12 +2066,9 @@ namespace ObjectScript
 			int num_created_values;
 			int num_destroyed_values;
 
-			Value::Table * string_values_table;
-			Value * null_value;
-			Value * true_value;
-			Value * false_value;
-			Value * global_vars;
-			Value * user_pool;
+			Table * string_values_table;
+			GC_ObjectValue * global_vars;
+			GC_ObjectValue * user_pool;
 
 			enum {
 				PROTOTYPE_BOOL,
@@ -2090,29 +2081,13 @@ namespace ObjectScript
 				PROTOTYPE_COUNT
 			};
 
-			Value * prototypes[PROTOTYPE_COUNT];
+			GC_ObjectValue * prototypes[PROTOTYPE_COUNT];
 
 			// Vector<Value*> autorelease_values;
-			Vector<Value*> stack_values;
+			Vector<ValueData> stack_values;
 			Vector<FunctionRunningInstance*> call_stack_funcs;
 
-			/*
-			struct GreyList
-			{
-				Value * first;
-				Value * last;
-				
-				GreyList();
-
-				void insertBeginning(Value * new_node);
-				void insertEnd(Value * new_node);
-				void insertAfter(Value * node, Value * new_node);
-				void insertBefore(Value * node, Value * new_node);
-				void remove(Value * node);
-			} gc_grey_list;
-			*/
-
-			Value * gc_grey_list_first;
+			GC_Value * gc_grey_list_first;
 			bool gc_grey_root_initialized;
 			int gc_values_head_index;
 			int gc_time;
@@ -2121,16 +2096,7 @@ namespace ObjectScript
 			float gc_start_values_mult;
 			float gc_step_size_mult;
 			int gc_start_next_values;
-			// int gc_root_start_values;
-			// int gc_root_commited_values;
-			// int gc_root_commited_step_size;
-			// int gc_old_values;
-			// int gc_old_created_values;
-			// int gc_old_destroyed_values;
 			int gc_step_size;
-			// int gc_grey_removed_count;
-
-			int fatal_error;
 
 			struct {
 				bool create_debug_opcodes;
@@ -2138,20 +2104,6 @@ namespace ObjectScript
 				bool recompile_sourcecode;
 			} settings;
 
-			/*
-			struct OpcodeTime
-			{
-				Program::OpcodeType opcode;
-				float time;
-
-				OpcodeTime();
-			};
-
-			static OpcodeTime opcode_usage[Program::OPCODE_COUNT];
-			static bool opcode_usage_initialized;
-
-			void sortOpcodeUsage();
-			*/
 			void * malloc(int size);
 			void free(void * p);
 
@@ -2160,14 +2112,15 @@ namespace ObjectScript
 
 			void gcInitGreyList();
 			void gcResetGreyList();
-			void gcAddToGreyList(Value*);
-			void gcRemoveFromGreyList(Value*);
+			void gcAddToGreyList(GC_Value*);
+			void gcAddToGreyList(ValueData&);
+			void gcRemoveFromGreyList(GC_Value*);
 			void gcProcessGreyProgram(Program * prog);
-			void gcProcessGreyTable(Value::Table * table);
-			void gcProcessGreyValueFunction(Value * func_value);
+			void gcProcessGreyTable(Table * table);
+			void gcProcessGreyFunctionValue(GC_FunctionValue * func_value);
 			void gcProcessGreyFunctionRunning(FunctionRunningInstance*);
 			void gcProcessStringsCacheTable();
-			void gcProcessGreyValue(Value*);
+			void gcProcessGreyValue(GC_Value*);
 			void gcProcessGreyList(int step_size);
 			
 			// return next gc phase
@@ -2177,69 +2130,73 @@ namespace ObjectScript
 			void gcFinishMarkPhase();
 			void gcFull();
 
-			void resetValue(Value*);
-			void deleteValue(Value*);
+			void clearValue(ValueData&);
+			void clearValue(GC_Value*);
+			void deleteValue(GC_Value*);
+			bool isValueUsed(GC_Value*);
 
-			FunctionValueData * newFunctionValueData(FunctionRunningInstance * func_running, Program*, FunctionDecl*);
-			void deleteFunctionValueData(FunctionValueData*);
+			GC_FunctionValue * pushFunctionValue(FunctionRunningInstance * func_running, Program*, FunctionDecl*);
+			void clearFunctionValue(GC_FunctionValue*);
 
-			// FunctionRunningInstance * newFunctionRunningInstance();
 			void releaseFunctionRunningInstance(FunctionRunningInstance*);
 
-			Value * newValue();
-			Value * newBoolValue(bool);
-			Value * newNumberValue(OS_FLOAT);
-			Value * newStringValue(const String&);
-			Value * newStringValue(const OS_CHAR*);
-			Value * newCFunctionValue(OS_CFunction func, void * user_param);
-			Value * newCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
-			Value * newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
-			Value * newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
-			Value * newObjectValue();
-			Value * newObjectValue(Value * prototype);
-			Value * newArrayValue();
+			// GC_Value * newValue();
+			// ValueData newBoolValue(bool);
+			// ValueData newNumberValue(OS_FLOAT);
+			GC_StringValue * newStringValue(const String&);
+			GC_StringValue * newStringValue(const OS_CHAR*);
+			GC_CFunctionValue * newCFunctionValue(OS_CFunction func, void * user_param);
+			GC_CFunctionValue * newCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
+			GC_UserDataValue * newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
+			GC_UserDataValue * newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
+			GC_ObjectValue * newObjectValue();
+			GC_ObjectValue * newObjectValue(GC_Value * prototype);
+			GC_ObjectValue * newArrayValue();
 
-			Value * pushValue(Value * val);
-			Value * pushStackValue(int offs);
-			Value * insertValue(Value * val, int offs);
-			Value * pushValueAutoNull(Value * val);
-			Value * pushConstNullValue();
-			Value * pushConstTrueValue();
-			Value * pushConstFalseValue();
-			Value * pushConstBoolValue(bool);
-			Value * pushNewNullValue();
-			Value * pushNumberValue(OS_INT);
-			Value * pushNumberValue(OS_FLOAT);
-			Value * pushStringValue(const String&);
-			Value * pushStringValue(const OS_CHAR*);
-			Value * pushCFunctionValue(OS_CFunction func, void * user_param);
-			Value * pushCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
-			Value * pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
-			Value * pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
-			Value * pushObjectValue();
-			Value * pushObjectValue(Value * prototype);
-			Value * pushArrayValue();
-			Value * pushTypeOf(Value * val);
-			Value * pushNumberOf(Value * val);
-			Value * pushStringOf(Value * val);
-			Value * pushValueOf(Value * val);
-			Value * pushArrayOf(Value * val);
-			Value * pushObjectOf(Value * val);
-			Value * pushUserDataOf(Value * val);
-			Value * pushFunctionOf(Value * val);
-			Value * pushCloneValue(Value * val);
+			template<class T> T * pushValue(T * val){ pushValueData(ValueData(val)); return val; }
+
+			void pushValueData(const ValueData& val);
+			void pushStackValue(int offs);
+			void insertValue(ValueData& val, int offs);
+			void pushNull();
+			void pushTrue();
+			void pushFalse();
+			void pushBool(bool);
+			void pushNumber(OS_INT);
+			void pushNumber(OS_FLOAT);
+			
+			GC_StringValue * pushStringValue(const String&);
+			GC_StringValue * pushStringValue(const OS_CHAR*);
+			GC_CFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
+			GC_CFunctionValue * pushCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
+			GC_UserDataValue * pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
+			GC_UserDataValue * pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
+			GC_ObjectValue * pushObjectValue();
+			GC_ObjectValue * pushObjectValue(GC_Value * prototype);
+			GC_ObjectValue * pushArrayValue();
+
+			void pushTypeOf(const ValueData& val);
+			bool pushNumberOf(const ValueData& val);
+			bool pushStringOf(const ValueData& val);
+			bool pushValueOf(const ValueData& val);
+			GC_ObjectValue * pushArrayOf(ValueData& val);
+			GC_ObjectValue * pushObjectOf(ValueData& val);
+			GC_UserDataValue * pushUserDataOf(ValueData& val);
+			bool pushFunctionOf(ValueData& val);
+
+			void pushCloneValue(ValueData& val);
 
 			// unary operator
-			Value * pushOpResultValue(int opcode, Value * value);
+			void pushOpResultValue(int opcode, ValueData& value);
 
 			// binary operator
-			Value * pushOpResultValue(int opcode, Value * left_value, Value * right_value);
+			void pushOpResultValue(int opcode, ValueData& left_value, ValueData& right_value);
 
-			void setGlobalValue(const String& name, Value * value, bool prototype_enabled, bool setter_enabled);
-			void setGlobalValue(const OS_CHAR * name, Value * value, bool prototype_enabled, bool setter_enabled);
+			void setGlobalValue(const String& name, ValueData& value, bool prototype_enabled, bool setter_enabled);
+			void setGlobalValue(const OS_CHAR * name, ValueData& value, bool prototype_enabled, bool setter_enabled);
 
 			int getStackOffs(int offs);
-			Value * getStackValue(int offs);
+			ValueData getStackValue(int offs);
 
 			void removeStackValues(int offs, int count);
 			void removeStackValue(int offs = -1);
@@ -2250,39 +2207,49 @@ namespace ObjectScript
 
 			void syncStackRetValues(int need_ret_values, int cur_ret_values);
 
-			// Value * registerValue(Value * val);
-			Value * unregisterValue(int value_id);
+			void registerValue(GC_Value * val);
+			GC_Value * unregisterValue(int value_id);
 			void deleteValues();
 
-			bool valueToBool(Value * val);
-			OS_INT valueToInt(Value * val, bool valueof_enabled = false);
-			OS_FLOAT valueToNumber(Value * val, bool valueof_enabled = false);
-			String valueToString(Value * val, bool valueof_enabled = false);
+			bool valueToBool(const ValueData& val);
+			OS_INT valueToInt(const ValueData& val, bool valueof_enabled = false);
+			OS_FLOAT valueToNumber(const ValueData& val, bool valueof_enabled = false);
+			String valueToString(const ValueData& val, bool valueof_enabled = false);
 
-			bool isValueNumber(Value * val, OS_FLOAT * out = NULL);
-			bool isValueString(Value * val, String * out = NULL);
-			bool isValueInstanceOf(Value * val, Value * prototype_val);
+			bool isValueNumber(const ValueData& val, OS_FLOAT * out = NULL);
+			bool isValueString(const ValueData& val, String * out = NULL);
+			bool isValueInstanceOf(GC_Value * val, GC_Value * prototype_val);
+			bool isValueInstanceOf(const ValueData& val, const ValueData& prototype_val);
 
-			Value::Table * newTable();
-			void deleteTable(Value::Table*);
-			void addTableProperty(Value::Table * table, Value::Property * prop);
-			bool deleteTableProperty(Value::Table * table, const PropertyIndex& index);
-			void deleteValueProperty(Value * value, Value * index_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
-			void reorderTableNumericKeys(Value::Table * table);
-			void reorderTableKeys(Value::Table * table);
-			void initTableProperties(Value::Table * dst, Value::Table * src);
+			Table * newTable();
+			void deleteTable(Table*);
+			void addTableProperty(Table * table, Property * prop);
+			bool deleteTableProperty(Table * table, const PropertyIndex& index);
+			void deleteValueProperty(GC_Value * table_value, ValueData * index_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
+			void deleteValueProperty(ValueData& table_value, ValueData * index_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
+			void reorderTableNumericKeys(Table * table);
+			void reorderTableKeys(Table * table);
+			void initTableProperties(Table * dst, Table * src);
 
-			Value::Property * setTableValue(Value::Table * table, PropertyIndex& index, Value * val);
-			void setPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, Value * val, bool prototype_enabled, bool setter_enabled);
-			void setPropertyValue(Value * table_value, Value * index_value, Value * val, bool prototype_enabled, bool setter_enabled);
+			Property * setTableValue(Table * table, PropertyIndex& index, ValueData& val);
+			void setPropertyValue(GC_Value * table_value, ValueData * index_value, PropertyIndex& index, ValueData& val, bool prototype_enabled, bool setter_enabled);
+			void setPropertyValue(ValueData& table_value, ValueData * index_value, PropertyIndex& index, ValueData& val, bool prototype_enabled, bool setter_enabled);
+			void setPropertyValue(GC_Value * table_value, ValueData& index_value, ValueData& val, bool prototype_enabled, bool setter_enabled);
+			void setPropertyValue(ValueData& table_value, ValueData& index_value, ValueData& val, bool prototype_enabled, bool setter_enabled);
 
-			Value * getPropertyValue(Value::Table * table, const PropertyIndex& index);
-			Value * getPropertyValue(Value * table_value, PropertyIndex& index, bool prototype_enabled);
+			bool getPropertyValue(ValueData& result, Table * table, const PropertyIndex& index);
+			bool getPropertyValue(ValueData& result, GC_Value * table_value, PropertyIndex& index, bool prototype_enabled);
+			bool getPropertyValue(ValueData& result, ValueData& table_value, PropertyIndex& index, bool prototype_enabled);
 
-			Value * pushPropertyValue(Value * table_value, Value * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
-			Value * pushPropertyValue(Value * table_value, Value * index_value, bool prototype_enabled, bool getter_enabled, bool auto_create);
+			void pushPropertyValue(GC_Value * table_value, ValueData * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
+			void pushPropertyValue(ValueData& table_value, ValueData * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
+			void pushPropertyValue(GC_Value * table_value, ValueData& index_value, bool prototype_enabled, bool getter_enabled, bool auto_create);
+			void pushPropertyValue(ValueData& table_value, ValueData& index_value, bool prototype_enabled, bool getter_enabled, bool auto_create);
 
-			void enterFunction(Value * value, Value * self, int params, int extra_remove_from_stack, int need_ret_values);
+			void setPrototype(const ValueData& val, const ValueData& proto);
+			void pushPrototype(const ValueData& val);
+
+			void enterFunction(GC_FunctionValue * func_value, GC_Value * self, int params, int extra_remove_from_stack, int need_ret_values);
 			int leaveFunction();
 			int execute();
 
@@ -2323,7 +2290,7 @@ namespace ObjectScript
 
 	public:
 
-		class String: public Core::String // retains os, external strings must use String instead of String
+		class String: public Core::String // retains os, external strings must use OS::String instead of OS::Core::String
 		{
 			typedef Core::String super;
 
@@ -2351,44 +2318,6 @@ namespace ObjectScript
 			String& append(const void*, int size);
 			String& append(const OS_CHAR*);
 		};
-
-		/*
-		class Value
-		{
-			friend class OS;
-
-		private:
-
-			OS * allocator;
-			Core::Value * value;
-
-		protected:
-
-			Value(OS*, Core::Value*);
-
-		public:
-
-			Value(const Value&);
-			~Value();
-
-			Value& operator=(const Value&);
-
-			int getId() const;
-
-			OS_EValueType getType() const;
-			bool isNumber(OS_FLOAT * out = NULL) const;
-			bool isString(String * out = NULL) const;
-			bool isType(OS_EValueType) const;
-			bool isObject() const;
-			bool isArray() const;
-			bool isFunction() const;
-			bool isInstanceOf(const Value& prototype_value) const;
-			
-			bool toBool() const;
-			OS_FLOAT toNumber() const;
-			String toString() const;
-		};
-		*/
 
 		static OS * create(MemoryManager * = NULL);
 
@@ -2420,9 +2349,6 @@ namespace ObjectScript
 		int getId(int offs = -1);
 		
 		void pushNull();
-		// void pushNumber(OS_INT16);
-		// void pushNumber(OS_INT32);
-		// void pushNumber(OS_INT64);
 		void pushNumber(OS_FLOAT);
 		void pushBool(bool);
 		void pushString(const OS_CHAR*);
@@ -2464,14 +2390,6 @@ namespace ObjectScript
 		bool isFunction(int offs = -1);
 		bool isUserData(int offs = -1);
 		bool isInstanceOf(int value_offs = -2, int prototype_offs = -1);
-		// bool checkType(int offs, OS_EValueType type);
-
-		/*
-		void getValueOf();
-		void getNumberOf();
-		void getStringOf();
-		void getBooleanOf();
-		*/
 
 		bool toBool(int offs = -1);
 		OS_FLOAT toNumber(int offs = -1, bool valueof_enabled = true);
@@ -2510,4 +2428,4 @@ namespace ObjectScript
 
 } // namespace OS
 
-#endif // __OBJECT_SCRIPT__
+#endif // __OBJECT_SCRIPT_H__
