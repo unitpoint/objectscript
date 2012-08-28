@@ -2242,7 +2242,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 	case EXP_TYPE_GET_PROPERTY:
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 	// case EXP_TYPE_GET_PROPERTY_DIM:
-	// case EXP_TYPE_SET_AUTO_VAR_DIM:
+	// case EXP_TYPE_SET_ENV_VAR_DIM:
 	case EXP_TYPE_EXTENDS:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
@@ -2387,8 +2387,8 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			break;
 		}
 
-	case EXP_TYPE_GET_AUTO_VAR:
-	case EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE:
+	case EXP_TYPE_GET_ENV_VAR:
+	case EXP_TYPE_GET_ENV_VAR_AUTO_CREATE:
 		{
 			OS_ASSERT(list.count == 0);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
@@ -2409,7 +2409,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			break;
 		}
 
-	case EXP_TYPE_SET_AUTO_VAR:
+	case EXP_TYPE_SET_ENV_VAR:
 		{
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
@@ -2732,24 +2732,24 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		prog_opcodes->writeUVariable(cacheString(exp->token->str));
 		break;
 
-	case EXP_TYPE_GET_AUTO_VAR:
+	case EXP_TYPE_GET_ENV_VAR:
 		OS_ASSERT(exp->list.count == 0);
-		prog_opcodes->writeByte(Program::OP_PUSH_AUTO_VAR);
+		prog_opcodes->writeByte(Program::OP_PUSH_ENV_VAR);
 		prog_opcodes->writeUVariable(cacheString(exp->token->str));
 		break;
 
-	case EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE:
+	case EXP_TYPE_GET_ENV_VAR_AUTO_CREATE:
 		OS_ASSERT(exp->list.count == 0);
-		prog_opcodes->writeByte(Program::OP_PUSH_AUTO_VAR_AUTO_CREATE);
+		prog_opcodes->writeByte(Program::OP_PUSH_ENV_VAR_AUTO_CREATE);
 		prog_opcodes->writeUVariable(cacheString(exp->token->str));
 		break;
 
-	case EXP_TYPE_SET_AUTO_VAR:
+	case EXP_TYPE_SET_ENV_VAR:
 		OS_ASSERT(exp->list.count > 0);
 		if(!writeOpcodes(scope, exp->list)){
 			return false;
 		}
-		prog_opcodes->writeByte(Program::OP_SET_AUTO_VAR);
+		prog_opcodes->writeByte(Program::OP_SET_ENV_VAR);
 		prog_opcodes->writeUVariable(cacheString(exp->token->str));
 		break;
 
@@ -3627,7 +3627,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 	// case EXP_TYPE_GET_PROPERTY_DIM:
 	case EXP_TYPE_INDIRECT:
-	// case EXP_TYPE_GET_AUTO_VAR_DIM:
+	// case EXP_TYPE_GET_ENV_VAR_DIM:
 	case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
 	case EXP_TYPE_TAIL_CALL_METHOD: // ret values are not used for tail call
 		exp->ret_values = ret_values;
@@ -3646,7 +3646,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 			case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 			// case EXP_TYPE_GET_PROPERTY_DIM:
 			case EXP_TYPE_INDIRECT:
-			// case EXP_TYPE_GET_AUTO_VAR_DIM:
+			// case EXP_TYPE_GET_ENV_VAR_DIM:
 			case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
 			case EXP_TYPE_TAIL_CALL_METHOD: // ret values are not used for tail call
 				last_exp->ret_values = ret_values;
@@ -3693,7 +3693,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 				case EXP_TYPE_GET_PROPERTY:
 				case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 				// case EXP_TYPE_GET_PROPERTY_DIM:
-				// case EXP_TYPE_GET_AUTO_VAR_DIM:
+				// case EXP_TYPE_GET_ENV_VAR_DIM:
 				case EXP_TYPE_INDIRECT:
 					if(exp->ret_values <= param_exp->ret_values){
 						param_exp->ret_values -= exp->ret_values;
@@ -3752,7 +3752,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newSingleValueExpression(Ex
 	case EXP_TYPE_GET_PROPERTY:
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 	// case EXP_TYPE_GET_PROPERTY_DIM:
-	// case EXP_TYPE_GET_AUTO_VAR_DIM:
+	// case EXP_TYPE_GET_ENV_VAR_DIM:
 	case EXP_TYPE_INDIRECT:
 		{
 			exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_VALUE, exp->token, exp);
@@ -3992,7 +3992,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				scope->function->max_up_count = exp->local_var.up_count;
 			}
 		}else{
-			exp->type = EXP_TYPE_GET_AUTO_VAR;
+			exp->type = EXP_TYPE_GET_ENV_VAR;
 		}
 		break;
 
@@ -4082,8 +4082,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 						get_exp->type = EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE;
 						break;
 					
-					case EXP_TYPE_GET_AUTO_VAR:
-						get_exp->type = EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE;
+					case EXP_TYPE_GET_ENV_VAR:
+						get_exp->type = EXP_TYPE_GET_ENV_VAR_AUTO_CREATE;
 						break;
 					}
 					break;
@@ -4823,7 +4823,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 				OS_ASSERT(exp->list.count == 1);
 				exp = exp->list[0];
 				switch(exp->type){
-				case EXP_TYPE_SET_AUTO_VAR:
+				case EXP_TYPE_SET_ENV_VAR:
 				case EXP_TYPE_SET_LOCAL_VAR:
 					break;
 
@@ -4834,7 +4834,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			}
 			break;
 
-		case EXP_TYPE_SET_AUTO_VAR:
+		case EXP_TYPE_SET_ENV_VAR:
 			for(;;){
 				OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false));
 				scope->addLocalVar(exp->token->str, exp->local_var);
@@ -4842,7 +4842,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 				OS_ASSERT(exp->list.count == 1);
 				exp = exp->list[0];
 				switch(exp->type){
-				case EXP_TYPE_SET_AUTO_VAR:
+				case EXP_TYPE_SET_ENV_VAR:
 				case EXP_TYPE_SET_LOCAL_VAR:
 					break;
 
@@ -5523,7 +5523,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 					if(findLocalVar(var_exp_left->local_var, scope, var_exp_left->token->str, var_exp_left->active_locals, true)){
 						var_exp_left->type = EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE;
 					}else{
-						var_exp_left->type = EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE;
+						var_exp_left->type = EXP_TYPE_GET_ENV_VAR_AUTO_CREATE;
 					}
 					break;
 				}
@@ -5560,7 +5560,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 				scope->function->max_up_count = var_exp->local_var.up_count;
 			}		
 		}else{
-			var_exp->type = EXP_TYPE_SET_AUTO_VAR;
+			var_exp->type = EXP_TYPE_SET_ENV_VAR;
 		}
 		var_exp->list.add(value_exp);
 		var_exp->ret_values = value_exp->ret_values-1;
@@ -6387,17 +6387,17 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE:
 		return OS_TEXT("get local var auto create");
 
-	case EXP_TYPE_GET_AUTO_VAR:
-		return OS_TEXT("get auto var");
+	case EXP_TYPE_GET_ENV_VAR:
+		return OS_TEXT("get env var");
 
-	case EXP_TYPE_GET_AUTO_VAR_AUTO_CREATE:
-		return OS_TEXT("get auto var auto create");
+	case EXP_TYPE_GET_ENV_VAR_AUTO_CREATE:
+		return OS_TEXT("get env var auto create");
 
 	case EXP_TYPE_SET_LOCAL_VAR:
 		return OS_TEXT("set local var");
 
-	case EXP_TYPE_SET_AUTO_VAR:
-		return OS_TEXT("set auto var");
+	case EXP_TYPE_SET_ENV_VAR:
+		return OS_TEXT("set env var");
 
 	case EXP_TYPE_ASSIGN:
 		return OS_TEXT("operator =");
@@ -12191,8 +12191,8 @@ restart:
 				break;
 			}
 
-		case Program::OP_PUSH_AUTO_VAR:
-		case Program::OP_PUSH_AUTO_VAR_AUTO_CREATE:
+		case Program::OP_PUSH_ENV_VAR:
+		case Program::OP_PUSH_ENV_VAR_AUTO_CREATE:
 			{
 				i = opcodes.readUVariable();
 				OS_ASSERT(i >= 0 && i < prog_num_strings);
@@ -12201,11 +12201,11 @@ restart:
 				// String name = valueToString(name_value);
 				pushPropertyValue(env, NULL, 
 					PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
-					true, true, opcode == Program::OP_PUSH_AUTO_VAR_AUTO_CREATE); 
+					true, true, opcode == Program::OP_PUSH_ENV_VAR_AUTO_CREATE); 
 				break;
 			}
 
-		case Program::OP_SET_AUTO_VAR:
+		case Program::OP_SET_ENV_VAR:
 			{
 				OS_ASSERT(stack_values.count >= 1);
 				i = opcodes.readUVariable();
