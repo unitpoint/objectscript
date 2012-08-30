@@ -40,6 +40,7 @@
 #include <stdlib.h>
 
 #define OS_ASSERT assert
+#define OS_DEBUG _DEBUG
 
 #define OS_MEMCMP memcmp
 #define OS_MEMMOVE memmove
@@ -297,7 +298,7 @@ namespace ObjectScript
 
 		struct Utils
 		{
-			static bool parseNum(const OS_CHAR *& str, OS_FLOAT& fval);
+			static bool parseFloat(const OS_CHAR *& str, OS_FLOAT& val);
 
 			static OS_CHAR * numToStr(OS_CHAR*, OS_INT value);
 			static OS_CHAR * numToStr(OS_CHAR*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
@@ -305,7 +306,9 @@ namespace ObjectScript
 			static OS_INT strToInt(const OS_CHAR*);
 			static OS_FLOAT strToFloat(const OS_CHAR*);
 
-			static int keyToHash(const OS_CHAR*, int size);
+			static int addKeyToHash(int hash, const void*, int size);
+			static int keyToHash(const void*, int size);
+			static int keyToHash(const void * buf1, int size1, const void * buf2, int size2);
 
 			static int cmp(const void * buf1, int len1, const void * buf2, int len2);
 			static int cmp(const void * buf1, int len1, const void * buf2, int len2, int maxLen);
@@ -487,6 +490,7 @@ namespace ObjectScript
 			}
 		}
 
+		class String;
 		class Core
 		{
 		public:
@@ -670,132 +674,51 @@ namespace ObjectScript
 				void * readBytesAtPos(void*, int len, int pos);
 			};
 
-			class StringData
+			class GCStringValue;
+			class StringBuffer;
+			class String
 			{
 			public:
 
-				OS * allocator;
-				int ref_count;
-				int allocated_bytes;
-				int data_size;
-
-				const OS_CHAR * toChar() const { return (OS_CHAR*)(this + 1); }
-				static StringData * toData(const OS_CHAR * s){ return (StringData*)s-1; }
-				void * toMemory() const { return (void*)(this + 1); }
-
-				int getAllocatedBytes() const { return allocated_bytes; }
-				int getDataSize() const { return data_size; }
-				int getLen() const { return data_size/sizeof(OS_CHAR); }
-
-				const OS_CHAR * toCharSafely() const { return this ? (OS_CHAR*)(this + 1) : OS_TEXT(""); }
-
-				static StringData * alloc(OS*, int size, const void *, int data_size);
-				static StringData * alloc(OS*, int size, const void * buf1, int len1, const void * buf2, int len2);
-				static StringData * alloc(OS*, int size, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
-				static void free(StringData*);
-
-				static StringData * alloc(OS*, const void *, int data_size);
-				static StringData * alloc(int size, StringData*);
-				static StringData * alloc(StringData*);
-				static StringData * alloc(int size, StringData*, int data_size);
-				static StringData * alloc(StringData*, int data_size);
-
-				static StringData * append(StringData * self, StringData * b);
-				static StringData * append(StringData * self, const void *, int data_size);
-
-				StringData * retain();
-				void release();
-
-				// StringData * retainSafely();
-				// void releaseSafely();
-
-				OS_INT toInt() const;
-				OS_FLOAT toFloat() const;
-
-				int cmp(const StringData*) const;
-				int cmp(const void *, int data_size) const;
-				int hash() const;
-
-			private:
-
-				StringData();
-				StringData(const StringData&);
-				StringData& operator=(const StringData&);
-
-				~StringData()
-				{
-					OS_ASSERT(allocated_bytes == 0);
-					OS_ASSERT(data_size == 0);
-				}
-			};
-
-			class String // doesn't retain OS, strings inside of OS must use OS::Core::String instead of OS::String
-			{
-			protected:
-
-				// StringData * data;
+#ifdef OS_DEBUG
 				const OS_CHAR * str;
-
-			public:
+#endif
+				GCStringValue * string;
 
 				String(OS*);
+				String(GCStringValue*);
+				String(const String&);
 				String(OS*, const OS_CHAR*);
-				String(OS*, OS_CHAR, int count);
+				String(OS*, const OS_CHAR*, int len);
+				String(OS*, const OS_CHAR*, int len, const OS_CHAR*, int len2);
+				String(OS*, const OS_CHAR*, int len, bool trim_left, bool trim_right);
 				String(OS*, const void*, int size);
 				String(OS*, const void * buf1, int len1, const void * buf2, int len2);
-				String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
-				String(const String&);
-				String(StringData*);
+				// String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 				String(OS*, OS_INT value);
-				String(OS*, OS_FLOAT value, int precision = OS_DEF_PRECISION);
+				String(OS*, OS_FLOAT value, int precision);
 				~String();
 
 				static String format(OS*, int temp_buf_size, const OS_CHAR * fmt, ...);
-				static String format(OS*, int temp_buf_size, const OS_CHAR * fmt, va_list);
+				static String formatVa(OS*, int temp_buf_size, const OS_CHAR * fmt, va_list va);
 				static String format(OS*, const OS_CHAR * fmt, ...);
-				static String format(OS*, const OS_CHAR * fmt, va_list);
+				static String formatVa(OS*, const OS_CHAR * fmt, va_list va);
 
-				String& setFormat(int temp_buf_size, const OS_CHAR * fmt, ...);
-				String& setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list);
-				String& setFormat(const OS_CHAR * fmt, ...);
-				String& setFormat(const OS_CHAR * fmt, va_list);
+				const OS_CHAR * toChar() const { return string->toChar(); }
+				operator const OS_CHAR*() const { return string->toChar(); }
 
-				StringData * toData() const { return StringData::toData(str); }
-				StringData * toData(){ return StringData::toData(str); }
-
-				OS * getAllocator(){ return toData()->allocator; }
-				OS * getAllocator() const { return toData()->allocator; }
-
-				const OS_CHAR * toChar() const { return str; } // toData()->toChar(); }
-				operator const OS_CHAR*() const { return str; } // toChar(); }
-				// operator StringData*() { return data; }
-
-				// bool isNull() const { return data == NULL; }
-				int getAllocatedBytes() const { return toData()->allocated_bytes; }
-				int getDataSize() const { return toData()->data_size; }
-				int getLen() const { return toData()->getLen(); }
-
-				void clear();
-
-				OS_INT toInt() const;
-				OS_FLOAT toFloat() const;
+				int getDataSize() const { return string->data_size; }
+				int getLen() const { return string->getLen(); }
 
 				String& operator=(const String&);
-				String& operator=(const OS_CHAR*);
-
-				String& operator+=(const String&);
-				String& operator+=(const OS_CHAR*);
-				String& append(const void*, int size);
-				String& append(const OS_CHAR*);
-
-				String operator+(const String&) const;
-				String operator+(const OS_CHAR*) const;
 
 				bool operator==(const String&) const;
 				bool operator==(const OS_CHAR*) const;
+				bool operator==(GCStringValue*) const;
 
 				bool operator!=(const String&) const;
 				bool operator!=(const OS_CHAR*) const;
+				bool operator!=(GCStringValue*) const;
 
 				bool operator<=(const String&) const;
 				bool operator<=(const OS_CHAR*) const;
@@ -809,13 +732,34 @@ namespace ObjectScript
 				bool operator>(const String&) const;
 				bool operator>(const OS_CHAR*) const;
 
-				String trim(bool trim_left = true, bool trim_right = true) const;
-
 				int cmp(const String&) const;
 				int cmp(const OS_CHAR*) const;
-				int hash() const;
+				int getHash() const;
 
-				String clone() const;
+				OS_FLOAT toFloat() const;
+			};
+
+			class StringBuffer: public Vector<OS_CHAR>
+			{
+			public:
+
+				OS * allocator;
+
+				StringBuffer(OS*);
+				~StringBuffer();
+
+				StringBuffer& append(OS_CHAR);
+				StringBuffer& append(const OS_CHAR*);
+				StringBuffer& append(const OS_CHAR*, int len);
+				StringBuffer& append(const String&);
+				StringBuffer& append(const StringBuffer&);
+
+				StringBuffer& operator+=(const String&);
+
+				operator String() const;
+				String toString() const;
+
+				GCStringValue * toGCStringValue() const;
 			};
 
 			class Tokenizer
@@ -936,9 +880,8 @@ namespace ObjectScript
 				{
 				protected:
 
+					OS * allocator;
 					~TextData();
-
-					OS * getAllocator();
 
 				public:
 
@@ -949,6 +892,8 @@ namespace ObjectScript
 
 					TextData(OS*);
 
+					OS * getAllocator();
+					
 					TextData * retain();
 					void release();
 				};
@@ -1106,15 +1051,15 @@ namespace ObjectScript
 				void removeIterator(IteratorState*);
 			};
 
-			struct GC_Value
+			struct GCValue
 			{
 				int value_id;
-				// int ref_count;
-				GC_Value * prototype;
-				GC_Value * hash_next;
+				int external_ref_count;
+				GCValue * prototype;
+				GCValue * hash_next;
 
 				// Value * gc_grey_prev;
-				GC_Value * gc_grey_next;
+				GCValue * gc_grey_next;
 
 				Table * table;
 
@@ -1126,20 +1071,94 @@ namespace ObjectScript
 					GC_BLACK
 				} gc_color;
 
-				GC_Value();
-				virtual ~GC_Value();
+				GCValue();
+				virtual ~GCValue();
 			};
 
-			struct GC_ObjectValue: public GC_Value
+			template <class T>
+			struct GCValueRetained
+			{
+				T * value;
+
+				GCValueRetained(T * v)
+				{
+					value = v;
+					if(value){
+						value->external_ref_count++;
+					}
+				}
+				GCValueRetained(const GCValueRetained& b)
+				{
+					value = b.value;
+					if(value){
+						value->external_ref_count++;
+					}
+				}
+				~GCValueRetained()
+				{
+					if(value){
+						OS_ASSERT(value->external_ref_count > 0);
+						value->external_ref_count--;
+					}
+				}
+
+				T * operator->(){ return value; }
+				operator T* (){ return value; }
+
+				GCValueRetained& operator=(const GCValueRetained& b)
+				{
+					if(value != b.value){
+						if(value){
+							OS_ASSERT(value->external_ref_count > 0);
+							value->external_ref_count--;
+						}
+						value = b.value;
+						if(value){
+							value->external_ref_count++;
+						}
+					}
+					return *this;
+				}
+			};
+
+			struct GCObjectValue: public GCValue
 			{
 			};
 
-			struct GC_StringValue: public GC_Value
+			struct GCStringValue: public GCValue
 			{
-				StringData * string_data;
+#ifdef OS_DEBUG
+				OS_CHAR * str;
+#endif
+				int data_size;
+				int hash;
+
+				GCStringValue(int p_data_size);
+				// ~GCStringValue();
+
+				int getDataSize() const { return data_size; }
+				int getLen() const { return data_size/sizeof(OS_CHAR); }
+				OS_CHAR * toChar() const { return (OS_CHAR*)(this + 1); }
+				OS_BYTE * toBytes() const { return (OS_BYTE*)(this + 1); }
+				void * toMemory() const { return (void*)(this + 1); }
+				// bool isExternal() const { return str != (OS_CHAR*)(this+1); }
+
+				static GCStringValue * alloc(OS*, const void *, int data_size);
+				static GCStringValue * alloc(OS*, const void * buf1, int len1, const void * buf2, int len2);
+				// static GCStringValue * alloc(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
+				static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b);
+				// static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b, GCStringValue * c);
+
+				bool isFloat(OS_FLOAT*) const;
+				// bool isNumber(OS_FLOAT*) const;
+
+				int cmp(GCStringValue*) const;
+				int cmp(const OS_CHAR*) const;
+				int cmp(const OS_CHAR*, int len) const;
+				void calcHash();
 			};
 
-			struct GC_UserDataValue: public GC_Value
+			struct GCUserDataValue: public GCValue
 			{
 				int crc;
 				void * ptr;
@@ -1147,29 +1166,29 @@ namespace ObjectScript
 				void * user_param;
 			};
 
-			struct GC_CFunctionValue: public GC_Value
+			struct GCCFunctionValue: public GCValue
 			{
 				OS_CFunction func;
 				void * user_param;
 				int num_upvalues;
 			};
 
-			struct GC_FunctionValue;
+			struct GCFunctionValue;
 
 			struct WeakRef { WeakRef(){} };
 			struct ValueData
 			{
 				union {
-					bool boolean;
+					int boolean;
 					OS_FLOAT number;
 					// StringData * string;
 					int value_id;
-					GC_Value * value;
-					GC_ObjectValue * object;
-					GC_StringValue * string;
-					GC_UserDataValue * userdata;
-					GC_FunctionValue * func;
-					GC_CFunctionValue * cfunc;
+					GCValue * value;
+					GCObjectValue * object;
+					GCStringValue * string;
+					GCUserDataValue * userdata;
+					GCFunctionValue * func;
+					GCCFunctionValue * cfunc;
 				} v;
 
 				OS_EValueType type;
@@ -1180,23 +1199,44 @@ namespace ObjectScript
 				ValueData(int);
 				ValueData(int, const WeakRef&);
 				// ValueData(const ValueData&);
-				ValueData(GC_Value*);
+				ValueData(GCValue*);
 
 				// ValueData& operator=(const ValueData&);
-				ValueData& operator=(GC_Value*);
+				ValueData& operator=(GCValue*);
 				
 				void clear();
 
-				GC_Value * getGCValue() const;
+				GCValue * getGCValue() const;
 
 				bool isFunction() const;
 				bool isUserData() const;
 			};
 
+			struct ValueDataRetained: public ValueData
+			{
+				typedef ValueData super;
+
+				ValueDataRetained();
+				ValueDataRetained(bool);
+				ValueDataRetained(OS_FLOAT);
+				ValueDataRetained(int);
+				ValueDataRetained(int, const WeakRef&);
+				ValueDataRetained(GCValue*);
+				ValueDataRetained(const ValueData&);
+				~ValueDataRetained();
+
+				ValueDataRetained& operator=(ValueData&);
+				
+				void clear();
+
+				void retain();
+				void release();
+			};
+
 			struct Program;
 			struct FunctionDecl;
 			struct FunctionRunningInstance;
-			struct GC_FunctionValue: public GC_Value
+			struct GCFunctionValue: public GCValue
 			{
 				Program * prog; // retained
 				FunctionDecl * func_decl;
@@ -1204,8 +1244,8 @@ namespace ObjectScript
 
 				FunctionRunningInstance * parent_inctance; // retained
 
-				GC_FunctionValue();
-				~GC_FunctionValue();
+				GCFunctionValue();
+				~GCFunctionValue();
 			};
 
 			struct PropertyIndex
@@ -1215,32 +1255,23 @@ namespace ObjectScript
 					KeepStringIndex(){}
 				};
 
-				String string_index;
-				OS_INT int_index;
-				int hash_value;
-				bool is_string_index;
-				bool int_valid;
+				ValueData index;
 
 				PropertyIndex(const PropertyIndex& index);
+				PropertyIndex(const ValueData& index);
+				PropertyIndex(const ValueData& index, const KeepStringIndex&);
+				PropertyIndex(GCStringValue * index);
+				PropertyIndex(GCStringValue * index, const KeepStringIndex&);
 				PropertyIndex(const String& index);
 				PropertyIndex(const String& index, const KeepStringIndex&);
-				PropertyIndex(StringData * index);
-				PropertyIndex(StringData * index, const KeepStringIndex&);
-				PropertyIndex(OS*, const OS_CHAR * index);
-				PropertyIndex(OS*, OS_INT32 index);
-				PropertyIndex(OS*, OS_INT64 index);
-				PropertyIndex(OS*, OS_FLOAT index, int precision = OS_DEF_PRECISION);
-				~PropertyIndex();
+				// ~PropertyIndex();
 
-				OS * getAllocator() const { return string_index.getAllocator(); }
+				void convertStringToNumber();
 
-				int cmp(const PropertyIndex& b) const;
-				int hash() const;
-
-				String toString() const;
-
-				bool checkIntIndex() const;
-				void fixStringIndex();
+				bool isEqual(const PropertyIndex& b) const;
+				bool isEqual(int hash, const void * b, int size) const;
+				bool isEqual(int hash, const void * buf1, int size1, const void * buf2, int size2) const;
+				int getHash() const;
 			};
 
 			struct Property: public PropertyIndex
@@ -1251,11 +1282,10 @@ namespace ObjectScript
 				Property * prev, * next;
 
 				Property(const PropertyIndex& index);
-				Property(const String& index);
-				Property(OS*, const OS_CHAR * index);
-				Property(OS*, OS_INT index);
-				Property(OS*, int index);
-				Property(OS*, OS_FLOAT index, int precision = OS_DEF_PRECISION);
+				Property(const ValueData& index);
+				Property(const ValueData& index, const KeepStringIndex&);
+				Property(GCStringValue * index);
+				Property(GCStringValue * index, const KeepStringIndex&);
 				~Property();
 			};
 
@@ -1288,7 +1318,7 @@ namespace ObjectScript
 					EXP_TYPE_BREAK,
 					EXP_TYPE_CONTINUE,
 					EXP_TYPE_DEBUGGER,
-					EXP_TYPE_DEBUGGER_LOCALS,
+					EXP_TYPE_DEBUG_LOCALS,
 					
 					EXP_TYPE_IF,
 
@@ -1468,6 +1498,7 @@ namespace ObjectScript
 					LocalVarDesc local_var;
 					OS_U16 active_locals;
 					OS_U16 ret_values;
+					OS_U16 target_local;
 					ExpressionType type;
 					
 					Expression(ExpressionType type, TokenData*);
@@ -1492,7 +1523,7 @@ namespace ObjectScript
 					bool isAssignOperator() const;
 					bool isLogicOperator() const;
 
-					String debugPrint(Compiler * compiler, int depth);
+					void debugPrint(StringBuffer&, Compiler * compiler, int depth);
 				};
 
 				struct Scope: public Expression
@@ -1624,6 +1655,8 @@ namespace ObjectScript
 				int prog_num_debug_infos;
 				int prog_max_up_count;
 
+				int prog_stack_size;
+
 				bool isError();
 				void resetError();
 				void setError();
@@ -1686,7 +1719,10 @@ namespace ObjectScript
 				Expression * newAssingExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
 				// Expression * newIndirectExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
 				Expression * newSingleValueExpression(Expression * exp);
-				Expression * processExpressionSecondPass(Scope * scope, Expression * exp);
+				
+				Expression * postProcessExpression(Scope * scope, Expression * exp);
+				Expression * stepPass2(Scope * scope, Expression * exp);
+				Expression * stepPass3(Scope * scope, Expression * exp);
 
 				Scope * expectTextExpression();
 				Scope * expectCodeExpression(Scope*, int ret_values = 0);
@@ -1704,14 +1740,14 @@ namespace ObjectScript
 				Expression * expectReturnExpression(Scope*);
 				Expression * expectIfExpression(Scope*);
 				Expression * expectForExpression(Scope*);
-				Expression * expectDebuggerLocalsExpression(Scope*);
+				Expression * expectDebugLocalsExpression(Scope*);
 				Expression * finishValueExpression(Scope*, Expression*, const Params& p); // bool allow_binary_operator, bool allow_param, bool allow_assign, bool allow_auto_call);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, const Params& p, bool& is_finished); // bool allow_param, bool& is_finished);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
 				bool findLocalVar(LocalVarDesc&, Scope * scope, const String& name, int active_locals, bool all_scopes);
 
-				String debugPrintSourceLine(TokenData*);
+				void debugPrintSourceLine(StringBuffer& out, TokenData*);
 				static const OS_CHAR * getExpName(ExpressionType);
 
 				int cacheString(Table * strings_table, Vector<String>& strings, const String& str);
@@ -1887,7 +1923,7 @@ namespace ObjectScript
 				OS * allocator;
 				String filename;
 
-				GC_StringValue ** const_strings;
+				GCStringValue ** const_strings;
 				int num_strings;
 				
 				OS_FLOAT * const_numbers;
@@ -1925,8 +1961,8 @@ namespace ObjectScript
 
 			struct FunctionRunningInstance
 			{
-				GC_FunctionValue * func;
-				GC_Value * self;
+				GCFunctionValue * func;
+				GCValue * self;
 
 				FunctionRunningInstance ** parent_inctances;
 
@@ -1936,8 +1972,8 @@ namespace ObjectScript
 				int initial_stack_size;
 				int need_ret_values;
 
-				GC_Value * arguments;
-				GC_Value * rest_arguments;
+				GCValue * arguments;
+				GCValue * rest_arguments;
 
 				int opcodes_pos;
 				int ref_count;
@@ -1952,7 +1988,7 @@ namespace ObjectScript
 
 			struct Values
 			{
-				GC_Value ** heads;
+				GCValue ** heads;
 				int head_mask;
 				int count;
 
@@ -1963,11 +1999,10 @@ namespace ObjectScript
 
 				// Value * add(Value * obj);
 				// Value * remove(int value_id);
-				GC_Value * get(int value_id);
+				GCValue * get(int value_id);
 			};
 
 			OS * allocator;
-			StringData * empty_string_data;
 
 			struct Strings
 			{
@@ -2055,7 +2090,7 @@ namespace ObjectScript
 				String syntax_break;
 				String syntax_continue;
 				String syntax_debugger;
-				String syntax_debugger_locals;
+				String syntax_debuglocals;
 
 				int __dummy__;
 
@@ -2067,8 +2102,8 @@ namespace ObjectScript
 			int num_destroyed_values;
 
 			Table * string_values_table;
-			GC_ObjectValue * global_vars;
-			GC_ObjectValue * user_pool;
+			GCObjectValue * global_vars;
+			GCObjectValue * user_pool;
 
 			enum {
 				PROTOTYPE_BOOL,
@@ -2081,13 +2116,13 @@ namespace ObjectScript
 				PROTOTYPE_COUNT
 			};
 
-			GC_ObjectValue * prototypes[PROTOTYPE_COUNT];
+			GCObjectValue * prototypes[PROTOTYPE_COUNT];
 
 			// Vector<Value*> autorelease_values;
 			Vector<ValueData> stack_values;
 			Vector<FunctionRunningInstance*> call_stack_funcs;
 
-			GC_Value * gc_grey_list_first;
+			GCValue * gc_grey_list_first;
 			bool gc_grey_root_initialized;
 			int gc_values_head_index;
 			int gc_time;
@@ -2112,15 +2147,15 @@ namespace ObjectScript
 
 			void gcInitGreyList();
 			void gcResetGreyList();
-			void gcAddToGreyList(GC_Value*);
+			void gcAddToGreyList(GCValue*);
 			void gcAddToGreyList(ValueData&);
-			void gcRemoveFromGreyList(GC_Value*);
+			void gcRemoveFromGreyList(GCValue*);
 			void gcProcessGreyProgram(Program * prog);
 			void gcProcessGreyTable(Table * table);
-			void gcProcessGreyFunctionValue(GC_FunctionValue * func_value);
+			void gcProcessGreyFunctionValue(GCFunctionValue * func_value);
 			void gcProcessGreyFunctionRunning(FunctionRunningInstance*);
 			void gcProcessStringsCacheTable();
-			void gcProcessGreyValue(GC_Value*);
+			void gcProcessGreyValue(GCValue*);
 			void gcProcessGreyList(int step_size);
 			
 			// return next gc phase
@@ -2131,31 +2166,45 @@ namespace ObjectScript
 			void gcFull();
 
 			void clearValue(ValueData&);
-			void clearValue(GC_Value*);
-			void deleteValue(GC_Value*);
-			bool isValueUsed(GC_Value*);
+			void clearValue(GCValue*);
+			void deleteValue(GCValue*);
+			bool isValueUsed(GCValue*);
 
-			GC_FunctionValue * pushFunctionValue(FunctionRunningInstance * func_running, Program*, FunctionDecl*);
-			void clearFunctionValue(GC_FunctionValue*);
+			GCFunctionValue * pushFunctionValue(FunctionRunningInstance * func_running, Program*, FunctionDecl*);
+			void clearFunctionValue(GCFunctionValue*);
 
 			void releaseFunctionRunningInstance(FunctionRunningInstance*);
 
-			// GC_Value * newValue();
+			// GCValue * newValue();
 			// ValueData newBoolValue(bool);
 			// ValueData newNumberValue(OS_FLOAT);
-			GC_StringValue * newStringValue(const String&);
-			GC_StringValue * newStringValue(const OS_CHAR*);
-			GC_CFunctionValue * newCFunctionValue(OS_CFunction func, void * user_param);
-			GC_CFunctionValue * newCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
-			GC_UserDataValue * newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
-			GC_UserDataValue * newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
-			GC_ObjectValue * newObjectValue();
-			GC_ObjectValue * newObjectValue(GC_Value * prototype);
-			GC_ObjectValue * newArrayValue();
+
+			GCStringValue * newStringValue(const String&);
+			GCStringValue * newStringValue(const String&, const String&);
+			GCStringValue * newStringValue(const String&, bool trim_left, bool trim_right);
+			GCStringValue * newStringValue(const OS_CHAR*);
+			GCStringValue * newStringValue(const OS_CHAR*, int len);
+			GCStringValue * newStringValue(const OS_CHAR*, int len, const OS_CHAR*, int len2);
+			GCStringValue * newStringValue(const OS_CHAR*, int len, bool trim_left, bool trim_right);
+			GCStringValue * newStringValue(const void * buf, int size);
+			GCStringValue * newStringValue(const void * buf1, int size1, const void * buf2, int size2);
+			GCStringValue * newStringValue(GCStringValue*, GCStringValue*);
+			GCStringValue * newStringValue(OS_INT);
+			GCStringValue * newStringValue(OS_FLOAT, int);
+			GCStringValue * newStringValue(int temp_buf_size, const OS_CHAR * fmt, ...);
+			GCStringValue * newStringValueVa(int temp_buf_size, const OS_CHAR * fmt, va_list va);
+
+			GCCFunctionValue * newCFunctionValue(OS_CFunction func, void * user_param);
+			GCCFunctionValue * newCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
+			GCUserDataValue * newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
+			GCUserDataValue * newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
+			GCObjectValue * newObjectValue();
+			GCObjectValue * newObjectValue(GCValue * prototype);
+			GCObjectValue * newArrayValue();
 
 			template<class T> T * pushValue(T * val){ pushValueData(ValueData(val)); return val; }
 
-			void pushValueData(const ValueData& val);
+			void pushValueData(const ValueData val);
 			void pushStackValue(int offs);
 			void insertValue(ValueData& val, int offs);
 			void pushNull();
@@ -2165,23 +2214,23 @@ namespace ObjectScript
 			void pushNumber(OS_INT);
 			void pushNumber(OS_FLOAT);
 			
-			GC_StringValue * pushStringValue(const String&);
-			GC_StringValue * pushStringValue(const OS_CHAR*);
-			GC_CFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
-			GC_CFunctionValue * pushCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
-			GC_UserDataValue * pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
-			GC_UserDataValue * pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
-			GC_ObjectValue * pushObjectValue();
-			GC_ObjectValue * pushObjectValue(GC_Value * prototype);
-			GC_ObjectValue * pushArrayValue();
+			GCStringValue * pushStringValue(const String&);
+			GCStringValue * pushStringValue(const OS_CHAR*);
+			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
+			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
+			GCUserDataValue * pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
+			GCUserDataValue * pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
+			GCObjectValue * pushObjectValue();
+			GCObjectValue * pushObjectValue(GCValue * prototype);
+			GCObjectValue * pushArrayValue();
 
 			void pushTypeOf(const ValueData& val);
 			bool pushNumberOf(const ValueData& val);
 			bool pushStringOf(const ValueData& val);
 			bool pushValueOf(const ValueData& val);
-			GC_ObjectValue * pushArrayOf(ValueData& val);
-			GC_ObjectValue * pushObjectOf(ValueData& val);
-			GC_UserDataValue * pushUserDataOf(ValueData& val);
+			GCObjectValue * pushArrayOf(ValueData& val);
+			GCObjectValue * pushObjectOf(ValueData& val);
+			GCUserDataValue * pushUserDataOf(ValueData& val);
 			bool pushFunctionOf(ValueData& val);
 
 			void pushCloneValue(ValueData& val);
@@ -2207,9 +2256,9 @@ namespace ObjectScript
 
 			void syncStackRetValues(int need_ret_values, int cur_ret_values);
 
-			void registerValue(GC_Value * val);
-			GC_Value * unregisterValue(int value_id);
-			void deleteValues();
+			void registerValue(GCValue * val);
+			GCValue * unregisterValue(int value_id);
+			void deleteValues(bool del_ref_counted_also);
 
 			bool valueToBool(const ValueData& val);
 			OS_INT valueToInt(const ValueData& val, bool valueof_enabled = false);
@@ -2218,38 +2267,35 @@ namespace ObjectScript
 
 			bool isValueNumber(const ValueData& val, OS_FLOAT * out = NULL);
 			bool isValueString(const ValueData& val, String * out = NULL);
-			bool isValueInstanceOf(GC_Value * val, GC_Value * prototype_val);
+			bool isValueString(const ValueData& val, OS::String * out = NULL);
+			bool isValueInstanceOf(GCValue * val, GCValue * prototype_val);
 			bool isValueInstanceOf(const ValueData& val, const ValueData& prototype_val);
 
 			Table * newTable();
 			void deleteTable(Table*);
 			void addTableProperty(Table * table, Property * prop);
 			bool deleteTableProperty(Table * table, const PropertyIndex& index);
-			void deleteValueProperty(GC_Value * table_value, ValueData * index_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
-			void deleteValueProperty(ValueData& table_value, ValueData * index_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
+			void deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
+			void deleteValueProperty(ValueData& table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
 			void reorderTableNumericKeys(Table * table);
 			void reorderTableKeys(Table * table);
 			void initTableProperties(Table * dst, Table * src);
 
 			Property * setTableValue(Table * table, PropertyIndex& index, ValueData& val);
-			void setPropertyValue(GC_Value * table_value, ValueData * index_value, PropertyIndex& index, ValueData& val, bool prototype_enabled, bool setter_enabled);
-			void setPropertyValue(ValueData& table_value, ValueData * index_value, PropertyIndex& index, ValueData& val, bool prototype_enabled, bool setter_enabled);
-			void setPropertyValue(GC_Value * table_value, ValueData& index_value, ValueData& val, bool prototype_enabled, bool setter_enabled);
-			void setPropertyValue(ValueData& table_value, ValueData& index_value, ValueData& val, bool prototype_enabled, bool setter_enabled);
+			void setPropertyValue(GCValue * table_value, PropertyIndex& index, ValueData& val, bool prototype_enabled, bool setter_enabled);
+			void setPropertyValue(ValueData& table_value, PropertyIndex& index, ValueData& val, bool prototype_enabled, bool setter_enabled);
 
 			bool getPropertyValue(ValueData& result, Table * table, const PropertyIndex& index);
-			bool getPropertyValue(ValueData& result, GC_Value * table_value, PropertyIndex& index, bool prototype_enabled);
+			bool getPropertyValue(ValueData& result, GCValue * table_value, PropertyIndex& index, bool prototype_enabled);
 			bool getPropertyValue(ValueData& result, ValueData& table_value, PropertyIndex& index, bool prototype_enabled);
 
-			void pushPropertyValue(GC_Value * table_value, ValueData * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
-			void pushPropertyValue(ValueData& table_value, ValueData * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
-			void pushPropertyValue(GC_Value * table_value, ValueData& index_value, bool prototype_enabled, bool getter_enabled, bool auto_create);
-			void pushPropertyValue(ValueData& table_value, ValueData& index_value, bool prototype_enabled, bool getter_enabled, bool auto_create);
+			void pushPropertyValue(GCValue * table_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
+			void pushPropertyValue(ValueData& table_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
 
 			void setPrototype(const ValueData& val, const ValueData& proto);
 			void pushPrototype(const ValueData& val);
 
-			void enterFunction(GC_FunctionValue * func_value, GC_Value * self, int params, int extra_remove_from_stack, int need_ret_values);
+			void enterFunction(GCFunctionValue * func_value, GCValue * self, int params, int extra_remove_from_stack, int need_ret_values);
 			int leaveFunction();
 			int execute();
 
@@ -2290,33 +2336,32 @@ namespace ObjectScript
 
 	public:
 
-		class String: public Core::String // retains os, external strings must use OS::String instead of OS::Core::String
+		class String: public Core::String
 		{
 			typedef Core::String super;
+
+		protected:
+
+			OS * allocator;
 
 		public:
 
 			String(OS*);
+			String(const String&);
+			String(OS*, const Core::String&);
 			String(OS*, const OS_CHAR*);
-			String(OS*, OS_CHAR, int count);
+			String(OS*, const OS_CHAR*, int len);
+			String(OS*, const OS_CHAR*, int len, bool trim_left, bool trim_right);
 			String(OS*, const void*, int size);
 			String(OS*, const void * buf1, int len1, const void * buf2, int len2);
-			String(const Core::String&);
-			String(const String&);
-			String(Core::StringData*);
+			// String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 			String(OS*, OS_INT value);
 			String(OS*, OS_FLOAT value, int precision);
 			~String();
 
-			// operator const String&() const { return *this; }
-
 			String& operator=(const Core::String&);
-			String& operator=(const OS_CHAR*);
-
-			String& operator+=(const Core::String&);
-			String& operator+=(const OS_CHAR*);
-			String& append(const void*, int size);
-			String& append(const OS_CHAR*);
+			String& operator=(const String&);
+			String& operator+=(const String&);
 		};
 
 		static OS * create(MemoryManager * = NULL);

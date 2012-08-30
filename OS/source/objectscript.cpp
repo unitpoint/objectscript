@@ -146,83 +146,108 @@ static inline void parseSpaces(const OS_CHAR *& str)
 		str++;
 }
 
-static bool parseHexSimple(const OS_CHAR *& str, OS_INT& val)
+template <class T>
+static bool parseSimpleHex(const OS_CHAR *& p_str, T& p_val)
 {
-	OS_INT int_val = 0;
+	T val = 0, prev_val = 0;
+	const OS_CHAR * str = p_str;
 	const OS_CHAR * start = str;
-	for(;; str++)
-	{
-		if(*str >= OS_TEXT('0') && *str <= OS_TEXT('9'))
-		{
-			int_val = (int_val << 4) + (OS_INT)(*str - OS_TEXT('0'));
-			continue;
+	for(;; str++){
+		if(*str >= OS_TEXT('0') && *str <= OS_TEXT('9')){
+			val = (val << 4) + (T)(*str - OS_TEXT('0'));
+		}else if(*str >= OS_TEXT('a') && *str <= OS_TEXT('f')){
+			val = (val << 4) + 10 + (T)(*str - OS_TEXT('a'));
+		}else if(*str >= OS_TEXT('A') && *str <= OS_TEXT('F')){
+			val = (val << 4) + 10 + (T)(*str - OS_TEXT('A'));
 		}
-		if(*str >= OS_TEXT('a') && *str <= OS_TEXT('f'))
-		{
-			int_val = (int_val << 4) + 10 + (OS_INT)(*str - OS_TEXT('a'));
-			continue;
+		if(prev_val > val){
+			p_str = start;
+			p_val = 0;
+			return val;
 		}
-		if(*str >= OS_TEXT('A') && *str <= OS_TEXT('F'))
-		{
-			int_val = (int_val << 4) + 10 + (OS_INT)(*str - OS_TEXT('A'));
-			continue;
-		}
-		// end parse
-		break;
+		prev_val = val;
 	}
-	val = int_val;
+	p_val = val;
+	p_str = str;
 	return str > start;
 }
 
-static bool parseBinSimple(const OS_CHAR *& str, OS_INT& val)
+template <class T>
+static bool parseSimpleBin(const OS_CHAR *& p_str, T& p_val)
 {
-	OS_INT int_val = 0;
+	T val = 0, prev_val = 0;
+	const OS_CHAR * str = p_str;
 	const OS_CHAR * start = str;
-	for(; *str >= OS_TEXT('0') && *str <= OS_TEXT('1'); str++)
-	{
-		int_val = (int_val << 1) + (OS_INT)(*str - OS_TEXT('0'));
+	for(; *str >= OS_TEXT('0') && *str <= OS_TEXT('1'); str++){
+		val = (val << 1) + (T)(*str - OS_TEXT('0'));
+		if(prev_val > val){
+			p_str = start;
+			p_val = 0;
+			return val;
+		}
+		prev_val = val;
 	}
-	val = int_val;
+	p_val = val;
+	p_str = str;
 	return str > start;
 }
 
-static bool parseOctalSimple(const OS_CHAR *& str, OS_INT& val)
+template <class T>
+static bool parseSimpleOctal(const OS_CHAR *& p_str, T& p_val)
 {
-	OS_INT int_val = 0;
+	T val = 0, prev_val = 0;
+	const OS_CHAR * str = p_str;
 	const OS_CHAR * start = str;
 	for(; *str >= OS_TEXT('0') && *str <= OS_TEXT('7'); str++)
 	{
-		int_val = (int_val << 3) + (OS_INT)(*str - OS_TEXT('0'));
+		val = (val << 3) + (T)(*str - OS_TEXT('0'));
+		if(prev_val > val){
+			p_str = start;
+			p_val = 0;
+			return val;
+		}
+		prev_val = val;
 	}
-	val = int_val;
+	p_val = val;
+	p_str = str;
 	return str > start;
 }
 
-static bool parseDecSimple(const OS_CHAR *& str, OS_INT& val)
+template <class T>
+static bool parseSimpleDec(const OS_CHAR *& p_str, T& p_val)
 {
-	OS_INT int_val = 0;
+	T val = 0, prev_val = 0;
+	const OS_CHAR * str = p_str;
 	const OS_CHAR * start = str;
-	for(; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++)
-	{
-		int_val = int_val * 10 + (OS_INT)(*str - OS_TEXT('0'));
+	for(; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++){
+		val = val * 10 + (T)(*str - OS_TEXT('0'));
+		if(prev_val > val){
+			p_str = start;
+			p_val = 0;
+			return val;
+		}
+		prev_val = val;
 	}
-	val = int_val;
+	p_val = val;
+	p_str = str;
 	return str > start;
 }
 
-static bool parseFloatSimple(const OS_CHAR *& str, OS_FLOAT& val)
+template <class T>
+static bool parseSimpleFloat(const OS_CHAR *& p_str, T& p_val)
 {
-	OS_FLOAT float_val = 0;
+	T val = 0;
+	const OS_CHAR * str = p_str;
 	const OS_CHAR * start = str;
-	for(; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++)
-	{
-		float_val = float_val * 10 + (OS_INT)(*str - OS_TEXT('0'));
+	for(; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++){
+		val = val * 10 + (*str - OS_TEXT('0'));
 	}
-	val = float_val;
+	p_val = val;
+	p_str = str;
 	return str > start;
 }
 
-bool OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& result)
+bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 {
 	const OS_CHAR * start_str = str;
 	int sign = 1;
@@ -236,19 +261,23 @@ bool OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& result)
 	}
 
 	if(str[0] == OS_TEXT('0') && str[1] != OS_TEXT('.')){
-		bool octalNum = false;
+		bool is_valid, is_octal = false;
 		OS_INT int_val;
 		if(str[1] == OS_TEXT('x') || str[1] == OS_TEXT('X')){ // parse hex
 			str += 2;
-			parseHexSimple(str, int_val);
+			is_valid = parseSimpleHex(str, int_val);
 		}else if(str[1] == OS_TEXT('b') || str[1] == OS_TEXT('B')){ // parse hex
 			str += 2;
-			parseBinSimple(str, int_val);
+			is_valid = parseSimpleBin(str, int_val);
 		}else{ // parse octal
-			octalNum = true;
-			parseOctalSimple(str, int_val);
+			is_octal = true;
+			is_valid = parseSimpleOctal(str, int_val);
 		}
-		if(start_str+1 == str && !octalNum){
+		if(!is_valid || (start_str+1 == str && !is_octal)){
+			result = 0;
+			return false;
+		}
+		if((OS_INT)(OS_FLOAT)int_val != int_val){
 			result = 0;
 			return false;
 		}
@@ -257,7 +286,10 @@ bool OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& result)
 	}
 	
 	OS_FLOAT float_val;
-	parseFloatSimple(str, float_val);
+	if(!parseSimpleFloat(str, float_val)){
+		result = 0;
+		return false;
+	}
 
 	if(*str == OS_TEXT('.')){ // parse float
 		// parse 1.#INF ...
@@ -314,11 +346,14 @@ bool OS::Utils::parseNum(const OS_CHAR *& str, OS_FLOAT& result)
 				// div = false;
 				str++;
 			}
-			OS_INT pow;
-			parseDecSimple(str, pow);
-			m = 1.0;
+			int pow;
+			if(!parseSimpleDec(str, pow)){
+				result = 0;
+				return false;
+			}
+			m = 1.0f;
 			for(int i = 0; i < pow; i++){
-				m *= 10.0;
+				m *= 10.0f;
 			}
 			if(div){
 				float_val /= m;
@@ -352,8 +387,15 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a, int precision)
 	OS_CHAR fmt[128];
 	if(precision <= 0) {
 		if(precision < 0) {
+#if 1
+			OS_FLOAT p = 10.0f;
+			for(int i = -precision-1; i > 0; i--){
+				p *= 10.0f;
+			}
+#else
 			OS_FLOAT p = OS_MATH_POW((OS_FLOAT)10.0, (OS_FLOAT)-precision);
-			a = OS_MATH_FLOOR(a / p + (OS_FLOAT)0.5) * p;
+#endif
+			a = OS_MATH_FLOOR(a / p + 0.5f) * p;
 		}
 		OS_SNPRINTF(dst, sizeof(fmt), OS_TEXT("%.f"), a);
 		return dst;
@@ -366,7 +408,7 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a, int precision)
 	OS_SNPRINTF(fmt, sizeof(fmt), OS_TEXT("%%.%dg"), precision);
 	int n = OS_SNPRINTF(dst, sizeof(fmt), fmt, a);
 
-	OS_ASSERT(!OS_STRSTR(dst, OS_TEXT(".")) || dst[n-1] != '0');
+	OS_ASSERT(n >= 1 && !OS_STRSTR(dst, OS_TEXT(".")) || dst[n-1] != '0');
 	// while(n > 0 && dst[n-1] == '0') dst[--n] = (OS_CHAR)0;
 	// if(n > 0 && dst[n-1] == '.') dst[--n] = (OS_CHAR)0;
 
@@ -381,40 +423,49 @@ OS_INT OS::Utils::strToInt(const OS_CHAR * str)
 OS_FLOAT OS::Utils::strToFloat(const OS_CHAR* str)
 {
 	OS_FLOAT fval;
-	if(parseNum(str, fval)){
+	if(parseFloat(str, fval) && !*str){
 		return fval;
 	}
 	return 0;
 }
 
-int OS::Utils::keyToHash(const OS_CHAR * str, int size)
-{
-#define KeyHashAddNum KeyNum = ((KeyNum << 5) + KeyNum) + *str++
+#define OS_KEY_HASH_START_VALUE 5381
+#define OS_ADD_KEY_HASH_VALUE hash = ((hash << 5) + hash) + *buf++
 
-	unsigned KeyNum = 5381;
+int OS::Utils::keyToHash(const void * buf, int size)
+{
+	return OS::Utils::addKeyToHash(OS_KEY_HASH_START_VALUE, buf, size);
+}
+
+int OS::Utils::keyToHash(const void * buf1, int size1, const void * buf2, int size2)
+{
+	int hash = OS::Utils::addKeyToHash(OS_KEY_HASH_START_VALUE, buf1, size1);
+	return OS::Utils::addKeyToHash(hash, buf2, size2);
+}
+
+int OS::Utils::addKeyToHash(int hash, const void * p_buf, int size)
+{
+	const OS_BYTE * buf = (const OS_BYTE*)p_buf;
 	for(; size >= 8; size -= 8) {
-		KeyHashAddNum;
-		KeyHashAddNum;
-		KeyHashAddNum;
-		KeyHashAddNum;
-		KeyHashAddNum;
-		KeyHashAddNum;
-		KeyHashAddNum;
-		KeyHashAddNum;
+		OS_ADD_KEY_HASH_VALUE;
+		OS_ADD_KEY_HASH_VALUE;
+		OS_ADD_KEY_HASH_VALUE;
+		OS_ADD_KEY_HASH_VALUE;
+		OS_ADD_KEY_HASH_VALUE;
+		OS_ADD_KEY_HASH_VALUE;
+		OS_ADD_KEY_HASH_VALUE;
+		OS_ADD_KEY_HASH_VALUE;
 	}
 	switch(size) {
-	case 7: KeyHashAddNum;
-	case 6: KeyHashAddNum;
-	case 5: KeyHashAddNum;
-	case 4: KeyHashAddNum;
-	case 3: KeyHashAddNum;
-	case 2: KeyHashAddNum;
-	case 1: KeyHashAddNum;
-	case 0: break;
+	case 7: OS_ADD_KEY_HASH_VALUE;
+	case 6: OS_ADD_KEY_HASH_VALUE;
+	case 5: OS_ADD_KEY_HASH_VALUE;
+	case 4: OS_ADD_KEY_HASH_VALUE;
+	case 3: OS_ADD_KEY_HASH_VALUE;
+	case 2: OS_ADD_KEY_HASH_VALUE;
+	case 1: OS_ADD_KEY_HASH_VALUE;
 	}
-	return (int)KeyNum;
-
-#undef KeyHashAddNum
+	return hash;
 }
 
 int OS::Utils::cmp(const void * buf1, int len1, const void * buf2, int len2)
@@ -433,318 +484,121 @@ int OS::Utils::cmp(const void * buf1, int len1, const void * buf2, int len2, int
 // =====================================================================
 // =====================================================================
 
-OS::Core::StringData * OS::Core::StringData::alloc(OS * allocator, int size, const void * buf, int data_size)
+OS::Core::String::String(OS * os)
 {
-	if(size <= 0){
-		return allocator->core->empty_string_data->retain();
-	}
-	if(data_size > size){
-		data_size = size;
-	}
-	int alloc_size = size + sizeof(StringData) + sizeof(wchar_t) + sizeof(wchar_t)/2;
-	StringData * data = (StringData*)allocator->malloc(alloc_size);
-	OS_ASSERT(data);
-	if(!data){
-		return allocator->core->empty_string_data->retain();
-	}
-	data->allocator = allocator;
-	data->allocated_bytes = size;
-	data->data_size = data_size;
-	data->ref_count = 1;
-	if(data_size > 0){
-		OS_BYTE * dataBuf = (OS_BYTE*)data->toMemory();
-		OS_MEMCPY(dataBuf, buf, data_size);
-		OS_MEMSET(dataBuf + data_size, 0, size - data_size + sizeof(wchar_t) + sizeof(wchar_t)/2);
-	}else{
-		OS_MEMSET(data->toMemory(), 0, size + sizeof(wchar_t) + sizeof(wchar_t)/2);
-	}
-	return data;
+	string = os->core->newStringValue((void*)NULL, 0);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-OS::Core::StringData * OS::Core::StringData::alloc(OS * allocator, int size, const void * buf1, int len1, const void * buf2, int len2)
+OS::Core::String::String(GCStringValue * s)
 {
-	if(size <= 0){
-		return allocator->core->empty_string_data->retain();
-	}
-	if(len1 > size){
-		len1 = size;
-	}
-	if(len2 > size - len1){
-		len2 = size - len1;
-	}
-	int alloc_size = size + sizeof(StringData) + sizeof(wchar_t) + sizeof(wchar_t)/2;
-	StringData * data = (StringData*)allocator->malloc(alloc_size);
-	OS_ASSERT(data);
-	if(!data){
-		return allocator->core->empty_string_data->retain();
-	}
-	data->allocator = allocator;
-	data->allocated_bytes = size;
-	data->data_size = len1 + len2;
-	data->ref_count = 1;
-
-	OS_BYTE * curBuf = (OS_BYTE*)data->toMemory();
-	OS_MEMCPY(curBuf, buf1, len1); curBuf += len1;
-	OS_MEMCPY(curBuf, buf2, len2); curBuf += len2;
-	OS_MEMSET(curBuf, 0, sizeof(wchar_t) + sizeof(wchar_t)/2);
-
-	return data;
+	string = s;
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-OS::Core::StringData * OS::Core::StringData::alloc(OS * allocator, int size, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3)
+OS::Core::String::String(const String& s)
 {
-	if(size <= 0){
-		return allocator->core->empty_string_data->retain();
-	}
-	if(len1 > size){
-		len1 = size;
-	}
-	if(len2 > size - len1){
-		len2 = size - len1;
-	}
-	if(len3 > size - len1 - len2){
-		len3 = size - len1 - len2;
-	}
-	int alloc_size = size + sizeof(StringData) + sizeof(wchar_t) + sizeof(wchar_t)/2;
-	StringData * data = (StringData*)allocator->malloc(alloc_size);
-	OS_ASSERT(data);
-	if(!data){
-		return allocator->core->empty_string_data->retain();
-	}
-	data->allocator = allocator;
-	data->allocated_bytes = size;
-	data->data_size = len1 + len2 + len3;
-	data->ref_count = 1;
-
-	OS_BYTE * curBuf = (OS_BYTE*)data->toMemory();
-	OS_MEMCPY(curBuf, buf1, len1); curBuf += len1;
-	OS_MEMCPY(curBuf, buf2, len2); curBuf += len2;
-	OS_MEMCPY(curBuf, buf3, len3); curBuf += len3;
-	OS_MEMSET(curBuf, 0, sizeof(wchar_t) + sizeof(wchar_t)/2);
-
-	return data;
+	string = s.string;
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-void OS::Core::StringData::free(StringData * data)
+OS::Core::String::String(OS * os, const OS_CHAR * str)
 {
-	OS_ASSERT(data && data->ref_count == 0);
-	OS_ASSERT(data->allocator);
-	// delete [] ((OS_BYTE*)data);
-	data->allocator->free(data);
+	string = os->core->newStringValue(str);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-OS::Core::StringData * OS::Core::StringData::alloc(OS * allocator, const void * buf, int data_size)
+OS::Core::String::String(OS * os, const OS_CHAR * str, int len)
 {
-	return alloc(allocator, data_size, buf, data_size);
+	string = os->core->newStringValue(str, len);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-OS::Core::StringData * OS::Core::StringData::alloc(StringData * b)
+OS::Core::String::String(OS * os, const OS_CHAR * str, int len, const OS_CHAR * str2, int len2)
 {
-	return alloc(b->allocator, b->data_size, b->toMemory(), b->data_size);
-	// return b->retain();
+	string = os->core->newStringValue(str, len, str2, len2);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-OS::Core::StringData * OS::Core::StringData::alloc(int size, StringData * b)
+OS::Core::String::String(OS * os, const OS_CHAR * str, int len, bool trim_left, bool trim_right)
 {
-	return alloc(b->allocator, size, b->toMemory(), b->data_size);
+	string = os->core->newStringValue(str, len, trim_left, trim_right);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-OS::Core::StringData * OS::Core::StringData::alloc(int size, StringData * b, int data_size)
+OS::Core::String::String(OS * os, const void * buf, int size)
 {
-	return alloc(b->allocator, size, b->toMemory(), b->data_size < data_size ? b->data_size : data_size);
+	string = os->core->newStringValue(buf, size);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-OS::Core::StringData * OS::Core::StringData::alloc(StringData * b, int data_size)
+OS::Core::String::String(OS * os, const void * buf1, int size1, const void * buf2, int size2)
 {
-	int size = b->data_size < data_size ? b->data_size : data_size;
-	return alloc(b->allocator, size, b->toMemory(), size);
+	string = os->core->newStringValue(buf1, size1, buf2, size2);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-OS::Core::StringData * OS::Core::StringData::append(StringData * self, StringData * b)
+/*
+OS::Core::String::String(OS * os, const void * buf1, int size1, const void * buf2, int size2, const void * buf3, int size3)
 {
-	if(!b->data_size){
-		return self;
-	}
-	if(!self->data_size){
-		self->release();
-		return b->retain();
-	}
-	if(self->ref_count > 1){
-		self->release();
-		return alloc(self->allocator, self->data_size + b->data_size, self->toMemory(), self->data_size, b->toMemory(), b->data_size); 
-	}
-	int new_data_size = self->data_size + b->data_size;
-	if(new_data_size <= self->allocated_bytes){
-		OS_MEMCPY((OS_BYTE*)self->toMemory() + self->data_size, b->toMemory(), b->data_size);
+	string = os->core->newStringValue(buf1, size1, buf2, size2, buf3, size3);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
+}
+*/
 
-		self->data_size = new_data_size;
-		OS_MEMSET((OS_BYTE*)self->toMemory() + self->data_size, 0, sizeof(wchar_t) + sizeof(wchar_t)/2);
-
-		return self;
-	}
-	int new_size = (self->allocated_bytes * 2 + 15) & ~15;
-	if(new_size < new_data_size){
-		new_size = new_data_size;
-	}
-	StringData * newData = alloc(self->allocator, new_size, self->toMemory(), self->data_size, b->toMemory(), b->data_size);
-	self->release();
-	return newData;
+OS::Core::String::String(OS * os, OS_INT value)
+{
+	string = os->core->newStringValue(value);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
-OS::Core::StringData * OS::Core::StringData::append(StringData * self, const void * buf, int data_size)
+OS::Core::String::String(OS * os, OS_FLOAT value, int precision)
 {
-	if(!data_size){
-		return self;
-	}
-	if(!self->data_size){
-		OS * allocator = self->allocator;
-		self->release();
-		return alloc(allocator, buf, data_size);
-	}
-	if(self->ref_count > 1){
-		self->release();
-		return alloc(self->allocator, self->data_size + data_size, self->toMemory(), self->data_size, buf, data_size); 
-	}
-	int new_data_size = self->data_size + data_size;
-	if(new_data_size <= self->allocated_bytes){
-		OS_MEMCPY((OS_BYTE*)self->toMemory() + self->data_size, buf, data_size);
-
-		self->data_size = new_data_size;
-		OS_MEMSET((OS_BYTE*)self->toMemory() + self->data_size, 0, sizeof(wchar_t) + sizeof(wchar_t)/2);
-
-		return self;
-	}
-	int new_size = (self->allocated_bytes * 2 + 15) & ~15;
-	if(new_size < new_data_size){
-		new_size = new_data_size;
-	}
-	StringData * newData = alloc(self->allocator, new_size, self->toMemory(), self->data_size, buf, data_size);
-	self->release();
-	return newData;
-}
-
-OS::Core::StringData * OS::Core::StringData::retain()
-{
-	ref_count++;
-	return this;
-}
-
-void OS::Core::StringData::release()
-{
-	if(--ref_count <= 0){
-		OS_ASSERT(ref_count == 0);
-		free(this);
-	}
-}
-
-int OS::Core::StringData::cmp(const StringData * b) const
-{
-	return Utils::cmp(toMemory(), data_size, b->toMemory(), b->data_size);
-}
-
-int OS::Core::StringData::cmp(const void * buf, int bufSize) const
-{
-	return Utils::cmp(toMemory(), data_size, buf, bufSize);
-}
-
-int OS::Core::StringData::hash() const
-{
-	return Utils::keyToHash(toChar(), data_size);
-}
-
-OS_INT OS::Core::StringData::toInt() const
-{
-	return Utils::strToInt(toChar());
-}
-
-OS_FLOAT OS::Core::StringData::toFloat() const
-{
-	return Utils::strToFloat(toChar());
-}
-
-// =====================================================================
-
-OS::Core::String::String(OS * allocator)
-{
-	// allocator->retain();
-	str = allocator->core->empty_string_data->retain()->toChar();
-}
-
-OS::Core::String::String(OS * allocator, const OS_CHAR * s)
-{
-	// allocator->retain();
-	str = StringData::alloc(allocator, s, OS_STRLEN(s))->toChar();
-}
-
-OS::Core::String::String(OS * allocator, OS_CHAR c, int count)
-{
-	StringData * data = StringData::alloc(allocator, sizeof(c)*count, NULL, 0);
-	str = data->toChar();
-	data->data_size = sizeof(c)*count;
-	if(c){
-		for(int i = 0; i < count; i++){
-			((OS_CHAR*)str)[i] = c;
-		}
-		((OS_CHAR*)str)[count] = 0;
-	}
-}
-
-OS::Core::String::String(OS * allocator, const void * buf, int size)
-{
-	// allocator->retain();
-	str = StringData::alloc(allocator, buf, size)->toChar();
-}
-
-OS::Core::String::String(OS * allocator, const void * buf1, int len1, const void * buf2, int len2)
-{
-	// allocator->retain();
-	int size = len1 + len2;
-	str = StringData::alloc(allocator, size, buf1, len1, buf2, len2)->toChar();
-}
-
-OS::Core::String::String(OS * allocator, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3)
-{
-	// allocator->retain();
-	int size = len1 + len2 + len3;
-	str = StringData::alloc(allocator, size, buf1, len1, buf2, len2, buf3, len3)->toChar();
-}
-
-OS::Core::String::String(const String& b)
-{
-	StringData * data = b.toData();
-	// data->allocator->retain();
-	str = data->retain()->toChar();
-}
-
-OS::Core::String::String(StringData * b)
-{
-	// b->allocator->retain();
-	str = b->retain()->toChar();
-}
-
-OS::Core::String::String(OS * allocator, OS_INT value)
-{
-	// allocator->retain();
-	OS_CHAR buf[64];
-	OS::Utils::numToStr(buf, value);
-	str = StringData::alloc(allocator, buf, OS_STRLEN(buf))->toChar();
-}
-
-OS::Core::String::String(OS * allocator, OS_FLOAT value, int precision)
-{
-	// allocator->retain();
-	OS_CHAR buf[128];
-	OS::Utils::numToStr(buf, value, precision);
-	str = StringData::alloc(allocator, buf, OS_STRLEN(buf))->toChar();
+	string = os->core->newStringValue(value, precision);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
 }
 
 OS::Core::String::~String()
 {
-	if(str){ // str is cleared by String due to OS release properly
-		StringData * data = toData();
-		OS * allocator = data->allocator;
-		data->release();
-		// allocator->release();
+	if(string){ // can be cleared by OS::~String
+		OS_ASSERT(string->external_ref_count > 0);
+		string->external_ref_count--;
 	}
 }
 
@@ -752,14 +606,8 @@ struct OS_VaListDtor
 {
 	va_list * va;
 
-	OS_VaListDtor(va_list * p_va)
-	{
-		va = p_va;
-	}
-	~OS_VaListDtor()
-	{
-		va_end(*va);
-	}
+	OS_VaListDtor(va_list * p_va){ va = p_va; }
+	~OS_VaListDtor(){ va_end(*va); }
 };
 
 OS::Core::String OS::Core::String::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, ...)
@@ -767,12 +615,12 @@ OS::Core::String OS::Core::String::format(OS * allocator, int temp_buf_size, con
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
-	return String(allocator).setFormat(temp_buf_size, fmt, va);
+	return String(allocator->core->newStringValueVa(temp_buf_size, fmt, va));
 }
 
-OS::Core::String OS::Core::String::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, va_list va)
+OS::Core::String OS::Core::String::formatVa(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, va_list va)
 {
-	return String(allocator).setFormat(temp_buf_size, fmt, va);
+	return String(allocator->core->newStringValueVa(temp_buf_size, fmt, va));
 }
 
 OS::Core::String OS::Core::String::format(OS * allocator, const OS_CHAR * fmt, ...)
@@ -780,151 +628,38 @@ OS::Core::String OS::Core::String::format(OS * allocator, const OS_CHAR * fmt, .
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
-	return String(allocator).setFormat(fmt, va);
+	return String(allocator->core->newStringValueVa(OS_DEF_FMT_BUF_SIZE, fmt, va));
 }
 
-OS::Core::String OS::Core::String::format(OS * allocator, const OS_CHAR * fmt, va_list va)
+OS::Core::String OS::Core::String::formatVa(OS * allocator, const OS_CHAR * fmt, va_list va)
 {
-	return String(allocator).setFormat(fmt, va);
+	return String(allocator->core->newStringValueVa(OS_DEF_FMT_BUF_SIZE, fmt, va));
 }
-
-OS::Core::String& OS::Core::String::setFormat(int temp_buf_size, const OS_CHAR * fmt, ...)
-{
-	va_list va;
-	va_start(va, fmt);
-	OS_VaListDtor va_dtor(&va);
-	return setFormat(temp_buf_size, fmt, va);
-}
-
-OS::Core::String& OS::Core::String::setFormat(int temp_buf_size, const OS_CHAR * fmt, va_list va)
-{
-	String buf(getAllocator(), OS_CHAR(0), temp_buf_size);
-	OS_VSNPRINTF((OS_CHAR*)buf.toChar(), sizeof(OS_CHAR)*(temp_buf_size+1), temp_buf_size, fmt, va);
-	return *this = buf.toChar();
-}
-
-OS::Core::String& OS::Core::String::setFormat(const OS_CHAR * fmt, ...)
-{
-	va_list va;
-	va_start(va, fmt);
-	OS_VaListDtor va_dtor(&va);
-	return setFormat(OS_DEF_FMT_BUF_SIZE, fmt, va);
-}
-
-OS::Core::String& OS::Core::String::setFormat(const OS_CHAR * fmt, va_list va)
-{
-	return setFormat(OS_DEF_FMT_BUF_SIZE, fmt, va);
-}
-
-void OS::Core::String::clear()
-{
-	StringData * data = toData();
-	str = data->allocator->core->empty_string_data->retain()->toChar();
-	data->release();
-}
-
-OS::Core::String OS::Core::String::trim(bool left_trim, bool right_trim) const
-{
-	const OS_CHAR * start = toChar();
-	const OS_CHAR * end = start + getDataSize();
-	bool real_sub = false;
-	if(left_trim){
-		while(OS_ISSPACE(*start)){
-			start++;
-			real_sub = true;
-		}
-	}
-
-	if(right_trim){
-		while(end > start && OS_ISSPACE(end[-1])){
-			end--;
-			real_sub = true;
-		}
-	}
-
-	return real_sub ? String(getAllocator(), (void*)start, (int)end - (int)start) : *this;
-}
-
 
 OS::Core::String& OS::Core::String::operator=(const String& b)
 {
-	StringData * old_data = toData();
-	str = b.toData()->retain()->toChar();
-	old_data->release();
-	return *this;
-}
-
-OS::Core::String& OS::Core::String::operator=(const OS_CHAR * b)
-{
-	StringData * data = toData();
-	OS * allocator = data->allocator;
-	str = StringData::alloc(allocator, b, OS_STRLEN(b))->toChar();
-	data->release();
-	return *this;
-}
-
-OS::Core::String& OS::Core::String::operator+=(const String& b)
-{
-	str = StringData::append(toData(), b.toData())->toChar();
-	return *this;
-}
-
-OS::Core::String& OS::Core::String::operator+=(const OS_CHAR * b)
-{
-	int len = OS_STRLEN(b);
-	str = StringData::append(toData(), b, len)->toChar();
-	return *this;
-}
-
-OS::Core::String& OS::Core::String::append(const void * buf, int size)
-{
-	str = StringData::append(toData(), buf, size)->toChar();
-	return *this;
-}
-
-OS::Core::String& OS::Core::String::append(const OS_CHAR * b)
-{
-	return append(b, OS_STRLEN(b));
-}
-
-OS::Core::String OS::Core::String::operator+(const String& b) const
-{
-	StringData * data = toData(), * b_data = b.toData();
-	if(data->data_size && b_data->data_size){
-		return String(data->allocator, data->toMemory(), data->data_size, b_data->toMemory(), b_data->data_size);
+	if(string != b.string){
+		OS_ASSERT(string->external_ref_count > 0);
+		string->external_ref_count--;
+		string = b.string;
+		string->external_ref_count++;
 	}
-	if(data->data_size){
-		return *this;
-	}
-	return b;
-}
-
-OS::Core::String OS::Core::String::operator+(const OS_CHAR * b) const
-{
-	StringData * data = toData();
-	int len = OS_STRLEN(b);
-	if(data->data_size && len > 0){
-		return String(data->allocator, data->toMemory(), data->data_size, b, len);
-	}
-	if(data->data_size){
-		return *this;
-	}
-	return String(data->allocator, b, len);
+	return *this;
 }
 
 bool OS::Core::String::operator==(const String& b) const
 {
-	return cmp(b) == 0;
+	return string == b.string;
 }
 
-bool OS::Core::String::operator==(const OS_CHAR * b) const
+bool OS::Core::String::operator==(GCStringValue * b) const
 {
-	return cmp(b) == 0;
+	return string == b;
 }
 
 bool OS::Core::String::operator!=(const String& b) const
 {
-	return cmp(b) != 0;
+	return string != b.string;
 }
 
 bool OS::Core::String::operator!=(const OS_CHAR * b) const
@@ -974,129 +709,185 @@ bool OS::Core::String::operator>(const OS_CHAR * b) const
 
 int OS::Core::String::cmp(const String& b) const
 {
-	// StringData * data = toData(), * b_data = b.toData();
-	// return Utils::cmp(data->toChar(), data->data_size, b_data->toChar(), b_data->data_size);
-	return toData()->cmp(b.toData());
+	if(string == b.string){
+		return 0;
+	}
+	return Utils::cmp(string->toChar(), string->data_size, b.string->toChar(), b.string->data_size);
 }
 
 int OS::Core::String::cmp(const OS_CHAR * b) const
 {
-	return toData()->cmp(b, OS_STRLEN(b));
+	return Utils::cmp(string->toChar(), string->data_size, b, OS_STRLEN(b));
 }
 
-int OS::Core::String::hash() const
+int OS::Core::String::getHash() const
 {
-	return toData()->hash();
-}
-
-OS_INT OS::Core::String::toInt() const
-{
-	return toData()->toInt();
+	return string->hash;
 }
 
 OS_FLOAT OS::Core::String::toFloat() const
 {
-	return toData()->toFloat();
+	OS_FLOAT val;
+	if(string->isFloat(&val)){
+		return val;
+	}
+	return 0;
 }
 
 // =====================================================================
+
+OS::Core::StringBuffer::StringBuffer(OS * p_allocator)
+{
+	allocator = p_allocator;
+}
+
+OS::Core::StringBuffer::~StringBuffer()
+{
+	allocator->vectorClear(*this);
+}
+
+OS::Core::StringBuffer& OS::Core::StringBuffer::append(OS_CHAR c)
+{
+	allocator->vectorAddItem(*this, c);
+	return *this;
+}
+
+OS::Core::StringBuffer& OS::Core::StringBuffer::append(const OS_CHAR * str)
+{
+	return append(str, OS_STRLEN(str));
+}
+
+OS::Core::StringBuffer& OS::Core::StringBuffer::append(const OS_CHAR * str, int len)
+{
+	allocator->vectorReserveCapacity(*this, count + len);
+	OS_MEMCPY(buf + count, str, len * sizeof(OS_CHAR));
+	count += len;
+	return *this;
+}
+
+OS::Core::StringBuffer& OS::Core::StringBuffer::append(const String& str)
+{
+	return append(str.toChar(), str.getLen());
+}
+
+OS::Core::StringBuffer& OS::Core::StringBuffer::append(const StringBuffer& buf)
+{
+	return append(buf.buf, buf.count);
+}
+
+OS::Core::StringBuffer& OS::Core::StringBuffer::operator+=(const String& str)
+{
+	return append(str);
+}
+
+OS::Core::StringBuffer::operator OS::Core::String() const
+{
+	return toString();
+}
+
+OS::Core::String OS::Core::StringBuffer::toString() const
+{
+	return String(allocator, buf, count);
+}
+
+OS::Core::GCStringValue * OS::Core::StringBuffer::toGCStringValue() const
+{
+	return allocator->core->newStringValue(buf, count);
+}
+
 // =====================================================================
-// =====================================================================
 
-OS::String::String(OS * os): super(os)
+OS::String::String(OS * allocator): super(allocator)
 {
-	os->retain();
-}
-
-OS::String::String(OS * os, const OS_CHAR * str): super(os, str)
-{
-	os->retain();
-}
-
-OS::String::String(OS * os, OS_CHAR c, int count): super(os, c, count)
-{
-	os->retain();
-}
-
-OS::String::String(OS * os, const void * buf, int size): super(os, buf, size)
-{
-	os->retain();
-}
-
-OS::String::String(OS * os, const void * buf1, int len1, const void * buf2, int len2): super(os, buf1, len1, buf2, len2)
-{
-	os->retain();
-}
-
-OS::String::String(const Core::String& str): super(str)
-{
-	str.getAllocator()->retain();
+	this->allocator = allocator->retain();
 }
 
 OS::String::String(const String& str): super(str)
 {
-	str.getAllocator()->retain();
+	allocator = str.allocator->retain();
 }
 
-OS::String::String(Core::StringData * data): super(data)
+OS::String::String(OS * allocator, const Core::String& str): super(str)
 {
-	data->allocator->retain();
+	this->allocator = allocator->retain();
 }
 
-OS::String::String(OS * os, OS_INT value): super(os, value)
+OS::String::String(OS * allocator, const OS_CHAR * str): super(allocator, str)
 {
-	os->retain();
+	this->allocator = allocator->retain();
 }
 
-OS::String::String(OS * os, OS_FLOAT value, int precision): super(os, value, precision)
+OS::String::String(OS * allocator, const OS_CHAR * str, int len): super(allocator, str, len)
 {
-	os->retain();
+	this->allocator = allocator->retain();
+}
+
+OS::String::String(OS * allocator, const OS_CHAR * str, int len, bool trim_left, bool trim_right): super(allocator, str, len, trim_left, trim_right)
+{
+	this->allocator = allocator->retain();
+}
+
+OS::String::String(OS * allocator, const void * buf, int size): super(allocator, buf, size)
+{
+	this->allocator = allocator->retain();
+}
+
+OS::String::String(OS * allocator, const void * buf1, int size1, const void * buf2, int size2): super(allocator, buf1, size1, buf2, size2)
+{
+	this->allocator = allocator->retain();
+}
+
+/*
+OS::String::String(OS * allocator, const void * buf1, int size1, const void * buf2, int size2, const void * buf3, int size3): super(allocator, buf1, size1, buf2, size2, buf3, size3)
+{
+	this->allocator = allocator->retain();
+}
+*/
+
+OS::String::String(OS * allocator, OS_INT value): super(allocator, value)
+{
+	this->allocator = allocator->retain();
+}
+
+OS::String::String(OS * allocator, OS_FLOAT value, int precision): super(allocator, value, precision)
+{
+	this->allocator = allocator->retain();
 }
 
 OS::String::~String()
 {
-	Core::StringData * data = toData();
-	OS * allocator = data->allocator;
-	data->release();
+	OS_ASSERT(string->external_ref_count > 0);
+	string->external_ref_count--;
+	string = NULL;
 	allocator->release();
-	str = NULL;
 }
 
 OS::String& OS::String::operator=(const Core::String& str)
 {
-	super::operator=(str);
+	if(string != str.string){
+		OS_ASSERT(string->external_ref_count > 0);
+		string->external_ref_count--;
+		string = str.string;
+		string->external_ref_count++;
+	}
 	return *this;
 }
 
-OS::String& OS::String::operator=(const OS_CHAR * str)
+OS::String& OS::String::operator=(const String& str)
 {
-	super::operator=(str);
+	OS_ASSERT(allocator == str.allocator);
+	if(string != str.string){
+		OS_ASSERT(string->external_ref_count > 0);
+		string->external_ref_count--;
+		string = str.string;
+		string->external_ref_count++;
+	}
 	return *this;
 }
 
-
-OS::String& OS::String::operator+=(const Core::String& str)
+OS::String& OS::String::operator+=(const String& str)
 {
-	super::operator+=(str);
-	return *this;
-}
-
-OS::String& OS::String::operator+=(const OS_CHAR * str)
-{
-	super::operator+=(str);
-	return *this;
-}
-
-OS::String& OS::String::append(const void * buf, int size)
-{
-	super::append(buf, size);
-	return *this;
-}
-
-OS::String& OS::String::append(const OS_CHAR * str)
-{
-	super::append(str);
-	return *this;
+	return *this = allocator->core->newStringValue(*this, str);
 }
 
 // =====================================================================
@@ -1208,7 +999,7 @@ OS::Core::Tokenizer::TokenData::TokenData(TextData * p_text_data, const String& 
 
 OS * OS::Core::Tokenizer::TokenData::getAllocator() const
 {
-	return str.getAllocator();
+	return text_data->getAllocator();
 }
 
 OS::Core::Tokenizer::TokenData::~TokenData()
@@ -1404,8 +1195,9 @@ void OS::Core::Tokenizer::initOperatorsTable()
 	}
 }
 
-OS::Core::Tokenizer::TextData::TextData(OS * allocator): filename(allocator)
+OS::Core::Tokenizer::TextData::TextData(OS * p_allocator): filename(p_allocator)
 {
+	allocator = p_allocator;
 	ref_count = 1;
 }
 
@@ -1416,7 +1208,7 @@ OS::Core::Tokenizer::TextData::~TextData()
 
 OS * OS::Core::Tokenizer::TextData::getAllocator()
 {
-	return filename.getAllocator();
+	return allocator; // filename.getAllocator();
 }
 
 OS::Core::Tokenizer::TextData * OS::Core::Tokenizer::TextData::retain()
@@ -1486,10 +1278,10 @@ bool OS::Core::Tokenizer::parseText(const OS_CHAR * text, int len, const String&
 	{
 		const OS_CHAR * line_end = OS_STRCHR(str, OS_TEXT('\n'));
 		if(line_end){
-			allocator->vectorAddItem(text_data->lines, String(allocator, str, line_end - str).trim(false, true));
+			allocator->vectorAddItem(text_data->lines, String(allocator, str, line_end - str, false, true));
 			str = line_end+1;
 		}else{
-			allocator->vectorAddItem(text_data->lines, String(allocator, str, str_end - str).trim(false, true));
+			allocator->vectorAddItem(text_data->lines, String(allocator, str, str_end - str, false, true));
 			break;
 		}
 	}
@@ -1511,7 +1303,7 @@ OS::Core::Tokenizer::TokenData * OS::Core::Tokenizer::addToken(const String& str
 
 OS::Core::TokenType OS::Core::Tokenizer::parseNum(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces)
 {
-	if(Utils::parseNum(str, fval)){
+	if(Utils::parseFloat(str, fval) && (!*str || OS_ISSPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str))){
 		if(parse_end_spaces){
 			parseSpaces(str);
 		}
@@ -1538,7 +1330,7 @@ bool OS::Core::Tokenizer::parseLines()
 			}
 
 			if(*str == OS_TEXT('"') || *str == OS_TEXT('\'')){ // begin string
-				String s(allocator);
+				StringBuffer s(allocator);
 				OS_CHAR closeChar = *str;
 				const OS_CHAR * tokenStart = str;
 				for(str++; *str && *str != closeChar;){
@@ -1559,19 +1351,19 @@ bool OS::Core::Tokenizer::parseLines()
 
 								if(*str == OS_TEXT('x') || *str == OS_TEXT('X')){ // parse hex
 									str++;
-									if(!parseHexSimple(str, val)){
+									if(!parseSimpleHex(str, val)){
 										cur_pos = str - line_start;
 										error = ERROR_CONST_STRING_ESCAPE_CHAR;
 										return false;
 									}
 								}else if(*str == OS_TEXT('0')){ // octal
-									if(!parseOctalSimple(str, val)){
+									if(!parseSimpleOctal(str, val)){
 										cur_pos = str - line_start;
 										error = ERROR_CONST_STRING_ESCAPE_CHAR;
 										return false;
 									}
 								}else if(*str >= OS_TEXT('1') && *str <= OS_TEXT('9')){
-									if(!parseDecSimple(str, val)){
+									if(!parseSimpleDec(str, val)){
 										cur_pos = str - line_start;
 										error = ERROR_CONST_STRING_ESCAPE_CHAR;
 										return false;
@@ -1584,7 +1376,7 @@ bool OS::Core::Tokenizer::parseLines()
 							break;
 						}
 					}
-					s.append(&c, sizeof(c));
+					s.append(c);
 				}
 				if(*str != closeChar){
 					cur_pos = str - line_start;
@@ -1604,14 +1396,15 @@ bool OS::Core::Tokenizer::parseLines()
 					break;
 				}
 				if(str[1] == OS_TEXT('*')){ // begin multi line comment
-					String comment(allocator, str, sizeof(OS_CHAR)*2);
+					StringBuffer comment(allocator);
+					comment.append(str, 2);
 					int startLine = cur_line;
 					int startPos = str - line_start;
 					for(str += 2;;){
 						const OS_CHAR * end = OS_STRSTR(str, OS_TEXT("*/"));
 						if(end){
 							if(settings.save_comments){
-								comment.append(str, (int)(end+2) - (int)str);
+								comment.append(str, (int)(end+2 - str));
 								addToken(comment, COMMENT_MULTI_LINE, startLine, startPos);
 							}
 							str = end + 2;
@@ -1636,7 +1429,7 @@ bool OS::Core::Tokenizer::parseLines()
 				|| (*str >= OS_TEXT('a') && *str <= OS_TEXT('z'))
 				|| (*str >= OS_TEXT('A') && *str <= OS_TEXT('Z')) )
 			{ // parse name
-				const OS_CHAR * nameStart = str;
+				const OS_CHAR * name_start = str;
 				for(str++; *str; str++){
 					if(*str == OS_TEXT('_') || *str == OS_TEXT('$') || *str == OS_TEXT('@')
 						|| (*str >= OS_TEXT('a') && *str <= OS_TEXT('z'))
@@ -1647,9 +1440,9 @@ bool OS::Core::Tokenizer::parseLines()
 					}
 					break;
 				}
-				String name = String(allocator, nameStart, str - nameStart);
+				String name = String(allocator, name_start, str - name_start);
 				TokenType type = NAME;
-				addToken(name, type, cur_line, nameStart - line_start);
+				addToken(name, type, cur_line, name_start - line_start);
 				continue;
 			}
 			// parse operator
@@ -1672,7 +1465,7 @@ bool OS::Core::Tokenizer::parseLines()
 				const OS_CHAR * tokenStart = str;
 				TokenType type = parseNum(str, fval, true);
 				if(type != ERROR_TOKEN){
-					TokenData * token = addToken(String(allocator, tokenStart, str - tokenStart).trim(false, true), type, cur_line, tokenStart - line_start);
+					TokenData * token = addToken(String(allocator, tokenStart, str - tokenStart, false, true), type, cur_line, tokenStart - line_start);
 					token->setFloat(fval);
 					continue;
 				}
@@ -1981,17 +1774,18 @@ bool OS::Core::Compiler::Expression::isAssignOperator() const
 	return false;
 }
 
-OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler * compiler, int depth)
+void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Compiler * compiler, int depth)
 {
 	OS * allocator = getAllocator();
-	String out = compiler->debugPrintSourceLine(token);
-
-	// OS_CHAR * spaces = (OS_CHAR*)alloca(sizeof(OS_CHAR)*(depth+1));
-	// fillSpaces(spaces, depth);
-	String spaces_buf(allocator, OS_TEXT(' '), depth*2);
-	const OS_CHAR * spaces = spaces_buf;
+	compiler->debugPrintSourceLine(out, token);
 
 	int i;
+	OS_CHAR * spaces = (OS_CHAR*)alloca(sizeof(OS_CHAR)*(depth*2+1));
+	for(i = 0; i < depth*2; i++){
+		spaces[i] = OS_TEXT(' ');
+	}
+	spaces[i] = OS_TEXT('\0');
+
 	const OS_CHAR * type_name;
 	switch(type){
 	case EXP_TYPE_NOP:
@@ -2003,10 +1797,10 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, type_name);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
-				out += OS_TEXT("\n");
+				out.append(OS_TEXT("\n"));
 			}
 			// OS_ASSERT(i+1 == list.count ? list[i]->ret_values == ret_values : list[i]->ret_values == 0);
-			out += list[i]->debugPrint(compiler, depth+1);
+			list[i]->debugPrint(out, compiler, depth+1);
 		}
 		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, type_name, ret_values);
 		break;
@@ -2015,14 +1809,14 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		OS_ASSERT(list.count == 2 || list.count == 3);
 		out += String::format(allocator, OS_TEXT("%sbegin if\n"), spaces);
 			out += String::format(allocator, OS_TEXT("%s  begin bool exp\n"), spaces);
-				out += list[0]->debugPrint(compiler, depth+2);
+				list[0]->debugPrint(out, compiler, depth+2);
 			out += String::format(allocator, OS_TEXT("%s  end bool exp\n"), spaces);
 			out += String::format(allocator, OS_TEXT("%s  begin then\n"), spaces);
-				out += list[1]->debugPrint(compiler, depth+2);
+				list[1]->debugPrint(out, compiler, depth+2);
 			out += String::format(allocator, OS_TEXT("%s  end then\n"), spaces);
 			if(list.count == 3){
 				out += String::format(allocator, OS_TEXT("%s  begin else\n"), spaces);
-					out += list[2]->debugPrint(compiler, depth+2);
+					list[2]->debugPrint(out, compiler, depth+2);
 				out += String::format(allocator, OS_TEXT("%s  end else\n"), spaces);
 			}
 		out += String::format(allocator, OS_TEXT("%send if ret values %d\n"), spaces, ret_values);
@@ -2058,7 +1852,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			if(i > 0){
 				out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 			}
-			out += list[i]->debugPrint(compiler, depth+1);
+			list[i]->debugPrint(out, compiler, depth+1);
 		}
 		out += String::format(allocator, OS_TEXT("%send params ret values %d\n"), spaces, ret_values);
 		break;
@@ -2069,7 +1863,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			if(i > 0){
 				out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 			}
-			out += list[i]->debugPrint(compiler, depth+1);
+			list[i]->debugPrint(out, compiler, depth+1);
 		}
 		out += String::format(allocator, OS_TEXT("%send array\n"), spaces);
 		break;
@@ -2080,7 +1874,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			if(i > 0){
 				out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 			}
-			out += list[i]->debugPrint(compiler, depth+1);
+			list[i]->debugPrint(out, compiler, depth+1);
 		}
 		out += String::format(allocator, OS_TEXT("%send object\n"), spaces);
 		break;
@@ -2088,29 +1882,29 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
 		OS_ASSERT(list.count == 1);
 		out += String::format(allocator, OS_TEXT("%sbegin set by name\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send set by name: [%s]\n"), spaces, token->str.toChar());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
 		OS_ASSERT(list.count == 1);
 		out += String::format(allocator, OS_TEXT("%sbegin set by index\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send set by index: [%d]\n"), spaces, (int)token->getFloat());
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin set by exp\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
+			list[1]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send set by exp\n"), spaces);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX:
 		OS_ASSERT(list.count == 1);
 		out += String::format(allocator, OS_TEXT("%sbegin set like array\n"), spaces);
-		out += list[0]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send set like array\n"), spaces);
 		break;
 
@@ -2133,9 +1927,9 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			}
 			for(i = 0; i < list.count; i++){
 				if(i > 0){
-					out += OS_TEXT("\n");
+					out.append(OS_TEXT("\n"));
 				}
-				out += list[i]->debugPrint(compiler, depth+1);
+				list[i]->debugPrint(out, compiler, depth+1);
 			}
 			out += String::format(allocator, OS_TEXT("%send function\n"), spaces);
 			break;
@@ -2162,9 +1956,9 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			}
 			for(i = 0; i < list.count; i++){
 				if(i > 0){
-					out += OS_TEXT("\n");
+					out.append(OS_TEXT("\n"));
 				}
-				out += list[i]->debugPrint(compiler, depth+1);
+				list[i]->debugPrint(out, compiler, depth+1);
 			}
 			out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, exp_name, ret_values);
 			break;
@@ -2177,7 +1971,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 				if(i > 0){
 					out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 				}
-				out += list[i]->debugPrint(compiler, depth+1);
+				list[i]->debugPrint(out, compiler, depth+1);
 			}
 			out += String::format(allocator, OS_TEXT("%send return values %d\n"), spaces, ret_values);
 		}else{
@@ -2200,30 +1994,30 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 		out += String::format(allocator, OS_TEXT("%sdebugger\n"), spaces);
 		break;
 
-	case EXP_TYPE_DEBUGGER_LOCALS:
-		out += String::format(allocator, OS_TEXT("%sbegin debugger locals\n"), spaces);
+	case EXP_TYPE_DEBUG_LOCALS:
+		out += String::format(allocator, OS_TEXT("%sbegin debug locals\n"), spaces);
 		for(i = 0; i < list.count; i++){
 			if(i > 0){
 				out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
 			}
-			out += list[i]->debugPrint(compiler, depth+1);
+			list[i]->debugPrint(out, compiler, depth+1);
 		}
-		out += String::format(allocator, OS_TEXT("%send debugger locals\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%send debug locals\n"), spaces);
 		break;
 
 	case EXP_TYPE_TAIL_CALL:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
+			list[1]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_TAIL_CALL_METHOD:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
+			list[1]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		break;
 
@@ -2231,8 +2025,8 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 	case EXP_TYPE_CALL_AUTO_PARAM:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
+			list[1]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
 
@@ -2246,37 +2040,37 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 	case EXP_TYPE_EXTENDS:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
+			list[1]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
 
 	case EXP_TYPE_DELETE:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
-		out += list[1]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
+			list[1]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_CLONE:
 		OS_ASSERT(list.count == 1);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_VALUE:
 		OS_ASSERT(list.count == 1);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		break;
 
 	case EXP_TYPE_POP_VALUE:
 		OS_ASSERT(list.count == 1);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
-		out += list[0]->debugPrint(compiler, depth+1);
+			list[0]->debugPrint(out, compiler, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break;
 
@@ -2302,7 +2096,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
 			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			out += list[0]->debugPrint(compiler, depth+1);
+				list[0]->debugPrint(out, compiler, depth+1);
 			out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
@@ -2349,8 +2143,8 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			OS_ASSERT(list.count == 2);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
 			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			out += list[0]->debugPrint(compiler, depth+1);
-			out += list[1]->debugPrint(compiler, depth+1);
+				list[0]->debugPrint(out, compiler, depth+1);
+				list[1]->debugPrint(out, compiler, depth+1);
 			out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
@@ -2404,7 +2198,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 				local_var.index, local_var.up_count, 
 				local_var.type == LOCAL_GENERIC ? OS_TEXT(" param") : (local_var.type == LOCAL_TEMP ? OS_TEXT(" temp") : OS_TEXT("")));
 			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			out += list[0]->debugPrint(compiler, depth+1);
+				list[0]->debugPrint(out, compiler, depth+1);
 			out += String::format(allocator, OS_TEXT("%send %s %s %s\n"), spaces, exp_name, token->str.toChar(), info.toChar());
 			break;
 		}
@@ -2414,7 +2208,7 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
 			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			out += list[0]->debugPrint(compiler, depth+1);
+				list[0]->debugPrint(out, compiler, depth+1);
 			out += String::format(allocator, OS_TEXT("%send %s %s\n"), spaces, exp_name, token->str.toChar());
 			break;
 		}
@@ -2426,15 +2220,14 @@ OS::Core::String OS::Core::Compiler::Expression::debugPrint(OS::Core::Compiler *
 			OS_ASSERT(list.count == 3);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
 			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			out += list[0]->debugPrint(compiler, depth+1);
-			out += list[1]->debugPrint(compiler, depth+1);
-			out += list[2]->debugPrint(compiler, depth+1);
+				list[0]->debugPrint(out, compiler, depth+1);
+				list[1]->debugPrint(out, compiler, depth+1);
+				list[2]->debugPrint(out, compiler, depth+1);
 			out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, exp_name, ret_values);
 			break;
 		}
 
 	}
-	return out;
 }
 
 // =====================================================================
@@ -2467,7 +2260,7 @@ int OS::Core::Compiler::cacheDebugString(const String& str)
 
 int OS::Core::Compiler::cacheNumber(OS_FLOAT num)
 {
-	PropertyIndex index(allocator, num);
+	PropertyIndex index(num);
 	Property * prop = prog_numbers_table->get(index);
 	if(prop){
 		OS_ASSERT(prop->value.type == OS_VALUE_TYPE_NUMBER);
@@ -2925,7 +2718,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			break;
 		}
 
-	case EXP_TYPE_DEBUGGER_LOCALS:
+	case EXP_TYPE_DEBUG_LOCALS:
 		if(!writeOpcodes(scope, exp->list)){
 			return false;
 		}
@@ -3126,6 +2919,7 @@ OS::Core::Compiler::~Compiler()
 	allocator->vectorClear(prog_debug_strings);
 	allocator->vectorClear(prog_functions);
 	allocator->deleteObj(prog_opcodes);
+	// allocator->deleteObj(tokenizer);
 }
 
 bool OS::Core::Compiler::compile()
@@ -3140,7 +2934,7 @@ bool OS::Core::Compiler::compile()
 		scope = expectTextExpression();
 	}
 	if(scope){
-		Expression * exp = processExpressionSecondPass(scope, scope);
+		Expression * exp = postProcessExpression(scope, scope);
 		OS_ASSERT(exp->type == EXP_TYPE_FUNCTION);
 
 		prog_strings_table = allocator->core->newTable();
@@ -3149,11 +2943,12 @@ bool OS::Core::Compiler::compile()
 
 		const String& filename = tokenizer->getTextData()->filename;
 		if(allocator->core->settings.create_debug_opcodes){
-			OS::Core::String dump = exp->debugPrint(this, 0);
+			Core::StringBuffer dump(allocator);
+			exp->debugPrint(dump, this, 0);
 			String dump_filename = filename.getDataSize() 
 				? allocator->changeFilenameExt(filename, allocator->getFilenameExt(OS_DEBUG_OPCODES_FILENAME)) 
 				: String(allocator, OS_DEBUG_OPCODES_FILENAME);
-			FileStreamWriter(allocator, dump_filename).writeBytes(dump.toChar(), dump.getDataSize());
+			FileStreamWriter(allocator, dump_filename).writeBytes(dump.buf, dump.count * sizeof(OS_CHAR));
 		}
 		bool create_debug_info = filename.getDataSize() && allocator->core->settings.create_debug_info;
 		if(create_debug_info){
@@ -3187,71 +2982,72 @@ bool OS::Core::Compiler::compile()
 
 		return true;
 	}else{
-		OS::Core::String dump = OS::Core::String(allocator, "Error");
+		Core::StringBuffer dump(allocator);
+		dump.append("Error");
 		switch(error){
 		default:
-			dump += OS::Core::String(allocator, " unknown");
+			dump.append(" unknown");
 			break;
 
 		case ERROR_SYNTAX:
-			dump += OS::Core::String(allocator, " SYNTAX");
+			dump.append(" SYNTAX");
 			break;
 
 		case ERROR_NESTED_ROOT_BLOCK:
-			dump += OS::Core::String(allocator, " NESTED_ROOT_BLOCK");
+			dump.append(" NESTED_ROOT_BLOCK");
 			break;
 
 		case ERROR_LOCAL_VAL_NOT_DECLARED:
-			dump += OS::Core::String(allocator, " LOCAL_VAL_NOT_DECLARED");
+			dump.append(" LOCAL_VAL_NOT_DECLARED");
 			break;
 
 		case ERROR_VAR_ALREADY_EXIST:
-			dump += OS::Core::String(allocator, " VAR_ALREADY_EXIST");
+			dump.append(" VAR_ALREADY_EXIST");
 			break;
 
 		case ERROR_EXPECT_TOKEN_TYPE:
-			dump += OS::Core::String(allocator, " EXPECT_TOKEN_TYPE ");
-			dump += OS::Core::String(allocator, Tokenizer::getTokenTypeName(expect_token_type));
+			dump.append(" EXPECT_TOKEN_TYPE ");
+			dump.append(Tokenizer::getTokenTypeName(expect_token_type));
 			break;
 
 		case ERROR_EXPECT_TOKEN_STR:
-			dump += OS::Core::String(allocator, " EXPECT_TOKEN_STR ");
+			dump.append(" EXPECT_TOKEN_STR ");
 			dump += expect_token;
 			break;
 
 		case ERROR_EXPECT_TOKEN:
-			dump += OS::Core::String(allocator, " EXPECT_TOKEN");
+			dump.append(" EXPECT_TOKEN");
 			break;
 
 		case ERROR_EXPECT_VALUE:
-			dump += OS::Core::String(allocator, " EXPECT_VALUE");
+			dump.append(" EXPECT_VALUE");
 			break;
 
 		case ERROR_EXPECT_WRITEABLE:
-			dump += OS::Core::String(allocator, " EXPECT_WRITEABLE");
+			dump.append(" EXPECT_WRITEABLE");
 			break;
 
 		case ERROR_EXPECT_EXPRESSION:
-			dump += OS::Core::String(allocator, " EXPECT_EXPRESSION");
+			dump.append(" EXPECT_EXPRESSION");
 			break;
 
 		case ERROR_EXPECT_FUNCTION_SCOPE:
-			dump += OS::Core::String(allocator, " EXPECT_FUNCTION_SCOPE");
+			dump.append(" EXPECT_FUNCTION_SCOPE");
 			break;
 
 		case ERROR_EXPECT_SWITCH_SCOPE:
-			dump += OS::Core::String(allocator, " EXPECT_SWITCH_SCOPE");
+			dump.append(" EXPECT_SWITCH_SCOPE");
 			break;
 
 		case ERROR_FINISH_BINARY_OP:
-			dump += OS::Core::String(allocator, " FINISH_BINARY_OP");
+			dump.append(" FINISH_BINARY_OP");
 			break;
 
 		case ERROR_FINISH_UNARY_OP:
-			dump += OS::Core::String(allocator, " FINISH_UNARY_OP");
+			dump.append(" FINISH_UNARY_OP");
 			break;
 		}
-		dump += OS::String(allocator, "\n");
+		dump.append("\n");
 		if(error_token){
 			if(error_token->text_data->filename.getDataSize() > 0){
 				dump += OS::Core::String::format(allocator, "filename %s\n", error_token->text_data->filename.toChar());
@@ -3259,7 +3055,7 @@ bool OS::Core::Compiler::compile()
 			dump += OS::Core::String::format(allocator, "[%d] %s\n", error_token->line+1, error_token->text_data->lines[error_token->line].toChar());
 			dump += OS::Core::String::format(allocator, "pos %d, token: %s\n", error_token->pos+1, error_token->str.toChar());
 		}
-		printf("%s", dump.toChar());
+		printf("%s", dump.toString().toChar());
 		// FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 		
 		allocator->pushNull();
@@ -3786,7 +3582,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newExpressionFromList(Expre
 	return expectExpressionValues(exp, ret_values);
 }
 
-OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass(Scope * scope, Expression * exp)
+OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass2(Scope * scope, Expression * exp)
 {
 	switch(exp->type){
 	case EXP_TYPE_FUNCTION:
@@ -3809,7 +3605,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			break;
 		}
 
-	case EXP_TYPE_DEBUGGER_LOCALS:
+	case EXP_TYPE_DEBUG_LOCALS:
 		if(exp->list.count == 0){
 			Expression * obj_exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_OBJECT, exp->token);
 	
@@ -3860,7 +3656,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 	case EXP_TYPE_PARAMS:
 		{
 			for(int i = exp->list.count-1; i >= 0; i--){
-				Expression * sub_exp = processExpressionSecondPass(scope, exp->list[i]);
+				Expression * sub_exp = stepPass2(scope, exp->list[i]);
 				if(sub_exp->type == EXP_TYPE_PARAMS){
 					// OS_ASSERT(false);
 					ExpressionList list(allocator);
@@ -3891,12 +3687,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 		OS_ASSERT(exp->list.count == 1);
 		if(exp->ret_values > 0){
 			OS_ASSERT(exp->ret_values == 1);
-			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
+			exp->list[0] = stepPass2(scope, exp->list[0]);
 
 			Expression * var_exp = exp->list[0];
 			OS_ASSERT(var_exp->type == EXP_TYPE_GET_LOCAL_VAR);
 			
-			String temp_var_name = String(allocator, OS_TEXT("#temp")) + String(allocator, (OS_INT)scope->function->num_locals+1);
+			String temp_var_name = String(allocator, OS_TEXT("#temp")); // + String(allocator, (OS_INT)scope->function->num_locals+1);
 			TokenData * temp_var_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), temp_var_name, Tokenizer::NAME, exp->token->line, exp->token->pos);
 			
 			TokenData * num_token = new (malloc(sizeof(TokenData))) TokenData(tokenizer->getTextData(), String(allocator, OS_TEXT("1")), Tokenizer::NUMBER, exp->token->line, exp->token->pos);
@@ -3938,7 +3734,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 			num_token->release();
 
 			allocator->deleteObj(exp);
-			return processExpressionSecondPass(scope, result_exp);
+			return stepPass2(scope, result_exp);
 		}
 		exp->type = exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_PRE_INC : EXP_TYPE_PRE_DEC;
 		// no break
@@ -3947,7 +3743,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 	case EXP_TYPE_PRE_DEC:
 		{
 			OS_ASSERT(exp->list.count == 1);
-			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
+			exp->list[0] = stepPass2(scope, exp->list[0]);
 			
 			Expression * var_exp = exp->list[0];
 			OS_ASSERT(var_exp->type == EXP_TYPE_GET_LOCAL_VAR);
@@ -3982,7 +3778,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 				result_exp->ret_values = 1;
 			}
 			allocator->deleteObj(exp);
-			return processExpressionSecondPass(scope, result_exp);
+			return stepPass2(scope, result_exp);
 		}
 
 	case EXP_TYPE_NAME:
@@ -3998,7 +3794,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 
 	case EXP_TYPE_RETURN:
 		if(exp->list.count == 1){
-			Expression * sub_exp = exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
+			Expression * sub_exp = exp->list[0] = stepPass2(scope, exp->list[0]);
 			switch(sub_exp->type){
 			case EXP_TYPE_CALL:
 			case EXP_TYPE_CALL_AUTO_PARAM:
@@ -4021,8 +3817,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 	case EXP_TYPE_CALL_AUTO_PARAM:
 		{
 			OS_ASSERT(exp->list.count == 2);
-			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
-			exp->list[1] = processExpressionSecondPass(scope, exp->list[1]);
+			exp->list[0] = stepPass2(scope, exp->list[0]);
+			exp->list[1] = stepPass2(scope, exp->list[1]);
 			Expression * left_exp = exp->list[0];
 			Expression * right_exp = exp->list[1];
 			if(left_exp->type == EXP_TYPE_GET_PROPERTY){
@@ -4061,9 +3857,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 	case EXP_TYPE_SET_DIM:
 		{
 			OS_ASSERT(exp->list.count == 3);
-			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
-			exp->list[1] = processExpressionSecondPass(scope, exp->list[1]);
-			exp->list[2] = processExpressionSecondPass(scope, exp->list[2]);
+			exp->list[0] = stepPass2(scope, exp->list[0]);
+			exp->list[1] = stepPass2(scope, exp->list[1]);
+			exp->list[2] = stepPass2(scope, exp->list[2]);
 			Expression * params = exp->list[2];
 			if(params->list.count == 1){
 				exp->list[2] = params->list[0];
@@ -4102,8 +3898,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 	case EXP_TYPE_CALL_DIM:
 		{
 			OS_ASSERT(exp->list.count == 2);
-			exp->list[0] = processExpressionSecondPass(scope, exp->list[0]);
-			exp->list[1] = processExpressionSecondPass(scope, exp->list[1]);
+			exp->list[0] = stepPass2(scope, exp->list[0]);
+			exp->list[1] = stepPass2(scope, exp->list[1]);
 			Expression * name_exp = exp->list[0];
 			Expression * params = exp->list[1];
 			OS_ASSERT(params->type == EXP_TYPE_PARAMS);
@@ -4157,10 +3953,92 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::processExpressionSecondPass
 		}
 	}
 	for(int i = 0; i < exp->list.count; i++){
-		exp->list[i] = processExpressionSecondPass(scope, exp->list[i]);
+		exp->list[i] = stepPass2(scope, exp->list[i]);
 	}
 	return exp;
 }
+
+OS::Core::Compiler::Expression * OS::Core::Compiler::postProcessExpression(Scope * scope, Expression * exp)
+{
+	exp = stepPass2(scope, exp);
+#if 1
+	return exp;
+#else
+	OS_ASSERT(scope->type == EXP_TYPE_FUNCTION);
+	prog_stack_size = 0;
+	return stepPass3(scope, exp);
+#endif
+}
+
+#if 0
+OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass3(Scope * scope, Expression * exp)
+{
+	for(int i = 0; i < exp->list.count; i++){
+		exp->list[i] = stepPass3(scope, exp->list[i]);
+	}
+	switch(exp->type){
+	default:
+		OS_ASSERT(false);
+		break;
+
+	case EXP_TYPE_FUNCTION:
+		{
+			Scope * new_scope = dynamic_cast<Scope*>(exp);
+			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			scope = new_scope;
+			break;
+		}
+
+	case EXP_TYPE_SCOPE:
+	case EXP_TYPE_LOOP_SCOPE:
+		{
+			Scope * new_scope = dynamic_cast<Scope*>(exp);
+			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			scope = new_scope;
+			break;
+		}
+
+	case EXP_TYPE_DEBUG_LOCALS:
+		break;
+
+	case EXP_TYPE_PARAMS:
+		break;
+
+	case EXP_TYPE_POST_INC:
+	case EXP_TYPE_POST_DEC:
+	case EXP_TYPE_PRE_INC:
+	case EXP_TYPE_PRE_DEC:
+		OS_ASSERT(false);
+		break;
+
+	case EXP_TYPE_NAME:
+		OS_ASSERT(false);
+		break;
+
+	case EXP_TYPE_RETURN:
+		break;
+
+	case EXP_TYPE_CALL:
+	case EXP_TYPE_CALL_AUTO_PARAM:
+		break;
+
+	case EXP_TYPE_SET_DIM:
+		break;
+
+	case EXP_TYPE_SET_PROPERTY:
+		break;
+
+	case EXP_TYPE_CALL_DIM:
+		OS_ASSERT(false);
+		break;
+
+	case EXP_TYPE_INDIRECT:
+		OS_ASSERT(false);
+		break;
+	}
+	return exp;
+}
+#endif
 
 OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 {
@@ -5176,11 +5054,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 	return scope;
 }
 
-OS::Core::Compiler::Expression * OS::Core::Compiler::expectDebuggerLocalsExpression(Scope * scope)
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectDebugLocalsExpression(Scope * scope)
 {
-	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_debugger_locals);
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_debuglocals);
 	
-	Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_DEBUGGER_LOCALS, recent_token);
+	Expression * exp = new (malloc(sizeof(Expression))) Expression(EXP_TYPE_DEBUG_LOCALS, recent_token);
 	exp->ret_values = 1;
 	readToken();
 	return exp;
@@ -5352,7 +5230,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 
 		switch(exp_type){
 		case EXP_TYPE_CONCAT:    // ..
-			return lib.newExpression(left_exp->toString() + right_exp->toString(), left_exp, right_exp);
+			return lib.newExpression(String(allocator->core->newStringValue(left_exp->toString(), right_exp->toString())), left_exp, right_exp);
 
 		// case EXP_TYPE_ANY_PARAMS:  // ...
 
@@ -5818,7 +5696,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 					|| token->str == allocator->core->strings->syntax_case 
 					|| token->str == allocator->core->strings->syntax_default
 					|| token->str == allocator->core->strings->syntax_debugger
-					|| token->str == allocator->core->strings->syntax_debugger_locals
+					|| token->str == allocator->core->strings->syntax_debuglocals
 					)
 				{
 					return exp;
@@ -6219,8 +6097,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			readToken();
 			return new (malloc(sizeof(Expression))) Expression(EXP_TYPE_DEBUGGER, token);
 		}
-		if(token->str == allocator->core->strings->syntax_debugger_locals){
-			exp = expectDebuggerLocalsExpression(scope);
+		if(token->str == allocator->core->strings->syntax_debuglocals){
+			exp = expectDebugLocalsExpression(scope);
 			if(!exp){
 				return NULL;
 			}
@@ -6253,11 +6131,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 	return NULL;
 }
 
-OS::Core::String OS::Core::Compiler::debugPrintSourceLine(TokenData * token)
+void OS::Core::Compiler::debugPrintSourceLine(StringBuffer& out, TokenData * token)
 {
-	String out(allocator);
 	if(!token){
-		return out;
+		return;
 	}
 
 	bool filePrinted = false;
@@ -6272,13 +6149,13 @@ OS::Core::String OS::Core::Compiler::debugPrintSourceLine(TokenData * token)
 	}
 	if(recent_printed_line != token->line && token->line >= 0){
 		recent_printed_line = token->line;
-		String line = token->text_data->lines[token->line].trim();
+		String line = allocator->core->newStringValue(token->text_data->lines[token->line], true, true);
 		out += String::format(allocator, OS_TEXT("\n[%d] %s\n\n"), token->line+1, line.toChar());
 	}
 	else if(filePrinted){
 		out += String::format(allocator, OS_TEXT("\n"));
 	}
-	return out;
+	return;
 }
 
 const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
@@ -6765,7 +6642,7 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 	int opcodes_size = reader->readUVariable();
 
 	const_numbers = (OS_FLOAT*)allocator->malloc(sizeof(OS_FLOAT) * num_numbers);
-	const_strings = (GC_StringValue**)allocator->malloc(sizeof(GC_StringValue*) * num_strings);
+	const_strings = (GCStringValue**)allocator->malloc(sizeof(GCStringValue*) * num_strings);
 	
 	int num_index = 0;
 	for(i = 0; i < int_count; i++){
@@ -6786,11 +6663,13 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		OS_FLOAT number = (OS_FLOAT)reader->readDouble();
 		const_numbers[num_index] = number;
 	}
+	StringBuffer buf(allocator);
 	for(i = 0; i < num_strings; i++){
 		int data_size = reader->readUVariable();
-		String str(allocator, OS_TEXT('\0'), data_size/sizeof(OS_CHAR));
-		reader->readBytes((void*)str.toChar(), data_size);
-		const_strings[i] = allocator->core->newStringValue(str);
+		allocator->vectorReserveCapacity(buf, data_size/sizeof(OS_CHAR));
+		reader->readBytes((void*)buf.buf, data_size);
+		buf.count = data_size/sizeof(OS_CHAR);
+		const_strings[i] = buf.toGCStringValue();
 	}
 
 	functions = (FunctionDecl*)allocator->malloc(sizeof(FunctionDecl) * num_functions);
@@ -6834,11 +6713,13 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		int num_debug_infos = debuginfo_reader->readUVariable();
 
 		Vector<String> strings;
+		StringBuffer buf(allocator);
 		for(i = 0; i < num_strings; i++){
 			int data_size = debuginfo_reader->readUVariable();
-			String str(allocator, OS_TEXT('\0'), data_size/sizeof(OS_CHAR));
-			debuginfo_reader->readBytes((void*)str.toChar(), data_size);
-			allocator->vectorAddItem(strings, str);
+			allocator->vectorReserveCapacity(buf, data_size/sizeof(OS_CHAR));
+			debuginfo_reader->readBytes((void*)buf.buf, data_size);
+			buf.count = data_size/sizeof(OS_CHAR);
+			allocator->vectorAddItem(strings, buf.toString());
 		}
 		for(i = 0; i < num_debug_infos; i++){
 			int end_opcode_offs = debuginfo_reader->readUVariable();
@@ -6874,7 +6755,7 @@ void OS::Core::Program::pushFunction()
 	FunctionDecl * func_decl = functions + func_index;
 	OS_ASSERT(func_decl->max_up_count == 0);
 
-	GC_FunctionValue * func_value = allocator->core->pushFunctionValue(NULL, this, func_decl);
+	GCFunctionValue * func_value = allocator->core->pushFunctionValue(NULL, this, func_decl);
 
 	allocator->core->gcProcessGreyProgram(this);
 
@@ -7510,170 +7391,132 @@ void * OS::Core::FileStreamReader::readBytesAtPos(void * buf, int len, int pos)
 // =====================================================================
 // =====================================================================
 
-OS::Core::PropertyIndex::PropertyIndex(const PropertyIndex& index): string_index(index.string_index)
+static bool isDecString(const OS_CHAR * str, int len)
 {
-	int_index = index.int_index;
-	hash_value = index.hash_value;
-	is_string_index = index.is_string_index;
-	int_valid = index.int_valid;
+	OS_INT val;
+	const OS_CHAR * end = str + len;
+	return parseSimpleDec(str, val) && str == end;
 }
 
-OS::Core::PropertyIndex::PropertyIndex(const String& index): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(const PropertyIndex& p_index): index(p_index.index)
 {
-	int_index = 0;
-	hash_value = 0; // set by fix
-	is_string_index = true;
-	int_valid = false;
-	fixStringIndex();
 }
 
-OS::Core::PropertyIndex::PropertyIndex(const String& index, const KeepStringIndex&): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(const ValueData& p_index): index(p_index)
 {
-	int_index = 0;
-	hash_value = 0; // set by fix
-	is_string_index = true;
-	int_valid = false;
-	hash_value = string_index.hash();
+	convertStringToNumber();
 }
 
-OS::Core::PropertyIndex::PropertyIndex(StringData * index): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(const ValueData& p_index, const KeepStringIndex&): index(p_index)
 {
-	int_index = 0;
-	hash_value = 0; // set by fix
-	is_string_index = true;
-	int_valid = false;
-	fixStringIndex();
+	OS_ASSERT(index.type != OS_VALUE_TYPE_STRING || PropertyIndex(p_index).index.type == OS_VALUE_TYPE_STRING);
 }
 
-OS::Core::PropertyIndex::PropertyIndex(StringData * index, const KeepStringIndex&): string_index(index)
+OS::Core::PropertyIndex::PropertyIndex(GCStringValue * p_index): index(p_index)
 {
-	int_index = 0;
-	hash_value = 0; // set by fix
-	is_string_index = true;
-	int_valid = false;
-	hash_value = string_index.hash();
+	convertStringToNumber();
 }
 
-OS::Core::PropertyIndex::PropertyIndex(OS * allocator, const OS_CHAR * index): string_index(allocator, index)
+OS::Core::PropertyIndex::PropertyIndex(GCStringValue * p_index, const KeepStringIndex&): index(p_index)
 {
-	int_index = 0;
-	hash_value = 0; // set by fix
-	is_string_index = true;
-	int_valid = false;
-	fixStringIndex();
+	// OS_ASSERT(index.type != OS_VALUE_TYPE_STRING || PropertyIndex(p_index).index.type == OS_VALUE_TYPE_STRING);
 }
 
-OS::Core::PropertyIndex::PropertyIndex(OS * allocator, OS_INT64 index): string_index(allocator)
+OS::Core::PropertyIndex::PropertyIndex(const String& p_index): index(p_index.string)
 {
-	int_index = (OS_INT)index;
-	hash_value = (int)int_index;
-	is_string_index = false;
-	int_valid = true;
+	convertStringToNumber();
 }
 
-OS::Core::PropertyIndex::PropertyIndex(OS * allocator, OS_INT32 index): string_index(allocator)
+OS::Core::PropertyIndex::PropertyIndex(const String& p_index, const KeepStringIndex&): index(p_index.string)
 {
-	int_index = (OS_INT)index;
-	hash_value = (int)int_index;
-	is_string_index = false;
-	int_valid = true;
+	// OS_ASSERT(index.type != OS_VALUE_TYPE_STRING || PropertyIndex(p_index).index.type == OS_VALUE_TYPE_STRING);
 }
 
-OS::Core::PropertyIndex::PropertyIndex(OS * allocator, OS_FLOAT index, int precision): string_index(allocator)
+void OS::Core::PropertyIndex::convertStringToNumber()
 {
-	int_index = (OS_INT)index;
-	if((OS_FLOAT)int_index == index){
-		is_string_index = false;
-		int_valid = true;
-		hash_value = (int)int_index;
-		// string_index = allocator->core->empty_string_data->retain();
-	}else{
-		// string_index = StringData(allocator, index, precision);
-		string_index = String(allocator, index, precision);
-		is_string_index = true;
-		int_valid = false;
-		hash_value = string_index.hash();
-		// fixStringIndex();
-	}
-}
-
-OS::Core::PropertyIndex::~PropertyIndex()
-{
-	// string_index->release();
-}
-
-bool OS::Core::PropertyIndex::checkIntIndex() const
-{
-	OS_ASSERT(is_string_index);
-	const OS_CHAR * str = string_index.toChar();
-	int len = string_index.getDataSize();
-	if(*str == OS_CHAR('-')){ // || *str == OS_CHAR('+')){
-		str++;
-		if(--len <= 0){
-			return false;
-		}
-	}
-	bool point_found = false;
-	for(; len > 0; len--, str++){
-		if(0 && *str == OS_CHAR('.')){
-			if(point_found){
-				return false;
-			}
-			point_found = true;
-			continue;
-		}
-		if(*str < OS_CHAR('0') || *str > OS_CHAR('9')){
-			return false;
-		}
-	}
-	return true;
-}
-
-int OS::Core::PropertyIndex::cmp(const PropertyIndex& b) const
-{
-	if(int_valid && b.int_valid){
-		return (int)(int_index - b.int_index);
-	}
-	if(is_string_index != b.is_string_index){
-		OS_CHAR buf[128];
-		if(!is_string_index){
-			Utils::numToStr(buf, int_index);
-			return Utils::cmp(buf, OS_STRLEN(buf), b.string_index.toChar(), b.string_index.getDataSize());
-		}else{
-			Utils::numToStr(buf, b.int_index);
-			return Utils::cmp(string_index.toChar(), string_index.getDataSize(), buf, OS_STRLEN(buf));
-		}
-	}
-	return string_index.cmp(b.string_index);
-}
-
-int OS::Core::PropertyIndex::hash() const
-{
-	return hash_value; // int_valid ? (int)int_index : string_index.hash();
-}
-
-OS::Core::String OS::Core::PropertyIndex::toString() const
-{
-	return is_string_index ? string_index : String(getAllocator(), int_index);
-}
-
-void OS::Core::PropertyIndex::fixStringIndex()
-{
-	if(!int_valid && checkIntIndex()){
-		OS_FLOAT fval;
-		const OS_CHAR * str = string_index.toChar();
-		const OS_CHAR * end = str + string_index.getDataSize();
-		if(Utils::parseNum(str, fval) && str == end){
-			OS_INT ival = (OS_INT)fval;
-			if((OS_FLOAT)ival == fval){
-				int_valid = true;
-				int_index = ival;
-				hash_value = (int)int_index;
-				return;
+	if(index.type == OS_VALUE_TYPE_STRING){
+		OS_FLOAT val;
+		const OS_CHAR * str = index.v.string->toChar();
+		if(*str >= OS_TEXT('0') && *str <= OS_TEXT('9')){
+			const OS_CHAR * end = str + index.v.string->getLen();
+			if(parseSimpleFloat(str, val)){
+				if(*str == OS_TEXT('.')){
+					OS_FLOAT m = 0.1;
+					for(str++; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++, m *= 0.1){
+						val += (OS_FLOAT)(*str - OS_TEXT('0')) * m;
+					}
+				}
+				if(str == end){
+					index.v.number = val;
+					index.type = OS_VALUE_TYPE_NUMBER;
+					// OS_ASSERT((OS_INT)index.v.number == val);
+				}
 			}
 		}
 	}
-	hash_value = string_index.hash();
+}
+
+bool OS::Core::PropertyIndex::isEqual(const PropertyIndex& b) const
+{
+	switch(index.type){
+	case OS_VALUE_TYPE_NULL:
+		return b.index.type == OS_VALUE_TYPE_NULL;
+
+	// case OS_VALUE_TYPE_BOOL:
+	//	return b.index.type == OS_VALUE_TYPE_BOOL && index.v.boolean == b.index.v.boolean;
+
+	case OS_VALUE_TYPE_NUMBER:
+		return b.index.type == OS_VALUE_TYPE_NUMBER && index.v.number == b.index.v.number;
+	}
+	return index.type == b.index.type && index.v.value == b.index.v.value;
+}
+
+bool OS::Core::PropertyIndex::isEqual(int hash, const void * b, int size) const
+{
+	if(index.type == OS_VALUE_TYPE_STRING){
+		return index.v.string->hash == hash 
+			&& index.v.string->data_size == size
+			&& OS_MEMCMP(index.v.string->toMemory(), b, size) == 0;
+	}
+	return false;
+}
+
+bool OS::Core::PropertyIndex::isEqual(int hash, const void * buf1, int size1, const void * buf2, int size2) const
+{
+	if(index.type == OS_VALUE_TYPE_STRING){
+		int src_size = index.v.string->data_size;
+		if(index.v.string->hash != hash || src_size != size1 + size2){
+			return false;
+		}
+		const OS_BYTE * src = index.v.string->toBytes();
+		return Utils::cmp(src, size1, buf1, size1) == 0
+			&& Utils::cmp(src + size1, size2, buf2, size2) == 0;
+	}
+	return false;
+}
+
+int OS::Core::PropertyIndex::getHash() const
+{
+	switch(index.type){
+	/*
+	case OS_VALUE_TYPE_NULL:
+		return 0;
+
+	case OS_VALUE_TYPE_BOOL:
+		return index.v.boolean;
+	*/
+
+	case OS_VALUE_TYPE_NUMBER:
+		// return (int)index.v.number;
+		OS_ASSERT(sizeof(int) <= sizeof(index.v.number));
+		// return *(int*)&index.v.number;
+		break;
+
+	case OS_VALUE_TYPE_STRING:
+		return index.v.string->hash;
+	}
+	// all other values share same area with index.v.value so just use it as hash
+	return (int)index.v.value;
 }
 
 // =====================================================================
@@ -7685,35 +7528,28 @@ OS::Core::Property::Property(const PropertyIndex& index): PropertyIndex(index)
 	next = NULL;
 }
 
-OS::Core::Property::Property(const String& index): PropertyIndex(index)
+OS::Core::Property::Property(const ValueData& index): PropertyIndex(index)
 {
 	hash_next = NULL;
 	prev = NULL;
 	next = NULL;
 }
 
-OS::Core::Property::Property(OS * allocator, const OS_CHAR * index): PropertyIndex(allocator, index)
+OS::Core::Property::Property(const ValueData& index, const KeepStringIndex& keep): PropertyIndex(index, keep)
 {
 	hash_next = NULL;
 	prev = NULL;
 	next = NULL;
 }
 
-OS::Core::Property::Property(OS * allocator, OS_INT index): PropertyIndex(allocator, index)
+OS::Core::Property::Property(GCStringValue * index): PropertyIndex(index)
 {
 	hash_next = NULL;
 	prev = NULL;
 	next = NULL;
 }
 
-OS::Core::Property::Property(OS * allocator, int index): PropertyIndex(allocator, index)
-{
-	hash_next = NULL;
-	prev = NULL;
-	next = NULL;
-}
-
-OS::Core::Property::Property(OS * allocator, OS_FLOAT index, int precision): PropertyIndex(allocator, index, precision)
+OS::Core::Property::Property(GCStringValue * index, const KeepStringIndex& keep): PropertyIndex(index, keep)
 {
 	hash_next = NULL;
 	prev = NULL;
@@ -7850,7 +7686,7 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 		table->head_mask = new_size-1;
 
 		for(Property * cur = table->first; cur; cur = cur->next){
-			int slot = cur->hash() & table->head_mask;
+			int slot = cur->getHash() & table->head_mask;
 			cur->hash_next = table->heads[slot];
 			table->heads[slot] = cur;
 		}
@@ -7859,7 +7695,7 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 		free(old_heads);
 	}
 
-	int slot = prop->hash() & table->head_mask;
+	int slot = prop->getHash() & table->head_mask;
 	prop->hash_next = table->heads[slot];
 	table->heads[slot] = prop;
 
@@ -7872,8 +7708,8 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 	}
 	table->last = prop;
 
-	if(prop->int_valid && table->next_id <= prop->int_index){
-		table->next_id = prop->int_index + 1;
+	if(prop->index.type == OS_VALUE_TYPE_NUMBER && table->next_id <= prop->index.v.number){
+		table->next_id = (OS_INT)prop->index.v.number + 1;
 	}
 
 	table->count++;
@@ -7882,10 +7718,10 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 bool OS::Core::deleteTableProperty(Table * table, const PropertyIndex& index)
 {
 	OS_ASSERT(table);
-	int slot = index.hash() & table->head_mask;
+	int slot = index.getHash() & table->head_mask;
 	Property * cur = table->heads[slot], * chain_prev = NULL;
 	for(; cur; chain_prev = cur, cur = cur->hash_next){
-		if(cur->cmp(index) == 0){
+		if(cur->isEqual(index)){
 			if(table->first == cur){
 				table->first = cur->next;
 				if(table->first){
@@ -7934,7 +7770,7 @@ bool OS::Core::deleteTableProperty(Table * table, const PropertyIndex& index)
 	return false;
 }
 
-void OS::Core::deleteValueProperty(GC_Value * table_value, ValueData * index_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled)
+void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled)
 {
 	Table * table = table_value->table;
 	if(table && deleteTableProperty(table, index)){
@@ -7944,7 +7780,7 @@ void OS::Core::deleteValueProperty(GC_Value * table_value, ValueData * index_val
 		return;
 	}
 	if(prototype_enabled){
-		GC_Value * cur_value = table_value;
+		GCValue * cur_value = table_value;
 		while(cur_value->prototype){
 			cur_value = cur_value->prototype;
 			Table * cur_table = cur_value->table;
@@ -7956,7 +7792,7 @@ void OS::Core::deleteValueProperty(GC_Value * table_value, ValueData * index_val
 			}
 		}
 	}
-	if(index.is_string_index && index.string_index == strings->syntax_prototype){
+	if(index.index.type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == index.index.v.string){
 		return;
 	}
 	if(del_method_enabled){
@@ -7966,17 +7802,13 @@ void OS::Core::deleteValueProperty(GC_Value * table_value, ValueData * index_val
 		{
 			pushValueData(func_value);
 			pushValue(table_value);
-			if(index_value){
-				pushValueData(*index_value);
-			}else{
-				pushNumber((OS_FLOAT)index.int_index);
-			}
+			pushValueData(index.index);
 			call(1, 0);
 		}
 	}
 }
 
-void OS::Core::deleteValueProperty(ValueData& table_value, ValueData * index_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled)
+void OS::Core::deleteValueProperty(ValueData& table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled)
 {
 	switch(table_value.type){
 	case OS_VALUE_TYPE_NULL:
@@ -7984,19 +7816,19 @@ void OS::Core::deleteValueProperty(ValueData& table_value, ValueData * index_val
 
 	case OS_VALUE_TYPE_BOOL:
 		if(prototype_enabled){
-			return deleteValueProperty(prototypes[PROTOTYPE_BOOL], index_value, index, prototype_enabled, del_method_enabled);
+			return deleteValueProperty(prototypes[PROTOTYPE_BOOL], index, prototype_enabled, del_method_enabled);
 		}
 		return;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(prototype_enabled){
-			return deleteValueProperty(prototypes[PROTOTYPE_NUMBER], index_value, index, prototype_enabled, del_method_enabled);
+			return deleteValueProperty(prototypes[PROTOTYPE_NUMBER], index, prototype_enabled, del_method_enabled);
 		}
 		return;
 
 	case OS_VALUE_TYPE_STRING:
 		if(prototype_enabled){
-			return deleteValueProperty(prototypes[PROTOTYPE_STRING], index_value, index, prototype_enabled, del_method_enabled);
+			return deleteValueProperty(prototypes[PROTOTYPE_STRING], index, prototype_enabled, del_method_enabled);
 		}
 		return;
 
@@ -8006,7 +7838,7 @@ void OS::Core::deleteValueProperty(ValueData& table_value, ValueData * index_val
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return deleteValueProperty(table_value.v.value, index_value, index, prototype_enabled, del_method_enabled);
+		return deleteValueProperty(table_value.v.value, index, prototype_enabled, del_method_enabled);
 	}
 }
 
@@ -8015,10 +7847,8 @@ void OS::Core::reorderTableNumericKeys(Table * table)
 	OS_ASSERT(table);
 	int i = 0;
 	for(Property * prop = table->first; prop; prop = prop->next, i++){
-		if(!prop->is_string_index){
-			prop->int_index = i;
-		}else if(prop->int_valid){
-			*(PropertyIndex*)prop = PropertyIndex(allocator, i);
+		if(prop->index.type == OS_VALUE_TYPE_NUMBER){
+			prop->index.v.number = (OS_FLOAT)i;
 		}
 	}
 	table->next_id = i;
@@ -8029,11 +7859,7 @@ void OS::Core::reorderTableKeys(Table * table)
 	OS_ASSERT(table);
 	int i = 0;
 	for(Property * prop = table->first; prop; prop = prop->next, i++){
-		if(!prop->is_string_index){
-			prop->int_index = i;
-		}else{
-			*(PropertyIndex*)prop = PropertyIndex(allocator, i);
-		}
+		prop->index.v.number = (OS_FLOAT)i;
 	}
 	table->next_id = i;
 }
@@ -8049,9 +7875,9 @@ void OS::Core::initTableProperties(Table * dst, Table * src)
 OS::Core::Property * OS::Core::Table::get(const PropertyIndex& index)
 {
 	if(heads){
-		Property * cur = heads[index.hash() & head_mask];
+		Property * cur = heads[index.getHash() & head_mask];
 		for(; cur; cur = cur->hash_next){
-			if(cur->cmp(index) == 0){
+			if(cur->isEqual(index)){
 				return cur;
 			}
 		}
@@ -8061,22 +7887,22 @@ OS::Core::Property * OS::Core::Table::get(const PropertyIndex& index)
 
 // =====================================================================
 
-OS::Core::GC_FunctionValue::GC_FunctionValue()
+OS::Core::GCFunctionValue::GCFunctionValue()
 {
 	parent_inctance = NULL;
 	prog = NULL;
 	func_decl = NULL;
 }
 
-OS::Core::GC_FunctionValue::~GC_FunctionValue()
+OS::Core::GCFunctionValue::~GCFunctionValue()
 {
 	OS_ASSERT(!parent_inctance);
 	OS_ASSERT(!prog && !func_decl);
 }
 
-OS::Core::GC_FunctionValue * OS::Core::pushFunctionValue(FunctionRunningInstance * func_running, Program * prog, FunctionDecl * func_decl)
+OS::Core::GCFunctionValue * OS::Core::pushFunctionValue(FunctionRunningInstance * func_running, Program * prog, FunctionDecl * func_decl)
 {
-	GC_FunctionValue * func_value = new (allocator->malloc(sizeof(GC_FunctionValue))) GC_FunctionValue();
+	GCFunctionValue * func_value = new (allocator->malloc(sizeof(GCFunctionValue))) GCFunctionValue();
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
 	func_value->prototype = allocator->core->prototypes[PROTOTYPE_FUNCTION];
 	func_value->parent_inctance = func_running ? func_running->retain() : NULL;
@@ -8088,7 +7914,7 @@ OS::Core::GC_FunctionValue * OS::Core::pushFunctionValue(FunctionRunningInstance
 	return func_value;
 }
 
-void OS::Core::clearFunctionValue(GC_FunctionValue * func_value)
+void OS::Core::clearFunctionValue(GCFunctionValue * func_value)
 {
 	OS_ASSERT(func_value->prog && func_value->func_decl); // && func_data->env); //  && func_data->self
 
@@ -8109,8 +7935,8 @@ void OS::Core::clearFunctionValue(GC_FunctionValue * func_value)
 	func_value->prog->release();
 	func_value->prog = NULL;
 	
-	func_value->~GC_FunctionValue();
-	free(func_value);
+	// func_value->~GCFunctionValue();
+	// free(func_value);
 }
 
 // =====================================================================
@@ -8163,64 +7989,64 @@ OS::Core::FunctionRunningInstance * OS::Core::FunctionRunningInstance::retain()
 
 OS::Core::ValueData::ValueData()
 {
-	type = OS_VALUE_TYPE_NULL;
 	v.value = NULL;
+	type = OS_VALUE_TYPE_NULL;
 }
 
 OS::Core::ValueData::ValueData(bool val)
 {
-	type = OS_VALUE_TYPE_BOOL;
 	v.boolean = val;
+	type = OS_VALUE_TYPE_BOOL;
 }
 
 OS::Core::ValueData::ValueData(OS_FLOAT val)
 {
-	type = OS_VALUE_TYPE_NUMBER;
 	v.number = val;
+	type = OS_VALUE_TYPE_NUMBER;
 }
 
 OS::Core::ValueData::ValueData(int val)
 {
-	type = OS_VALUE_TYPE_NUMBER;
 	v.number = (OS_FLOAT)val;
+	type = OS_VALUE_TYPE_NUMBER;
 }
 
 OS::Core::ValueData::ValueData(int val, const WeakRef&)
 {
-	type = OS_VALUE_TYPE_WEAKREF;
 	v.value_id = val;
+	type = OS_VALUE_TYPE_WEAKREF;
 }
 
-OS::Core::ValueData::ValueData(GC_Value * val)
+OS::Core::ValueData::ValueData(GCValue * val)
 {
 	if(val){
-		type = val->type;
 		v.value = val;
+		type = val->type;
 	}else{
-		type = OS_VALUE_TYPE_NULL;
 		v.value = NULL;
+		type = OS_VALUE_TYPE_NULL;
 	}
 }
 
-OS::Core::ValueData& OS::Core::ValueData::operator=(GC_Value * val)
+OS::Core::ValueData& OS::Core::ValueData::operator=(GCValue * val)
 {
 	if(val){
-		type = val->type;
 		v.value = val;
+		type = val->type;
 	}else{
-		type = OS_VALUE_TYPE_NULL;
 		v.value = NULL;
+		type = OS_VALUE_TYPE_NULL;
 	}
 	return *this;
 }
 				
 void OS::Core::ValueData::clear()
 {
-	type = OS_VALUE_TYPE_NULL;
 	v.value = NULL;
+	type = OS_VALUE_TYPE_NULL;
 }
 
-OS::Core::GC_Value * OS::Core::ValueData::getGCValue() const
+OS::Core::GCValue * OS::Core::ValueData::getGCValue() const
 {
 	switch(type){
 	case OS_VALUE_TYPE_STRING:
@@ -8230,6 +8056,7 @@ OS::Core::GC_Value * OS::Core::ValueData::getGCValue() const
 	case OS_VALUE_TYPE_CFUNCTION:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
+		OS_ASSERT(v.value);
 		return v.value;
 	}
 	return NULL;
@@ -8257,9 +8084,101 @@ bool OS::Core::ValueData::isUserData() const
 
 // =====================================================================
 
-OS::Core::GC_Value::GC_Value()
+OS::Core::ValueDataRetained::ValueDataRetained(): super()
+{
+}
+
+OS::Core::ValueDataRetained::ValueDataRetained(bool val): super(val)
+{
+	// retain();
+}
+
+OS::Core::ValueDataRetained::ValueDataRetained(OS_FLOAT val): super(val)
+{
+	// retain();
+}
+
+OS::Core::ValueDataRetained::ValueDataRetained(int val): super(val)
+{
+	// retain();
+}
+
+OS::Core::ValueDataRetained::ValueDataRetained(int val, const WeakRef& wr): super(val, wr)
+{
+	// retain();
+}
+
+OS::Core::ValueDataRetained::ValueDataRetained(GCValue * val): super(val)
+{
+	// retain();
+	if(val){
+		val->external_ref_count++;
+	}
+}
+
+OS::Core::ValueDataRetained::ValueDataRetained(const ValueData& b): super(b)
+{
+	retain();
+}
+
+OS::Core::ValueDataRetained::~ValueDataRetained()
+{
+	release();
+}
+
+OS::Core::ValueDataRetained& OS::Core::ValueDataRetained::operator=(ValueData& b)
+{
+	release();
+	super::operator=(b);
+	retain();
+	return *this;
+}
+
+				
+void OS::Core::ValueDataRetained::clear()
+{
+	release();
+	super::clear();
+}
+
+void OS::Core::ValueDataRetained::retain()
+{
+	switch(type){
+	case OS_VALUE_TYPE_STRING:
+	case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+		OS_ASSERT(v.value);
+		v.value->external_ref_count++;
+		break;
+	}
+}
+
+void OS::Core::ValueDataRetained::release()
+{
+	switch(type){
+	case OS_VALUE_TYPE_STRING:
+	case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+		OS_ASSERT(v.value && v.value->external_ref_count > 0);
+		v.value->external_ref_count--;
+		break;
+	}
+}
+
+// =====================================================================
+
+OS::Core::GCValue::GCValue()
 {
 	value_id = 0;
+	external_ref_count = 0;
 	hash_next = NULL;
 	prototype = NULL;
 	table = NULL;
@@ -8268,7 +8187,7 @@ OS::Core::GC_Value::GC_Value()
 	type = OS_VALUE_TYPE_NULL;
 }
 
-OS::Core::GC_Value::~GC_Value()
+OS::Core::GCValue::~GCValue()
 {
 	value_id = 0;
 
@@ -8278,6 +8197,120 @@ OS::Core::GC_Value::~GC_Value()
 	OS_ASSERT(!prototype);
 	OS_ASSERT(gc_color != GC_GREY);
 }
+
+// =====================================================================
+
+OS::Core::GCStringValue::GCStringValue(int p_data_size)
+{
+	data_size = p_data_size;
+}
+
+OS::Core::GCStringValue * OS::Core::GCStringValue::alloc(OS * allocator, const void * buf, int data_size)
+{
+	OS_ASSERT(data_size >= 0);
+	int alloc_size = data_size + sizeof(GCStringValue) + sizeof(wchar_t) + sizeof(wchar_t)/2;
+	GCStringValue * string = new (allocator->malloc(alloc_size)) GCStringValue(data_size);
+	string->type = OS_VALUE_TYPE_STRING;
+	string->prototype = allocator->core->prototypes[PROTOTYPE_STRING];
+	OS_BYTE * data_buf = string->toBytes();
+	OS_MEMCPY(data_buf, buf, data_size);
+	OS_MEMSET(data_buf + data_size, 0, sizeof(wchar_t) + sizeof(wchar_t)/2);
+	string->calcHash();
+	allocator->core->registerValue(string);
+#ifdef OS_DEBUG
+	string->str = string->toChar();
+#endif
+	return string;
+}
+
+OS::Core::GCStringValue * OS::Core::GCStringValue::alloc(OS * allocator, const void * buf1, int len1, const void * buf2, int len2)
+{
+	OS_ASSERT(len1 >= 0 && len2 >= 0);
+	int alloc_size = len1 + len2 + sizeof(GCStringValue) + sizeof(wchar_t) + sizeof(wchar_t)/2;
+	GCStringValue * string = new (allocator->malloc(alloc_size)) GCStringValue(len1 + len2);
+	string->type = OS_VALUE_TYPE_STRING;
+	string->prototype = allocator->core->prototypes[PROTOTYPE_STRING];
+	OS_BYTE * data_buf = string->toBytes();
+	OS_MEMCPY(data_buf, buf1, len1); data_buf += len1;
+	OS_MEMCPY(data_buf, buf2, len2); data_buf += len2;
+	OS_MEMSET(data_buf, 0, sizeof(wchar_t) + sizeof(wchar_t)/2);
+	string->calcHash();
+	allocator->core->registerValue(string);
+#ifdef OS_DEBUG
+	string->str = string->toChar();
+#endif
+	return string;
+}
+
+/*
+OS::Core::GCStringValue * OS::Core::GCStringValue::alloc(OS * allocator, const void * buf1, int len1, 
+	const void * buf2, int len2, const void * buf3, int len3)
+{
+	OS_ASSERT(len1 >= 0 && len2 >= 0 && len3 >= 0);
+	int alloc_size = len1 + len2 + len3 + sizeof(GCStringValue) + sizeof(wchar_t) + sizeof(wchar_t)/2;
+	GCStringValue * string = new (allocator->malloc(alloc_size)) GCStringValue(len1 + len2 + len3);
+	string->type = OS_VALUE_TYPE_STRING;
+	string->prototype = allocator->core->prototypes[PROTOTYPE_STRING];
+	OS_BYTE * data_buf = string->toBytes();
+	OS_MEMCPY(data_buf, buf1, len1); data_buf += len1;
+	OS_MEMCPY(data_buf, buf2, len2); data_buf += len2;
+	OS_MEMCPY(data_buf, buf3, len3); data_buf += len3;
+	OS_MEMSET(data_buf, 0, sizeof(wchar_t) + sizeof(wchar_t)/2);
+	string->calcHash();
+	allocator->core->registerValue(string);
+	return string;
+}
+*/
+
+OS::Core::GCStringValue * OS::Core::GCStringValue::alloc(OS * allocator, GCStringValue * a, GCStringValue * b)
+{
+	return alloc(allocator, a->toMemory(), a->data_size, b->toMemory(), b->data_size);
+}
+
+/*
+OS::Core::GCStringValue * OS::Core::GCStringValue::alloc(OS * allocator, GCStringValue * a, GCStringValue * b, GCStringValue * c)
+{
+	return alloc(allocator, a->toMemory(), a->data_size, b->toMemory(), b->data_size, c->toMemory(), c->data_size);
+}
+*/
+
+bool OS::Core::GCStringValue::isFloat(OS_FLOAT* p_val) const
+{
+	const OS_CHAR * str = toChar();
+	const OS_CHAR * end = str + getLen();
+	OS_FLOAT val;
+	if(Utils::parseFloat(str, val) && str == end){
+		if(p_val) *p_val = val;
+		return true;
+	}
+	if(p_val) *p_val = 0;
+	return false;
+}
+
+int OS::Core::GCStringValue::cmp(GCStringValue * string) const
+{
+	if(this == string){
+		return 0;
+	}
+	return Utils::cmp(toBytes(), data_size, string->toBytes(), string->data_size);
+}
+
+int OS::Core::GCStringValue::cmp(const OS_CHAR * str) const
+{
+	return cmp(str, OS_STRLEN(str));
+}
+
+int OS::Core::GCStringValue::cmp(const OS_CHAR * str, int len) const
+{
+	return Utils::cmp(toBytes(), data_size, str, len * sizeof(OS_CHAR));
+}
+
+void OS::Core::GCStringValue::calcHash()
+{
+	hash = Utils::keyToHash(toBytes(), data_size); 
+}
+
+// =====================================================================
 
 bool OS::Core::valueToBool(const ValueData& val)
 {
@@ -8347,7 +8380,13 @@ OS_FLOAT OS::Core::valueToNumber(const ValueData& val, bool valueof_enabled)
 		return val.v.number;
 
 	case OS_VALUE_TYPE_STRING:
-		return val.v.string->string_data->toFloat();
+		{
+			OS_FLOAT fval;
+			if(val.v.string->isFloat(&fval)){
+				return fval;
+			}
+			return 0;
+		}
 	}
 	if(valueof_enabled){
 		pushValueOf(val);
@@ -8381,10 +8420,7 @@ bool OS::Core::isValueNumber(const ValueData& val, OS_FLOAT * out)
 		return true;
 
 	case OS_VALUE_TYPE_STRING:
-		if(out){
-			*out = val.v.string->string_data->toFloat();
-		}
-		return true;
+		return val.v.string->isFloat(out);
 	}
 	if(out){
 		*out = 0;
@@ -8434,7 +8470,7 @@ OS::Core::String OS::Core::valueToString(const ValueData& val, bool valueof_enab
 		return String(allocator, val.v.number, OS_DEF_PRECISION);
 
 	case OS_VALUE_TYPE_STRING:
-		return String(val.v.string->string_data);
+		return String(val.v.string);
 	}
 	if(valueof_enabled){
 		/*
@@ -8480,7 +8516,46 @@ bool OS::Core::isValueString(const ValueData& val, String * out)
 
 	case OS_VALUE_TYPE_STRING:
 		if(out){
-			*out = String(val.v.string->string_data);
+			*out = String(val.v.string);
+		}
+		return true;
+
+	// case OS_VALUE_TYPE_OBJECT:
+	// case OS_VALUE_TYPE_ARRAY:
+	// 	return String(this, (OS_INT)(val->table ? val->table->count : 0));
+	}
+	if(out){
+		*out = String(allocator);
+	}
+	return false;
+}
+
+bool OS::Core::isValueString(const ValueData& val, OS::String * out)
+{
+	switch(val.type){
+	case OS_VALUE_TYPE_NULL:
+		if(out){
+			// *out = String(allocator);
+			*out = strings->syntax_null;
+		}
+		return true;
+
+	case OS_VALUE_TYPE_BOOL:
+		if(out){
+			// *out = String(allocator, val->value.boolean ? OS_TEXT("1") : OS_TEXT(""));
+			*out = val.v.boolean ? strings->syntax_true : strings->syntax_false;
+		}
+		return true;
+
+	case OS_VALUE_TYPE_NUMBER:
+		if(out){
+			*out = String(allocator, val.v.number, OS_DEF_PRECISION);
+		}
+		return true;
+
+	case OS_VALUE_TYPE_STRING:
+		if(out){
+			*out = String(val.v.string);
 		}
 		return true;
 
@@ -8513,18 +8588,18 @@ OS::Core::Values::~Values()
 	// delete [] heads;
 }
 
-void OS::Core::registerValue(GC_Value * value)
+void OS::Core::registerValue(GCValue * value)
 {
 	value->value_id = values.next_id++;
 
 	if((values.count>>1) >= values.head_mask){
 		int new_size = values.heads ? (values.head_mask+1) * 2 : OS_DEF_VALUES_HASH_SIZE;
-		int alloc_size = sizeof(GC_Value*) * new_size;
-		GC_Value ** new_heads = (GC_Value**)malloc(alloc_size); // new Value*[new_size];
+		int alloc_size = sizeof(GCValue*) * new_size;
+		GCValue ** new_heads = (GCValue**)malloc(alloc_size); // new Value*[new_size];
 		OS_ASSERT(new_heads);
 		OS_MEMSET(new_heads, 0, alloc_size);
 
-		GC_Value ** old_heads = values.heads;
+		GCValue ** old_heads = values.heads;
 		int old_mask = values.head_mask;
 
 		values.heads = new_heads;
@@ -8532,7 +8607,7 @@ void OS::Core::registerValue(GC_Value * value)
 
 		if(old_heads){
 			for(int i = 0; i <= old_mask; i++){
-				for(GC_Value * value = old_heads[i], * next; value; value = next){
+				for(GCValue * value = old_heads[i], * next; value; value = next){
 					next = value->hash_next;
 					int slot = value->value_id & values.head_mask;
 					value->hash_next = values.heads[slot];
@@ -8559,10 +8634,10 @@ void OS::Core::registerValue(GC_Value * value)
 	gcAddToGreyList(value);
 }
 
-OS::Core::GC_Value * OS::Core::unregisterValue(int value_id)
+OS::Core::GCValue * OS::Core::unregisterValue(int value_id)
 {
 	int slot = value_id & values.head_mask;
-	GC_Value * value = values.heads[slot], * prev = NULL;
+	GCValue * value = values.heads[slot], * prev = NULL;
 	for(; value; prev = value, value = value->hash_next){
 		if(value->value_id == value_id){
 			if(prev){
@@ -8578,38 +8653,46 @@ OS::Core::GC_Value * OS::Core::unregisterValue(int value_id)
 	return NULL;
 }
 
-void OS::Core::deleteValues()
+void OS::Core::deleteValues(bool del_ref_counted_also)
 {
-	if(values.heads){
-		while(values.count > 0){
+	if(values.heads && values.count > 0){
+		while(true){
 			for(int i = 0; i <= values.head_mask; i++){
-		#if 1
-				for(GC_Value * value; value = values.heads[i]; ){
+		#if 0
+				for(GCValue * value; value = values.heads[i]; ){
 					deleteValue(value);
 				}
 		#else
-				for(Value * value; value = values_heads[i]; ){
-					values_heads[i] = value->hash_next;
-					// values.count--;
-
-					value->hash_next = NULL;
-					deleteValue(value);
+				for(GCValue * value = values.heads[i], * next; value; value = next){
+					next = value->hash_next;
+					if(del_ref_counted_also || !value->external_ref_count){
+						if(values.heads[i] == value){
+							values.heads[i] = next;
+						}
+						values.count--;
+						value->hash_next = NULL;
+						deleteValue(value);
+					}
 				}
 		#endif
 			}
+			if(!values.count || !del_ref_counted_also){
+				break;
+			}
 		}
-		OS_ASSERT(values.count == 0);
-		free(values.heads);
-		values.heads = NULL;
-		values.head_mask = 0;
-		values.next_id = 1;
+		if(values.count == 0){
+			free(values.heads);
+			values.heads = NULL;
+			values.head_mask = 0;
+			values.next_id = 1;
+		}
 	}
 }
 
-OS::Core::GC_Value * OS::Core::Values::get(int value_id)
+OS::Core::GCValue * OS::Core::Values::get(int value_id)
 {
 	int slot = value_id & head_mask;
-	for(GC_Value * value = heads[slot]; value; value = value->hash_next){
+	for(GCValue * value = heads[slot]; value; value = value->hash_next){
 		if(value->value_id == value_id){
 			return value;
 		}
@@ -8706,7 +8789,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_break(allocator, OS_TEXT("break")),
 	syntax_continue(allocator, OS_TEXT("continue")),
 	syntax_debugger(allocator, OS_TEXT("debugger")),
-	syntax_debugger_locals(allocator, OS_TEXT("debuggerlocals")),
+	syntax_debuglocals(allocator, OS_TEXT("debuglocals")),
 
 	__dummy__(0)
 {
@@ -8733,11 +8816,11 @@ OS::SmartMemoryManager::SmartMemoryManager()
 	stat_malloc_count = 0;
 	stat_free_count = 0;
 
-	registerPageDesc(sizeof(Core::GC_ObjectValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
-	registerPageDesc(sizeof(Core::GC_StringValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
-	registerPageDesc(sizeof(Core::GC_UserDataValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
-	registerPageDesc(sizeof(Core::GC_FunctionValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
-	registerPageDesc(sizeof(Core::GC_CFunctionValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::GCObjectValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::GCStringValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::GCUserDataValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::GCFunctionValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	registerPageDesc(sizeof(Core::GCCFunctionValue), OS_MEMORY_MANAGER_PAGE_BLOCKS);
 
 	registerPageDesc(sizeof(Core::Property), OS_MEMORY_MANAGER_PAGE_BLOCKS);
 	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*4, OS_MEMORY_MANAGER_PAGE_BLOCKS);
@@ -8849,7 +8932,7 @@ void OS::SmartMemoryManager::freeMemBlock(MemBlock * mem_block)
 	CachedBlock * cached_block = (CachedBlock*)mem_block;
 	cached_block->page = page;
 	cached_block->next = cached_blocks[page->index];
-#ifdef _DEBUG
+#ifdef OS_DEBUG
 	OS_MEMSET(cached_block+1, 0xde, size - (sizeof(CachedBlock) - sizeof(MemBlock)));
 #endif
 	cached_blocks[page->index] = cached_block;
@@ -8928,7 +9011,7 @@ void OS::SmartMemoryManager::stdFree(void * ptr)
 	OS_ASSERT(p[0] & 0x80000000);
 	int size = p[0] & ~0x80000000;
 	allocated_bytes -= size + sizeof(int);
-#ifdef _DEBUG
+#ifdef OS_DEBUG
 	OS_MEMSET(ptr, 0xde, size);
 #endif
 	::free(p);
@@ -9091,7 +9174,6 @@ OS::Core::OpcodeTime::OpcodeTime()
 OS::Core::Core(OS * p_allocator)
 {
 	allocator = p_allocator;
-	empty_string_data = NULL;
 	strings = NULL;
 	OS_MEMSET(prototypes, 0, sizeof(prototypes));
 	
@@ -9175,12 +9257,6 @@ void OS::release()
 
 bool OS::Core::init()
 {
-	empty_string_data = StringData::alloc(allocator, "", 1);
-	empty_string_data->data_size = 0;
-	empty_string_data->ref_count = 2;
-
-	strings = new (malloc(sizeof(Strings))) Strings(allocator);
-
 	string_values_table = newTable();
 	for(int i = 0; i < PROTOTYPE_COUNT; i++){
 		prototypes[i] = newObjectValue(NULL);
@@ -9194,6 +9270,8 @@ bool OS::Core::init()
 	prototypes[PROTOTYPE_STRING]->prototype = prototypes[PROTOTYPE_OBJECT];
 	prototypes[PROTOTYPE_ARRAY]->prototype = prototypes[PROTOTYPE_OBJECT];
 	prototypes[PROTOTYPE_FUNCTION]->prototype = prototypes[PROTOTYPE_OBJECT];
+
+	strings = new (malloc(sizeof(Strings))) Strings(allocator);
 
 	setGlobalValue(OS_TEXT("Boolean"), ValueData(prototypes[PROTOTYPE_BOOL]), false, false);
 	setGlobalValue(OS_TEXT("Number"), ValueData(prototypes[PROTOTYPE_NUMBER]), false, false);
@@ -9225,23 +9303,26 @@ void OS::Core::shutdown()
 	global_vars = NULL;
 	user_pool = NULL;
 
-	deleteValues();
-	deleteTable(string_values_table);
-	string_values_table = NULL;
-
+	deleteValues(false);
 	for(int i = 0; i < PROTOTYPE_COUNT; i++){
 		// releaseValue(prototypes[i]);
 		prototypes[i] = NULL;
 	}
-	deleteValues();
 	// vectorClear(stack_values); // !!!
 
 	allocator->deleteObj(strings);
-
-	OS_ASSERT(empty_string_data->ref_count == 2);
-	empty_string_data->ref_count = 1;
-	empty_string_data->release();
-	empty_string_data = NULL;
+	deleteValues(false);
+	deleteTable(string_values_table);
+	string_values_table = NULL;
+#ifdef OS_DEBUG
+	deleteValues(false);
+	for(int i = 0; i <= values.head_mask; i++){
+		for(GCValue * value = values.heads[i]; value; value = value->hash_next){
+			GCValue * leak_value = value;
+		}
+	}
+#endif
+	deleteValues(true);
 }
 
 OS::Core::String OS::changeFilenameExt(const OS_CHAR * filename, const OS_CHAR * ext)
@@ -9280,7 +9361,7 @@ void OS::Core::error(int code, const OS_CHAR * message)
 void OS::Core::error(int code, const String& message)
 {
 	FunctionRunningInstance * func_running = call_stack_funcs.lastElement();
-	GC_FunctionValue * func_value = func_running->func;
+	GCFunctionValue * func_value = func_running->func;
 	Program * prog = func_value->prog;
 	Program::DebugInfoItem * debug_info = NULL;
 	if(prog->debug_info.count > 0){
@@ -9353,9 +9434,9 @@ void OS::Core::gcAddToGreyList(ValueData& val)
 	}
 }
 
-void OS::Core::gcAddToGreyList(GC_Value * value)
+void OS::Core::gcAddToGreyList(GCValue * value)
 {
-	if(value->gc_color != GC_Value::GC_WHITE){
+	if(value->gc_color != GCValue::GC_WHITE){
 		return;
 	}
 	// OS_ASSERT(!value->gc_grey_next && !value->gc_grey_prev);
@@ -9363,19 +9444,19 @@ void OS::Core::gcAddToGreyList(GC_Value * value)
 	// gc_grey_list.insertEnd(value);
 	value->gc_grey_next = gc_grey_list_first;
 	gc_grey_list_first = value;
-	value->gc_color = GC_Value::GC_GREY;
+	value->gc_color = GCValue::GC_GREY;
 	gc_grey_added_count++;
 }
 
-void OS::Core::gcRemoveFromGreyList(GC_Value * value)
+void OS::Core::gcRemoveFromGreyList(GCValue * value)
 {
 	// OS_ASSERT(value->gc_grey_next && value->gc_grey_prev);
-	OS_ASSERT(value->gc_color == GC_Value::GC_GREY);
+	OS_ASSERT(value->gc_color == GCValue::GC_GREY);
 	OS_ASSERT(gc_grey_list_first == value);
 	// gc_grey_list.remove(value);
 	gc_grey_list_first = value->gc_grey_next;
 	value->gc_grey_next = NULL;
-	value->gc_color = GC_Value::GC_BLACK;
+	value->gc_color = GCValue::GC_BLACK;
 	// gc_grey_removed_count++;
 }
 
@@ -9418,7 +9499,7 @@ void OS::Core::gcProcessGreyProgram(Program * prog)
 	}
 }
 
-void OS::Core::gcProcessGreyFunctionValue(GC_FunctionValue * func_value)
+void OS::Core::gcProcessGreyFunctionValue(GCFunctionValue * func_value)
 {
 	OS_ASSERT(func_value->type == OS_VALUE_TYPE_FUNCTION);
 	gcAddToGreyList(func_value->env);
@@ -9463,9 +9544,9 @@ void OS::Core::gcProcessGreyFunctionRunning(FunctionRunningInstance * func_runni
 }
 
 
-void OS::Core::gcProcessGreyValue(GC_Value * value)
+void OS::Core::gcProcessGreyValue(GCValue * value)
 {
-	OS_ASSERT(value->gc_color == GC_Value::GC_GREY);
+	OS_ASSERT(value->gc_color == GCValue::GC_GREY);
 	gcRemoveFromGreyList(value);
 	if(value->prototype){
 		gcAddToGreyList(value->prototype);
@@ -9482,23 +9563,23 @@ void OS::Core::gcProcessGreyValue(GC_Value * value)
 		break;
 
 	case OS_VALUE_TYPE_STRING:
-		OS_ASSERT(dynamic_cast<GC_StringValue*>(value));
+		OS_ASSERT(dynamic_cast<GCStringValue*>(value));
 		break;
 
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
-		OS_ASSERT(dynamic_cast<GC_ObjectValue*>(value));
+		OS_ASSERT(dynamic_cast<GCObjectValue*>(value));
 		break;
 
 	case OS_VALUE_TYPE_FUNCTION:
-		OS_ASSERT(dynamic_cast<GC_FunctionValue*>(value));
-		gcProcessGreyFunctionValue((GC_FunctionValue*)value);
+		OS_ASSERT(dynamic_cast<GCFunctionValue*>(value));
+		gcProcessGreyFunctionValue((GCFunctionValue*)value);
 		break;
 
 	case OS_VALUE_TYPE_CFUNCTION:
 		{
-			OS_ASSERT(dynamic_cast<GC_CFunctionValue*>(value));
-			GC_CFunctionValue * func_value = (GC_CFunctionValue*)value;
+			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(value));
+			GCCFunctionValue * func_value = (GCCFunctionValue*)value;
 			ValueData * upvalues = (ValueData*)(func_value + 1);
 			for(int i = 0; i < func_value->num_upvalues; i++){
 				gcAddToGreyList(upvalues[i]);
@@ -9508,7 +9589,7 @@ void OS::Core::gcProcessGreyValue(GC_Value * value)
 
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		OS_ASSERT(dynamic_cast<GC_UserDataValue*>(value));
+		OS_ASSERT(dynamic_cast<GCUserDataValue*>(value));
 		break;
 	}
 }
@@ -9528,15 +9609,16 @@ int OS::Core::gcStep()
 		int i = gc_values_head_index;
 		step_size += step_size/16;
 		for(; i <= values.head_mask && step_size > 0; i++){
-			for(GC_Value * value = values.heads[i], * next; value; value = next, step_size--){
+			for(GCValue * value = values.heads[i], * next; value; value = next, step_size--){
 				next = value->hash_next;
-				if(value->gc_color == GC_Value::GC_WHITE){
+				if(value->gc_color == GCValue::GC_WHITE && !value->external_ref_count){
+					OS_ASSERT(!isValueUsed(value));
 					deleteValue(value);
 					if(gc_values_head_index < 0){
 						return OS_GC_PHASE_MARK;
 					}
-				}else if(value->gc_color == GC_Value::GC_BLACK){
-					value->gc_color = GC_Value::GC_WHITE;
+				}else if(value->gc_color == GCValue::GC_BLACK){
+					value->gc_color = GCValue::GC_WHITE;
 				}
 			}
 		}
@@ -9651,7 +9733,7 @@ void OS::Core::clearValue(ValueData& val)
 	val.type = OS_VALUE_TYPE_NULL;
 }
 
-void OS::Core::clearValue(GC_Value * val)
+void OS::Core::clearValue(GCValue * val)
 {
 	switch(val->type){
 	case OS_VALUE_TYPE_NULL:
@@ -9663,18 +9745,15 @@ void OS::Core::clearValue(GC_Value * val)
 
 	case OS_VALUE_TYPE_STRING:
 		{
-			OS_ASSERT(dynamic_cast<GC_StringValue*>(val));
-			GC_StringValue * string = (GC_StringValue*)val;
-			string->string_data->release();
-			string->string_data = NULL;
+			OS_ASSERT(dynamic_cast<GCStringValue*>(val));
 			break;
 		}
 
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		{
-			OS_ASSERT(dynamic_cast<GC_UserDataValue*>(val));
-			GC_UserDataValue * userdata = (GC_UserDataValue*)val;
+			OS_ASSERT(dynamic_cast<GCUserDataValue*>(val));
+			GCUserDataValue * userdata = (GCUserDataValue*)val;
 			if(userdata->dtor){
 				userdata->dtor(allocator, userdata->ptr, userdata->user_param);
 				userdata->dtor = NULL;
@@ -9686,16 +9765,16 @@ void OS::Core::clearValue(GC_Value * val)
 
 	case OS_VALUE_TYPE_FUNCTION:
 		{
-			OS_ASSERT(dynamic_cast<GC_FunctionValue*>(val));
-			GC_FunctionValue * func_value = (GC_FunctionValue*)val;
+			OS_ASSERT(dynamic_cast<GCFunctionValue*>(val));
+			GCFunctionValue * func_value = (GCFunctionValue*)val;
 			clearFunctionValue(func_value);
 			break;
 		}
 
 	case OS_VALUE_TYPE_CFUNCTION:
 		{
-			OS_ASSERT(dynamic_cast<GC_CFunctionValue*>(val));
-			GC_CFunctionValue * func_value = (GC_CFunctionValue*)val;
+			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(val));
+			GCCFunctionValue * func_value = (GCCFunctionValue*)val;
 			func_value->func = NULL;
 			func_value->user_param = NULL;
 			func_value->num_upvalues = 0;
@@ -9704,7 +9783,7 @@ void OS::Core::clearValue(GC_Value * val)
 
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
-		OS_ASSERT(dynamic_cast<GC_ObjectValue*>(val));
+		OS_ASSERT(dynamic_cast<GCObjectValue*>(val));
 		break;
 	}
 	if(val->table){
@@ -9732,15 +9811,15 @@ void OS::Core::clearValue(GC_Value * val)
 	val->type = OS_VALUE_TYPE_UNKNOWN;
 }
 
-bool OS::Core::isValueUsed(GC_Value * val)
+bool OS::Core::isValueUsed(GCValue * val)
 {
 	struct Lib {
 		Core * core;
-		GC_Value * val;
+		GCValue * val;
 
 		bool findAt(ValueData& cur)
 		{
-			GC_Value * value = cur.getGCValue();
+			GCValue * value = cur.getGCValue();
 			return value && findAt(value);
 		}
 
@@ -9767,7 +9846,7 @@ bool OS::Core::isValueUsed(GC_Value * val)
 			return false;
 		}
 
-		bool findAt(GC_Value * cur)
+		bool findAt(GCValue * cur)
 		{
 			if(cur == val){
 				return true;
@@ -9786,8 +9865,8 @@ bool OS::Core::isValueUsed(GC_Value * val)
 			switch(cur->type){
 			case OS_VALUE_TYPE_FUNCTION:
 				{
-					OS_ASSERT(dynamic_cast<GC_FunctionValue*>(cur));
-					GC_FunctionValue * func_value = (GC_FunctionValue*)cur;
+					OS_ASSERT(dynamic_cast<GCFunctionValue*>(cur));
+					GCFunctionValue * func_value = (GCFunctionValue*)cur;
 					if(findAt(func_value->env)){
 						return true;
 					}
@@ -9804,8 +9883,8 @@ bool OS::Core::isValueUsed(GC_Value * val)
 
 			case OS_VALUE_TYPE_CFUNCTION:
 				{
-					OS_ASSERT(dynamic_cast<GC_CFunctionValue*>(cur));
-					GC_CFunctionValue * func_value = (GC_CFunctionValue*)cur;
+					OS_ASSERT(dynamic_cast<GCCFunctionValue*>(cur));
+					GCCFunctionValue * func_value = (GCCFunctionValue*)cur;
 					ValueData * upvalues = (ValueData*)(func_value + 1);
 					for(int i = 0; i < func_value->num_upvalues; i++){
 						if(findAt(upvalues[i])){
@@ -9837,13 +9916,13 @@ bool OS::Core::isValueUsed(GC_Value * val)
 	return false;
 }
 
-void OS::Core::deleteValue(GC_Value * val)
+void OS::Core::deleteValue(GCValue * val)
 {
-	OS_ASSERT(val && !isValueUsed(val));
-	OS_ASSERT(val->gc_color != GC_Value::GC_GREY);
+	OS_ASSERT(val);
+	OS_ASSERT(val->gc_color != GCValue::GC_GREY);
 	unregisterValue(val->value_id);
 	clearValue(val);
-	val->~GC_Value();
+	val->~GCValue();
 	free(val);
 	num_destroyed_values++;
 }
@@ -9866,8 +9945,13 @@ OS::Core::Property * OS::Core::setTableValue(Table * table, PropertyIndex& index
 	return prop;
 }
 
-void OS::Core::setPropertyValue(GC_Value * table_value, ValueData * index_value, PropertyIndex& index, ValueData& value, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setPropertyValue(GCValue * table_value, PropertyIndex& index, ValueData& value, bool prototype_enabled, bool setter_enabled)
 {
+#ifdef OS_DEBUG
+	if(index.index.type == OS_VALUE_TYPE_NULL){
+		error(OS_WARNING, OS_TEXT("object set null index"));
+	}
+#endif
 	// TODO: correct ???
 	gcAddToGreyList(value);
 
@@ -9879,7 +9963,7 @@ void OS::Core::setPropertyValue(GC_Value * table_value, ValueData * index_value,
 	}
 
 	if(prototype_enabled){
-		GC_Value * cur_value = table_value;
+		GCValue * cur_value = table_value;
 		while(cur_value->prototype){
 			cur_value = cur_value->prototype;
 			Table * cur_table = cur_value->table;
@@ -9890,7 +9974,7 @@ void OS::Core::setPropertyValue(GC_Value * table_value, ValueData * index_value,
 		}
 	}
 
-	if(index.is_string_index && index.string_index == strings->syntax_prototype){
+	if(index.index.type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == index.index.v.string){
 		switch(table_value->type){
 		case OS_VALUE_TYPE_STRING:
 		case OS_VALUE_TYPE_ARRAY:
@@ -9910,14 +9994,21 @@ void OS::Core::setPropertyValue(GC_Value * table_value, ValueData * index_value,
 
 	if(setter_enabled){
 		ValueData func;
-		// GC_Value * self = table_value.v.value;
-		if(index.is_string_index){
-			String setter_name(allocator,
-				strings->__set.toChar(), strings->__set.getDataSize(),
-				OS_TEXT("@"), sizeof(OS_CHAR),
-				index.string_index.toChar(), index.string_index.getDataSize());
-
-			if(getPropertyValue(func, table_value, PropertyIndex(setter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+		// GCValue * self = table_value.v.value;
+		if(index.index.type == OS_VALUE_TYPE_STRING){
+			const void * buf1 = strings->__set.toChar();
+			int size1 = strings->__set.getDataSize();
+			const void * buf2 = OS_TEXT("@");
+			int size2 = sizeof(OS_CHAR);
+			const void * buf3 = index.index.v.string->toChar();
+			int size3 = index.index.v.string->getDataSize();
+			OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + size3 + sizeof(OS_CHAR));
+			OS_MEMCPY(buf, buf1, size1);
+			OS_MEMCPY(buf+size1, buf2, size2);
+			OS_MEMCPY(buf+size1+size2, buf3, size3);
+			buf[size1+size2+size3] = (OS_CHAR)0;
+			GCStringValue * name = newStringValue(buf, (size1 + size2 + size3) / sizeof(OS_CHAR));
+			if(getPropertyValue(func, table_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 				pushValueData(func);
 				pushValue(table_value);
 				pushValueData(value);
@@ -9928,11 +10019,7 @@ void OS::Core::setPropertyValue(GC_Value * table_value, ValueData * index_value,
 		if(getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 			pushValueData(func);
 			pushValue(table_value);
-			if(index_value){
-				pushValueData(*index_value);
-			}else{
-				pushNumber((OS_FLOAT)index.int_index);
-			}
+			pushValueData(index.index);
 			pushValueData(value);
 			call(2, 0);
 			return;
@@ -9948,7 +10035,7 @@ void OS::Core::setPropertyValue(GC_Value * table_value, ValueData * index_value,
 	// setTableValue(table, index, value);
 }
 
-void OS::Core::setPropertyValue(ValueData& table_value, ValueData * index_value, PropertyIndex& index, ValueData& value, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setPropertyValue(ValueData& table_value, PropertyIndex& index, ValueData& value, bool prototype_enabled, bool setter_enabled)
 {
 	switch(table_value.type){
 	case OS_VALUE_TYPE_NULL:
@@ -9956,19 +10043,19 @@ void OS::Core::setPropertyValue(ValueData& table_value, ValueData * index_value,
 
 	case OS_VALUE_TYPE_BOOL:
 		if(prototype_enabled){
-			return setPropertyValue(prototypes[PROTOTYPE_BOOL], index_value, index, value, prototype_enabled, setter_enabled);
+			return setPropertyValue(prototypes[PROTOTYPE_BOOL], index, value, prototype_enabled, setter_enabled);
 		}
 		return;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(prototype_enabled){
-			return setPropertyValue(prototypes[PROTOTYPE_NUMBER], index_value, index, value, prototype_enabled, setter_enabled);
+			return setPropertyValue(prototypes[PROTOTYPE_NUMBER], index, value, prototype_enabled, setter_enabled);
 		}
 		return;
 
 	case OS_VALUE_TYPE_STRING:
 		if(prototype_enabled){
-			return setPropertyValue(prototypes[PROTOTYPE_STRING], index_value, index, value, prototype_enabled, setter_enabled);
+			return setPropertyValue(prototypes[PROTOTYPE_STRING], index, value, prototype_enabled, setter_enabled);
 		}
 		return;
 
@@ -9978,60 +10065,7 @@ void OS::Core::setPropertyValue(ValueData& table_value, ValueData * index_value,
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return setPropertyValue(table_value.v.value, index_value, index, value, prototype_enabled, setter_enabled);
-	}
-}
-
-void OS::Core::setPropertyValue(GC_Value * table_value, ValueData& index_value, ValueData& val, bool prototype_enabled, bool setter_enabled)
-{
-	switch(index_value.type){
-	case OS_VALUE_TYPE_NULL:
-		// return setPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)0), val, prototype_enabled, setter_enabled);
-		error(OS_WARNING, OS_TEXT("object set index is null"));
-		return;
-
-	case OS_VALUE_TYPE_BOOL:
-		return setPropertyValue(table_value, &index_value, PropertyIndex(allocator, (OS_INT)index_value.v.boolean), val, prototype_enabled, setter_enabled);
-
-	case OS_VALUE_TYPE_NUMBER:
-		return setPropertyValue(table_value, &index_value, PropertyIndex(allocator, index_value.v.number), val, prototype_enabled, setter_enabled);
-
-	case OS_VALUE_TYPE_STRING:
-		return setPropertyValue(table_value, &index_value, PropertyIndex(index_value.v.string->string_data), val, prototype_enabled, setter_enabled);
-	}
-}
-
-void OS::Core::setPropertyValue(ValueData& table_value, ValueData& index_value, ValueData& value, bool prototype_enabled, bool setter_enabled)
-{
-	switch(table_value.type){
-	case OS_VALUE_TYPE_NULL:
-		return;
-
-	case OS_VALUE_TYPE_BOOL:
-		if(prototype_enabled){
-			return setPropertyValue(prototypes[PROTOTYPE_BOOL], index_value, value, prototype_enabled, setter_enabled);
-		}
-		return;
-
-	case OS_VALUE_TYPE_NUMBER:
-		if(prototype_enabled){
-			return setPropertyValue(prototypes[PROTOTYPE_NUMBER], index_value, value, prototype_enabled, setter_enabled);
-		}
-		return;
-
-	case OS_VALUE_TYPE_STRING:
-		if(prototype_enabled){
-			return setPropertyValue(prototypes[PROTOTYPE_STRING], index_value, value, prototype_enabled, setter_enabled);
-		}
-		return;
-
-	case OS_VALUE_TYPE_ARRAY:
-	case OS_VALUE_TYPE_OBJECT:
-	case OS_VALUE_TYPE_USERDATA:
-	case OS_VALUE_TYPE_USERPTR:
-	case OS_VALUE_TYPE_FUNCTION:
-	case OS_VALUE_TYPE_CFUNCTION:
-		return setPropertyValue(table_value.v.value, index_value, value, prototype_enabled, setter_enabled);
+		return setPropertyValue(table_value.v.value, index, value, prototype_enabled, setter_enabled);
 	}
 }
 
@@ -10094,49 +10128,185 @@ OS::Core::ValueData OS::Core::newNumberValue(OS_FLOAT val)
 }
 */
 
-OS::Core::GC_StringValue * OS::Core::newStringValue(const String& str)
+OS::Core::GCStringValue * OS::Core::newStringValue(const OS_CHAR * str)
 {
-	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
-	Property * prop = string_values_table->get(index);
-	if(prop){
-		OS_ASSERT(prop->value.type == OS_VALUE_TYPE_WEAKREF);
-		GC_Value * value = values.get(prop->value.v.value_id);
-		if(value){
-			OS_ASSERT(value->type == OS_VALUE_TYPE_STRING);
-			OS_ASSERT(dynamic_cast<GC_StringValue*>(value));
-			return (GC_StringValue*)value;
-		}
-		deleteTableProperty(string_values_table, index);
-	}
-	GC_StringValue * value = new (malloc(sizeof(GC_StringValue))) GC_StringValue();
-	value->prototype = prototypes[PROTOTYPE_STRING];
-	value->string_data = str.toData()->retain();
-	value->type = OS_VALUE_TYPE_STRING;
-	registerValue(value);
+	return newStringValue(str, OS_STRLEN(str));
+}
 
+OS::Core::GCStringValue * OS::Core::newStringValue(const OS_CHAR * str, int len)
+{
+	return newStringValue((void*)str, len * sizeof(OS_CHAR));
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(const OS_CHAR * str, int len, const OS_CHAR * str2, int len2)
+{
+	return newStringValue((void*)str, len * sizeof(OS_CHAR), str2, len2 * sizeof(OS_CHAR));
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(const OS_CHAR * str, int len, bool trim_left, bool trim_right)
+{
+	if(trim_left){
+		while(len > 0 && OS_ISSPACE(*str)){
+			str++;
+			len--;
+		}
+	}
+	if(trim_right){
+		while(len > 0 && OS_ISSPACE(str[len-1])){
+			len--;
+		}
+	}
+	return newStringValue((void*)str, len * sizeof(OS_CHAR));
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(const String& p_str, bool trim_left, bool trim_right)
+{
+	const OS_CHAR * str = p_str.toChar();
+	int len = p_str.getLen();
+	bool changed = false;
+	if(trim_left){
+		while(len > 0 && OS_ISSPACE(*str)){
+			str++;
+			len--;
+			changed = true;
+		}
+	}
+	if(trim_right){
+		while(len > 0 && OS_ISSPACE(str[len-1])){
+			len--;
+			changed = true;
+		}
+	}
+	if(changed){
+		return newStringValue(str, len);
+	}
+	return p_str.string;
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(const String& str)
+{
+	return str.string;
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(const void * buf, int size)
+{
+	Property * prop;
+	if(string_values_table->heads){
+		int hash = Utils::keyToHash((OS_BYTE*)buf, size);
+		prop = string_values_table->heads[hash & string_values_table->head_mask];
+		for(; prop; prop = prop->hash_next){
+			if(prop->isEqual(hash, buf, size)){
+				OS_ASSERT(prop->value.type == OS_VALUE_TYPE_WEAKREF);
+				GCValue * value = values.get(prop->value.v.value_id);
+				if(value){
+					OS_ASSERT(value->type == OS_VALUE_TYPE_STRING);
+					OS_ASSERT(dynamic_cast<GCStringValue*>(value));
+					return (GCStringValue*)value;
+				}
+				PropertyIndex index = *prop;
+				deleteTableProperty(string_values_table, index);
+			}
+		}
+	}
+	GCStringValue * value = GCStringValue::alloc(allocator, buf, size);
+	PropertyIndex index(value, PropertyIndex::KeepStringIndex());
 	prop = new (malloc(sizeof(Property))) Property(index);
 	prop->value = ValueData(value->value_id, WeakRef());
 	addTableProperty(string_values_table, prop);
 	return value;
 }
 
-OS::Core::GC_StringValue * OS::Core::newStringValue(const OS_CHAR * val)
+OS::Core::GCStringValue * OS::Core::newStringValue(const void * buf1, int size1, const void * buf2, int size2)
 {
-	return newStringValue(String(allocator, val));
+	Property * prop;
+	if(string_values_table->heads){
+		int hash = Utils::keyToHash(buf1, size1, buf2, size2);
+		prop = string_values_table->heads[hash & string_values_table->head_mask];
+		for(; prop; prop = prop->hash_next){
+			if(prop->isEqual(hash, buf1, size1, buf2, size2)){
+				OS_ASSERT(prop->value.type == OS_VALUE_TYPE_WEAKREF);
+				GCValue * value = values.get(prop->value.v.value_id);
+				if(value){
+					OS_ASSERT(value->type == OS_VALUE_TYPE_STRING);
+					OS_ASSERT(dynamic_cast<GCStringValue*>(value));
+					return (GCStringValue*)value;
+				}
+				PropertyIndex index = *prop;
+				deleteTableProperty(string_values_table, index);
+			}
+		}
+	}
+	GCStringValue * value = GCStringValue::alloc(allocator, buf1, size1, buf2, size2);
+	PropertyIndex index(value, PropertyIndex::KeepStringIndex());
+	prop = new (malloc(sizeof(Property))) Property(index);
+	prop->value = ValueData(value->value_id, WeakRef());
+	addTableProperty(string_values_table, prop);
+	return value;
 }
 
-OS::Core::GC_CFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, void * user_param)
+OS::Core::GCStringValue * OS::Core::newStringValue(GCStringValue * a, GCStringValue * b)
+{
+	if(a->data_size <= 0){
+		return b;
+	}
+	if(b->data_size <= 0){
+		return a;
+	}
+	return newStringValue((void*)a->toBytes(), a->data_size, (void*)b->toBytes(), b->data_size);
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(const String& a, const String& b)
+{
+	return newStringValue(a.string, b.string);
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(OS_INT val)
+{
+	OS_CHAR str[128];
+	Utils::numToStr(str, val);
+	return newStringValue(str);
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(OS_FLOAT val, int precision)
+{
+	OS_CHAR str[128];
+	Utils::numToStr(str, val, precision);
+	return newStringValue(str);
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(int temp_buf_size, const OS_CHAR * fmt, ...)
+{
+	va_list va;
+	va_start(va, fmt);
+	OS_CHAR * buf = (OS_CHAR*)allocator->malloc(temp_buf_size * sizeof(OS_CHAR));
+	OS_VSNPRINTF(buf, sizeof(OS_CHAR) * temp_buf_size, temp_buf_size-1, fmt, va);
+	GCStringValue * result = newStringValue(buf);
+	allocator->free(buf);
+	va_end(va);
+	return result;
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValueVa(int temp_buf_size, const OS_CHAR * fmt, va_list va)
+{
+	OS_CHAR * buf = (OS_CHAR*)allocator->malloc(temp_buf_size * sizeof(OS_CHAR));
+	OS_VSNPRINTF(buf, sizeof(OS_CHAR) * temp_buf_size, temp_buf_size-1, fmt, va);
+	GCStringValue * result = newStringValue(buf);
+	allocator->free(buf);
+	return result;
+}
+
+OS::Core::GCCFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, void * user_param)
 {
 	return newCFunctionValue(func, 0, user_param);
 }
 
-OS::Core::GC_CFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, int num_upvalues, void * user_param)
+OS::Core::GCCFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, int num_upvalues, void * user_param)
 {
 	OS_ASSERT(stack_values.count >= num_upvalues);
 	if(!func){
 		return NULL;
 	}
-	GC_CFunctionValue * res = new (malloc(sizeof(GC_CFunctionValue) + sizeof(ValueData) * num_upvalues)) GC_CFunctionValue();
+	GCCFunctionValue * res = new (malloc(sizeof(GCCFunctionValue) + sizeof(ValueData) * num_upvalues)) GCCFunctionValue();
 	res->prototype = prototypes[PROTOTYPE_FUNCTION];
 	res->func = func;
 	res->user_param = user_param;
@@ -10151,9 +10321,9 @@ OS::Core::GC_CFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, int
 	return res;
 }
 
-OS::Core::GC_UserDataValue * OS::Core::newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param)
+OS::Core::GCUserDataValue * OS::Core::newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param)
 {
-	GC_UserDataValue * res = new (malloc(sizeof(GC_UserDataValue) + data_size)) GC_UserDataValue();
+	GCUserDataValue * res = new (malloc(sizeof(GCUserDataValue) + data_size)) GCUserDataValue();
 	res->crc = crc;
 	res->dtor = dtor;
 	res->user_param = user_param;
@@ -10163,9 +10333,9 @@ OS::Core::GC_UserDataValue * OS::Core::newUserDataValue(int crc, int data_size, 
 	return res;
 }
 
-OS::Core::GC_UserDataValue * OS::Core::newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param)
+OS::Core::GCUserDataValue * OS::Core::newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param)
 {
-	GC_UserDataValue * res = new (malloc(sizeof(GC_UserDataValue))) GC_UserDataValue();
+	GCUserDataValue * res = new (malloc(sizeof(GCUserDataValue))) GCUserDataValue();
 	res->crc = crc;
 	res->dtor = dtor;
 	res->user_param = user_param;
@@ -10175,26 +10345,26 @@ OS::Core::GC_UserDataValue * OS::Core::newUserPointerValue(int crc, void * data,
 	return res;
 }
 
-OS::Core::GC_ObjectValue * OS::Core::newObjectValue()
+OS::Core::GCObjectValue * OS::Core::newObjectValue()
 {
 	return newObjectValue(prototypes[PROTOTYPE_OBJECT]);
 }
 
-OS::Core::GC_ObjectValue * OS::Core::newObjectValue(GC_Value * prototype)
+OS::Core::GCObjectValue * OS::Core::newObjectValue(GCValue * prototype)
 {
-	GC_ObjectValue * res = new (malloc(sizeof(GC_ObjectValue))) GC_ObjectValue();
+	GCObjectValue * res = new (malloc(sizeof(GCObjectValue))) GCObjectValue();
 	res->prototype = prototype;
 	res->type = OS_VALUE_TYPE_OBJECT;
 	registerValue(res);
 	return res;
 }
 
-OS::Core::GC_ObjectValue * OS::Core::newArrayValue()
+OS::Core::GCObjectValue * OS::Core::newArrayValue()
 {
 	return newObjectValue(prototypes[PROTOTYPE_ARRAY]);
 }
 
-void OS::Core::pushValueData(const ValueData& val)
+void OS::Core::pushValueData(const ValueData val)
 {
 	allocator->vectorAddItem(stack_values, val);
 }
@@ -10234,47 +10404,47 @@ void OS::Core::pushNumber(OS_FLOAT val)
 	pushValueData(ValueData(val));
 }
 
-OS::Core::GC_StringValue * OS::Core::pushStringValue(const String& val)
+OS::Core::GCStringValue * OS::Core::pushStringValue(const String& val)
 {
 	return pushValue(newStringValue(val));
 }
 
-OS::Core::GC_StringValue * OS::Core::pushStringValue(const OS_CHAR * val)
+OS::Core::GCStringValue * OS::Core::pushStringValue(const OS_CHAR * val)
 {
 	return pushValue(newStringValue(val));
 }
 
-OS::Core::GC_CFunctionValue * OS::Core::pushCFunctionValue(OS_CFunction func, void * user_param)
+OS::Core::GCCFunctionValue * OS::Core::pushCFunctionValue(OS_CFunction func, void * user_param)
 {
 	return pushValue(newCFunctionValue(func, user_param));
 }
 
-OS::Core::GC_CFunctionValue * OS::Core::pushCFunctionValue(OS_CFunction func, int upvalues, void * user_param)
+OS::Core::GCCFunctionValue * OS::Core::pushCFunctionValue(OS_CFunction func, int upvalues, void * user_param)
 {
 	return pushValue(newCFunctionValue(func, upvalues, user_param));
 }
 
-OS::Core::GC_UserDataValue * OS::Core::pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param)
+OS::Core::GCUserDataValue * OS::Core::pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param)
 {
 	return pushValue(newUserDataValue(crc, data_size, dtor, user_param));
 }
 
-OS::Core::GC_UserDataValue * OS::Core::pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param)
+OS::Core::GCUserDataValue * OS::Core::pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param)
 {
 	return pushValue(newUserPointerValue(crc, data, dtor, user_param));
 }
 
-OS::Core::GC_ObjectValue * OS::Core::pushObjectValue()
+OS::Core::GCObjectValue * OS::Core::pushObjectValue()
 {
 	return pushValue(newObjectValue());
 }
 
-OS::Core::GC_ObjectValue * OS::Core::pushObjectValue(GC_Value * prototype)
+OS::Core::GCObjectValue * OS::Core::pushObjectValue(GCValue * prototype)
 {
 	return pushValue(newObjectValue(prototype));
 }
 
-OS::Core::GC_ObjectValue * OS::Core::pushArrayValue()
+OS::Core::GCObjectValue * OS::Core::pushArrayValue()
 {
 	return pushValue(newArrayValue());
 }
@@ -10378,9 +10548,9 @@ bool OS::Core::pushValueOf(const ValueData& val)
 	return false;
 }
 
-OS::Core::GC_ObjectValue * OS::Core::pushArrayOf(ValueData& val)
+OS::Core::GCObjectValue * OS::Core::pushArrayOf(ValueData& val)
 {
-	GC_ObjectValue * object;
+	GCObjectValue * object;
 	switch(val.type){
 	// case OS_VALUE_TYPE_NULL:
 	// 	return pushNull(); // pushArrayValue();
@@ -10388,7 +10558,7 @@ OS::Core::GC_ObjectValue * OS::Core::pushArrayOf(ValueData& val)
 	case OS_VALUE_TYPE_BOOL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_STRING:
-		setPropertyValue(object = pushArrayValue(), NULL, PropertyIndex(allocator, 0), val, true, true);
+		setPropertyValue(object = pushArrayValue(), PropertyIndex(ValueData((OS_FLOAT)0)), val, true, true);
 		return object;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -10407,9 +10577,9 @@ OS::Core::GC_ObjectValue * OS::Core::pushArrayOf(ValueData& val)
 	return NULL;
 }
 
-OS::Core::GC_ObjectValue * OS::Core::pushObjectOf(ValueData& val)
+OS::Core::GCObjectValue * OS::Core::pushObjectOf(ValueData& val)
 {
-	GC_ObjectValue * object;
+	GCObjectValue * object;
 	switch(val.type){
 	// case OS_VALUE_TYPE_NULL:
 	// 	return pushObjectValue();
@@ -10417,7 +10587,7 @@ OS::Core::GC_ObjectValue * OS::Core::pushObjectOf(ValueData& val)
 	case OS_VALUE_TYPE_BOOL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_STRING:
-		setPropertyValue(object = pushObjectValue(), NULL, PropertyIndex(allocator, 0), val, true, true);
+		setPropertyValue(object = pushObjectValue(), PropertyIndex(ValueData((OS_FLOAT)0)), val, true, true);
 		return object;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -10428,7 +10598,7 @@ OS::Core::GC_ObjectValue * OS::Core::pushObjectOf(ValueData& val)
 	return NULL;
 }
 
-OS::Core::GC_UserDataValue * OS::Core::pushUserDataOf(ValueData& val)
+OS::Core::GCUserDataValue * OS::Core::pushUserDataOf(ValueData& val)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_USERDATA:
@@ -10453,7 +10623,7 @@ bool OS::Core::pushFunctionOf(ValueData& val)
 
 void OS::Core::pushCloneValue(ValueData& val)
 {
-	GC_Value * value, * new_value;
+	GCValue * value, * new_value;
 	switch(val.type){
 	case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_BOOL:
@@ -10645,27 +10815,27 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 			return 0;
 		}
 
-		int compareStrings(StringData * left_string_data, OS_FLOAT right_number)
+		int compareStrings(GCStringValue * left_string_data, OS_FLOAT right_number)
 		{
 			OS_CHAR buf[128];
 			Utils::numToStr(buf, right_number);
-			return left_string_data->cmp(buf, OS_STRLEN(buf));
+			return left_string_data->cmp(buf);
 		}
 
-		int compareStrings(StringData * left_string_data, StringData * right_string_data)
+		int compareStrings(GCStringValue * left_string_data, GCStringValue * right_string_data)
 		{
 			return left_string_data->cmp(right_string_data);
 		}
 
 		int compareObjectToValue(ValueData& left_value, ValueData& right_value)
 		{
-			GC_Value * left = left_value.v.value;
+			GCValue * left = left_value.v.value;
 			switch(left->type){
 			case OS_VALUE_TYPE_STRING:
 				{
-					OS_ASSERT(dynamic_cast<GC_StringValue*>(left));
-					GC_StringValue * string = (GC_StringValue*)left;
-					return compareStringToValue(left_value, string->string_data, right_value);
+					OS_ASSERT(dynamic_cast<GCStringValue*>(left));
+					GCStringValue * string = (GCStringValue*)left;
+					return compareStringToValue(left_value, string, right_value);
 				}
 
 			case OS_VALUE_TYPE_ARRAY:
@@ -10702,7 +10872,7 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 							}
 						}
 						if(right_value.type != OS_VALUE_TYPE_STRING && right_value.type != OS_VALUE_TYPE_NUMBER && right_value.type != OS_VALUE_TYPE_BOOL){
-							GC_Value * right = right_value.v.value;
+							GCValue * right = right_value.v.value;
 							OS_ASSERT(right->type == right_value.type);
 							if(left->prototype != right->prototype){
 								switch(right->type){
@@ -10753,12 +10923,12 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 				return compareNumbers(left_number, right_value.v.boolean);
 
 			case OS_VALUE_TYPE_STRING:
-				return -compareStrings(right_value.v.string->string_data, left_number);
+				return -compareStrings(right_value.v.string, left_number);
 			}
 			return -compareObjectToValue(right_value, left_value);
 		}
 
-		int compareStringToValue(ValueData& left_value, StringData * left_string_data, ValueData& right_value)
+		int compareStringToValue(ValueData& left_value, GCStringValue * left_string_data, ValueData& right_value)
 		{
 			switch(right_value.type){
 			case OS_VALUE_TYPE_NULL:
@@ -10771,7 +10941,7 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 				return compareStrings(left_string_data, right_value.v.boolean);
 
 			case OS_VALUE_TYPE_STRING:
-				return compareStrings(left_string_data, right_value.v.string->string_data);
+				return compareStrings(left_string_data, right_value.v.string);
 			}
 			return -compareObjectToValue(right_value, left_value);
 		}
@@ -10798,7 +10968,7 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 		{
 			switch(opcode){
 			case Program::OP_CONCAT:
-				core->pushStringValue(core->valueToString(left_value) + core->valueToString(right_value));
+				core->pushStringValue(core->newStringValue(core->valueToString(left_value), core->valueToString(right_value)));
 				return;
 
 			case Program::OP_BIT_AND:
@@ -10851,7 +11021,7 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 			core->pushNull();
 		}
 
-		void pushObjectMethodOpcodeValue(int opcode, const String& method_name, ValueData& left_value, ValueData& right_value, GC_Value * object, bool is_left_side)
+		void pushObjectMethodOpcodeValue(int opcode, const String& method_name, ValueData& left_value, ValueData& right_value, GCValue * object, bool is_left_side)
 		{
 			bool prototype_enabled = true;
 			ValueData func;
@@ -10874,7 +11044,7 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 			case OS_VALUE_TYPE_USERDATA:
 			case OS_VALUE_TYPE_USERPTR:
 				{
-					GC_Value * other = other_value.v.value;
+					GCValue * other = other_value.v.value;
 					if(object->prototype == other->prototype){
 						core->pushNull();
 						return;
@@ -10901,7 +11071,7 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 			}
 		}
 
-		void pushObjectOpcodeValue(int opcode, ValueData& left_value, ValueData& right_value, GC_Value * object, bool is_left_side)
+		void pushObjectOpcodeValue(int opcode, ValueData& left_value, ValueData& right_value, GCValue * object, bool is_left_side)
 		{
 			switch(opcode){
 			case Program::OP_CONCAT:
@@ -11032,7 +11202,7 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 
 	case Program::OP_CONCAT:
 		if(left_value.type == OS_VALUE_TYPE_STRING && right_value.type == OS_VALUE_TYPE_STRING){
-			pushStringValue(String(left_value.v.string->string_data) + String(right_value.v.string->string_data));
+			pushStringValue(newStringValue(left_value.v.string, right_value.v.string));
 		}
 		break;
 
@@ -11115,8 +11285,7 @@ void OS::Core::pushOpResultValue(int opcode, ValueData& left_value, ValueData& r
 
 void OS::Core::setGlobalValue(const String& name, ValueData& value, bool prototype_enabled, bool setter_enabled)
 {
-	setPropertyValue(global_vars, ValueData(pushStringValue(name)), value, prototype_enabled, setter_enabled);
-	pop(); // remove temp string
+	setPropertyValue(global_vars, Core::PropertyIndex(name), value, prototype_enabled, setter_enabled);
 }
 
 void OS::Core::setGlobalValue(const OS_CHAR * name, ValueData& value, bool prototype_enabled, bool setter_enabled)
@@ -11320,13 +11489,13 @@ void OS::pushCFunction(OS_CFunction func, int upvalues, void * user_param)
 
 void * OS::pushUserData(int crc, int data_size, OS_UserDataDtor dtor, void * user_param)
 {
-	Core::GC_UserDataValue * userdata = core->pushUserDataValue(crc, data_size, dtor, user_param);
+	Core::GCUserDataValue * userdata = core->pushUserDataValue(crc, data_size, dtor, user_param);
 	return userdata ? userdata->ptr : NULL;
 }
 
 void * OS::pushUserPointer(int crc, void * data, OS_UserDataDtor dtor, void * user_param)
 {
-	Core::GC_UserDataValue * userdata = core->pushUserPointerValue(crc, data, dtor, user_param);
+	Core::GCUserDataValue * userdata = core->pushUserPointerValue(crc, data, dtor, user_param);
 	return userdata ? userdata->ptr : NULL;
 }
 
@@ -11470,22 +11639,12 @@ bool OS::isNumber(int offs, OS_FLOAT * out)
 
 OS::String OS::toString(int offs, bool valueof_enabled)
 {
-	return core->valueToString(core->getStackValue(offs), valueof_enabled);
+	return String(this, core->valueToString(core->getStackValue(offs), valueof_enabled));
 }
 
 bool OS::isString(int offs, String * out)
 {
-	Core::String str(this);
-	if(core->isValueString(core->getStackValue(offs), &str)){
-		if(out){
-			*out = str;
-		}
-		return true;
-	}
-	if(out){
-		*out = String(this);
-	}
-	return false;
+	return core->isValueString(core->getStackValue(offs), out);
 }
 
 OS_EValueType OS::getType(int offs)
@@ -11495,7 +11654,7 @@ OS_EValueType OS::getType(int offs)
 
 OS_EValueType OS::getTypeById(int id)
 {
-	Core::GC_Value * val = core->values.get(id);
+	Core::GCValue * val = core->values.get(id);
 	return val ? val->type : OS_VALUE_TYPE_NULL;
 }
 
@@ -11511,7 +11670,7 @@ bool OS::isNull(int offs)
 
 bool OS::isObject(int offs)
 {
-	Core::ValueData val = core->getStackValue(offs);
+	const Core::ValueData& val = core->getStackValue(offs);
 	switch(val.type){
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_ARRAY:
@@ -11580,7 +11739,7 @@ bool OS::isFunction(int offs)
 	return core->getStackValue(offs).isFunction();
 }
 
-bool OS::Core::isValueInstanceOf(GC_Value * val, GC_Value * prototype_val)
+bool OS::Core::isValueInstanceOf(GCValue * val, GCValue * prototype_val)
 {
 	// vectorClear(cache_values);
 	// vectorAddItem(cache_values, val);
@@ -11599,8 +11758,8 @@ bool OS::Core::isValueInstanceOf(GC_Value * val, GC_Value * prototype_val)
 
 bool OS::Core::isValueInstanceOf(const ValueData& val, const ValueData& prototype_val)
 {
-	GC_Value * object = val.getGCValue();
-	GC_Value * proto = prototype_val.getGCValue();
+	GCValue * object = val.getGCValue();
+	GCValue * proto = prototype_val.getGCValue();
 	return object && proto && isValueInstanceOf(object, proto);
 }
 
@@ -11625,7 +11784,7 @@ void OS::setProperty(bool prototype_enabled, bool setter_enabled)
 		Core::ValueData object = core->stack_values[core->stack_values.count - 3];
 		Core::ValueData index = core->stack_values[core->stack_values.count - 2];
 		Core::ValueData value = core->stack_values[core->stack_values.count - 1];
-		core->setPropertyValue(object, index, value, prototype_enabled, setter_enabled);
+		core->setPropertyValue(object, Core::PropertyIndex(index), value, prototype_enabled, setter_enabled);
 		pop(3);
 	}else{
 		// error
@@ -11693,6 +11852,11 @@ int OS::getId(int offs)
 
 bool OS::Core::getPropertyValue(OS::Core::ValueData& result, Table * table, const PropertyIndex& index)
 {
+#ifdef OS_DEBUG
+	if(index.index.type == OS_VALUE_TYPE_NULL){
+		error(OS_WARNING, OS_TEXT("object get null index"));
+	}
+#endif
 	if(table){
 		Property * prop = table->get(index);
 		if(prop){
@@ -11703,8 +11867,13 @@ bool OS::Core::getPropertyValue(OS::Core::ValueData& result, Table * table, cons
 	return false;
 }
 
-bool OS::Core::getPropertyValue(OS::Core::ValueData& result, GC_Value * table_value, PropertyIndex& index, bool prototype_enabled)
+bool OS::Core::getPropertyValue(OS::Core::ValueData& result, GCValue * table_value, PropertyIndex& index, bool prototype_enabled)
 {
+#ifdef OS_DEBUG
+	if(index.index.type == OS_VALUE_TYPE_NULL){
+		error(OS_WARNING, OS_TEXT("object get null index"));
+	}
+#endif
 	Property * prop = NULL;
 	Table * table = table_value->table;
 	if(table && (prop = table->get(index))){
@@ -11712,7 +11881,7 @@ bool OS::Core::getPropertyValue(OS::Core::ValueData& result, GC_Value * table_va
 		return true;
 	}
 	if(prototype_enabled){
-		GC_Value * cur_value = table_value;
+		GCValue * cur_value = table_value;
 		while(cur_value->prototype){
 			cur_value = cur_value->prototype;
 			Table * cur_table = cur_value->table;
@@ -11722,7 +11891,7 @@ bool OS::Core::getPropertyValue(OS::Core::ValueData& result, GC_Value * table_va
 			}
 		}
 	}
-	if(index.is_string_index && index.string_index == strings->syntax_prototype){
+	if(index.index.type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == index.index.v.string){
 		result = table_value->prototype;
 		return true;
 	}
@@ -11755,58 +11924,28 @@ bool OS::Core::getPropertyValue(ValueData& result, ValueData& table_value, Prope
 	return false;
 }
 
-void OS::Core::pushPropertyValue(GC_Value * table_value, ValueData& index_value, bool prototype_enabled, bool getter_enabled, bool auto_create)
+void OS::Core::pushPropertyValue(GCValue * table_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create)
 {
-	switch(index_value.type){
-	case OS_VALUE_TYPE_NULL:
-		error(OS_WARNING, OS_TEXT("object get index is null"));
-		/*
-		return pushPropertyValue(table_value, index_value, PropertyIndex(allocator, (OS_INT)0), 
-			prototype_enabled, getter_enabled, auto_create);
-		*/
-		return pushNull();
-
-	case OS_VALUE_TYPE_BOOL:
-		return pushPropertyValue(table_value, &index_value, PropertyIndex(allocator, (OS_INT)index_value.v.boolean), 
-			prototype_enabled, getter_enabled, auto_create);
-
-	case OS_VALUE_TYPE_NUMBER:
-		return pushPropertyValue(table_value, &index_value, PropertyIndex(allocator, index_value.v.number), 
-			prototype_enabled, getter_enabled, auto_create);
-
-	case OS_VALUE_TYPE_STRING:
-		return pushPropertyValue(table_value, &index_value, PropertyIndex(index_value.v.string->string_data), 
-			prototype_enabled, getter_enabled, auto_create);
-	}
-	if(getter_enabled){
-		ValueData func;
-		if(getPropertyValue(func, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
-			pushValueData(func);
-			pushValueData(table_value);
-			pushValueData(index_value);
-			call(1, 1);
-			return;
-		}
-	}
-	pushNull();
-}
-
-void OS::Core::pushPropertyValue(GC_Value * table_value, ValueData * index_value, PropertyIndex& index, 
-	bool prototype_enabled, bool getter_enabled, bool auto_create)
-{
-	GC_Value * self = table_value;
+	GCValue * self = table_value;
 	for(;;){
 		ValueData value;
 		if(getPropertyValue(value, table_value, index, prototype_enabled)){
 			return pushValueData(value);
 		}
 		if(getter_enabled){
-			if(index.is_string_index){
-				String getter_name(allocator,
-					strings->__get.toChar(), strings->__get.getDataSize(),
-					OS_TEXT("@"), sizeof(OS_CHAR),
-					index.string_index.toChar(), index.string_index.getDataSize());
-
+			if(index.index.type == OS_VALUE_TYPE_STRING){
+				const void * buf1 = strings->__set.toChar();
+				int size1 = strings->__set.getDataSize();
+				const void * buf2 = OS_TEXT("@");
+				int size2 = sizeof(OS_CHAR);
+				const void * buf3 = index.index.v.string->toChar();
+				int size3 = index.index.v.string->getDataSize();
+				OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + size3 + sizeof(OS_CHAR));
+				OS_MEMCPY(buf, buf1, size1);
+				OS_MEMCPY(buf+size1, buf2, size2);
+				OS_MEMCPY(buf+size1+size2, buf3, size3);
+				buf[size1+size2+size3] = (OS_CHAR)0;
+				GCStringValue * getter_name = newStringValue(buf, (size1 + size2 + size3) / sizeof(OS_CHAR));
 				if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 					pushValueData(value);
 					pushValue(self);
@@ -11822,17 +11961,13 @@ void OS::Core::pushPropertyValue(GC_Value * table_value, ValueData * index_value
 				}
 				pushValueData(value);
 				pushValue(self);
-				if(index_value){
-					pushValueData(*index_value);
-				}else{
-					pushNumber(index.int_index);
-				}
+				pushValueData(index.index);
 				call(1, 1);
 				return;
 			}
 		}
 		if(auto_create){
-			setPropertyValue(self, index_value, index, ValueData(pushObjectValue()), false, false); 
+			setPropertyValue(self, index, ValueData(pushObjectValue()), false, false); 
 			return;
 		}
 		break;
@@ -11840,7 +11975,7 @@ void OS::Core::pushPropertyValue(GC_Value * table_value, ValueData * index_value
 	return pushNull();
 }
 
-void OS::Core::pushPropertyValue(ValueData& table_value, ValueData& index_value, bool prototype_enabled, bool getter_enabled, bool auto_create)
+void OS::Core::pushPropertyValue(ValueData& table_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create)
 {
 	switch(table_value.type){
 	case OS_VALUE_TYPE_NULL:
@@ -11848,19 +11983,19 @@ void OS::Core::pushPropertyValue(ValueData& table_value, ValueData& index_value,
 
 	case OS_VALUE_TYPE_BOOL:
 		if(prototype_enabled){
-			return pushPropertyValue(prototypes[PROTOTYPE_BOOL], index_value, prototype_enabled, getter_enabled, auto_create);
+			return pushPropertyValue(prototypes[PROTOTYPE_BOOL], index, prototype_enabled, getter_enabled, auto_create);
 		}
 		break;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(prototype_enabled){
-			return pushPropertyValue(prototypes[PROTOTYPE_NUMBER], index_value, prototype_enabled, getter_enabled, auto_create);
+			return pushPropertyValue(prototypes[PROTOTYPE_NUMBER], index, prototype_enabled, getter_enabled, auto_create);
 		}
 		break;
 
 	case OS_VALUE_TYPE_STRING:
 		if(prototype_enabled){
-			return pushPropertyValue(prototypes[PROTOTYPE_STRING], index_value, prototype_enabled, getter_enabled, auto_create);
+			return pushPropertyValue(prototypes[PROTOTYPE_STRING], index, prototype_enabled, getter_enabled, auto_create);
 		}
 		break;
 
@@ -11870,42 +12005,7 @@ void OS::Core::pushPropertyValue(ValueData& table_value, ValueData& index_value,
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return pushPropertyValue(table_value.v.value, index_value, prototype_enabled, getter_enabled, auto_create);
-	}
-	pushNull();
-}
-
-void OS::Core::pushPropertyValue(ValueData& table_value, ValueData * index_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create)
-{
-	switch(table_value.type){
-	case OS_VALUE_TYPE_NULL:
-		break;
-
-	case OS_VALUE_TYPE_BOOL:
-		if(prototype_enabled){
-			return pushPropertyValue(prototypes[PROTOTYPE_BOOL], index_value, index, prototype_enabled, getter_enabled, auto_create);
-		}
-		break;
-
-	case OS_VALUE_TYPE_NUMBER:
-		if(prototype_enabled){
-			return pushPropertyValue(prototypes[PROTOTYPE_NUMBER], index_value, index, prototype_enabled, getter_enabled, auto_create);
-		}
-		break;
-
-	case OS_VALUE_TYPE_STRING:
-		if(prototype_enabled){
-			return pushPropertyValue(prototypes[PROTOTYPE_STRING], index_value, index, prototype_enabled, getter_enabled, auto_create);
-		}
-		break;
-
-	case OS_VALUE_TYPE_ARRAY:
-	case OS_VALUE_TYPE_OBJECT:
-	case OS_VALUE_TYPE_USERDATA:
-	case OS_VALUE_TYPE_USERPTR:
-	case OS_VALUE_TYPE_FUNCTION:
-	case OS_VALUE_TYPE_CFUNCTION:
-		return pushPropertyValue(table_value.v.value, index_value, index, prototype_enabled, getter_enabled, auto_create);
+		return pushPropertyValue(table_value.v.value, index, prototype_enabled, getter_enabled, auto_create);
 	}
 	pushNull();
 }
@@ -11915,7 +12015,7 @@ void OS::getProperty(bool prototype_enabled, bool getter_enabled)
 	if(core->stack_values.count >= 2){
 		Core::ValueData object = core->stack_values[core->stack_values.count - 2];
 		Core::ValueData index = core->stack_values[core->stack_values.count - 1];
-		core->pushPropertyValue(object, index, prototype_enabled, getter_enabled, false);
+		core->pushPropertyValue(object, Core::PropertyIndex(index), prototype_enabled, getter_enabled, false);
 		core->removeStackValues(-3, 2);
 	}else{
 		// error
@@ -11976,7 +12076,7 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 	free(func_running);
 }
 
-void OS::Core::enterFunction(GC_FunctionValue * func_value, GC_Value * self, int params, int extra_remove_from_stack, int need_ret_values)
+void OS::Core::enterFunction(GCFunctionValue * func_value, GCValue * self, int params, int extra_remove_from_stack, int need_ret_values)
 {
 	OS_ASSERT(call_stack_funcs.count < OS_CALL_STACK_MAX_SIZE);
 	OS_ASSERT(func_value->type == OS_VALUE_TYPE_FUNCTION);
@@ -12041,7 +12141,7 @@ int OS::Core::execute()
 restart:
 	OS_ASSERT(call_stack_funcs.count > 0);
 	FunctionRunningInstance * func_running = call_stack_funcs[call_stack_funcs.count-1];
-	GC_FunctionValue * func_value = func_running->func;
+	GCFunctionValue * func_value = func_running->func;
 	FunctionDecl * func_decl = func_value->func_decl;
 	ValueData env = func_value->env; // ? func_value_data->env : global_vars;
 	Program * prog = func_value->prog;
@@ -12053,7 +12153,7 @@ restart:
 	OS_FLOAT * prog_numbers = prog->const_numbers;
 
 	int prog_num_strings = prog->num_strings;
-	GC_StringValue ** prog_strings = prog->const_strings;
+	GCStringValue ** prog_strings = prog->const_strings;
 
 	OS * allocator = this->allocator;
 	for(int opcodes_executed = 0;; opcodes_executed++){
@@ -12145,7 +12245,7 @@ restart:
 					num_index = object.v.object->table ? object.v.object->table->next_id : 0;
 					break;
 				}
-				setPropertyValue(object, NULL, PropertyIndex(allocator, num_index), value, false, false);
+				setPropertyValue(object, PropertyIndex(ValueData((OS_FLOAT)num_index)), value, false, false);
 				pop(); // keep object in stack
 				break;
 			}
@@ -12156,7 +12256,7 @@ restart:
 				ValueData object = stack_values[stack_values.count - 3];
 				ValueData value = stack_values[stack_values.count - 2];
 				ValueData index = stack_values[stack_values.count - 1];
-				setPropertyValue(object, index, value, false, false);
+				setPropertyValue(object, Core::PropertyIndex(index), value, false, false);
 				pop(2); // keep object in stack
 				break;
 			}
@@ -12169,7 +12269,7 @@ restart:
 				ValueData object = stack_values[stack_values.count-2];
 				ValueData index = prog_numbers[i];
 				ValueData value = stack_values[stack_values.count-1];
-				setPropertyValue(object, index, value, false, false);
+				setPropertyValue(object, Core::PropertyIndex(index), value, false, false);
 				pop(); // keep object in stack
 				break;
 			}
@@ -12184,8 +12284,7 @@ restart:
 				ValueData index_value = prog_strings[i];
 				ValueData value = stack_values[stack_values.count-1];
 				OS_ASSERT(index_value.type == OS_VALUE_TYPE_STRING);
-				setPropertyValue(table_value, &index_value, 
-					PropertyIndex(index_value.v.string->string_data, PropertyIndex::KeepStringIndex()), 
+				setPropertyValue(table_value, PropertyIndex(index_value.v.string, PropertyIndex::KeepStringIndex()), 
 					value, false, false);
 				pop(); // keep object in stack
 				break;
@@ -12197,10 +12296,9 @@ restart:
 				i = opcodes.readUVariable();
 				OS_ASSERT(i >= 0 && i < prog_num_strings);
 				OS_ASSERT(prog_strings[i]->type == OS_VALUE_TYPE_STRING);
-				StringData * name = prog_strings[i]->string_data;
+				GCStringValue * name = prog_strings[i];
 				// String name = valueToString(name_value);
-				pushPropertyValue(env, NULL, 
-					PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
+				pushPropertyValue(env, PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
 					true, true, opcode == Program::OP_PUSH_ENV_VAR_AUTO_CREATE); 
 				break;
 			}
@@ -12214,9 +12312,9 @@ restart:
 				ValueData value = stack_values[stack_values.count-1];
 				ValueData name_value = prog_strings[i];
 				OS_ASSERT(name_value.type == OS_VALUE_TYPE_STRING);
-				StringData * name = name_value.v.string->string_data;
+				GCStringValue * name = name_value.v.string;
 				// String name = valueToString(name_value);
-				setPropertyValue(env, &name_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), value, true, true);
+				setPropertyValue(env, PropertyIndex(name, PropertyIndex::KeepStringIndex()), value, true, true);
 				pop();
 				break;
 			}
@@ -12228,14 +12326,14 @@ restart:
 		case Program::OP_PUSH_ARGUMENTS:
 			if(!func_running->arguments){
 				int i;
-				GC_ObjectValue * args = pushArrayValue();
+				GCObjectValue * args = pushArrayValue();
 				int num_params = func_running->num_params - func_running->num_extra_params;
 				for(i = 0; i < num_params; i++){
-					setPropertyValue(args, NULL, PropertyIndex(allocator, i), func_running->locals[i], false, false);
+					setPropertyValue(args, PropertyIndex(i), func_running->locals[i], false, false);
 				}
 				for(i = 0; i < func_running->num_extra_params; i++){
 					ValueData arg = func_running->locals[i + func_decl->num_locals];
-					setPropertyValue(args, NULL, PropertyIndex(allocator, i), arg, false, false);
+					setPropertyValue(args, PropertyIndex(i), arg, false, false);
 				}
 				func_running->arguments = args;
 			}else{
@@ -12245,10 +12343,10 @@ restart:
 
 		case Program::OP_PUSH_REST_ARGUMENTS:
 			if(!func_running->rest_arguments){
-				GC_ObjectValue * args = pushArrayValue();
+				GCObjectValue * args = pushArrayValue();
 				for(int i = 0; i < func_running->num_extra_params; i++){
 					ValueData arg = func_running->locals[i + func_decl->num_locals];
-					setPropertyValue(args, NULL, PropertyIndex(allocator, i), arg, false, false);
+					setPropertyValue(args, PropertyIndex(i), arg, false, false);
 				}
 				func_running->rest_arguments = args;
 			}else{
@@ -12427,11 +12525,11 @@ restart:
 				OS_ASSERT(stack_values.count >= 2 + params);
 				ValueData table_value = stack_values[stack_values.count-2-params];
 				ValueData index_value = stack_values[stack_values.count-1-params];
-				pushPropertyValue(table_value, index_value, true, true, false);
+				pushPropertyValue(table_value, Core::PropertyIndex(index_value), true, true, false);
 				ValueData value = stack_values.lastElement();
 				// moveStackValue(-1, -1-params);
-				GC_Value * self = func_running->self;
-				GC_Value * call_self = table_value.getGCValue();
+				GCValue * self = func_running->self;
+				GCValue * call_self = table_value.getGCValue();
 				if(call_self && (!self || self->prototype != call_self)){
 					self = call_self;
 				}
@@ -12450,11 +12548,11 @@ restart:
 				OS_ASSERT(stack_values.count >= 2 + params);
 				ValueData table_value = stack_values[stack_values.count-2-params];
 				ValueData index_value = stack_values[stack_values.count-1-params];
-				pushPropertyValue(table_value, index_value, true, true, false);
+				pushPropertyValue(table_value, Core::PropertyIndex(index_value), true, true, false);
 				ValueData func_value = stack_values.lastElement();
 				// moveStackValue(-1, -1-params);
-				GC_Value * self = func_running->self;
-				GC_Value * call_self = table_value.getGCValue();
+				GCValue * self = func_running->self;
+				GCValue * call_self = table_value.getGCValue();
 				if(call_self && (!self || self->prototype != call_self)){
 					self = call_self;
 				}
@@ -12507,7 +12605,7 @@ restart:
 				OS_ASSERT(stack_values.count >= 2);
 				ValueData table_arg = stack_values.buf[stack_values.count - 2];
 				ValueData index_arg = stack_values.buf[stack_values.count - 1];
-				pushPropertyValue(table_arg, index_arg, true, true, opcode == Program::OP_GET_PROPERTY_AUTO_CREATE);
+				pushPropertyValue(table_arg, Core::PropertyIndex(index_arg), true, true, opcode == Program::OP_GET_PROPERTY_AUTO_CREATE);
 				removeStackValues(-3, 2);
 				syncStackRetValues(ret_values, 1);
 				break;
@@ -12519,7 +12617,7 @@ restart:
 				ValueData value_arg = stack_values.buf[stack_values.count - 3];
 				ValueData table_arg = stack_values.buf[stack_values.count - 2];
 				ValueData index_arg = stack_values.buf[stack_values.count - 1];
-				setPropertyValue(table_arg, index_arg, value_arg, true, true);
+				setPropertyValue(table_arg, Core::PropertyIndex(index_arg), value_arg, true, true);
 				pop(3);
 				break;
 			}
@@ -12594,24 +12692,7 @@ restart:
 				OS_ASSERT(stack_values.count >= 2);
 				ValueData table_value = stack_values[stack_values.count-2];
 				ValueData index_value = stack_values[stack_values.count-1];
-				// index_value = pushValueOf(index_value);
-				switch(index_value.type){
-				case OS_VALUE_TYPE_NULL:
-					deleteValueProperty(table_value, &index_value, PropertyIndex(allocator, 0), true, true);
-					break;
-
-				case OS_VALUE_TYPE_BOOL:
-					deleteValueProperty(table_value, &index_value, PropertyIndex(allocator, index_value.v.boolean), true, true);
-					break;
-
-				case OS_VALUE_TYPE_NUMBER:
-					deleteValueProperty(table_value, &index_value, PropertyIndex(allocator, index_value.v.number), true, true);
-					break;
-
-				case OS_VALUE_TYPE_STRING:
-					deleteValueProperty(table_value, &index_value, PropertyIndex(index_value.v.string->string_data), true, true);
-					break;
-				}
+				deleteValueProperty(table_value, index_value, true, true);
 				pop(2);
 				break;
 			}
@@ -13009,7 +13090,7 @@ void OS::setGlobal(const Core::String& name, bool prototype_enabled, bool setter
 		Core::ValueData object = core->global_vars;
 		Core::ValueData value = core->stack_values[core->stack_values.count - 1];
 		Core::ValueData index = core->pushStringValue(name);
-		core->setPropertyValue(object, index, value, prototype_enabled, setter_enabled);
+		core->setPropertyValue(object, Core::PropertyIndex(index), value, prototype_enabled, setter_enabled);
 		pop(2);
 	}
 }
@@ -13019,6 +13100,22 @@ void OS::initGlobalFunctions()
 	struct Lib
 	{
 		static int print(OS * os, int params, int upvalues, int, void*)
+		{
+			int params_offs = os->getAbsoluteOffs(-params-upvalues);
+			for(int i = 0; i < params; i++){
+				String str = os->toString(params_offs + i);
+				printf("%s", str.toChar());
+				if(i+1 < params){
+					printf("\t");
+				}
+			}
+			if(params > 0){
+				printf("\n");
+			}
+			return 0;
+		}
+
+		static int echo(OS * os, int params, int upvalues, int, void*)
 		{
 			int params_offs = os->getAbsoluteOffs(-params-upvalues);
 			for(int i = 0; i < params; i++){
@@ -13034,7 +13131,7 @@ void OS::initGlobalFunctions()
 				return 0;
 			}
 			int params_offs = os->getAbsoluteOffs(-params-upvalues);
-			Core::String str = os->toString(params_offs);
+			String str = os->toString(params_offs);
 			for(int i = 1; i < params; i++){
 				str += os->toString(params_offs + i);
 			}
@@ -13076,6 +13173,7 @@ void OS::initGlobalFunctions()
 	};
 	Func list[] = {
 		{OS_TEXT("print"), Lib::print},
+		{OS_TEXT("echo"), Lib::echo},
 		{OS_TEXT("concat"), Lib::concat},
 		{OS_TEXT("min"), Lib::min},
 		{OS_TEXT("max"), Lib::max},
@@ -13117,15 +13215,11 @@ void OS::initObjectClass()
 			void * p = os->toUserData(-upvalues + 1, iterator_crc);
 			Core::Table::IteratorState * iter = (Core::Table::IteratorState*)p;
 			if(iter->table){
-				Core::GC_Value * self = self_var.getGCValue();
+				Core::GCValue * self = self_var.getGCValue();
 				OS_ASSERT(self && iter->table == self->table);
 				if(iter->prop){
 					os->pushBool(true);
-					if(iter->prop->int_valid){
-						os->pushNumber((OS_FLOAT)iter->prop->int_index);
-					}else{
-						os->pushString(iter->prop->string_index);
-					}
+					os->core->pushValueData(iter->prop->index);
 					os->core->pushValueData(iter->prop->value);
 					iter->prop = iter->prop->next;
 					return 3;
@@ -13146,7 +13240,7 @@ void OS::initObjectClass()
 		static int iterator(OS * os, int params, int upvalues, int, void*)
 		{
 			Core::ValueData self_var = os->core->getStackValue(-params-upvalues-1);
-			Core::GC_Value * self = self_var.getGCValue();
+			Core::GCValue * self = self_var.getGCValue();
 			if(self && self->table && self->table->count > 0){
 				typedef Core::Table::IteratorState IteratorState;
 				
@@ -13167,7 +13261,7 @@ void OS::initObjectClass()
 		static int length(OS * os, int params, int upvalues, int, void*)
 		{
 			Core::ValueData self_var = os->core->getStackValue(-params-upvalues-1);
-			Core::GC_Value * self = self_var.getGCValue();
+			Core::GCValue * self = self_var.getGCValue();
 			if(self){
 				os->pushNumber(self->table ? self->table->count : 0);
 				return 1;
@@ -13192,7 +13286,7 @@ void OS::initObjectClass()
 				os->core->pushValueData(self_var);
 				return 1;
 			}
-			Core::GC_Value * self = self_var.getGCValue();
+			Core::GCValue * self = self_var.getGCValue();
 			if(!self){
 				return 0;
 			}
@@ -13200,11 +13294,12 @@ void OS::initObjectClass()
 			case OS_VALUE_TYPE_USERDATA:
 			case OS_VALUE_TYPE_USERPTR:
 				{
-					Core::String str(os, OS_TEXT("["));
+					Core::StringBuffer str(os);
+					str.append(OS_TEXT("["));
 					str += os->core->strings->typeof_userdata;
-					str += OS_TEXT(":");
+					str.append(OS_TEXT(":"));
 					str += Core::String(os, (OS_INT)self->value_id);
-					str += OS_TEXT("]");
+					str.append(OS_TEXT("]"));
 					os->pushString(str);
 					return 1;
 				}
@@ -13212,11 +13307,12 @@ void OS::initObjectClass()
 			case OS_VALUE_TYPE_FUNCTION:
 			case OS_VALUE_TYPE_CFUNCTION:
 				{
-					Core::String str(os, OS_TEXT("["));
+					Core::StringBuffer str(os);
+					str.append(OS_TEXT("["));
 					str += os->core->strings->typeof_function;
-					str += OS_TEXT(":");
+					str.append(OS_TEXT(":"));
 					str += Core::String(os, (OS_INT)self->value_id);
-					str += OS_TEXT("]");
+					str.append(OS_TEXT("]"));
 					os->pushString(str);
 					return 1;
 				}
@@ -13226,18 +13322,19 @@ void OS::initObjectClass()
 					return 1;
 				}
 				{
-					String buf = String(os, OS_TEXT("["));
+					Core::StringBuffer buf(os);
+					buf.append(OS_TEXT("["));
 					bool is_generic_array = true;
 					int need_index = 0;
 					Core::Property * prop = self->table->first;
 					for(int i = 0; prop; prop = prop->next, i++, need_index++){
-						if(prop->int_valid && prop->int_index == need_index){
+						if(prop->index.type == OS_VALUE_TYPE_NUMBER && prop->index.v.number == (OS_FLOAT)need_index){
 							if(i > 100){
-								buf += OS_TEXT("...");
+								buf.append(OS_TEXT("..."));
 								break;
 							}
 							if(need_index > 0){
-								buf += OS_TEXT(",");
+								buf.append(OS_TEXT(","));
 							}
 							buf += os->core->valueToString(prop->value, true);
 						}else{
@@ -13246,7 +13343,7 @@ void OS::initObjectClass()
 						}
 					}
 					if(is_generic_array){
-						os->pushString(buf + OS_TEXT("]"));
+						os->pushString(buf.append(OS_TEXT("]")));
 						return 1;
 					}
 					// no break
@@ -13258,30 +13355,31 @@ void OS::initObjectClass()
 					return 1;
 				}
 				{
-					String buf = String(os, OS_TEXT("{"));
+					Core::StringBuffer buf(os);
+					buf.append(OS_TEXT("{"));
 					int need_index = 0;
 					Core::Property * prop = self->table->first;
 					for(int i = 0; prop; prop = prop->next, i++){
 						if(i > 100){
-							buf += OS_TEXT("...");
+							buf.append(OS_TEXT("..."));
 							break;
 						}
 						if(i > 0){
-							buf += OS_TEXT(",");
+							buf.append(OS_TEXT(","));
 						}
-						if(prop->int_valid){
-							if(prop->int_index != need_index){
-								buf += String(os, prop->int_index);
-								buf += OS_TEXT(":");
+						if(prop->index.type == OS_VALUE_TYPE_NUMBER){
+							if(prop->index.v.number != (OS_FLOAT)need_index){
+								buf += String(os, prop->index.v.number, OS_AUTO_PRECISION);
+								buf.append(OS_TEXT(":"));
 							}
-							need_index = (int)(prop->int_index + 1);
+							need_index = (int)(prop->index.v.number + 1);
 						}else{ // if(prop->is_string_index){
-							buf += prop->string_index;
-							buf += OS_TEXT(":");
+							buf += os->core->valueToString(prop->index);
+							buf.append(OS_TEXT(":"));
 						}
 						buf += os->core->valueToString(prop->value, true);
 					}
-					os->pushString(buf + OS_TEXT("}"));
+					os->pushString(buf.append(OS_TEXT("}")));
 					return 1;
 				}
 			}
@@ -13309,7 +13407,7 @@ void OS::initArrayClass()
 		static int length(OS * os, int params, int upvalues, int, void*)
 		{
 			Core::ValueData self_var = os->core->getStackValue(-params-upvalues-1);
-			Core::GC_Value * self = self_var.getGCValue();
+			Core::GCValue * self = self_var.getGCValue();
 			if(self){
 				os->pushNumber(self->table ? (OS_FLOAT)self->table->next_id : 0);
 				return 1;
@@ -13334,11 +13432,11 @@ void OS::initStringClass()
 		static int length(OS * os, int params, int upvalues, int, void*)
 		{
 			Core::ValueData self_var = os->core->getStackValue(-params-upvalues-1);
-			Core::GC_Value * self = self_var.getGCValue();
+			Core::GCValue * self = self_var.getGCValue();
 			if(self){
 				if(self->type == OS_VALUE_TYPE_STRING){
-					Core::GC_StringValue * string = (Core::GC_StringValue*)self;
-					os->pushNumber(string->string_data->getDataSize() / sizeof(OS_CHAR));
+					Core::GCStringValue * string = (Core::GCStringValue*)self;
+					os->pushNumber(string->getLen());
 					// os->pushNumber(os->core->valueToString(self).getDataSize() / sizeof(OS_CHAR));
 					return 1;
 				}
@@ -13373,7 +13471,7 @@ void OS::initFunctionClass()
 			os->pushStackValue(offs); // first param - new this
 			
 			Core::ValueData array_var = os->core->getStackValue(offs+1);
-			Core::GC_Value * array_value = array_var.getGCValue();
+			Core::GCValue * array_value = array_var.getGCValue();
 			if(array_value && array_value->table){
 				Core::Property * prop = array_value->table->first;
 				for(; prop; prop = prop->next){
@@ -13465,7 +13563,7 @@ int OS::Core::call(int params, int ret_values)
 		case OS_VALUE_TYPE_CFUNCTION:
 			{
 				int stack_size_without_params = getStackOffs(-2-params);
-				GC_CFunctionValue * cfunc_upvalues = func_value.v.cfunc;
+				GCCFunctionValue * cfunc_upvalues = func_value.v.cfunc;
 				ValueData * upvalues = (ValueData*)(cfunc_upvalues + 1);
 				for(int i = 0; i < cfunc_upvalues->num_upvalues; i++){
 					pushValueData(upvalues[i]);
@@ -13489,8 +13587,8 @@ int OS::Core::call(int params, int ret_values)
 					&& func.isFunction())
 				{
 					// TODO: not tested
-					GC_Value * self = self_var.getGCValue();
-					GC_Value * object = func_value.v.value != self ? newObjectValue(func_value.v.value) : self;
+					GCValue * self = self_var.getGCValue();
+					GCValue * object = func_value.v.value != self ? newObjectValue(func_value.v.value) : self;
 					pushValue(object);
 					pushValueData(func);
 					pushValue(object);
@@ -13513,7 +13611,7 @@ int OS::Core::call(int params, int ret_values)
 bool OS::compileFilename(const Core::String& filename, bool required)
 {
 	{
-		String compiled_filename = changeFilenameExt(filename, OS_COMPILED_EXT);
+		Core::String compiled_filename = changeFilenameExt(filename, OS_COMPILED_EXT);
 		Core::FileStreamReader file(this, compiled_filename);
 		if(file.f){
 			// TODO: check file time with original and load compiled file or the original
