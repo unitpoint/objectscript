@@ -1065,6 +1065,7 @@ namespace ObjectScript
 				Table * table;
 
 				OS_EValueType type;
+				bool is_object_instance;
 
 				enum {
 					GC_WHITE,
@@ -1331,6 +1332,7 @@ namespace ObjectScript
 					EXP_TYPE_OBJECT_SET_BY_EXP,
 					EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX,
 
+					EXP_TYPE_SUPER,
 					EXP_TYPE_TYPE_OF,
 					EXP_TYPE_VALUE_OF,
 					// EXP_TYPE_BOOLEAN_OF, == EXP_TYPE_LOGIC_BOOL
@@ -1784,6 +1786,9 @@ namespace ObjectScript
 					~LocalVar();
 				};
 
+#ifdef OS_DEBUG
+				int func_index;
+#endif
 				int parent_func_index;
 				LocalVar * locals;
 				int num_locals;
@@ -1906,6 +1911,8 @@ namespace ObjectScript
 					OP_LOGIC_BOOL,
 					OP_LOGIC_NOT,
 
+					OP_SUPER,
+
 					OP_TYPE_OF,
 					OP_VALUE_OF,
 					OP_NUMBER_OF,
@@ -2013,8 +2020,8 @@ namespace ObjectScript
 
 			struct Strings
 			{
-				String __constructor;
-				// String __destructor;
+				String __construct;
+				// String __destruct;
 				String __get;
 				String __set;
 				String __del;
@@ -2063,6 +2070,7 @@ namespace ObjectScript
 				String typeof_userdata;
 				String typeof_function;
 
+				String syntax_super;
 				String syntax_typeof;
 				String syntax_valueof;
 				String syntax_booleanof;
