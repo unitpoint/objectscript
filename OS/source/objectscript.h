@@ -80,6 +80,7 @@
 
 #define OS_INFINITE_LOOP_OPCODES 10000000000
 #define OS_CALL_STACK_MAX_SIZE 200
+#define OS_RESERVE_STACK_SIZE 32
 
 #define OS_VERSION OS_TEXT("0.9-vm2")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
@@ -112,7 +113,6 @@ namespace ObjectScript
 
 	enum OS_EValueType
 	{
-		OS_VALUE_TYPE_UNKNOWN,
 		OS_VALUE_TYPE_NULL,
 		OS_VALUE_TYPE_BOOL,
 		OS_VALUE_TYPE_NUMBER,
@@ -124,6 +124,7 @@ namespace ObjectScript
 		OS_VALUE_TYPE_FUNCTION,
 		OS_VALUE_TYPE_CFUNCTION,
 		OS_VALUE_TYPE_WEAKREF,
+		OS_VALUE_TYPE_UNKNOWN,
 	};
 
 	enum // OS_ValueRegister
@@ -1966,10 +1967,16 @@ namespace ObjectScript
 
 				FunctionRunningInstance ** parent_inctances;
 
+				int caller_stack_pos;
+				int locals_stack_pos;
+				int opcode_stack_pos;
+				int bottom_stack_pos;
+
 				ValueData * locals;
 				int num_params;
 				int num_extra_params;
-				int initial_stack_size;
+				
+				// int initial_stack_size;
 				int need_ret_values;
 
 				GCValue * arguments;
@@ -2118,8 +2125,30 @@ namespace ObjectScript
 
 			GCObjectValue * prototypes[PROTOTYPE_COUNT];
 
-			// Vector<Value*> autorelease_values;
-			Vector<ValueData> stack_values;
+			// Vector<ValueData> stack_values;
+			struct StackValues {
+				ValueData * buf;
+				int capacity;
+				int count;
+
+				StackValues();
+				~StackValues();
+
+				ValueData& operator[](int i)
+				{
+					OS_ASSERT(i >= 0 && i < count);
+					return buf[i];
+				}
+
+				ValueData& lastElement()
+				{
+					OS_ASSERT(count > 0);
+					return buf[count-1];
+				}
+			} stack_values;
+
+			void reserveStackValues(int new_capacity);
+
 			Vector<FunctionRunningInstance*> call_stack_funcs;
 
 			GCValue * gc_grey_list_first;
@@ -2206,7 +2235,8 @@ namespace ObjectScript
 
 			void pushValueData(const ValueData val);
 			void pushStackValue(int offs);
-			void insertValue(ValueData& val, int offs);
+			void copyValue(int raw_from, int raw_to);
+			void insertValue(const ValueData val, int offs);
 			void pushNull();
 			void pushTrue();
 			void pushFalse();

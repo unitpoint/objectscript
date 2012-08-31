@@ -7509,8 +7509,7 @@ int OS::Core::PropertyIndex::getHash() const
 	case OS_VALUE_TYPE_NUMBER:
 		// return (int)index.v.number;
 		OS_ASSERT(sizeof(int) <= sizeof(index.v.number));
-		// return *(int*)&index.v.number;
-		break;
+		return ((int*)((OS_BYTE*)&index.v.number + sizeof(index.v.number)))[-1];
 
 	case OS_VALUE_TYPE_STRING:
 		return index.v.string->hash;
@@ -7952,11 +7951,15 @@ OS::Core::FunctionRunningInstance::FunctionRunningInstance()
 	parent_inctance = NULL;
 #endif
 	// num_parent_inctances = 0;
+	caller_stack_pos = 0;
+	locals_stack_pos = 0;
+	opcode_stack_pos = 0;
+	bottom_stack_pos = 0;
 
 	locals = NULL;
 	num_params = 0;
 	num_extra_params = 0;
-	initial_stack_size = 0;
+	// initial_stack_size = 0;
 	need_ret_values = 0;
 
 	arguments = NULL;
@@ -8824,9 +8827,9 @@ OS::SmartMemoryManager::SmartMemoryManager()
 
 	registerPageDesc(sizeof(Core::Property), OS_MEMORY_MANAGER_PAGE_BLOCKS);
 	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*4, OS_MEMORY_MANAGER_PAGE_BLOCKS);
-	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*8, OS_MEMORY_MANAGER_PAGE_BLOCKS);
-	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*16, OS_MEMORY_MANAGER_PAGE_BLOCKS);
-	registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*32, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	// registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*8, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	// registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*16, OS_MEMORY_MANAGER_PAGE_BLOCKS);
+	// registerPageDesc(sizeof(Core::FunctionRunningInstance) + sizeof(void*)*32, OS_MEMORY_MANAGER_PAGE_BLOCKS);
 	registerPageDesc(sizeof(Core::Table), OS_MEMORY_MANAGER_PAGE_BLOCKS);
 	registerPageDesc(sizeof(Core::Compiler::EXPRESSION_SIZE), OS_MEMORY_MANAGER_PAGE_BLOCKS);
 	registerPageDesc(sizeof(Core::TokenData), OS_MEMORY_MANAGER_PAGE_BLOCKS);
@@ -9289,7 +9292,10 @@ void OS::Core::shutdown()
 	// vectorClear(autorelease_values);
 	stack_values.count = 0;
 	
-	allocator->vectorClear(stack_values);
+	free(stack_values.buf);
+	stack_values.buf = NULL;
+	stack_values.capacity = 0;
+	stack_values.count = 0;
 
 	while(call_stack_funcs.count > 0){
 		FunctionRunningInstance * func_running = call_stack_funcs[--call_stack_funcs.count];
@@ -10366,7 +10372,8 @@ OS::Core::GCObjectValue * OS::Core::newArrayValue()
 
 void OS::Core::pushValueData(const ValueData val)
 {
-	allocator->vectorAddItem(stack_values, val);
+	reserveStackValues(stack_values.count+1);
+	stack_values.buf[stack_values.count++] = val;
 }
 
 void OS::Core::pushNull()
@@ -10377,6 +10384,12 @@ void OS::Core::pushNull()
 void OS::Core::pushStackValue(int offs)
 {
 	pushValueData(getStackValue(offs));
+}
+
+void OS::Core::copyValue(int raw_from, int raw_to)
+{
+	reserveStackValues(raw_to+1);
+	stack_values.buf[raw_to] = stack_values.buf[raw_from];
 }
 
 void OS::Core::pushTrue()
@@ -11314,6 +11327,37 @@ OS::Core::ValueData OS::Core::getStackValue(int offs)
 	return ValueData();
 }
 
+OS::Core::StackValues::StackValues()
+{
+	buf = NULL;
+	capacity = 0;
+	count = 0;
+}
+
+OS::Core::StackValues::~StackValues()
+{
+	OS_ASSERT(!buf && !capacity && !count);
+}
+
+void OS::Core::reserveStackValues(int new_capacity)
+{
+	if(stack_values.capacity < new_capacity){
+		stack_values.capacity = stack_values.capacity > 0 ? stack_values.capacity*2 : 4;
+		if(stack_values.capacity < new_capacity){
+			stack_values.capacity = new_capacity; // (capacity+3) & ~3;
+		}
+		ValueData * new_buf = (ValueData*)malloc(sizeof(ValueData)*stack_values.capacity);
+		OS_MEMCPY(new_buf, stack_values.buf, sizeof(ValueData) * stack_values.count);
+		free(stack_values.buf);
+		stack_values.buf = new_buf;
+
+		for(int i = 0; i < call_stack_funcs.count; i++){
+			FunctionRunningInstance * func_running = call_stack_funcs[i];
+			func_running->locals = stack_values.buf + func_running->locals_stack_pos;
+		}
+	}
+}
+
 void OS::Core::removeStackValues(int offs, int count)
 {
 	if(count <= 0){
@@ -11417,11 +11461,11 @@ void OS::Core::moveStackValue(int offs, int new_offs)
 	stack_values[new_offs] = value;
 }
 
-void OS::Core::insertValue(ValueData& val, int offs)
+void OS::Core::insertValue(const ValueData val, int offs)
 {
 	offs = offs <= 0 ? stack_values.count + offs : offs - 1;
 	
-	allocator->vectorReserveCapacity(stack_values, stack_values.count+1);
+	reserveStackValues(stack_values.count+1);
 	stack_values.count++;
 
 	if(offs < 0 || offs >= stack_values.count){
@@ -12043,6 +12087,17 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 	// OS_ASSERT(func_running->func->value.func->parent_inctance != func_running);
 
 	if(--func_running->ref_count > 0){
+		if(func_running->locals_stack_pos >= 0){
+			int count = func_running->opcode_stack_pos - func_running->locals_stack_pos;
+			if(count > 0){
+				ValueData * locals = (ValueData*)malloc(sizeof(ValueData) * count);
+				OS_MEMCPY(locals, func_running->locals, sizeof(ValueData) * count);
+				func_running->locals = locals;
+			}else{
+				func_running->locals = NULL;
+			}
+			func_running->locals_stack_pos = -1;
+		}
 		return;
 	}
 
@@ -12053,6 +12108,9 @@ void OS::Core::releaseFunctionRunningInstance(OS::Core::FunctionRunningInstance 
 		releaseValue(func_running->locals[i]);
 	} */
 	// free(func_running->locals);
+	if(func_running->locals_stack_pos < 0){
+		free(func_running->locals);
+	}
 	func_running->locals = NULL;
 
 	// value could be already destroyed by gc or will be destroyed soon
@@ -12084,33 +12142,48 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, GCValue * self, int p
 	// OS_ASSERT(self);
 
 	FunctionDecl * func_decl = func_value->func_decl;
-	int num_extra_params = params > func_decl->num_params ? params - func_decl->num_params : 0;
-	int locals_mem_size = sizeof(ValueData) * (func_decl->num_locals + num_extra_params);
+	int i, num_extra_params = params > func_decl->num_params ? params - func_decl->num_params : 0;
+	// int locals_mem_size = sizeof(ValueData) * (func_decl->num_locals + num_extra_params);
 	int parents_mem_size = sizeof(FunctionRunningInstance*) * func_decl->max_up_count;
 	
-	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance) + locals_mem_size + parents_mem_size)) FunctionRunningInstance();
+	FunctionRunningInstance * func_running = new (malloc(sizeof(FunctionRunningInstance) + parents_mem_size)) FunctionRunningInstance();
 	func_running->func = func_value;
 	func_running->self = self;
 	
+	func_running->caller_stack_pos = stack_values.count - params - extra_remove_from_stack;
+	func_running->locals_stack_pos = func_running->caller_stack_pos + extra_remove_from_stack;
+	func_running->opcode_stack_pos = func_running->locals_stack_pos + func_decl->num_locals + num_extra_params;
+	func_running->bottom_stack_pos = func_running->opcode_stack_pos + 0; // how many opcodes use stack
+
+	reserveStackValues(func_running->bottom_stack_pos + OS_RESERVE_STACK_SIZE);
+	stack_values.count = func_running->bottom_stack_pos;
+
 	func_running->num_params = params;
 	func_running->num_extra_params = num_extra_params;
-	func_running->locals = (ValueData*)(func_running + 1); // malloc(locals_mem_size);
+	func_running->locals = stack_values.buf + func_running->locals_stack_pos; // (ValueData*)(func_running + 1); // malloc(locals_mem_size);
+	
+	ValueData * extra_params = func_running->locals + func_decl->num_locals;
+	if(num_extra_params > 0){
+		OS_MEMCPY(extra_params, func_running->locals + (params - num_extra_params), sizeof(ValueData) * num_extra_params);
+	}
+	/* for(i = 0; i < num_extra_params; i++){
+		extra_params[i] = func_running->locals[params - num_extra_params + i];
+	} */
+	int opcodes_vars = func_running->bottom_stack_pos - func_running->opcode_stack_pos;
+	if(opcodes_vars > 0){
+		OS_MEMSET(extra_params + num_extra_params, 0, sizeof(ValueData) * opcodes_vars);
+	}
+	/* for(; opcodes_vars > 0; opcodes_vars--, i++){
+		extra_params[i] = ValueData();
+	} */
 	int func_params = func_decl->num_params < params ? func_decl->num_params : params;
 	OS_ASSERT(func_params <= func_decl->num_locals);
-	int stack_param_index = stack_values.count - params;
-	int i, clear_stack_to_index = stack_param_index - extra_remove_from_stack;
-	for(i = 0; i < func_params; i++, stack_param_index++){
-		func_running->locals[i] = stack_values[stack_param_index];
-	}
-	for(; i < func_decl->num_locals; i++){
+	OS_MEMSET(func_running->locals + func_params, 0, sizeof(ValueData) * (func_decl->num_locals - func_params));
+	/* for(i = func_params; i < func_decl->num_locals; i++){
 		func_running->locals[i] = ValueData();
-	}
-	for(i = 0; i < num_extra_params; i++, stack_param_index++){
-		func_running->locals[func_decl->num_locals + i] = stack_values[stack_param_index];
-	}
-	// pop(stack_values.count - clear_stack_to_index);
+	} */
 
-	func_running->parent_inctances = (FunctionRunningInstance**)((OS_BYTE*)func_running->locals + locals_mem_size); // malloc(sizeof(FunctionRunningInstance*) * func_decl->max_up_count);
+	func_running->parent_inctances = (FunctionRunningInstance**)(func_running + 1); // malloc(sizeof(FunctionRunningInstance*) * func_decl->max_up_count);
 	FunctionRunningInstance * cur_parent = func_value->parent_inctance;
 	for(i = 0; i < func_decl->max_up_count; i++){
 		OS_ASSERT(cur_parent);
@@ -12125,9 +12198,6 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, GCValue * self, int p
 	allocator->vectorAddItem(call_stack_funcs, func_running);
 
 	gcProcessGreyFunctionRunning(func_running);
-	pop(stack_values.count - clear_stack_to_index);
-
-	func_running->initial_stack_size = stack_values.count;
 }
 
 int OS::Core::leaveFunction()
@@ -12155,19 +12225,22 @@ restart:
 	int prog_num_strings = prog->num_strings;
 	GCStringValue ** prog_strings = prog->const_strings;
 
+	int caller_stack_pos = func_running->caller_stack_pos;
+
 	OS * allocator = this->allocator;
 	for(int opcodes_executed = 0;; opcodes_executed++){
+		OS_ASSERT(stack_values.count >= func_running->bottom_stack_pos);
 		func_running->opcodes_pos = opcodes.pos;
 		if(opcodes_executed >= OS_INFINITE_LOOP_OPCODES){
 			OS_ASSERT(false);
 			// TODO: generate infinite loop error
-			OS_ASSERT(stack_values.count >= func_running->initial_stack_size);
-			call_stack_funcs.count = func_running->initial_stack_size;
+			OS_ASSERT(stack_values.count >= caller_stack_pos);
 			int ret_values = func_running->need_ret_values;
 			syncStackRetValues(ret_values, 0);
 			OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
 			call_stack_funcs.count--;
 			releaseFunctionRunningInstance(func_running);
+			removeStackValues(caller_stack_pos+1, stack_values.count - ret_values - caller_stack_pos);
 			return ret_values;
 		}
 		int i;
@@ -12500,8 +12573,9 @@ restart:
 
 				case OS_VALUE_TYPE_FUNCTION:
 					call_stack_funcs.count--;
-					enterFunction(func_value.v.func, NULL, params, 1, ret_values);
 					releaseFunctionRunningInstance(func_running);
+					removeStackValues(caller_stack_pos+1, stack_values.count - 1-params - caller_stack_pos);
+					enterFunction(func_value.v.func, NULL, params, 1, ret_values);
 					goto restart;
 
 				default:
@@ -12509,11 +12583,12 @@ restart:
 					pop(1+params);
 					syncStackRetValues(ret_values, 0);
 				}
-				OS_ASSERT(stack_values.count == func_running->initial_stack_size + ret_values);
+				OS_ASSERT(stack_values.count == func_running->bottom_stack_pos + ret_values);
 				// func_running->opcodes_pos = opcodes.getPos();
 				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
 				call_stack_funcs.count--;
 				releaseFunctionRunningInstance(func_running);
+				removeStackValues(caller_stack_pos+1, stack_values.count - ret_values - caller_stack_pos);
 				return ret_values;
 			}
 
@@ -12568,8 +12643,9 @@ restart:
 
 				case OS_VALUE_TYPE_FUNCTION:
 					call_stack_funcs.count--;
-					enterFunction(func_value.v.func, self, params, 4, ret_values);
 					releaseFunctionRunningInstance(func_running);
+					removeStackValues(caller_stack_pos+1, stack_values.count - 4-params - caller_stack_pos);
+					enterFunction(func_value.v.func, self, params, 4, ret_values);
 					goto restart;
 
 				default:
@@ -12577,11 +12653,12 @@ restart:
 					pop(4+params);
 					syncStackRetValues(ret_values, 0);
 				}
-				OS_ASSERT(stack_values.count == func_running->initial_stack_size + ret_values);
+				OS_ASSERT(stack_values.count == func_running->bottom_stack_pos + ret_values);
 				// func_running->opcodes_pos = opcodes.getPos();
 				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
 				call_stack_funcs.count--;
 				releaseFunctionRunningInstance(func_running);
+				removeStackValues(caller_stack_pos+1, stack_values.count - ret_values - caller_stack_pos);
 				return ret_values;
 			}
 
@@ -12590,11 +12667,12 @@ restart:
 				int cur_ret_values = opcodes.readByte();
 				int ret_values = func_running->need_ret_values;
 				syncStackRetValues(ret_values, cur_ret_values);
-				OS_ASSERT(stack_values.count == func_running->initial_stack_size + ret_values);
+				OS_ASSERT(stack_values.count == func_running->bottom_stack_pos + ret_values);
 				// func_running->opcodes_pos = opcodes.getPos();
 				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
 				call_stack_funcs.count--;
 				releaseFunctionRunningInstance(func_running);
+				removeStackValues(caller_stack_pos+1, stack_values.count - ret_values - caller_stack_pos);
 				return ret_values;
 			}
 
