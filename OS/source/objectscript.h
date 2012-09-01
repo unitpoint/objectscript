@@ -675,7 +675,7 @@ namespace ObjectScript
 				void * readBytesAtPos(void*, int len, int pos);
 			};
 
-			class GCStringValue;
+			struct GCStringValue;
 			class StringBuffer;
 			class String
 			{
@@ -697,7 +697,7 @@ namespace ObjectScript
 				String(OS*, const void * buf1, int len1, const void * buf2, int len2);
 				// String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 				String(OS*, OS_INT value);
-				String(OS*, OS_FLOAT value, int precision);
+				String(OS*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
 				~String();
 
 				static String format(OS*, int temp_buf_size, const OS_CHAR * fmt, ...);
@@ -1235,7 +1235,7 @@ namespace ObjectScript
 				void release();
 			};
 
-			struct Program;
+			class Program;
 			struct FunctionDecl;
 			struct FunctionRunningInstance;
 			struct GCFunctionValue: public GCValue
@@ -2374,7 +2374,7 @@ namespace ObjectScript
 
 	public:
 
-		class String: public Core::String
+		class String: public Core::String // this string retains OS
 		{
 			typedef Core::String super;
 
@@ -2394,7 +2394,7 @@ namespace ObjectScript
 			String(OS*, const void * buf1, int len1, const void * buf2, int len2);
 			// String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 			String(OS*, OS_INT value);
-			String(OS*, OS_FLOAT value, int precision);
+			String(OS*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
 			~String();
 
 			String& operator=(const Core::String&);

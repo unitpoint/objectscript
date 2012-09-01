@@ -156,7 +156,7 @@ static bool parseSimpleHex(const OS_CHAR *& p_str, T& p_val)
 		if(prev_val > val){
 			p_str = start;
 			p_val = 0;
-			return val;
+			return false;
 		}
 		prev_val = val;
 	}
@@ -176,7 +176,7 @@ static bool parseSimpleBin(const OS_CHAR *& p_str, T& p_val)
 		if(prev_val > val){
 			p_str = start;
 			p_val = 0;
-			return val;
+			return false;
 		}
 		prev_val = val;
 	}
@@ -197,7 +197,7 @@ static bool parseSimpleOctal(const OS_CHAR *& p_str, T& p_val)
 		if(prev_val > val){
 			p_str = start;
 			p_val = 0;
-			return val;
+			return false;
 		}
 		prev_val = val;
 	}
@@ -217,7 +217,7 @@ static bool parseSimpleDec(const OS_CHAR *& p_str, T& p_val)
 		if(prev_val > val){
 			p_str = start;
 			p_val = 0;
-			return val;
+			return false;
 		}
 		prev_val = val;
 	}
@@ -5336,10 +5336,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 			allocator->vectorClear(params->list);
 			allocator->deleteObj(params);
 		}else{
-			right_exp = params->list[0];
+			left_exp = expectExpressionValues(left_exp, 1);
+			allocator->vectorInsertAtIndex(params->list, 0, left_exp);
+			params->ret_values++;
+			return params; 
+			/* right_exp = params->list[0];
 			right_exp = newBinaryExpression(scope, exp_type, token, left_exp, right_exp);
 			params->list[0] = right_exp;
-			return params;
+			return params; */
 		}
 	}
 	left_exp = expectExpressionValues(left_exp, 1);
@@ -5465,14 +5469,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 	Params p = Params(_p)
 		.setAllowAssign(false)
 		.setAllowBinaryOperator(false)
-		.setAllowParams(false)
+		// .setAllowParams(false)
 		.setAllowAutoCall(false)
 		.setAllowRootBlocks(false);
 
 	TokenData * binary_operator = recent_token;
 	OS_ASSERT(binary_operator->isTypeOf(Tokenizer::BINARY_OPERATOR));
 	readToken();
-	Expression * exp2 = expectSingleExpression(scope, p); // false, allow_param, false, false, false);
+	Expression * exp2 = expectSingleExpression(scope, Params(p).setAllowParams(false)); // false, allow_param, false, false, false);
 	if(!exp2){
 		/* if(!isError()){
 			return exp;
@@ -5482,7 +5486,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 		return NULL;
 	}
 	// exp2 = expectExpressionValues(exp2, 1);
-	if(!recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR)){
+	if(!recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR) || (!p.allow_params && recent_token->getType() == Tokenizer::PARAM_SEPARATOR)){
 		// return new (malloc(sizeof(Expression))) Expression(getExpressionType(binary_operator->getType()), binary_operator, exp, exp2);
 		is_finished = true;
 		return newBinaryExpression(scope, getExpressionType(binary_operator->getType()), binary_operator, exp, exp2);
@@ -5699,7 +5703,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 					|| token->str == allocator->core->strings->syntax_case 
 					|| token->str == allocator->core->strings->syntax_default
 					|| token->str == allocator->core->strings->syntax_debugger
-					|| token->str == allocator->core->strings->syntax_debuglocals
+					// || token->str == allocator->core->strings->syntax_debuglocals
 					)
 				{
 					return exp;
@@ -8342,7 +8346,7 @@ bool OS::Core::valueToBool(const ValueData& val)
 		return false;
 
 	case OS_VALUE_TYPE_BOOL:
-		return val.v.boolean;
+		return val.v.boolean ? true : false;
 
 	case OS_VALUE_TYPE_NUMBER:
 		// return val->value.number && !isnan(val->value.number);
@@ -8490,7 +8494,7 @@ OS::Core::String OS::Core::valueToString(const ValueData& val, bool valueof_enab
 		return val.v.boolean ? strings->syntax_true : strings->syntax_false;
 
 	case OS_VALUE_TYPE_NUMBER:
-		return String(allocator, val.v.number, OS_DEF_PRECISION);
+		return String(allocator, val.v.number, OS_AUTO_PRECISION);
 
 	case OS_VALUE_TYPE_STRING:
 		return String(val.v.string);
@@ -8533,7 +8537,7 @@ bool OS::Core::isValueString(const ValueData& val, String * out)
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = String(allocator, val.v.number, OS_DEF_PRECISION);
+			*out = String(allocator, val.v.number, OS_AUTO_PRECISION);
 		}
 		return true;
 
@@ -8572,7 +8576,7 @@ bool OS::Core::isValueString(const ValueData& val, OS::String * out)
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = String(allocator, val.v.number, OS_DEF_PRECISION);
+			*out = String(allocator, val.v.number, OS_AUTO_PRECISION);
 		}
 		return true;
 
@@ -12361,8 +12365,8 @@ restart:
 			{
 				OS_ASSERT(stack_values.count >= 3);
 				ValueData object = stack_values[stack_values.count - 3];
-				ValueData value = stack_values[stack_values.count - 2];
-				ValueData index = stack_values[stack_values.count - 1];
+				ValueData index = stack_values[stack_values.count - 2];
+				ValueData value = stack_values[stack_values.count - 1];
 				setPropertyValue(object, Core::PropertyIndex(index), value, false, false);
 				pop(2); // keep object in stack
 				break;
@@ -12599,6 +12603,7 @@ restart:
 				OS_ASSERT(call_stack_funcs.count > 0 && call_stack_funcs[call_stack_funcs.count-1] == func_running);
 				switch(func_value.type){
 				case OS_VALUE_TYPE_CFUNCTION:
+				case OS_VALUE_TYPE_OBJECT:
 					// pushNull();
 					// moveStackValue(-1, -params);
 					insertValue(ValueData(), -params);
@@ -13268,12 +13273,12 @@ void OS::initGlobalFunctions()
 			if(params < 1){
 				return 0;
 			}
+			OS::Core::StringBuffer buf(os);
 			int params_offs = os->getAbsoluteOffs(-params-upvalues);
-			String str = os->toString(params_offs);
-			for(int i = 1; i < params; i++){
-				str += os->toString(params_offs + i);
+			for(int i = 0; i < params; i++){
+				buf += os->toString(params_offs + i);
 			}
-			os->pushString(str);
+			os->core->pushValue(buf.toGCStringValue());
 			return 1;
 		}
 
