@@ -255,40 +255,56 @@ begin function
     end call ret values 0
 
 
-[24] print [10, 20, 30, 40]
+[24] print([10, 20, 30, 40])
 
-    begin call method
+    begin call
       get env var print
-      begin params 5
-        push const string "__getdim"
-        ,
-        push const number 10
-        ,
-        push const number 20
-        ,
-        push const number 30
-        ,
-        push const number 40
-      end params ret values 5
-    end call method ret values 0
+      begin params 1
+        begin array 4
+          begin set auto index
+            push const number 10
+          end set auto index
+          ,
+          begin set auto index
+            push const number 20
+          end set auto index
+          ,
+          begin set auto index
+            push const number 30
+          end set auto index
+          ,
+          begin set auto index
+            push const number 40
+          end set auto index
+        end array
+      end params ret values 1
+    end call ret values 0
 
 
-[25] print [10 20 30 40]
+[25] print([10 20 30 40])
 
-    begin call method
+    begin call
       get env var print
-      begin params 5
-        push const string "__getdim"
-        ,
-        push const number 10
-        ,
-        push const number 20
-        ,
-        push const number 30
-        ,
-        push const number 40
-      end params ret values 5
-    end call method ret values 0
+      begin params 1
+        begin array 4
+          begin set auto index
+            push const number 10
+          end set auto index
+          ,
+          begin set auto index
+            push const number 20
+          end set auto index
+          ,
+          begin set auto index
+            push const number 30
+          end set auto index
+          ,
+          begin set auto index
+            push const number 40
+          end set auto index
+        end array
+      end params ret values 1
+    end call ret values 0
 
 
 [27] var i, j, k = 0, 1, 3

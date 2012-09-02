@@ -21,8 +21,8 @@ print {firstname="Ivan" lastname="Petrov"}
 	var b = {[a]="powerful" 7="greate"}
 	print b[a]	
 	
-	print [10, 20, 30, 40]
-	print [10 20 30 40]
+	print([10, 20, 30, 40])
+	print([10 20 30 40])
 	
 	var i, j, k = 0, 1, 3
 	echo("i="i", j="j", k="k"\n")
