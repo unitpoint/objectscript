@@ -38,10 +38,25 @@
 #include <vadefs.h>
 #include <stdlib.h>
 
-#define OS_ASSERT assert
-
 #ifdef _DEBUG
 #define OS_DEBUG
+#define OS_ASSERT assert
+
+#define OS_DBG_FILEPOS_DECL , const char * dbg_filename, int dbg_line
+#define OS_DBG_FILEPOS_PARAM , dbg_filename, dbg_line
+#define OS_DBG_FILEPOS , __FILE__, __LINE__
+
+#define OS_DBG_FILEPOS_START_DECL const char * dbg_filename, int dbg_line
+#define OS_DBG_FILEPOS_START_PARAM dbg_filename, dbg_line
+#define OS_DBG_FILEPOS_START __FILE__, __LINE__
+#else
+#define OS_ASSERT(a)
+#define OS_DBG_FILEPOS_DECL
+#define OS_DBG_FILEPOS_PARAM
+#define OS_DBG_FILEPOS
+#define OS_DBG_FILEPOS_START_DECL
+#define OS_DBG_FILEPOS_START_PARAM
+#define OS_DBG_FILEPOS_START
 #endif
 
 #define OS_MEMCMP memcmp
@@ -82,7 +97,7 @@
 #define OS_CALL_STACK_MAX_SIZE 200
 #define OS_RESERVE_STACK_SIZE 32
 
-#define OS_VERSION OS_TEXT("0.9-vm2")
+#define OS_VERSION OS_TEXT("0.91-vm2")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_SOURCECODE_EXT OS_TEXT(".os")
@@ -100,7 +115,7 @@ namespace ObjectScript
 	class OS;
 
 	typedef void (*OS_UserDataDtor)(OS*, void * data, void * user_param);
-	typedef int (*OS_CFunction)(OS*, int params, int upvalues, int need_ret_values, void * user_param);
+	typedef int (*OS_CFunction)(OS*, int params, int closure_values, int need_ret_values, void * user_param);
 
 	enum OS_ESettings
 	{
@@ -207,8 +222,9 @@ namespace ObjectScript
 			// MemoryManager();
 			virtual ~MemoryManager();
 
-			virtual void * malloc(int size) = 0;
+			virtual void * malloc(int size OS_DBG_FILEPOS_DECL) = 0;
 			virtual void free(void * p) = 0;
+			virtual void setBreakpointId(int id) = 0;
 
 			virtual int getAllocatedBytes() = 0;
 			virtual int getMaxAllocatedBytes() = 0;
@@ -247,19 +263,44 @@ namespace ObjectScript
 			struct MemBlock
 			{
 				Page * page;
+#ifdef OS_DEBUG
+				const char * dbg_filename;
+				int dbg_line;
+				int dbg_id;
+				MemBlock * dbg_mem_prev;
+				MemBlock * dbg_mem_next;
+#endif
+				int block_size;
+			};
+
+			struct StdMemBlock
+			{
+#ifdef OS_DEBUG
+				const char * dbg_filename;
+				int dbg_line;
+				int dbg_id;
+				StdMemBlock * dbg_mem_prev;
+				StdMemBlock * dbg_mem_next;
+#endif
 				int block_size;
 			};
 
 			enum {
-				MAX_PAGE_COUNT = 17
+				MAX_PAGE_TYPE_COUNT = 17
 			};
 
-			PageDesc page_desc[MAX_PAGE_COUNT];
+			PageDesc page_desc[MAX_PAGE_TYPE_COUNT];
 			int num_page_desc;
 
-			Page * pages[MAX_PAGE_COUNT];
+			Page * pages[MAX_PAGE_TYPE_COUNT];
 
-			CachedBlock * cached_blocks[MAX_PAGE_COUNT];
+			CachedBlock * cached_blocks[MAX_PAGE_TYPE_COUNT];
+
+#ifdef OS_DEBUG
+			MemBlock * dbg_mem_list;
+			StdMemBlock * dbg_std_mem_list;
+			int dbg_breakpoint_id;
+#endif
 
 			int stat_malloc_count;
 			int stat_free_count;
@@ -267,13 +308,13 @@ namespace ObjectScript
 			void registerPageDesc(int block_size, int num_blocks);
 			void sortPageDesc();
 
-			void * allocFromCachedBlock(int i);
-			void * allocFromPageType(int i);
+			void * allocFromCachedBlock(int i OS_DBG_FILEPOS_DECL);
+			void * allocFromPageType(int i OS_DBG_FILEPOS_DECL);
 			void freeMemBlock(MemBlock*);
 
 			void freeCachedMemory(int new_cached_bytes);
 
-			void * stdAlloc(int size);
+			void * stdAlloc(int size OS_DBG_FILEPOS_DECL);
 			void stdFree(void * p);
 
 		public:
@@ -281,8 +322,9 @@ namespace ObjectScript
 			SmartMemoryManager();
 			~SmartMemoryManager();
 			
-			void * malloc(int size);
+			void * malloc(int size OS_DBG_FILEPOS_DECL);
 			void free(void * p);
+			void setBreakpointId(int id);
 
 			int getAllocatedBytes();
 			int getMaxAllocatedBytes();
@@ -363,14 +405,14 @@ namespace ObjectScript
 			}
 		};
 
-		template<class T> void vectorReserveCapacity(Vector<T>& vec, int new_capacity)
+		template<class T> void vectorReserveCapacity(Vector<T>& vec, int new_capacity OS_DBG_FILEPOS_DECL)
 		{
 			if(vec.capacity < new_capacity){
 				vec.capacity = vec.capacity > 0 ? vec.capacity*2 : 4;
 				if(vec.capacity < new_capacity){
 					vec.capacity = new_capacity; // (capacity+3) & ~3;
 				}
-				T * new_buf = (T*)malloc(sizeof(T)*vec.capacity);
+				T * new_buf = (T*)malloc(sizeof(T)*vec.capacity OS_DBG_FILEPOS_PARAM);
 				OS_ASSERT(new_buf);
 				for(int i = 0; i < vec.count; i++){
 					new (new_buf+i) T(vec.buf[i]);
@@ -381,11 +423,11 @@ namespace ObjectScript
 			}
 		}
 
-		template<class T> void vectorReserveCapacityExact(Vector<T>& vec, int capacity)
+		template<class T> void vectorReserveCapacityExact(Vector<T>& vec, int capacity OS_DBG_FILEPOS_DECL)
 		{
 			if(vec.capacity < capacity){
 				vec.capacity = capacity;
-				T * new_buf = (T*)malloc(sizeof(T)*vec.capacity);
+				T * new_buf = (T*)malloc(sizeof(T)*vec.capacity OS_DBG_FILEPOS_PARAM);
 				OS_ASSERT(new_buf);
 				for(int i = 0; i < vec.count; i++){
 					new (new_buf+i) T(vec.buf[i]);
@@ -396,9 +438,9 @@ namespace ObjectScript
 			}
 		}
 
-		template<class T> void vectorAddItem(Vector<T>& vec, const T& val)
+		template<class T> void vectorAddItem(Vector<T>& vec, const T& val OS_DBG_FILEPOS_DECL)
 		{
-			vectorReserveCapacity(vec, vec.count+1);
+			vectorReserveCapacity(vec, vec.count+1 OS_DBG_FILEPOS_PARAM);
 			new (vec.buf + vec.count++) T(val);
 		}
 
@@ -437,10 +479,10 @@ namespace ObjectScript
 			vec.count = 0;
 		}
 
-		template<class T> void vectorInsertAtIndex(Vector<T>& vec, int i, const T& val)
+		template<class T> void vectorInsertAtIndex(Vector<T>& vec, int i, const T& val OS_DBG_FILEPOS_DECL)
 		{
 			OS_ASSERT(i >= 0 && i <= vec.count);
-			vectorReserveCapacity(vec, vec.count+1);
+			vectorReserveCapacity(vec, vec.count+1 OS_DBG_FILEPOS_PARAM);
 			for(int j = vec.count-1; j >= i; j--){
 				new (vec.buf+j+1) T(vec.buf[j]);
 				vec.buf[j].~T();
@@ -962,7 +1004,7 @@ namespace ObjectScript
 				static int __cdecl CompareOperatorDesc(const void * a, const void * b);
 				static void initOperatorsTable();
 
-				TokenData * addToken(const String& token, TokenType type, int line, int pos);
+				TokenData * addToken(const String& token, TokenType type, int line, int pos OS_DBG_FILEPOS_DECL);
 
 				bool parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces);
 				bool parseLines();
@@ -993,7 +1035,7 @@ namespace ObjectScript
 
 				int getNumTokens() const { return tokens.count; }
 				TokenData * getToken(int i) const { return tokens[i]; }
-				void insertToken(int i, TokenData * token);
+				void insertToken(int i, TokenData * token OS_DBG_FILEPOS_DECL);
 			};
 
 			typedef Tokenizer::TokenType TokenType;
@@ -1050,6 +1092,9 @@ namespace ObjectScript
 
 				// Value * gc_grey_prev;
 				GCValue * gc_grey_next;
+#ifdef OS_DEBUG
+				int gc_time;
+#endif
 
 				OS_EValueType type;
 				bool is_object_instance;
@@ -1128,10 +1173,10 @@ namespace ObjectScript
 				void * toMemory() const { return (void*)(this + 1); }
 				// bool isExternal() const { return str != (OS_CHAR*)(this+1); }
 
-				static GCStringValue * alloc(OS*, const void *, int data_size);
-				static GCStringValue * alloc(OS*, const void * buf1, int len1, const void * buf2, int len2);
+				static GCStringValue * alloc(OS*, const void *, int data_size OS_DBG_FILEPOS_DECL);
+				static GCStringValue * alloc(OS*, const void * buf1, int len1, const void * buf2, int len2 OS_DBG_FILEPOS_DECL);
 				// static GCStringValue * alloc(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
-				static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b);
+				static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b OS_DBG_FILEPOS_DECL);
 				// static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b, GCStringValue * c);
 
 				bool isFloat(OS_FLOAT*) const;
@@ -1155,7 +1200,7 @@ namespace ObjectScript
 			{
 				OS_CFunction func;
 				void * user_param;
-				int num_upvalues;
+				int num_closure_values;
 			};
 
 			struct GCFunctionValue;
@@ -1220,14 +1265,13 @@ namespace ObjectScript
 
 			class Program;
 			struct FunctionDecl;
-			struct FunctionRunningInstance;
+			struct Upvalues;
 			struct GCFunctionValue: public GCValue
 			{
 				Program * prog; // retained
 				FunctionDecl * func_decl;
-				ValueData env;
-
-				FunctionRunningInstance * parent_inctance; // retained
+				GCValue * env;
+				Upvalues * upvalues; // retained
 
 				GCFunctionValue();
 				~GCFunctionValue();
@@ -1547,7 +1591,7 @@ namespace ObjectScript
 					};
 
 					// used by function scope
-					int func_index;
+					int prog_func_index;
 					Vector<LocalVar> locals;
 					Vector<LocalVarCompiled> locals_compiled;
 					int num_params;
@@ -1555,6 +1599,9 @@ namespace ObjectScript
 					int opcodes_pos;
 					int opcodes_size;
 					int max_up_count;
+					int func_depth;
+					int func_index;
+					int num_local_funcs;
 
 					Vector<LoopBreak> loop_breaks;
 
@@ -1650,7 +1697,7 @@ namespace ObjectScript
 				void setError(TokenType expect_token_type, TokenData * error_token);
 				void setError(const String& str, TokenData * error_token);
 
-				void * malloc(int size);
+				void * malloc(int size OS_DBG_FILEPOS_DECL);
 
 				TokenData * setNextTokenIndex(int i);
 				TokenData * setNextToken(TokenData * token);
@@ -1770,13 +1817,16 @@ namespace ObjectScript
 				};
 
 #ifdef OS_DEBUG
-				int func_index;
+				int prog_func_index;
 #endif
-				int parent_func_index;
+				int prog_parent_func_index;
 				LocalVar * locals;
 				int num_locals;
 				int num_params;
 				int max_up_count;
+				int func_depth;
+				int func_index; // in parent space
+				int num_local_funcs;
 				int opcodes_pos;
 				int opcodes_size;
 
@@ -1951,37 +2001,52 @@ namespace ObjectScript
 				void pushFunction();
 			};
 
-			struct FunctionRunningInstance
+			struct Upvalues
+			{
+				int ref_count;
+				int gc_time;
+
+				ValueData * locals;
+				int num_locals;
+
+				bool is_stack_locals;
+				
+				int num_parents;
+				// Upvalues * parent;
+
+				// Upvalues();
+				// ~Upvalues();
+
+				Upvalues ** getParents();
+				Upvalues * getParent(int i);
+				void setParent(int i, Upvalues*);
+
+				Upvalues * retain();
+			};
+
+			struct StackFunction
 			{
 				GCFunctionValue * func;
 				GCValue * self;
 
-				FunctionRunningInstance ** parent_inctances;
+				Upvalues * locals;
+				int num_params;
+				int num_extra_params;
 
+				GCValue * arguments;
+				GCValue * rest_arguments;
+				
 				int caller_stack_pos;
 				int locals_stack_pos;
 				int opcode_stack_pos;
 				int bottom_stack_pos;
 
-				ValueData * locals;
-				int num_params;
-				int num_extra_params;
-				
-				// int initial_stack_size;
 				int need_ret_values;
 
-				GCValue * arguments;
-				GCValue * rest_arguments;
-
 				int opcodes_pos;
-				int ref_count;
-
-				int gc_time;
-
-				FunctionRunningInstance();
-				~FunctionRunningInstance();
-
-				FunctionRunningInstance * retain();
+				
+				StackFunction();
+				~StackFunction();
 			};
 
 			struct Values
@@ -2141,7 +2206,7 @@ namespace ObjectScript
 
 			void reserveStackValues(int new_capacity);
 
-			Vector<FunctionRunningInstance*> call_stack_funcs;
+			Vector<StackFunction*> call_stack_funcs;
 
 			GCValue * gc_grey_list_first;
 			bool gc_grey_root_initialized;
@@ -2160,7 +2225,7 @@ namespace ObjectScript
 				bool recompile_sourcecode;
 			} settings;
 
-			void * malloc(int size);
+			void * malloc(int size OS_DBG_FILEPOS_DECL);
 			void free(void * p);
 
 			void error(int code, const OS_CHAR * message);
@@ -2171,13 +2236,12 @@ namespace ObjectScript
 			void gcAddToGreyList(GCValue*);
 			void gcAddToGreyList(ValueData&);
 			void gcRemoveFromGreyList(GCValue*);
-			void gcProcessGreyProgram(Program * prog);
-			void gcProcessGreyTable(Table * table);
-			void gcProcessGreyFunctionValue(GCFunctionValue * func_value);
-			void gcProcessGreyFunctionRunning(FunctionRunningInstance*);
-			void gcProcessStringsCacheTable();
-			void gcProcessGreyValue(GCValue*);
-			void gcProcessGreyList(int step_size);
+			void gcMarkProgram(Program * prog);
+			void gcMarkTable(Table * table);
+			void gcMarkUpvalues(Upvalues*);
+			void gcMarkStackFunction(StackFunction*);
+			void gcMarkList(int step_size);
+			void gcMarkValue(GCValue * value);
 			
 			// return next gc phase
 			int gcStep();
@@ -2189,12 +2253,18 @@ namespace ObjectScript
 			void clearValue(ValueData&);
 			void clearValue(GCValue*);
 			void deleteValue(GCValue*);
-			bool isValueUsed(GCValue*);
 
-			GCFunctionValue * pushFunctionValue(FunctionRunningInstance * func_running, Program*, FunctionDecl*);
+#ifdef OS_DEBUG
+			bool isValueUsed(GCValue*);
+#endif
+
+			GCFunctionValue * newFunctionValue(StackFunction*, Program*, FunctionDecl*);
 			void clearFunctionValue(GCFunctionValue*);
 
-			void releaseFunctionRunningInstance(FunctionRunningInstance*);
+			// Upvalues * newUpvalues(int num_parents);
+			void releaseUpvalues(Upvalues*);
+			void deleteUpvalues(Upvalues*);
+			void deleteStackFunction(StackFunction*);
 
 			// GCValue * newValue();
 			// ValueData newBoolValue(bool);
@@ -2216,7 +2286,7 @@ namespace ObjectScript
 			GCStringValue * newStringValueVa(int temp_buf_size, const OS_CHAR * fmt, va_list va);
 
 			GCCFunctionValue * newCFunctionValue(OS_CFunction func, void * user_param);
-			GCCFunctionValue * newCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
+			GCCFunctionValue * newCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
 			GCUserDataValue * newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
 			GCUserDataValue * newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
 			GCObjectValue * newObjectValue();
@@ -2239,7 +2309,7 @@ namespace ObjectScript
 			GCStringValue * pushStringValue(const String&);
 			GCStringValue * pushStringValue(const OS_CHAR*);
 			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
-			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, int upvalues, void * user_param);
+			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
 			GCUserDataValue * pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
 			GCUserDataValue * pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
 			GCObjectValue * pushObjectValue();
@@ -2293,7 +2363,7 @@ namespace ObjectScript
 			bool isValueInstanceOf(GCValue * val, GCValue * prototype_val);
 			bool isValueInstanceOf(const ValueData& val, const ValueData& prototype_val);
 
-			Table * newTable();
+			Table * newTable(OS_DBG_FILEPOS_START_DECL);
 			void deleteTable(Table*);
 			void addTableProperty(Table * table, Property * prop);
 			bool deleteTableProperty(Table * table, const PropertyIndex& index);
@@ -2340,7 +2410,7 @@ namespace ObjectScript
 		bool init();
 		void shutdown();
 
-		void * malloc(int size);
+		void * malloc(int size OS_DBG_FILEPOS_DECL);
 		void free(void * p);
 
 		Core::String changeFilenameExt(const OS_CHAR * filename, const OS_CHAR * ext);
@@ -2393,6 +2463,8 @@ namespace ObjectScript
 		int getMaxAllocatedBytes();
 		int getCachedBytes();
 
+		void setMemBreakpointId(int id);
+
 		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
 		void getProperty(const OS_CHAR*, bool prototype_enabled = true, bool getter_enabled = true);
 		void getProperty(const Core::String&, bool prototype_enabled = true, bool getter_enabled = true);
@@ -2419,7 +2491,7 @@ namespace ObjectScript
 		void pushString(const OS_CHAR*);
 		void pushString(const Core::String&);
 		void pushCFunction(OS_CFunction func, void * user_param = NULL);
-		void pushCFunction(OS_CFunction func, int upvalues, void * user_param = NULL);
+		void pushCFunction(OS_CFunction func, int closure_values, void * user_param = NULL);
 		void * pushUserData(int crc, int data_size, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
 		void * pushUserPointer(int crc, void * data, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
 		void newObject();
@@ -2486,7 +2558,7 @@ namespace ObjectScript
 			const OS_CHAR * name;
 			OS_CFunction func;
 		};
-		void setFuncs(const Func * list, int upvalues = 0, void * user_param = NULL); // null terminated list
+		void setFuncs(const Func * list, int closure_values = 0, void * user_param = NULL); // null terminated list
 		void getObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
 		void getGlobalObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
 	};
