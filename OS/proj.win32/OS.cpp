@@ -211,6 +211,9 @@ int _tmain(int argc, _TCHAR* argv[])
 {
 	OS * os = OS::create();
 
+	// debug
+	// os->setMemBreakpoint(8417);
+
 	if(argc < 2){
 		printf("ObjctScript " OS_VERSION " Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)\n");
 		printf("Latest version and source code: https://github.com/unitpoint/objectscript\n");
@@ -240,8 +243,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	os->pushCFunction(OS_getTimeSec);
 	os->setGlobal("getTimeSec");
 
+	int start_mem_usage = os->getAllocatedBytes();
 	os->run(getString(os, argv[1])); // argc >= 2 && argv[1] ? getString(os, argv[1]) : "test-data/test3.os");
-	exit(1);
+	// exit(1);
 	// os->eval("print arg");
 	{
 		int mem_usage = os->getAllocatedBytes();
