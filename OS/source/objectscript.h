@@ -3,7 +3,6 @@
 
 /******************************************************************************
 * Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
-* Copyright (C) 2012 unitpoint.com (support@unitpoint.ru)
 *
 * Latest source code: https://github.com/unitpoint/objectscript
 *
