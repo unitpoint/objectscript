@@ -365,17 +365,24 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 	return true;
 }
 
-OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_INT a)
+OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_INT32 a)
 {
-	if(sizeof(OS_INT) == sizeof(int)){
-		OS_SNPRINTF(dst, sizeof(*dst)*64, OS_TEXT("%i"), a);
-	}else{
-		OS_SNPRINTF(dst, sizeof(*dst)*64, OS_TEXT("%li"), (long int)a);
-	}
+	OS_SNPRINTF(dst, sizeof(*dst)*64, OS_TEXT("%i"), a);
 	return dst;
 }
 
-OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a, int precision)
+OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_INT64 a)
+{
+	OS_SNPRINTF(dst, sizeof(*dst)*64, OS_TEXT("%li"), (long int)a);
+	return dst;
+}
+
+OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, float a, int precision)
+{
+	return numToStr(dst, a, precision);
+}
+
+OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
 {
 	OS_CHAR fmt[128];
 	if(precision <= 0) {
@@ -888,6 +895,16 @@ OS::String& OS::String::operator=(const String& str)
 OS::String& OS::String::operator+=(const String& str)
 {
 	return *this = allocator->core->newStringValue(*this, str);
+}
+
+OS::String OS::String::operator+(const String& str) const
+{
+	return String(allocator, allocator->core->newStringValue(*this, str));
+}
+
+OS::String OS::String::trim(bool trim_left, bool trim_right) const
+{
+	return String(allocator, allocator->core->newStringValue(*this, trim_left, trim_right));
 }
 
 // =====================================================================
@@ -2257,7 +2274,7 @@ int OS::Core::Compiler::cacheDebugString(const String& str)
 	return cacheString(prog_debug_strings_table, prog_debug_strings, str);
 }
 
-int OS::Core::Compiler::cacheNumber(OS_FLOAT num)
+int OS::Core::Compiler::cacheNumber(OS_NUMBER num)
 {
 	PropertyIndex index(num);
 	Property * prop = prog_numbers_table->get(index);
@@ -2322,7 +2339,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_CONST_NUMBER:
 		OS_ASSERT(exp->list.count == 0);
 		prog_opcodes->writeByte(Program::OP_PUSH_NUMBER);
-		prog_opcodes->writeUVariable(cacheNumber(exp->token->getFloat()));
+		prog_opcodes->writeUVariable(cacheNumber((OS_NUMBER)exp->token->getFloat()));
 		break;
 
 	case EXP_TYPE_CONST_STRING:
@@ -2519,7 +2536,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		}
 		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_INDEX);
 		// prog_opcodes->writeInt64(exp->token->getInt());
-		prog_opcodes->writeUVariable(cacheNumber(exp->token->getFloat()));
+		prog_opcodes->writeUVariable(cacheNumber((OS_NUMBER)exp->token->getFloat()));
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
@@ -6684,26 +6701,26 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 	num_functions = reader->readUVariable();
 	int opcodes_size = reader->readUVariable();
 
-	const_numbers = (OS_FLOAT*)allocator->malloc(sizeof(OS_FLOAT) * num_numbers OS_DBG_FILEPOS);
+	const_numbers = (OS_NUMBER*)allocator->malloc(sizeof(OS_NUMBER) * num_numbers OS_DBG_FILEPOS);
 	const_strings = (GCStringValue**)allocator->malloc(sizeof(GCStringValue*) * num_strings OS_DBG_FILEPOS);
 	
 	int num_index = 0;
 	for(i = 0; i < int_count; i++){
 		num_index += reader->readUVariable();
 		OS_ASSERT(num_index >= 0 && num_index < num_numbers);
-		OS_FLOAT number = (OS_FLOAT)reader->readUVariable();
+		OS_NUMBER number = (OS_NUMBER)reader->readUVariable();
 		const_numbers[num_index] = number;
 	}
 	for(num_index = 0, i = 0; i < float_count; i++){
 		num_index += reader->readUVariable();
 		OS_ASSERT(num_index >= 0 && num_index < num_numbers);
-		OS_FLOAT number = (OS_FLOAT)reader->readFloat();
+		OS_NUMBER number = (OS_NUMBER)reader->readFloat();
 		const_numbers[num_index] = number;
 	}
 	for(num_index = 0, i = 0; i < double_count; i++){
 		num_index += reader->readUVariable();
 		OS_ASSERT(num_index >= 0 && num_index < num_numbers);
-		OS_FLOAT number = (OS_FLOAT)reader->readDouble();
+		OS_NUMBER number = (OS_NUMBER)reader->readDouble();
 		const_numbers[num_index] = number;
 	}
 	StringBuffer buf(allocator);
@@ -7488,15 +7505,15 @@ OS::Core::PropertyIndex::PropertyIndex(const String& p_index, const KeepStringIn
 void OS::Core::PropertyIndex::convertIndexStringToNumber()
 {
 	if(index.type == OS_VALUE_TYPE_STRING){
-		OS_FLOAT val;
+		OS_NUMBER val;
 		const OS_CHAR * str = index.v.string->toChar();
 		if(*str >= OS_TEXT('0') && *str <= OS_TEXT('9')){
 			const OS_CHAR * end = str + index.v.string->getLen();
 			if(parseSimpleFloat(str, val)){
 				if(*str == OS_TEXT('.')){
-					OS_FLOAT m = 0.1;
-					for(str++; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++, m *= 0.1){
-						val += (OS_FLOAT)(*str - OS_TEXT('0')) * m;
+					OS_NUMBER m = (OS_NUMBER)0.1f;
+					for(str++; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++, m *= (OS_NUMBER)0.1f){
+						val += (OS_NUMBER)(*str - OS_TEXT('0')) * m;
 					}
 				}
 				if(str == end){
@@ -7903,7 +7920,7 @@ void OS::Core::reorderTableNumericKeys(Table * table)
 	int i = 0;
 	for(Property * prop = table->first; prop; prop = prop->next, i++){
 		if(prop->index.type == OS_VALUE_TYPE_NUMBER){
-			prop->index.v.number = (OS_FLOAT)i;
+			prop->index.v.number = (OS_NUMBER)i;
 		}
 	}
 	table->next_index = i;
@@ -7914,7 +7931,7 @@ void OS::Core::reorderTableKeys(Table * table)
 	OS_ASSERT(table);
 	int i = 0;
 	for(Property * prop = table->first; prop; prop = prop->next, i++){
-		prop->index.v.number = (OS_FLOAT)i;
+		prop->index.v.number = (OS_NUMBER)i;
 	}
 	table->next_index = i;
 }
@@ -8079,21 +8096,27 @@ OS::Core::Value::Value(bool val)
 	type = OS_VALUE_TYPE_BOOL;
 }
 
-OS::Core::Value::Value(OS_INT val)
+OS::Core::Value::Value(OS_INT32 val)
 {
-	v.number = (OS_FLOAT)val;
+	v.number = (OS_NUMBER)val;
 	type = OS_VALUE_TYPE_NUMBER;
 }
 
-OS::Core::Value::Value(OS_FLOAT val)
+OS::Core::Value::Value(OS_INT64 val)
 {
-	v.number = val;
+	v.number = (OS_NUMBER)val;
 	type = OS_VALUE_TYPE_NUMBER;
 }
 
-OS::Core::Value::Value(int val)
+OS::Core::Value::Value(float val)
 {
-	v.number = (OS_FLOAT)val;
+	v.number = (OS_NUMBER)val;
+	type = OS_VALUE_TYPE_NUMBER;
+}
+
+OS::Core::Value::Value(double val)
+{
+	v.number = (OS_NUMBER)val;
 	type = OS_VALUE_TYPE_NUMBER;
 }
 
@@ -8413,7 +8436,7 @@ bool OS::Core::valueToBool(Value val)
 
 	case OS_VALUE_TYPE_NUMBER:
 		// return val->value.number && !isnan(val->value.number);
-		return !isnan(val.v.number);
+		return !isnan((OS_FLOAT)val.v.number);
 
 	// case OS_VALUE_TYPE_STRING:
 	//	return val->value.string_data->data_size > 0;
@@ -8499,13 +8522,13 @@ bool OS::Core::isValueNumber(Value val, OS_FLOAT * out)
 
 	case OS_VALUE_TYPE_BOOL:
 		if(out){
-			*out = val.v.boolean;
+			*out = (OS_NUMBER)val.v.boolean;
 		}
 		return true;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = val.v.number;
+			*out = (OS_NUMBER)val.v.number;
 		}
 		return true;
 
@@ -10691,14 +10714,24 @@ void OS::Core::pushBool(bool val)
 	pushValue(Value(val));
 }
 
-void OS::Core::pushNumber(OS_INT val)
+void OS::Core::pushNumber(OS_INT32 val)
 {
-	pushValue(Value((OS_FLOAT)val));
+	pushValue(val);
 }
 
-void OS::Core::pushNumber(OS_FLOAT val)
+void OS::Core::pushNumber(OS_INT64 val)
 {
-	pushValue(Value(val));
+	pushValue(val);
+}
+
+void OS::Core::pushNumber(float val)
+{
+	pushValue(val);
+}
+
+void OS::Core::pushNumber(double val)
+{
+	pushValue(val);
 }
 
 OS::Core::GCStringValue * OS::Core::pushStringValue(const String& val)
@@ -11556,7 +11589,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 				// TODO: exception???
 				return pushNumber(0.0);
 			}
-			return pushNumber(OS_MATH_FMOD(left_value.v.number, right_value.v.number));
+			return pushNumber(OS_MATH_FMOD((OS_FLOAT)left_value.v.number, (OS_FLOAT)right_value.v.number));
 		}
 		break;
 
@@ -11574,7 +11607,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 
 	case Program::OP_POW: // **
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
-			return pushNumber(OS_MATH_POW(left_value.v.number, right_value.v.number));
+			return pushNumber(OS_MATH_POW((OS_FLOAT)left_value.v.number, (OS_FLOAT)right_value.v.number));
 		}
 		break;
 	}
@@ -11771,24 +11804,22 @@ void OS::pushNull()
 	core->pushNull();
 }
 
-/*
-void OS::pushNumber(OS_INT16 val)
-{
-	core->pushNumber((OS_FLOAT)val);
-}
-
 void OS::pushNumber(OS_INT32 val)
 {
-	core->pushNumber((OS_FLOAT)val);
+	core->pushNumber(val);
 }
 
 void OS::pushNumber(OS_INT64 val)
 {
-	core->pushNumber((OS_FLOAT)val);
+	core->pushNumber(val);
 }
-*/
 
-void OS::pushNumber(OS_FLOAT val)
+void OS::pushNumber(float val)
+{
+	core->pushNumber(val);
+}
+
+void OS::pushNumber(double val)
 {
 	core->pushNumber(val);
 }
@@ -12523,7 +12554,7 @@ restart:
 	opcodes.movePos(stack_func->opcodes_pos - func_decl->opcodes_pos);
 
 	int prog_num_numbers = prog->num_numbers;
-	OS_FLOAT * prog_numbers = prog->const_numbers;
+	OS_NUMBER * prog_numbers = prog->const_numbers;
 
 	int prog_num_strings = prog->num_strings;
 	GCStringValue ** prog_strings = prog->const_strings;

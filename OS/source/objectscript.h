@@ -76,6 +76,11 @@
 #define OS_MATH_FLOOR floor
 #define OS_MATH_FMOD fmod
 
+// select ObjectScript number type here
+#define OS_NUMBER double
+// #define OS_NUMBER float	// could be a bit faster
+// #define OS_NUMBER int	// not recomended
+
 #define OS_CHAR char
 #define OS_INT __int64
 #define OS_FLOAT double
@@ -343,8 +348,10 @@ namespace ObjectScript
 		{
 			static bool parseFloat(const OS_CHAR *& str, OS_FLOAT& val);
 
-			static OS_CHAR * numToStr(OS_CHAR*, OS_INT value);
-			static OS_CHAR * numToStr(OS_CHAR*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
+			static OS_CHAR * numToStr(OS_CHAR*, OS_INT32 value);
+			static OS_CHAR * numToStr(OS_CHAR*, OS_INT64 value);
+			static OS_CHAR * numToStr(OS_CHAR*, float value, int precision = OS_AUTO_PRECISION);
+			static OS_CHAR * numToStr(OS_CHAR*, double value, int precision = OS_AUTO_PRECISION);
 
 			static OS_INT strToInt(const OS_CHAR*);
 			static OS_FLOAT strToFloat(const OS_CHAR*);
@@ -1223,7 +1230,7 @@ namespace ObjectScript
 			{
 				union {
 					int boolean;
-					OS_FLOAT number;
+					OS_NUMBER number;
 					int value_id;
 					GCValue * value;
 					GCObjectValue * object;
@@ -1237,9 +1244,10 @@ namespace ObjectScript
 
 				Value();
 				Value(bool);
-				Value(OS_INT);
-				Value(OS_FLOAT);
-				Value(int);
+				Value(OS_INT32);
+				Value(OS_INT64);
+				Value(float);
+				Value(double);
 				Value(int, const WeakRef&);
 				Value(GCValue*);
 
@@ -1689,7 +1697,7 @@ namespace ObjectScript
 				Table * prog_numbers_table;
 				Table * prog_strings_table;
 				Table * prog_debug_strings_table;
-				Vector<OS_FLOAT> prog_numbers;
+				Vector<OS_NUMBER> prog_numbers;
 				Vector<String> prog_strings;
 				Vector<String> prog_debug_strings;
 				Vector<Scope*> prog_functions;
@@ -1796,7 +1804,7 @@ namespace ObjectScript
 				int cacheString(Table * strings_table, Vector<String>& strings, const String& str);
 				int cacheString(const String& str);
 				int cacheDebugString(const String& str);
-				int cacheNumber(OS_FLOAT);
+				int cacheNumber(OS_NUMBER);
 
 				bool writeOpcodes(Scope*, Expression*);
 				bool writeOpcodes(Scope*, ExpressionList&);
@@ -1978,7 +1986,7 @@ namespace ObjectScript
 				GCStringValue ** const_strings;
 				int num_strings;
 				
-				OS_FLOAT * const_numbers;
+				OS_NUMBER * const_numbers;
 				int num_numbers;
 
 				FunctionDecl * functions;
@@ -2313,8 +2321,10 @@ namespace ObjectScript
 			void pushTrue();
 			void pushFalse();
 			void pushBool(bool);
-			void pushNumber(OS_INT);
-			void pushNumber(OS_FLOAT);
+			void pushNumber(OS_INT32);
+			void pushNumber(OS_INT64);
+			void pushNumber(float);
+			void pushNumber(double);
 			
 			GCStringValue * pushStringValue(const String&);
 			GCStringValue * pushStringValue(const OS_CHAR*);
@@ -2462,6 +2472,9 @@ namespace ObjectScript
 			String& operator=(const Core::String&);
 			String& operator=(const String&);
 			String& operator+=(const String&);
+			String operator+(const String&) const;
+
+			String trim(bool trim_left = true, bool trim_right = true) const;
 		};
 
 		static OS * create(MemoryManager * = NULL);
@@ -2496,7 +2509,10 @@ namespace ObjectScript
 		int getId(int offs = -1);
 		
 		void pushNull();
-		void pushNumber(OS_FLOAT);
+		void pushNumber(OS_INT32);
+		void pushNumber(OS_INT64);
+		void pushNumber(float);
+		void pushNumber(double);
 		void pushBool(bool);
 		void pushString(const OS_CHAR*);
 		void pushString(const Core::String&);
