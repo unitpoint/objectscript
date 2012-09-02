@@ -1,39 +1,51 @@
+// call function with arguments without comma
 print(5 " differences")
 
 ;{
 	var i = 4
+	// multiple assignment
 	var name, count, time = "Smith", 3 + 2/i, 1.23
+	// call function with arguments without comma
 	print concat("name: " name ", count: " count ", time: " time)
 }
 
+// auto call function with single argument, brackets are not used
 print {firstname="Ivan" lastname="Petrov"}
 
 ;{
+	// extended object constructor syntax
 	var a = {x=1, y=3; "zero" "one", "two" last:7,}
 	print a[1]
 	print a
 	
+	// extended object constructor syntax
 	a = {[2+3]="five" y=3}
 	print a[5]
 	print a
 	
 	a = {x=1 y=2}
+	// any type could be used as index
 	var b = {[a]="powerful" 7="greate"}
 	print b[a]	
 	
 	print([10, 20, 30, 40])
+	// extended array constructor syntax without comma
 	print([10 20 30 40])
 	
+	// multiple assignment
 	var i, j, k = 0, 1, 3
 	echo("i="i", j="j", k="k"\n")
 	
+	// swap using multiple assignment
 	i, j = j, i
 	echo("after swap: i="i", j="j"\n")
 	
+	// multiple returns
 	var test = function(){ return 1, 2 }
 	var a, b = test()
 	print("results from function" "a="..a "b="..b)
 	
+	// multiple returns
 	var a, b, c = test()
 	print("results from function" "a="..a "b="..b "c="..c)
 }
@@ -80,6 +92,7 @@ print {firstname="Ivan" lastname="Petrov"}
 	}	
 }
 
+// logical operators
 print "7 && 9 = "..(7 && 9)
 print "7 || 9 = "..(7 || 9)
 
@@ -92,6 +105,7 @@ print "7 || 9 = "..(7 || 9)
 }
 // ========================================================
 
+// class declaration
 var Person = {
     __construct: function(firstname, lastname){
         this.firstname = firstname
@@ -105,21 +119,24 @@ var Person = {
     }
 }
 
+// create new instance of Person class
 var p = Person("James", "Bond")
 p.walk()
 print p
 
+// inherit class
 var IvanPerson = extends Person {
     __construct: function(){
         super.__construct.call(this, "Ivan", "Petrov")
     }
 }
+// create new instance of IvanPerson class
 var p = IvanPerson()
 p.walk()
 print p
 
 // ========================================================
-
+// new vector type class
 var vec3 = {
 	__construct = function(x, y, z){
 		this.x = x
@@ -140,13 +157,17 @@ var v3 = v1 + v2 * v2
 print v3
 
 ;{
+	print "Test properties"
+
 	var a = {
 		_color = "red"
 		__get@color = function(){ return this._color }
 		__set@color = function(v){ this._color = v }
 	}
 	
+	// get property
 	print a["color"]
+	// set property
 	a.color = "blue"
 	print a.color
 	
@@ -166,9 +187,12 @@ print v3
 		}
 	}
 	
+	// get property
 	print a.color
+	// set property
 	a.color = "green"
 	print a.color
+	// delete property
 	delete a.color
 	print a.color	
 	
@@ -185,8 +209,11 @@ print v3
 			delete this._matrix[y*4 + x]
 		}
 	}
-	a[1, 2] = 5		// компилятор преобразует это в a.__setdim(5, 1, 2)
+	// set property
+	a[1, 2] = 5		// a.__setdim(5, 1, 2)
+	// get property
 	print a[1, 2]	// print(a.__getdim(1, 2))
+	// delete property
 	delete a[1, 2]	// a.__deldim(1, 2)
 	print a[1, 2]	// print(a.__getdim(1, 2))	
 }
