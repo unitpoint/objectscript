@@ -3,15 +3,19 @@
 [2] print(5 " differences")
 
 begin function
-  begin locals, total 44
-    33 Person
-    34 p
-    35 IvanPerson
+  begin locals, total 48
+    0 _E
+    1 _G
+    35 Person
     36 p
-    37 vec3
-    38 v1
-    39 v2
-    40 v3
+    37 IvanPerson
+    38 p
+    39 vec3
+    40 v1
+    41 v2
+    42 v3
+    46 a
+    47 transform
   end locals
   begin call
     get env var print
@@ -27,14 +31,14 @@ begin function
 
   begin scope
     begin locals 4
-      0 i
-      1 name
-      2 count
-      3 time
+      2 i
+      3 name
+      4 count
+      5 time
     end locals
     begin set local var
       push const number 4
-    end set local var i (0 0)
+    end set local var i (2 0)
 
 
 [7] var name, count, time = "Smith", 3 + 2/i, 1.23
@@ -49,15 +53,15 @@ begin function
               push const number 3
               begin operator /
                 push const number 2
-                get local var i (0 0)
+                get local var i (2 0)
               end operator /
             end operator +
             ,
             push const number 1.23
           end params ret values 3
-        end set local var time (3 0)
-      end set local var count (2 0)
-    end set local var name (1 0)
+        end set local var time (5 0)
+      end set local var count (4 0)
+    end set local var name (3 0)
 
 
 [9] print concat("name: " name ", count: " count ", time: " time)
@@ -70,15 +74,15 @@ begin function
           begin params 6
             push const string "name: "
             ,
-            get local var name (1 0)
+            get local var name (3 0)
             ,
             push const string ", count: "
             ,
-            get local var count (2 0)
+            get local var count (4 0)
             ,
             push const string ", time: "
             ,
-            get local var time (3 0)
+            get local var time (5 0)
           end params ret values 6
         end call ret values 1
       end params ret values 1
@@ -108,17 +112,17 @@ begin function
 
   begin scope
     begin locals 11
-      4 a
-      5 b
-      6 i
-      7 j
-      8 k
-      9 test
-      10 a
-      11 b
+      6 a
+      7 b
+      8 i
+      9 j
+      10 k
+      11 test
       12 a
       13 b
-      14 c
+      14 a
+      15 b
+      16 c
     end locals
     begin set local var
       begin object 6
@@ -146,7 +150,7 @@ begin function
           push const number 7
         end set by name: [last]
       end object
-    end set local var a (4 0)
+    end set local var a (6 0)
 
 
 [18] print a[1]
@@ -155,7 +159,7 @@ begin function
       get env var print
       begin params 1
         begin get property
-          get local var a (4 0)
+          get local var a (6 0)
           push const number 1
         end get property ret values 1
       end params ret values 1
@@ -167,7 +171,7 @@ begin function
     begin call
       get env var print
       begin params 1
-        get local var a (4 0)
+        get local var a (6 0)
       end params ret values 1
     end call ret values 0
 
@@ -185,7 +189,7 @@ begin function
           push const number 3
         end set by name: [y]
       end object
-    end set local var a (4 0)
+    end set local var a (6 0)
 
 
 [23] print a[5]
@@ -194,7 +198,7 @@ begin function
       get env var print
       begin params 1
         begin get property
-          get local var a (4 0)
+          get local var a (6 0)
           push const number 5
         end get property ret values 1
       end params ret values 1
@@ -206,7 +210,7 @@ begin function
     begin call
       get env var print
       begin params 1
-        get local var a (4 0)
+        get local var a (6 0)
       end params ret values 1
     end call ret values 0
 
@@ -223,7 +227,7 @@ begin function
           push const number 2
         end set by name: [y]
       end object
-    end set local var a (4 0)
+    end set local var a (6 0)
 
 
 [28] var b = {[a]="powerful" 7="greate"}
@@ -231,7 +235,7 @@ begin function
     begin set local var
       begin object 2
         begin set by exp
-          get local var a (4 0)
+          get local var a (6 0)
           push const string "powerful"
         end set by exp
         ,
@@ -239,7 +243,7 @@ begin function
           push const string "greate"
         end set by index: [7]
       end object
-    end set local var b (5 0)
+    end set local var b (7 0)
 
 
 [29] print b[a]
@@ -248,8 +252,8 @@ begin function
       get env var print
       begin params 1
         begin get property
-          get local var b (5 0)
-          get local var a (4 0)
+          get local var b (7 0)
+          get local var a (6 0)
         end get property ret values 1
       end params ret values 1
     end call ret values 0
@@ -319,9 +323,9 @@ begin function
             ,
             push const number 3
           end params ret values 3
-        end set local var k (8 0)
-      end set local var j (7 0)
-    end set local var i (6 0)
+        end set local var k (10 0)
+      end set local var j (9 0)
+    end set local var i (8 0)
 
 
 [37] echo("i="i", j="j", k="k"\n")
@@ -331,15 +335,15 @@ begin function
       begin params 7
         push const string "i="
         ,
-        get local var i (6 0)
+        get local var i (8 0)
         ,
         push const string ", j="
         ,
-        get local var j (7 0)
+        get local var j (9 0)
         ,
         push const string ", k="
         ,
-        get local var k (8 0)
+        get local var k (10 0)
         ,
         push const string "
 "
@@ -352,12 +356,12 @@ begin function
     begin set local var
       begin set local var
         begin params 2
-          get local var j (7 0)
+          get local var j (9 0)
           ,
-          get local var i (6 0)
+          get local var i (8 0)
         end params ret values 2
-      end set local var j (7 0)
-    end set local var i (6 0)
+      end set local var j (9 0)
+    end set local var i (8 0)
 
 
 [41] echo("after swap: i="i", j="j"\n")
@@ -367,11 +371,11 @@ begin function
       begin params 5
         push const string "after swap: i="
         ,
-        get local var i (6 0)
+        get local var i (8 0)
         ,
         push const string ", j="
         ,
-        get local var j (7 0)
+        get local var j (9 0)
         ,
         push const string "
 "
@@ -383,13 +387,17 @@ begin function
 
     begin set local var
       begin function
+        begin locals, total 2
+          0 _E
+          1 _G
+        end locals
         begin return
           push const number 1
           ,
           push const number 2
         end return values 2
       end function
-    end set local var test (9 0)
+    end set local var test (11 0)
 
 
 [45] var a, b = test()
@@ -397,13 +405,13 @@ begin function
     begin set local var
       begin set local var
         begin call
-          get local var test (9 0)
+          get local var test (11 0)
           begin params 1
             nop
           end params ret values 0
         end call ret values 2
-      end set local var b (11 0)
-    end set local var a (10 0)
+      end set local var b (13 0)
+    end set local var a (12 0)
 
 
 [46] print("results from function" "a="..a "b="..b)
@@ -415,12 +423,12 @@ begin function
         ,
         begin operator ..
           push const string "a="
-          get local var a (10 0)
+          get local var a (12 0)
         end operator ..
         ,
         begin operator ..
           push const string "b="
-          get local var b (11 0)
+          get local var b (13 0)
         end operator ..
       end params ret values 3
     end call ret values 0
@@ -432,14 +440,14 @@ begin function
       begin set local var
         begin set local var
           begin call
-            get local var test (9 0)
+            get local var test (11 0)
             begin params 1
               nop
             end params ret values 0
           end call ret values 3
-        end set local var c (14 0)
-      end set local var b (13 0)
-    end set local var a (12 0)
+        end set local var c (16 0)
+      end set local var b (15 0)
+    end set local var a (14 0)
 
 
 [50] print("results from function" "a="..a "b="..b "c="..c)
@@ -451,17 +459,17 @@ begin function
         ,
         begin operator ..
           push const string "a="
-          get local var a (12 0)
+          get local var a (14 0)
         end operator ..
         ,
         begin operator ..
           push const string "b="
-          get local var b (13 0)
+          get local var b (15 0)
         end operator ..
         ,
         begin operator ..
           push const string "c="
-          get local var c (14 0)
+          get local var c (16 0)
         end operator ..
       end params ret values 4
     end call ret values 0
@@ -472,8 +480,8 @@ begin function
 
   begin scope
     begin locals 2
-      15 obj
-      27 range
+      17 obj
+      29 range
     end locals
     begin call
       get env var print
@@ -503,53 +511,53 @@ begin function
           push const string "excellent"
         end set auto index
       end object
-    end set local var obj (15 0)
+    end set local var obj (17 0)
 
 
 [56] for(var k, v in obj){
 
     begin scope
       begin locals 4
-        16 k
-        17 v
-        18 #func
-        19 #valid
+        18 k
+        19 v
+        20 #func
+        21 #valid
       end locals
-      new local var k (16 0)
+      new local var k (18 0)
 
-      new local var v (17 0)
+      new local var v (19 0)
 
-      new local var #func (18 0 temp)
+      new local var #func (20 0 temp)
 
-      new local var #valid (19 0 temp)
+      new local var #valid (21 0 temp)
 
       begin code list
         begin set local var
           begin call method
-            get local var obj (15 0)
+            get local var obj (17 0)
             begin params 1
               push const string "__iter"
             end params ret values 1
           end call method ret values 1
-        end set local var #func (18 0 temp)
+        end set local var #func (20 0 temp)
 
         begin loop
           begin set local var
             begin set local var
               begin set local var
                 begin call
-                  get local var #func (18 0 temp)
+                  get local var #func (20 0 temp)
                   begin params 0
                   end params ret values 0
                 end call ret values 3
-              end set local var v (17 0)
-            end set local var k (16 0)
-          end set local var #valid (19 0 temp)
+              end set local var v (19 0)
+            end set local var k (18 0)
+          end set local var #valid (21 0 temp)
 
           begin if
             begin bool exp
               begin logic not
-                get local var #valid (19 0 temp)
+                get local var #valid (21 0 temp)
               end logic not
             end bool exp
             begin then
@@ -564,11 +572,11 @@ begin function
             begin call
               get env var print
               begin params 3
-                get local var k (16 0)
+                get local var k (18 0)
                 ,
                 push const string " --> "
                 ,
-                get local var v (17 0)
+                get local var v (19 0)
               end params ret values 3
             end call ret values 0
           end scope ret values 0
@@ -607,48 +615,48 @@ begin function
           push const string "excellent"
         end set auto index
       end object
-    end set local var obj (15 0)
+    end set local var obj (17 0)
 
 
 [62] for(k in obj){
 
     begin scope
       begin locals 3
-        20 k
-        21 #func
-        22 #valid
+        22 k
+        23 #func
+        24 #valid
       end locals
-      new local var k (20 0)
+      new local var k (22 0)
 
-      new local var #func (21 0 temp)
+      new local var #func (23 0 temp)
 
-      new local var #valid (22 0 temp)
+      new local var #valid (24 0 temp)
 
       begin code list
         begin set local var
           begin call method
-            get local var obj (15 0)
+            get local var obj (17 0)
             begin params 1
               push const string "__iter"
             end params ret values 1
           end call method ret values 1
-        end set local var #func (21 0 temp)
+        end set local var #func (23 0 temp)
 
         begin loop
           begin set local var
             begin set local var
               begin call
-                get local var #func (21 0 temp)
+                get local var #func (23 0 temp)
                 begin params 0
                 end params ret values 0
               end call ret values 2
-            end set local var k (20 0)
-          end set local var #valid (22 0 temp)
+            end set local var k (22 0)
+          end set local var #valid (24 0 temp)
 
           begin if
             begin bool exp
               begin logic not
-                get local var #valid (22 0 temp)
+                get local var #valid (24 0 temp)
               end logic not
             end bool exp
             begin then
@@ -663,7 +671,7 @@ begin function
             begin call
               get env var print
               begin params 1
-                get local var k (20 0)
+                get local var k (22 0)
               end params ret values 1
             end call ret values 0
           end scope ret values 0
@@ -686,9 +694,11 @@ begin function
 
     begin set property
       begin function
-        begin locals, total 2
-          0 i
-          1 self
+        begin locals, total 4
+          0 _E
+          1 _G
+          2 i
+          3 self
         end locals
 
 [68] var i, self = 0, this
@@ -700,8 +710,8 @@ begin function
               ,
               push this
             end params ret values 2
-          end set local var self (1 0)
-        end set local var i (0 0)
+          end set local var self (3 0)
+        end set local var i (2 0)
 
 
 [69] return function(){
@@ -709,7 +719,9 @@ begin function
         begin code list
           begin return
             begin function
-              begin locals, total 1
+              begin locals, total 3
+                0 _E
+                1 _G
               end locals
 
 [70] if(i < #self){
@@ -717,9 +729,9 @@ begin function
               begin if
                 begin bool exp
                   begin logic <
-                    get local var i (0 1)
+                    get local var i (2 1)
                     begin length
-                      get local var self (1 1)
+                      get local var self (3 1)
                     end length
                   end logic <
                 end bool exp
@@ -729,18 +741,18 @@ begin function
 
                   begin scope
                     begin locals 1
-                      0 #temp
+                      2 #temp
                     end locals
                     begin call
                       get env var print
                       begin params 3
                         push const string "... inside of array iter func: "
                         ,
-                        get local var i (0 1)
+                        get local var i (2 1)
                         ,
                         begin get property
-                          get local var self (1 1)
-                          get local var i (0 1)
+                          get local var self (3 1)
+                          get local var i (2 1)
                         end get property ret values 1
                       end params ret values 3
                     end call ret values 0
@@ -752,23 +764,23 @@ begin function
                       begin return
                         const true
                         ,
-                        get local var i (0 1)
+                        get local var i (2 1)
                         ,
                         begin get property
-                          get local var self (1 1)
+                          get local var self (3 1)
                           begin code list
                             begin set local var
-                              get local var i (0 1)
-                            end set local var #temp (0 0)
+                              get local var i (2 1)
+                            end set local var #temp (2 0)
 
                             begin set local var
                               begin operator +
-                                get local var i (0 1)
+                                get local var i (2 1)
                                 push const number 1
                               end operator +
-                            end set local var i (0 1)
+                            end set local var i (2 1)
 
-                            get local var #temp (0 0)
+                            get local var #temp (2 0)
                           end code list ret values 1
                         end get property ret values 1
                       end return values 3
@@ -792,18 +804,18 @@ begin function
 
     begin scope
       begin locals 4
-        23 k
-        24 v
-        25 #func
-        26 #valid
+        25 k
+        26 v
+        27 #func
+        28 #valid
       end locals
-      new local var k (23 0)
+      new local var k (25 0)
 
-      new local var v (24 0)
+      new local var v (26 0)
 
-      new local var #func (25 0 temp)
+      new local var #func (27 0 temp)
 
-      new local var #valid (26 0 temp)
+      new local var #valid (28 0 temp)
 
       begin code list
         begin set local var
@@ -833,25 +845,25 @@ begin function
               push const string "__iter"
             end params ret values 1
           end call method ret values 1
-        end set local var #func (25 0 temp)
+        end set local var #func (27 0 temp)
 
         begin loop
           begin set local var
             begin set local var
               begin set local var
                 begin call
-                  get local var #func (25 0 temp)
+                  get local var #func (27 0 temp)
                   begin params 0
                   end params ret values 0
                 end call ret values 3
-              end set local var v (24 0)
-            end set local var k (23 0)
-          end set local var #valid (26 0 temp)
+              end set local var v (26 0)
+            end set local var k (25 0)
+          end set local var #valid (28 0 temp)
 
           begin if
             begin bool exp
               begin logic not
-                get local var #valid (26 0 temp)
+                get local var #valid (28 0 temp)
               end logic not
             end bool exp
             begin then
@@ -866,11 +878,11 @@ begin function
             begin call
               get env var print
               begin params 3
-                get local var k (23 0)
+                get local var k (25 0)
                 ,
                 push const string " --> "
                 ,
-                get local var v (24 0)
+                get local var v (26 0)
               end params ret values 3
             end call ret values 0
           end scope ret values 0
@@ -923,16 +935,20 @@ begin function
 
     begin set local var
       begin function
-        begin locals, total 2
+        begin locals, total 4
           0 a (param)
           1 b (param)
+          2 _E
+          3 _G
         end locals
 
 [84] return function(){
 
         begin return
           begin function
-            begin locals, total 1
+            begin locals, total 3
+              0 _E
+              1 _G
             end locals
 
 [85] if(a <= b){
@@ -950,7 +966,7 @@ begin function
 
                 begin scope
                   begin locals 1
-                    0 #temp
+                    2 #temp
                   end locals
                   begin return
                     const true
@@ -958,7 +974,7 @@ begin function
                     begin code list
                       begin set local var
                         get local var a (0 1 param)
-                      end set local var #temp (0 0)
+                      end set local var #temp (2 0)
 
                       begin set local var
                         begin operator +
@@ -967,7 +983,7 @@ begin function
                         end operator +
                       end set local var a (0 1 param)
 
-                      get local var #temp (0 0)
+                      get local var #temp (2 0)
                     end code list ret values 1
                   end return values 2
                 end scope ret values 0
@@ -976,28 +992,28 @@ begin function
           end function
         end return values 1
       end function
-    end set local var range (27 0)
+    end set local var range (29 0)
 
 
 [90] for(var i in range(10, 13)){
 
     begin scope
       begin locals 3
-        28 i
-        29 #func
-        30 #valid
+        30 i
+        31 #func
+        32 #valid
       end locals
-      new local var i (28 0)
+      new local var i (30 0)
 
-      new local var #func (29 0 temp)
+      new local var #func (31 0 temp)
 
-      new local var #valid (30 0 temp)
+      new local var #valid (32 0 temp)
 
       begin code list
         begin set local var
           begin call method
             begin call
-              get local var range (27 0)
+              get local var range (29 0)
               begin params 2
                 push const number 10
                 ,
@@ -1008,23 +1024,23 @@ begin function
               push const string "__iter"
             end params ret values 1
           end call method ret values 1
-        end set local var #func (29 0 temp)
+        end set local var #func (31 0 temp)
 
         begin loop
           begin set local var
             begin set local var
               begin call
-                get local var #func (29 0 temp)
+                get local var #func (31 0 temp)
                 begin params 0
                 end params ret values 0
               end call ret values 2
-            end set local var i (28 0)
-          end set local var #valid (30 0 temp)
+            end set local var i (30 0)
+          end set local var #valid (32 0 temp)
 
           begin if
             begin bool exp
               begin logic not
-                get local var #valid (30 0 temp)
+                get local var #valid (32 0 temp)
               end logic not
             end bool exp
             begin then
@@ -1041,7 +1057,7 @@ begin function
               begin params 1
                 begin operator ..
                   push const string "i = "
-                  get local var i (28 0)
+                  get local var i (30 0)
                 end operator ..
               end params ret values 1
             end call ret values 0
@@ -1088,8 +1104,8 @@ begin function
 
   begin scope
     begin locals 2
-      31 v1
-      32 a
+      33 v1
+      34 a
     end locals
     begin set local var
       begin object 2
@@ -1101,7 +1117,7 @@ begin function
           push const number 2
         end set by name: [y]
       end object
-    end set local var v1 (31 0)
+    end set local var v1 (33 0)
 
 
 [103] var a = {[v1]="vv1" v2="vv2"}
@@ -1109,7 +1125,7 @@ begin function
     begin set local var
       begin object 2
         begin set by exp
-          get local var v1 (31 0)
+          get local var v1 (33 0)
           push const string "vv1"
         end set by exp
         ,
@@ -1117,7 +1133,7 @@ begin function
           push const string "vv2"
         end set by name: [v2]
       end object
-    end set local var a (32 0)
+    end set local var a (34 0)
 
 
 [104] print( a[v1] a.v2 )
@@ -1126,12 +1142,12 @@ begin function
       get env var print
       begin params 2
         begin get property
-          get local var a (32 0)
-          get local var v1 (31 0)
+          get local var a (34 0)
+          get local var v1 (33 0)
         end get property ret values 1
         ,
         begin get property
-          get local var a (32 0)
+          get local var a (34 0)
           push const string "v2"
         end get property ret values 1
       end params ret values 2
@@ -1148,9 +1164,11 @@ begin function
 
       begin set by name
         begin function
-          begin locals, total 2
+          begin locals, total 4
             0 firstname (param)
             1 lastname (param)
+            2 _E
+            3 _G
           end locals
 
 [111] this.firstname = firstname
@@ -1177,6 +1195,10 @@ begin function
 
       begin set by name
         begin function
+          begin locals, total 2
+            0 _E
+            1 _G
+          end locals
 
 [115] print this.fullname .. " is walking!"
 
@@ -1200,6 +1222,10 @@ begin function
 
       begin set by name
         begin function
+          begin locals, total 2
+            0 _E
+            1 _G
+          end locals
 
 [118] return this.firstname .. " " .. this.lastname
 
@@ -1221,27 +1247,27 @@ begin function
         end function
       end set by name: [__get@fullname]
     end object
-  end set local var Person (33 0)
+  end set local var Person (35 0)
 
 
 [122] var p = Person("James", "Bond")
 
   begin set local var
     begin call
-      get local var Person (33 0)
+      get local var Person (35 0)
       begin params 2
         push const string "James"
         ,
         push const string "Bond"
       end params ret values 2
     end call ret values 1
-  end set local var p (34 0)
+  end set local var p (36 0)
 
 
 [123] p.walk()
 
   begin call method
-    get local var p (34 0)
+    get local var p (36 0)
     begin params 2
       push const string "walk"
       ,
@@ -1255,7 +1281,7 @@ begin function
   begin call
     get env var print
     begin params 1
-      get local var p (34 0)
+      get local var p (36 0)
     end params ret values 1
   end call ret values 0
 
@@ -1264,13 +1290,17 @@ begin function
 
   begin set local var
     begin extends
-      get local var Person (33 0)
+      get local var Person (35 0)
       begin object 1
 
 [128] __construct: function(){
 
         begin set by name
           begin function
+            begin locals, total 2
+              0 _E
+              1 _G
+            end locals
 
 [129] super.__construct.call(this, "Ivan", "Petrov")
 
@@ -1293,25 +1323,25 @@ begin function
         end set by name: [__construct]
       end object
     end extends ret values 1
-  end set local var IvanPerson (35 0)
+  end set local var IvanPerson (37 0)
 
 
 [133] var p = IvanPerson()
 
   begin set local var
     begin call
-      get local var IvanPerson (35 0)
+      get local var IvanPerson (37 0)
       begin params 1
         nop
       end params ret values 0
     end call ret values 1
-  end set local var p (36 0)
+  end set local var p (38 0)
 
 
 [134] p.walk()
 
   begin call method
-    get local var p (36 0)
+    get local var p (38 0)
     begin params 2
       push const string "walk"
       ,
@@ -1325,7 +1355,7 @@ begin function
   begin call
     get env var print
     begin params 1
-      get local var p (36 0)
+      get local var p (38 0)
     end params ret values 1
   end call ret values 0
 
@@ -1339,10 +1369,12 @@ begin function
 
       begin set by name
         begin function
-          begin locals, total 3
+          begin locals, total 5
             0 x (param)
             1 y (param)
             2 z (param)
+            3 _E
+            4 _G
           end locals
 
 [141] this.x = x
@@ -1378,15 +1410,17 @@ begin function
 
       begin set by name
         begin function
-          begin locals, total 2
+          begin locals, total 4
             0 a (param)
             1 b (param)
+            2 _E
+            3 _G
           end locals
 
 [146] return vec3(a.x + b.x, a.y + b.y, a.z + b.z)
 
           begin tail call
-            get local var vec3 (37 1)
+            get local var vec3 (39 1)
             begin params 3
               begin operator +
                 begin get property
@@ -1430,15 +1464,17 @@ begin function
 
       begin set by name
         begin function
-          begin locals, total 2
+          begin locals, total 4
             0 a (param)
             1 b (param)
+            2 _E
+            3 _G
           end locals
 
 [149] return vec3(a.x * b.x, a.y * b.y, a.z * b.z)
 
           begin tail call
-            get local var vec3 (37 1)
+            get local var vec3 (39 1)
             begin params 3
               begin operator *
                 begin get property
@@ -1477,14 +1513,14 @@ begin function
         end function
       end set by name: [__mul]
     end object
-  end set local var vec3 (37 0)
+  end set local var vec3 (39 0)
 
 
 [153] var v1 = vec3(10 20 30)
 
   begin set local var
     begin call
-      get local var vec3 (37 0)
+      get local var vec3 (39 0)
       begin params 3
         push const number 10
         ,
@@ -1493,14 +1529,14 @@ begin function
         push const number 30
       end params ret values 3
     end call ret values 1
-  end set local var v1 (38 0)
+  end set local var v1 (40 0)
 
 
 [154] var v2 = vec3(1 2 3)
 
   begin set local var
     begin call
-      get local var vec3 (37 0)
+      get local var vec3 (39 0)
       begin params 3
         push const number 1
         ,
@@ -1509,20 +1545,20 @@ begin function
         push const number 3
       end params ret values 3
     end call ret values 1
-  end set local var v2 (39 0)
+  end set local var v2 (41 0)
 
 
 [155] var v3 = v1 + v2 * v2
 
   begin set local var
     begin operator +
-      get local var v1 (38 0)
+      get local var v1 (40 0)
       begin operator *
-        get local var v2 (39 0)
-        get local var v2 (39 0)
+        get local var v2 (41 0)
+        get local var v2 (41 0)
       end operator *
     end operator +
-  end set local var v3 (40 0)
+  end set local var v3 (42 0)
 
 
 [156] print v3
@@ -1530,7 +1566,7 @@ begin function
   begin call
     get env var print
     begin params 1
-      get local var v3 (40 0)
+      get local var v3 (42 0)
     end params ret values 1
   end call ret values 0
 
@@ -1539,7 +1575,7 @@ begin function
 
   begin scope
     begin locals 1
-      41 a
+      43 a
     end locals
     begin call
       get env var print
@@ -1565,6 +1601,10 @@ begin function
 
         begin set by name
           begin function
+            begin locals, total 2
+              0 _E
+              1 _G
+            end locals
             begin return
               begin get property
                 push this
@@ -1579,8 +1619,10 @@ begin function
 
         begin set by name
           begin function
-            begin locals, total 1
+            begin locals, total 3
               0 v (param)
+              1 _E
+              2 _G
             end locals
             begin set property
               get local var v (0 0 param)
@@ -1590,7 +1632,7 @@ begin function
           end function
         end set by name: [__set@color]
       end object
-    end set local var a (41 0)
+    end set local var a (43 0)
 
 
 [168] print a["color"]
@@ -1599,7 +1641,7 @@ begin function
       get env var print
       begin params 1
         begin get property
-          get local var a (41 0)
+          get local var a (43 0)
           push const string "color"
         end get property ret values 1
       end params ret values 1
@@ -1610,7 +1652,7 @@ begin function
 
     begin set property
       push const string "blue"
-      get local var auto create a (41 0)
+      get local var auto create a (43 0)
       push const string "color"
     end set property ret values 0
 
@@ -1621,7 +1663,7 @@ begin function
       get env var print
       begin params 1
         begin get property
-          get local var a (41 0)
+          get local var a (43 0)
           push const string "color"
         end get property ret values 1
       end params ret values 1
@@ -1644,8 +1686,10 @@ begin function
 
         begin set by name
           begin function
-            begin locals, total 1
+            begin locals, total 3
               0 name (param)
+              1 _E
+              2 _G
             end locals
 
 [176] if(name == "color")
@@ -1679,9 +1723,11 @@ begin function
 
         begin set by name
           begin function
-            begin locals, total 2
+            begin locals, total 4
               0 name (param)
               1 v (param)
+              2 _E
+              3 _G
             end locals
 
 [180] if(name == "color")
@@ -1712,8 +1758,10 @@ begin function
 
         begin set by name
           begin function
-            begin locals, total 1
+            begin locals, total 3
               0 name (param)
+              1 _E
+              2 _G
             end locals
 
 [184] if(name == "color")
@@ -1738,7 +1786,7 @@ begin function
           end function
         end set by name: [__del]
       end object
-    end set local var a (41 0)
+    end set local var a (43 0)
 
 
 [190] print a.color
@@ -1747,7 +1795,7 @@ begin function
       get env var print
       begin params 1
         begin get property
-          get local var a (41 0)
+          get local var a (43 0)
           push const string "color"
         end get property ret values 1
       end params ret values 1
@@ -1758,7 +1806,7 @@ begin function
 
     begin set property
       push const string "green"
-      get local var auto create a (41 0)
+      get local var auto create a (43 0)
       push const string "color"
     end set property ret values 0
 
@@ -1769,7 +1817,7 @@ begin function
       get env var print
       begin params 1
         begin get property
-          get local var a (41 0)
+          get local var a (43 0)
           push const string "color"
         end get property ret values 1
       end params ret values 1
@@ -1779,7 +1827,7 @@ begin function
 [195] delete a.color
 
     begin delete
-      get local var a (41 0)
+      get local var a (43 0)
       push const string "color"
     end delete
 
@@ -1790,7 +1838,7 @@ begin function
       get env var print
       begin params 1
         begin get property
-          get local var a (41 0)
+          get local var a (43 0)
           push const string "color"
         end get property ret values 1
       end params ret values 1
@@ -1824,9 +1872,11 @@ begin function
 
         begin set by name
           begin function
-            begin locals, total 2
+            begin locals, total 4
               0 x (param)
               1 y (param)
+              2 _E
+              3 _G
             end locals
 
 [202] return this._matrix[y*4 + x]
@@ -1854,10 +1904,12 @@ begin function
 
         begin set by name
           begin function
-            begin locals, total 3
+            begin locals, total 5
               0 value (param)
               1 x (param)
               2 y (param)
+              3 _E
+              4 _G
             end locals
 
 [205] this._matrix[y*4 + x] = value
@@ -1884,9 +1936,11 @@ begin function
 
         begin set by name
           begin function
-            begin locals, total 2
+            begin locals, total 4
               0 x (param)
               1 y (param)
+              2 _E
+              3 _G
             end locals
 
 [208] delete this._matrix[y*4 + x]
@@ -1907,14 +1961,14 @@ begin function
           end function
         end set by name: [__deldim]
       end object
-    end set local var a (41 0)
+    end set local var a (43 0)
 
 
 [212] a[1, 2] = 5		// a.__setdim(5, 1, 2)
 
     begin set dim
       push const number 5
-      get local var a (41 0)
+      get local var a (43 0)
       begin params 2
         push const number 1
         ,
@@ -1929,7 +1983,7 @@ begin function
       get env var print
       begin params 1
         begin call method
-          get local var a (41 0)
+          get local var a (43 0)
           begin params 3
             push const string "__getdim"
             ,
@@ -1945,7 +1999,7 @@ begin function
 [216] delete a[1, 2]	// a.__deldim(1, 2)
 
     begin call method
-      get local var a (41 0)
+      get local var a (43 0)
       begin params 3
         push const string "__deldim"
         ,
@@ -1962,7 +2016,7 @@ begin function
       get env var print
       begin params 1
         begin call method
-          get local var a (41 0)
+          get local var a (43 0)
           begin params 3
             push const string "__getdim"
             ,
@@ -1993,10 +2047,12 @@ begin function
     begin params 1
       begin call
         begin function
-          begin locals, total 3
+          begin locals, total 5
             0 a (param)
             1 b (param)
             2 c (param)
+            3 _E
+            4 _G
           end locals
           begin return
             begin operator +
@@ -2024,7 +2080,7 @@ begin function
 
   begin scope
     begin locals 1
-      42 i
+      44 i
     end locals
     begin call
       get env var print
@@ -2038,18 +2094,18 @@ begin function
 
     begin set local var
       push const number 1
-    end set local var i (42 0)
+    end set local var i (44 0)
 
 
 [227] var i = i
 
     begin scope
       begin locals 1
-        43 i
+        45 i
       end locals
       begin set local var
-        get local var i (42 0)
-      end set local var i (43 0)
+        get local var i (44 0)
+      end set local var i (45 0)
 
 
 [228] i++
@@ -2057,10 +2113,10 @@ begin function
       begin code list
         begin set local var
           begin operator +
-            get local var i (43 0)
+            get local var i (45 0)
             push const number 1
           end operator +
-        end set local var i (43 0)
+        end set local var i (45 0)
       end code list ret values 0
 
 
@@ -2069,7 +2125,7 @@ begin function
       begin call
         get env var print
         begin params 1
-          get local var i (43 0)
+          get local var i (45 0)
         end params ret values 1
       end call ret values 0
     end scope ret values 0
@@ -2080,7 +2136,7 @@ begin function
     begin call
       get env var print
       begin params 1
-        get local var i (42 0)
+        get local var i (44 0)
       end params ret values 1
     end call ret values 0
   end scope ret values 0
@@ -2103,9 +2159,11 @@ begin function
 [235] function(a){
 
     begin function
-      begin locals, total 3
+      begin locals, total 5
         0 a (param)
-        1 c
+        1 _E
+        2 _G
+        3 c
       end locals
 
 [236] var c = a * 2;
@@ -2115,21 +2173,21 @@ begin function
           get local var a (0 0 param)
           push const number 2
         end operator *
-      end set local var c (1 0)
+      end set local var c (3 0)
 
 
 [238] var c = a - 1
 
       begin scope
         begin locals 1
-          2 c
+          4 c
         end locals
         begin set local var
           begin operator -
             get local var a (0 0 param)
             push const number 1
           end operator -
-        end set local var c (2 0)
+        end set local var c (4 0)
 
 
 [239] print debuglocals
@@ -2138,41 +2196,45 @@ begin function
           get env var print
           begin params 1
             begin debug locals
-              begin object 9
+              begin object 10
                 begin set by name
-                  get local var Person (33 1)
+                  get local var Person (35 1)
                 end set by name: [Person]
                 ,
                 begin set by name
-                  get local var IvanPerson (35 1)
+                  get local var IvanPerson (37 1)
                 end set by name: [IvanPerson]
                 ,
                 begin set by name
-                  get local var p (36 1)
+                  get local var p (38 1)
                 end set by name: [p]
                 ,
                 begin set by name
-                  get local var vec3 (37 1)
+                  get local var vec3 (39 1)
                 end set by name: [vec3]
                 ,
                 begin set by name
-                  get local var v1 (38 1)
+                  get local var v1 (40 1)
                 end set by name: [v1]
                 ,
                 begin set by name
-                  get local var v2 (39 1)
+                  get local var v2 (41 1)
                 end set by name: [v2]
                 ,
                 begin set by name
-                  get local var v3 (40 1)
+                  get local var v3 (42 1)
                 end set by name: [v3]
+                ,
+                begin set by name
+                  get local var transform (47 1)
+                end set by name: [transform]
                 ,
                 begin set by name
                   get local var a (0 0 param)
                 end set by name: [a]
                 ,
                 begin set by name
-                  get local var c (2 0)
+                  get local var c (4 0)
                 end set by name: [c]
               end object
             end debug locals
@@ -2186,5 +2248,469 @@ begin function
     begin params 1
       push const number 10
     end params ret values 1
+  end call ret values 0
+
+
+[243] print "Script environment"
+
+  begin call
+    get env var print
+    begin params 1
+      push const string "Script environment"
+    end params ret values 1
+  end call ret values 0
+
+
+[244] print _E
+
+  begin call
+    get env var print
+    begin params 1
+      get local var _E (0 0)
+    end params ret values 1
+  end call ret values 0
+
+
+[246] print "Math functions"
+
+  begin call
+    get env var print
+    begin params 1
+      push const string "Math functions"
+    end params ret values 1
+  end call ret values 0
+
+
+[247] var a = [Math.rand() Math.rand() Math.rand() Math.rand() Math.rand() Math.rand()]
+
+  begin set local var
+    begin array 6
+      begin set auto index
+        begin call method
+          get env var Math
+          begin params 2
+            push const string "rand"
+            ,
+            nop
+          end params ret values 1
+        end call method ret values 1
+      end set auto index
+      ,
+      begin set auto index
+        begin call method
+          get env var Math
+          begin params 2
+            push const string "rand"
+            ,
+            nop
+          end params ret values 1
+        end call method ret values 1
+      end set auto index
+      ,
+      begin set auto index
+        begin call method
+          get env var Math
+          begin params 2
+            push const string "rand"
+            ,
+            nop
+          end params ret values 1
+        end call method ret values 1
+      end set auto index
+      ,
+      begin set auto index
+        begin call method
+          get env var Math
+          begin params 2
+            push const string "rand"
+            ,
+            nop
+          end params ret values 1
+        end call method ret values 1
+      end set auto index
+      ,
+      begin set auto index
+        begin call method
+          get env var Math
+          begin params 2
+            push const string "rand"
+            ,
+            nop
+          end params ret values 1
+        end call method ret values 1
+      end set auto index
+      ,
+      begin set auto index
+        begin call method
+          get env var Math
+          begin params 2
+            push const string "rand"
+            ,
+            nop
+          end params ret values 1
+        end call method ret values 1
+      end set auto index
+    end array
+  end set local var a (46 0)
+
+
+[248] print("rand" a)
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "rand"
+      ,
+      get local var a (46 0)
+    end params ret values 2
+  end call ret values 0
+
+
+[251] delete Array.__iter // delete our iterator, use default one
+
+  begin delete
+    get env var Array
+    push const string "__iter"
+  end delete
+
+
+[253] var transform = function(a f){
+
+  begin set local var
+    begin function
+      begin locals, total 9
+        0 a (param)
+        1 f (param)
+        2 _E
+        3 _G
+        4 r
+      end locals
+
+[254] var r = typeof a === "array" && [] || {}
+
+      begin set local var
+        begin logic ||
+          begin logic &&
+            begin logic ===
+              begin typeof
+                get local var a (0 0 param)
+              end typeof
+              push const string "array"
+            end logic ===
+            begin array 1
+              begin set auto index
+                begin params 2
+                  nop
+                  ,
+                  const null
+                end params ret values 1
+              end set auto index
+            end array
+          end logic &&
+          begin object 0
+          end object
+        end logic ||
+      end set local var r (4 0)
+
+
+[255] for(var i, v in a){
+
+      begin scope
+        begin locals 4
+          5 i
+          6 v
+          7 #func
+          8 #valid
+        end locals
+        new local var i (5 0)
+
+        new local var v (6 0)
+
+        new local var #func (7 0 temp)
+
+        new local var #valid (8 0 temp)
+
+        begin code list
+          begin set local var
+            begin call method
+              get local var a (0 0 param)
+              begin params 1
+                push const string "__iter"
+              end params ret values 1
+            end call method ret values 1
+          end set local var #func (7 0 temp)
+
+          begin loop
+            begin set local var
+              begin set local var
+                begin set local var
+                  begin call
+                    get local var #func (7 0 temp)
+                    begin params 0
+                    end params ret values 0
+                  end call ret values 3
+                end set local var v (6 0)
+              end set local var i (5 0)
+            end set local var #valid (8 0 temp)
+
+            begin if
+              begin bool exp
+                begin logic not
+                  get local var #valid (8 0 temp)
+                end logic not
+              end bool exp
+              begin then
+                break
+              end then
+            end if ret values 0
+
+
+[256] r[i] = f(v)
+
+            begin scope
+              begin set property
+                begin call
+                  get local var f (1 0 param)
+                  begin params 1
+                    get local var v (6 0)
+                  end params ret values 1
+                end call ret values 1
+                get local var auto create r (4 0)
+                get local var i (5 0)
+              end set property ret values 0
+            end scope ret values 0
+          end loop ret values 0
+        end code list ret values 0
+      end scope ret values 0
+
+
+[258] return r
+
+      begin code list
+        begin return
+          get local var r (4 0)
+        end return values 1
+      end code list ret values 0
+    end function
+  end set local var transform (47 0)
+
+
+[260] a = transform(a function(a){ return a*100 })
+
+  begin set local var
+    begin call
+      get local var transform (47 0)
+      begin params 2
+        get local var a (46 0)
+        ,
+        begin function
+          begin locals, total 3
+            0 a (param)
+            1 _E
+            2 _G
+          end locals
+          begin return
+            begin operator *
+              get local var a (0 0 param)
+              push const number 100
+            end operator *
+          end return values 1
+        end function
+      end params ret values 2
+    end call ret values 1
+  end set local var a (46 0)
+
+
+[261] print("mult 100" a)
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "mult 100"
+      ,
+      get local var a (46 0)
+    end params ret values 2
+  end call ret values 0
+
+
+[262] print("ceil" transform(a Math.ceil))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "ceil"
+      ,
+      begin call
+        get local var transform (47 0)
+        begin params 2
+          get local var a (46 0)
+          ,
+          begin get property
+            get env var Math
+            push const string "ceil"
+          end get property ret values 1
+        end params ret values 2
+      end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[263] print("floor" transform(a Math.floor))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "floor"
+      ,
+      begin call
+        get local var transform (47 0)
+        begin params 2
+          get local var a (46 0)
+          ,
+          begin get property
+            get env var Math
+            push const string "floor"
+          end get property ret values 1
+        end params ret values 2
+      end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[264] print("round(-1)" transform(a function(a){ return Math.round(a, -1) }))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "round(-1)"
+      ,
+      begin call
+        get local var transform (47 0)
+        begin params 2
+          get local var a (46 0)
+          ,
+          begin function
+            begin locals, total 3
+              0 a (param)
+              1 _E
+              2 _G
+            end locals
+            begin tail call method
+              get env var Math
+              begin params 3
+                push const string "round"
+                ,
+                get local var a (0 0 param)
+                ,
+                begin neg
+                  push const number 1
+                end neg
+              end params ret values 3
+            end tail call method
+          end function
+        end params ret values 2
+      end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[265] print("round(2)" transform(a function(a){ return Math.round(a, 2) }))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "round(2)"
+      ,
+      begin call
+        get local var transform (47 0)
+        begin params 2
+          get local var a (46 0)
+          ,
+          begin function
+            begin locals, total 3
+              0 a (param)
+              1 _E
+              2 _G
+            end locals
+            begin tail call method
+              get env var Math
+              begin params 3
+                push const string "round"
+                ,
+                get local var a (0 0 param)
+                ,
+                push const number 2
+              end params ret values 3
+            end tail call method
+          end function
+        end params ret values 2
+      end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[266] print("sin" transform(a Math.sin))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "sin"
+      ,
+      begin call
+        get local var transform (47 0)
+        begin params 2
+          get local var a (46 0)
+          ,
+          begin get property
+            get env var Math
+            push const string "sin"
+          end get property ret values 1
+        end params ret values 2
+      end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[267] print("cos" transform(a Math.cos))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "cos"
+      ,
+      begin call
+        get local var transform (47 0)
+        begin params 2
+          get local var a (46 0)
+          ,
+          begin get property
+            get env var Math
+            push const string "cos"
+          end get property ret values 1
+        end params ret values 2
+      end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[268] print("tan" transform(a Math.tan))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "tan"
+      ,
+      begin call
+        get local var transform (47 0)
+        begin params 2
+          get local var a (46 0)
+          ,
+          begin get property
+            get env var Math
+            push const string "tan"
+          end get property ret values 1
+        end params ret values 2
+      end call ret values 1
+    end params ret values 2
   end call ret values 0
 end function

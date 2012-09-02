@@ -1,4 +1,5 @@
 #include "objectscript.h"
+#include <time.h>
 
 #ifdef _MSC_VER
 #define DEBUG_BREAK __debugbreak()
@@ -132,6 +133,9 @@ static inline double toLittleEndianByteOrder(double val)
 }
 
 #define fromLittleEndianByteOrder toLittleEndianByteOrder
+
+static const OS_INT32 nan_data = 0x7fc00000;
+static const float nan_float = fromLittleEndianByteOrder(*(float*)&nan_data);
 
 static inline void parseSpaces(const OS_CHAR *& str)
 {
@@ -2884,6 +2888,15 @@ void OS::Core::Compiler::Scope::fixLoopBreaks(int scope_start_pos, int scope_end
 	}
 }
 
+void OS::Core::Compiler::Scope::addStdVars()
+{
+	OS_ASSERT(ENV_VAR_INDEX == 0 && GLOBALS_VAR_INDEX == 1);
+	Core::Strings * strings = getAllocator()->core->strings;
+	// don't change following order
+	addLocalVar(strings->var_env);
+	addLocalVar(strings->var_globals);
+}
+
 void OS::Core::Compiler::Scope::addLocalVar(const String& name)
 {
 	OS * allocator = getAllocator();
@@ -3646,6 +3659,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass2(Scope * scope, Ex
 			Expression * obj_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_OBJECT, exp->token);
 	
 			Vector<String> vars;
+
+			// skip globals & env vars
+			allocator->vectorAddItem(vars, allocator->core->strings->var_env OS_DBG_FILEPOS);
+			allocator->vectorAddItem(vars, allocator->core->strings->var_globals OS_DBG_FILEPOS);
+
 			Scope * start_scope = scope;
 			for(; scope; scope = scope->parent){
 				for(int i = scope->locals.count-1; i >= 0; i--){
@@ -4085,6 +4103,7 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 	// scope->function = scope;
 	scope->parser_started = true;
 	scope->ret_values = 1;
+	scope->addStdVars();
 
 	Params p = Params()
 		.setAllowAssign(true)
@@ -4663,7 +4682,7 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectFunctionExpression(Scope *
 		allocator->deleteObj(scope);
 		return NULL;
 	}
-	
+	scope->addStdVars();
 	scope = expectCodeExpression(scope);
 	return scope;
 }
@@ -6821,7 +6840,7 @@ void OS::Core::Program::pushFunction()
 	FunctionDecl * func_decl = functions + prog_func_index;
 	OS_ASSERT(func_decl->max_up_count == 0);
 
-	GCFunctionValue * func_value = allocator->core->newFunctionValue(NULL, this, func_decl);
+	GCFunctionValue * func_value = allocator->core->newFunctionValue(NULL, this, func_decl, allocator->core->global_vars);
 	allocator->core->pushValue(func_value);
 
 	allocator->core->gcMarkProgram(this);
@@ -7846,7 +7865,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 {
 	Table * table = table_value->table;
 	if(table && deleteTableProperty(table, index)){
-		if(table_value->type == OS_VALUE_TYPE_ARRAY){
+		if(table_value->type == OS_VALUE_TYPE_ARRAY && index.index.type == OS_VALUE_TYPE_NUMBER){
 			reorderTableNumericKeys(table);
 		}
 		return;
@@ -7857,7 +7876,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 			cur_value = cur_value->prototype;
 			Table * cur_table = cur_value->table;
 			if(cur_table && deleteTableProperty(cur_table, index)){
-				if(cur_value->type == OS_VALUE_TYPE_ARRAY){
+				if(cur_value->type == OS_VALUE_TYPE_ARRAY && index.index.type == OS_VALUE_TYPE_NUMBER){
 					reorderTableNumericKeys(cur_table);
 				}
 				return;
@@ -7975,14 +7994,14 @@ OS::Core::GCFunctionValue::~GCFunctionValue()
 	OS_ASSERT(!prog && !func_decl);
 }
 
-OS::Core::GCFunctionValue * OS::Core::newFunctionValue(StackFunction * stack_func, Program * prog, FunctionDecl * func_decl)
+OS::Core::GCFunctionValue * OS::Core::newFunctionValue(StackFunction * stack_func, Program * prog, FunctionDecl * func_decl, Value env)
 {
 	GCFunctionValue * func_value = new (allocator->malloc(sizeof(GCFunctionValue) OS_DBG_FILEPOS)) GCFunctionValue();
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
 	func_value->prototype = prototypes[PROTOTYPE_FUNCTION];
 	func_value->prog = prog->retain();
 	func_value->func_decl = func_decl;
-	func_value->env = global_vars;
+	func_value->env = env; // global_vars;
 	func_value->upvalues = stack_func ? stack_func->locals->retain() : NULL;
 	registerValue(func_value);
 	// pushValue(func_value);
@@ -8484,7 +8503,7 @@ OS_FLOAT OS::Core::valueToNumber(Value val, bool valueof_enabled)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_NULL:
-		return 0;
+		return nan_float;
 
 	case OS_VALUE_TYPE_BOOL:
 		return val.v.boolean;
@@ -8498,7 +8517,7 @@ OS_FLOAT OS::Core::valueToNumber(Value val, bool valueof_enabled)
 			if(val.v.string->isFloat(&fval)){
 				return fval;
 			}
-			return 0;
+			return nan_float;
 		}
 	}
 	if(valueof_enabled){
@@ -8907,6 +8926,9 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_continue(allocator, OS_TEXT("continue")),
 	syntax_debugger(allocator, OS_TEXT("debugger")),
 	syntax_debuglocals(allocator, OS_TEXT("debuglocals")),
+
+	var_globals(allocator, OS_GLOBALS_VAR_NAME),
+	var_env(allocator, OS_ENV_VAR_NAME),
 
 	__dummy__(0)
 {
@@ -9435,6 +9457,10 @@ OS::Core::Core(OS * p_allocator)
 
 	gcInitGreyList();
 
+	OS_MEMSET(rand_state, 0, sizeof(rand_state));
+	rand_next = NULL;
+	rand_left = 0;
+
 	/*
 	if(!opcode_usage_initialized){
 		opcode_usage_initialized = true;
@@ -9466,13 +9492,14 @@ OS * OS::create(MemoryManager * manager)
 bool OS::init()
 {
 	if(core->init()){
+		initPreScript();
 		initGlobalFunctions();
 		initObjectClass();
 		initArrayClass();
 		initStringClass();
 		initFunctionClass();
 		initMathLibrary();
-		initScript();
+		initPostScript();
 		return true;
 	}
 	return false;
@@ -9519,12 +9546,12 @@ bool OS::Core::init()
 
 	strings = new (malloc(sizeof(Strings) OS_DBG_FILEPOS)) Strings(allocator);
 
-	setGlobalValue(OS_TEXT("Boolean"), Value(prototypes[PROTOTYPE_BOOL]), false, false);
-	setGlobalValue(OS_TEXT("Number"), Value(prototypes[PROTOTYPE_NUMBER]), false, false);
-	setGlobalValue(OS_TEXT("String"), Value(prototypes[PROTOTYPE_STRING]), false, false);
-	setGlobalValue(OS_TEXT("Object"), Value(prototypes[PROTOTYPE_OBJECT]), false, false);
-	setGlobalValue(OS_TEXT("Array"), Value(prototypes[PROTOTYPE_ARRAY]), false, false);
-	setGlobalValue(OS_TEXT("Function"), Value(prototypes[PROTOTYPE_FUNCTION]), false, false);
+	setGlobalValue(OS_TEXT("Object"), Value(prototypes[PROTOTYPE_OBJECT]), false);
+	setGlobalValue(OS_TEXT("Boolean"), Value(prototypes[PROTOTYPE_BOOL]), false);
+	setGlobalValue(OS_TEXT("Number"), Value(prototypes[PROTOTYPE_NUMBER]), false);
+	setGlobalValue(OS_TEXT("String"), Value(prototypes[PROTOTYPE_STRING]), false);
+	setGlobalValue(OS_TEXT("Array"), Value(prototypes[PROTOTYPE_ARRAY]), false);
+	setGlobalValue(OS_TEXT("Function"), Value(prototypes[PROTOTYPE_FUNCTION]), false);
 
 	return true;
 }
@@ -10257,7 +10284,7 @@ OS::Core::Property * OS::Core::setTableValue(Table * table, const PropertyIndex&
 	return prop;
 }
 
-void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value value, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value value, bool setter_enabled)
 {
 #ifdef OS_DEBUG
 	if(index.index.type == OS_VALUE_TYPE_NULL){
@@ -10274,7 +10301,8 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 		return;
 	}
 
-	if(prototype_enabled){
+	// prototype should not be used in set
+	/* if(prototype_enabled){
 		GCValue * cur_value = table_value;
 		while(cur_value->prototype){
 			cur_value = cur_value->prototype;
@@ -10284,7 +10312,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 				return;
 			}
 		}
-	}
+	} */
 
 	if(index.index.type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == index.index.v.string){
 		switch(table_value->type){
@@ -10320,7 +10348,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 			OS_MEMCPY(buf+size1+size2, buf3, size3);
 			buf[size1+size2+size3] = (OS_CHAR)0;
 			GCStringValue * name = newStringValue(buf, (size1 + size2 + size3) / sizeof(OS_CHAR));
-			if(getPropertyValue(func, table_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+			if(getPropertyValue(func, table_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), true)){
 				pushValue(func);
 				pushValue(table_value);
 				pushValue(value);
@@ -10328,7 +10356,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 				return;
 			}
 		}
-		if(getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+		if(getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), true)){
 			pushValue(func);
 			pushValue(table_value);
 			pushValue(index.index);
@@ -10347,28 +10375,22 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	// setTableValue(table, index, value);
 }
 
-void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, Value value, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, Value value, bool setter_enabled)
 {
 	switch(table_value.type){
 	case OS_VALUE_TYPE_NULL:
 		return;
 
 	case OS_VALUE_TYPE_BOOL:
-		if(prototype_enabled){
-			return setPropertyValue(prototypes[PROTOTYPE_BOOL], index, value, prototype_enabled, setter_enabled);
-		}
+		// return setPropertyValue(prototypes[PROTOTYPE_BOOL], index, value, setter_enabled);
 		return;
 
 	case OS_VALUE_TYPE_NUMBER:
-		if(prototype_enabled){
-			return setPropertyValue(prototypes[PROTOTYPE_NUMBER], index, value, prototype_enabled, setter_enabled);
-		}
+		// return setPropertyValue(prototypes[PROTOTYPE_NUMBER], index, value, setter_enabled);
 		return;
 
 	case OS_VALUE_TYPE_STRING:
-		if(prototype_enabled){
-			return setPropertyValue(prototypes[PROTOTYPE_STRING], index, value, prototype_enabled, setter_enabled);
-		}
+		// return setPropertyValue(prototypes[PROTOTYPE_STRING], index, value, setter_enabled);
 		return;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -10377,7 +10399,7 @@ void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, V
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return setPropertyValue(table_value.v.value, index, value, prototype_enabled, setter_enabled);
+		return setPropertyValue(table_value.v.value, index, value, setter_enabled);
 	}
 }
 
@@ -10674,7 +10696,9 @@ OS::Core::GCObjectValue * OS::Core::newObjectValue(GCValue * prototype)
 
 OS::Core::GCObjectValue * OS::Core::newArrayValue()
 {
-	return newObjectValue(prototypes[PROTOTYPE_ARRAY]);
+	GCObjectValue * value = newObjectValue(prototypes[PROTOTYPE_ARRAY]);
+	value->type = OS_VALUE_TYPE_ARRAY;
+	return value;
 }
 
 void OS::Core::pushValue(Value val)
@@ -10888,7 +10912,7 @@ OS::Core::GCObjectValue * OS::Core::pushArrayOf(Value val)
 	case OS_VALUE_TYPE_BOOL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_STRING:
-		setPropertyValue(object = pushArrayValue(), PropertyIndex(Value((OS_FLOAT)0)), val, true, true);
+		setPropertyValue(object = pushArrayValue(), PropertyIndex(Value((OS_FLOAT)0)), val, true);
 		return object;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -10917,7 +10941,7 @@ OS::Core::GCObjectValue * OS::Core::pushObjectOf(Value val)
 	case OS_VALUE_TYPE_BOOL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_STRING:
-		setPropertyValue(object = pushObjectValue(), PropertyIndex(Value((OS_FLOAT)0)), val, true, true);
+		setPropertyValue(object = pushObjectValue(), PropertyIndex(Value((OS_FLOAT)0)), val, true);
 		return object;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -11614,14 +11638,14 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 	return lib.pushBinaryOpcodeValue(opcode, left_value, right_value);
 }
 
-void OS::Core::setGlobalValue(const String& name, Value value, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setGlobalValue(const String& name, Value value, bool setter_enabled)
 {
-	setPropertyValue(global_vars, Core::PropertyIndex(name), value, prototype_enabled, setter_enabled);
+	setPropertyValue(global_vars, Core::PropertyIndex(name), value, setter_enabled);
 }
 
-void OS::Core::setGlobalValue(const OS_CHAR * name, Value value, bool prototype_enabled, bool setter_enabled)
+void OS::Core::setGlobalValue(const OS_CHAR * name, Value value, bool setter_enabled)
 {
-	setGlobalValue(String(allocator, name), value, prototype_enabled, setter_enabled);
+	setGlobalValue(String(allocator, name), value, setter_enabled);
 }
 
 int OS::Core::getStackOffs(int offs)
@@ -12138,13 +12162,13 @@ bool OS::Value::isInstanceOf(Value& prototype_value) const
 }
 */
 
-void OS::setProperty(bool prototype_enabled, bool setter_enabled)
+void OS::setProperty(bool setter_enabled)
 {
 	if(core->stack_values.count >= 3){
 		Core::Value object = core->stack_values[core->stack_values.count - 3];
 		Core::Value index = core->stack_values[core->stack_values.count - 2];
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
-		core->setPropertyValue(object, Core::PropertyIndex(index), value, prototype_enabled, setter_enabled);
+		core->setPropertyValue(object, Core::PropertyIndex(index), value, setter_enabled);
 		pop(3);
 	}else{
 		// error
@@ -12152,16 +12176,16 @@ void OS::setProperty(bool prototype_enabled, bool setter_enabled)
 	}
 }
 
-void OS::setProperty(const OS_CHAR * name, bool prototype_enabled, bool setter_enabled)
+void OS::setProperty(const OS_CHAR * name, bool setter_enabled)
 {
-	getProperty(Core::String(this, name), prototype_enabled, setter_enabled);
+	setProperty(Core::String(this, name), setter_enabled);
 }
 
-void OS::setProperty(const Core::String& name, bool prototype_enabled, bool setter_enabled)
+void OS::setProperty(const Core::String& name, bool setter_enabled)
 {
 	pushString(name);
 	move(-1, -2);
-	setProperty(prototype_enabled, setter_enabled);
+	setProperty(setter_enabled);
 }
 
 void OS::addProperty()
@@ -12169,7 +12193,7 @@ void OS::addProperty()
 	pushStackValue(-2);
 	runOp(OP_LENGTH);
 	move(-2, -1);
-	setProperty(false, false);
+	setProperty(false);
 }
 
 void OS::getPrototype()
@@ -12327,7 +12351,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 			}
 		}
 		if(auto_create){
-			setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
+			setPropertyValue(self, index, Value(pushObjectValue()), false); 
 			return;
 		}
 		break;
@@ -12547,7 +12571,7 @@ restart:
 	StackFunction * stack_func = &call_stack_funcs.lastElement();
 	GCFunctionValue * func_value = stack_func->func;
 	FunctionDecl * func_decl = func_value->func_decl;
-	Value env = func_value->env; // ? func_value_data->env : global_vars;
+	// Value env = func_value->env; // ? func_value_data->env : global_vars;
 	Program * prog = func_value->prog;
 
 	MemStreamReader opcodes(NULL, prog->opcodes->buffer + func_decl->opcodes_pos, func_decl->opcodes_size);
@@ -12566,6 +12590,10 @@ restart:
 	Upvalues * func_upvalues = stack_func->locals;
 	// Value * locals = func_upvalues->locals;
 	int num_locals = func_upvalues->num_locals;
+
+	int env_index = func_decl->num_params + ENV_VAR_INDEX;
+	func_upvalues->locals[env_index] = func_value->env;
+	func_upvalues->locals[func_decl->num_params + GLOBALS_VAR_INDEX] = global_vars;
 
 #ifdef OS_INFINITE_LOOP_OPCODES
 	for(int opcodes_executed = 0;; opcodes_executed++){
@@ -12640,7 +12668,8 @@ restart:
 				int prog_func_index = opcodes.readUVariable();
 				OS_ASSERT(prog_func_index > 0 && prog_func_index < prog->num_functions);
 				FunctionDecl * func_decl = prog->functions + prog_func_index;
-				pushValue(newFunctionValue(stack_func, prog, func_decl));
+				pushValue(newFunctionValue(stack_func, prog, func_decl, 
+					func_upvalues->locals[env_index]));
 	
 				// OS_ASSERT(func_decl->opcodes_pos == opcodes.pos);
 				opcodes.movePos(func_decl->opcodes_size);
@@ -12670,7 +12699,7 @@ restart:
 					num_index = object.v.object->table ? object.v.object->table->next_index : 0;
 					break;
 				}
-				setPropertyValue(object, PropertyIndex(num_index), stack_values[stack_values.count-1], false, false);
+				setPropertyValue(object, PropertyIndex(num_index), stack_values[stack_values.count-1], false);
 				pop(); // keep object in stack
 				break;
 			}
@@ -12680,7 +12709,7 @@ restart:
 				OS_ASSERT(stack_values.count >= 3);
 				setPropertyValue(stack_values[stack_values.count - 3], 
 					Core::PropertyIndex(stack_values[stack_values.count - 2]), 
-					stack_values[stack_values.count - 1], false, false);
+					stack_values[stack_values.count - 1], false);
 				pop(2); // keep object in stack
 				break;
 			}
@@ -12692,7 +12721,7 @@ restart:
 				OS_ASSERT(i >= 0 && i < prog_num_numbers);
 				setPropertyValue(stack_values[stack_values.count-2], 
 					PropertyIndex(prog_numbers[i]), 
-					stack_values[stack_values.count-1], false, false);
+					stack_values[stack_values.count-1], false);
 				pop(); // keep object in stack
 				break;
 			}
@@ -12705,7 +12734,7 @@ restart:
 				GCStringValue * name = prog_strings[i];
 				setPropertyValue(stack_values[stack_values.count-2], 
 					PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
-					stack_values[stack_values.count-1], false, false);
+					stack_values[stack_values.count-1], false);
 				pop(); // keep object in stack
 				break;
 			}
@@ -12718,7 +12747,8 @@ restart:
 				OS_ASSERT(prog_strings[i]->type == OS_VALUE_TYPE_STRING);
 				GCStringValue * name = prog_strings[i];
 				// String name = valueToString(name_value);
-				pushPropertyValue(env, PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
+				pushPropertyValue(func_upvalues->locals[env_index], 
+					PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
 					true, true, opcode == Program::OP_PUSH_ENV_VAR_AUTO_CREATE); 
 				break;
 			}
@@ -12729,9 +12759,9 @@ restart:
 				i = opcodes.readUVariable();
 				OS_ASSERT(i >= 0 && i < prog_num_strings);
 				GCStringValue * name = prog_strings[i];
-				setPropertyValue(env, 
+				setPropertyValue(func_upvalues->locals[env_index], 
 					PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
-					stack_values[stack_values.count-1], true, true);
+					stack_values[stack_values.count-1], true);
 				pop();
 				break;
 			}
@@ -12746,10 +12776,10 @@ restart:
 				GCObjectValue * args = pushArrayValue();
 				int num_params = stack_func->num_params - stack_func->num_extra_params;
 				for(i = 0; i < num_params; i++){
-					setPropertyValue(args, PropertyIndex(i), func_upvalues->locals[i], false, false);
+					setPropertyValue(args, PropertyIndex(i), func_upvalues->locals[i], false);
 				}
 				for(i = 0; i < stack_func->num_extra_params; i++){
-					setPropertyValue(args, PropertyIndex(i + num_params), func_upvalues->locals[i + num_locals], false, false);
+					setPropertyValue(args, PropertyIndex(i + num_params), func_upvalues->locals[i + num_locals], false);
 				}
 				stack_func->arguments = args;
 			}else{
@@ -12761,7 +12791,7 @@ restart:
 			if(!stack_func->rest_arguments){
 				GCObjectValue * args = pushArrayValue();
 				for(int i = 0; i < stack_func->num_extra_params; i++){
-					setPropertyValue(args, PropertyIndex(i), func_upvalues->locals[i + num_locals], false, false);
+					setPropertyValue(args, PropertyIndex(i), func_upvalues->locals[i + num_locals], false);
 				}
 				stack_func->rest_arguments = args;
 			}else{
@@ -13024,7 +13054,7 @@ restart:
 				OS_ASSERT(stack_values.count >= 3);
 				setPropertyValue(stack_values.buf[stack_values.count - 2], 
 					PropertyIndex(stack_values.buf[stack_values.count - 1]), 
-					stack_values.buf[stack_values.count - 3], true, true);
+					stack_values.buf[stack_values.count - 3], true);
 				pop(3);
 				break;
 			}
@@ -13444,7 +13474,7 @@ void OS::setFuncs(const Func * list, int closure_values, void * user_param)
 			pushStackValue(-1-closure_values);
 		}
 		pushCFunction(list->func, closure_values, user_param);
-		setProperty(false, false);
+		setProperty(false);
 	}
 }
 
@@ -13462,7 +13492,7 @@ void OS::getObject(const OS_CHAR * name, bool prototype_enabled, bool setter_ena
 	pushStackValue(-2);	// 3: copy parent object
 	pushString(name);	// 4: index
 	pushStackValue(-3);	// 5: copy result object
-	setProperty(prototype_enabled, setter_enabled); // 2: parent + result
+	setProperty(setter_enabled); // 2: parent + result
 	remove(-2);			// 1: remove parent object
 }
 
@@ -13484,18 +13514,18 @@ void OS::getGlobal(const Core::String& name, bool prototype_enabled, bool getter
 	getProperty(prototype_enabled, getter_enabled);
 }
 
-void OS::setGlobal(const OS_CHAR * name, bool prototype_enabled, bool setter_enabled)
+void OS::setGlobal(const OS_CHAR * name, bool setter_enabled)
 {
-	setGlobal(Core::String(this, name), prototype_enabled, setter_enabled);
+	setGlobal(Core::String(this, name), setter_enabled);
 }
 
-void OS::setGlobal(const Core::String& name, bool prototype_enabled, bool setter_enabled)
+void OS::setGlobal(const Core::String& name, bool setter_enabled)
 {
 	if(core->stack_values.count >= 1){
 		Core::Value object = core->global_vars;
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
 		Core::Value index = core->pushStringValue(name);
-		core->setPropertyValue(object, Core::PropertyIndex(index), value, prototype_enabled, setter_enabled);
+		core->setPropertyValue(object, Core::PropertyIndex(index), value, setter_enabled);
 		pop(2);
 	}
 }
@@ -13546,45 +13576,11 @@ void OS::initGlobalFunctions()
 			os->core->pushValue(buf.toGCStringValue());
 			return 1;
 		}
-
-		static int minmax(OS * os, int params, int closure_values, OS_EOpcode opcode)
-		{
-			OS_ASSERT(params >= 0);
-			if(params <= 1){
-				return params;
-			}
-			int params_offs = os->getAbsoluteOffs(-params-closure_values);
-			os->pushStackValue(params_offs); // save temp result
-			for(int i = 1; i < params; i++){
-				os->pushStackValue(-1); // copy temp result
-				os->pushStackValue(params_offs + i);
-				os->runOp(opcode); // remove params & push op result
-				if(!os->toBool()){
-					os->pop(2); // remove op result and temp result
-					os->pushStackValue(params_offs + i); // save temp result
-					continue;
-				}
-				os->pop();
-			}
-			return 1;
-		}
-
-		static int min(OS * os, int params, int closure_values, int, void*)
-		{
-			return minmax(os, params, closure_values, OP_LOGIC_LE);
-		}
-
-		static int max(OS * os, int params, int closure_values, int, void*)
-		{
-			return minmax(os, params, closure_values, OP_LOGIC_GE);
-		}
 	};
 	Func list[] = {
 		{OS_TEXT("print"), Lib::print},
 		{OS_TEXT("echo"), Lib::echo},
 		{OS_TEXT("concat"), Lib::concat},
-		{OS_TEXT("min"), Lib::min},
-		{OS_TEXT("max"), Lib::max},
 		{}
 	};
 	pushGlobals();
@@ -13610,7 +13606,7 @@ void OS::initObjectClass()
 		static int rawset(OS * os, int params, int closure_values, int, void*)
 		{
 			if(params == 2 && !closure_values){
-				os->setProperty(false, false);
+				os->setProperty(false);
 				return 0;
 			}
 			return 0;
@@ -13959,11 +13955,382 @@ void OS::initFunctionClass()
 	pop();
 }
 
+/*
+	The following functions are based on a C++ class MTRand by
+	Richard J. Wagner. For more information see the web page at
+	http://www-personal.engin.umich.edu/~wagnerr/MersenneTwister.html
+
+	It's port from PHP framework.
+*/
+
+#define RAND_N             RAND_STATE_SIZE      /* length of state vector */
+#define RAND_M             (397)                /* a period parameter */
+#define RAND_hiBit(u)      ((u) & 0x80000000U)  /* mask all but highest   bit of u */
+#define RAND_loBit(u)      ((u) & 0x00000001U)  /* mask all but lowest    bit of u */
+#define RAND_loBits(u)     ((u) & 0x7FFFFFFFU)  /* mask     the highest   bit of u */
+#define RAND_mixBits(u, v) (RAND_hiBit(u)|RAND_loBits(v)) /* move hi bit of u to hi bit of v */
+
+#define RAND_twist(m,u,v)  (m ^ (RAND_mixBits(u,v)>>1) ^ ((OS_U32)(-(OS_INT32)(RAND_loBit(u))) & 0x9908b0dfU))
+#define RAND_MAX 0x7FFFFFFF		/* (1<<31) - 1 */ 
+
+#define RAND_RANGE(__n, __min, __max, __tmax) \
+    (__n) = (__min) + (long) ((double) ( (double) (__max) - (__min) + 1.0) * ((__n) / ((__tmax) + 1.0)))
+
+#ifdef _MSC_VER
+#include <windows.h>
+#define RAND_GENERATE_SEED() (((long) (time(0) * GetCurrentProcessId())) ^ ((long) (1000000.0)))
+#else
+#define RAND_GENERATE_SEED() (((long) (time(0) * getpid())) ^ ((long) (1000000.0)))
+#endif 
+
+void OS::Core::randInitialize(OS_U32 seed)
+{
+	rand_seed = seed;
+
+	OS_U32 * s = rand_state;
+	OS_U32 * r = s;
+
+	*s++ = seed & 0xffffffffU;
+	for(int i = 1; i < RAND_N; ++i ) {
+		*s++ = ( 1812433253U * ( *r ^ (*r >> 30) ) + i ) & 0xffffffffU;
+		r++;
+	}
+
+	randReload();
+}
+
+void OS::Core::randReload()
+{
+	/* Generate N new values in state
+	   Made clearer and faster by Matthew Bellew (matthew.bellew@home.com) */
+
+	OS_U32 * state = rand_state;
+	OS_U32 * p = state;
+	int i;
+
+	for(i = RAND_N - RAND_M; i--; ++p){
+		*p = RAND_twist(p[RAND_M], p[0], p[1]);
+	}
+	for(i = RAND_M; --i; ++p){
+		*p = RAND_twist(p[RAND_M-RAND_N], p[0], p[1]);
+	}
+	*p = RAND_twist(p[RAND_M-RAND_N], p[0], state[0]);
+	rand_left = RAND_N;
+	rand_next = state;
+}
+
+double OS::Core::getRand()
+{
+	/* Pull a 32-bit integer from the generator state
+	   Every other access function simply transforms the numbers extracted here */
+
+	if(!rand_left){
+		if(!rand_next){
+			randInitialize(RAND_GENERATE_SEED());
+		}else{
+			randReload();
+		}
+	}
+	--rand_left;
+		
+	OS_U32 s1 = *rand_next++;
+	s1 ^= (s1 >> 11);
+	s1 ^= (s1 <<  7) & 0x9d2c5680U;
+	s1 ^= (s1 << 15) & 0xefc60000U;
+	return (double)((s1 ^ (s1 >> 18))>>1) / (double)RAND_MAX;
+}
+
+double OS::Core::getRand(double up)
+{
+	return floor(getRand() * up);
+}
+
+double OS::Core::getRand(double min, double max)
+{
+	return floor(getRand() * (max - min) + min);
+}
+
+#define OS_MATH_PI 3.1415926535897932384626433832795
+#define OS_RADIANS_PER_DEGREE (OS_MATH_PI/180.0)
+
 void OS::initMathLibrary()
 {
-	struct Lib {
+	struct Math
+	{
+		static int minmax(OS * os, int params, OS_EOpcode opcode)
+		{
+			OS_ASSERT(params >= 0);
+			if(params <= 1){
+				return params;
+			}
+			int params_offs = os->getAbsoluteOffs(-params);
+			os->pushStackValue(params_offs); // save temp result
+			for(int i = 1; i < params; i++){
+				os->pushStackValue(-1); // copy temp result
+				os->pushStackValue(params_offs + i);
+				os->runOp(opcode); // remove params & push op result
+				if(!os->toBool()){
+					os->pop(2); // remove op result and temp result
+					os->pushStackValue(params_offs + i); // save temp result
+					continue;
+				}
+				os->pop();
+			}
+			return 1;
+		}
+
+		static int min_func(OS * os, int params, int, int, void*)
+		{
+			return minmax(os, params, OP_LOGIC_LE);
+		}
+
+		static int max_func(OS * os, int params, int, int, void*)
+		{
+			return minmax(os, params, OP_LOGIC_GE);
+		}
+		
+		static int abs(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::abs(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int ceil(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::ceil(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int floor(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(OS_MATH_FLOOR(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int round(OS * os, int params, int, int, void*)
+		{
+			double a = os->toNumber(-params);
+			if(params >= 2){
+				int precision = (int)os->toNumber(-params+1);
+				if(precision <= 0){
+					if(precision < 0){
+						double p = 10.0f;
+						for(int i = -precision-1; i > 0; i--){
+							p *= 10.0f;
+						}
+						os->pushNumber(OS_MATH_FLOOR(a / p + 0.5f) * p);
+						return 1;
+					}
+					os->pushNumber(OS_MATH_FLOOR(a + 0.5f));
+					return 1;
+				}
+				double p = 10.0f;
+				for(int i = precision-1; i > 0; i--){
+					p *= 10.0f;
+				}
+				os->pushNumber(OS_MATH_FLOOR(a * p + 0.5f) / p);
+				return 1;
+			}
+			os->pushNumber(OS_MATH_FLOOR(a + 0.5f));
+			return 1;
+		}
+		
+		static int sin(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::sin(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int sinh(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::sinh(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int cos(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::cos(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int cosh(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::cosh(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int tan(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::tan(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int tanh(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::tanh(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int acos(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::acos(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int asin(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::asin(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int atan(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::atan(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int atan2(OS * os, int params, int, int, void*)
+		{
+			// I could ignore number of params because of NaN returned in this case
+			os->pushNumber(::atan2(os->toNumber(-params), os->toNumber(-params+1)));
+			return 1;
+		}
+		
+		static int exp(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::exp(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int frexp(OS * os, int params, int, int, void*)
+		{
+			int e;
+			os->pushNumber(::frexp(os->toNumber(-params), &e));
+			os->pushNumber(e);
+			return 2;
+		}
+		
+		static int ldexp(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::ldexp(os->toNumber(-params), (int)os->toNumber(-params+1)));
+			return 1;
+		}
+		
+		static int pow(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(OS_MATH_POW(os->toNumber(-params), os->toNumber(-params+1)));
+			return 1;
+		}
+		
+		static int random(OS * os, int params, int, int, void*)
+		{
+			OS::Core * core = os->core;
+			switch(params){
+			case 0:
+				os->pushNumber(core->getRand());
+				return 1;
+
+			case 1:
+				os->pushNumber(core->getRand(os->toNumber(-params)));
+				return 1;
+
+			case 2:
+				os->pushNumber(core->getRand(os->toNumber(-params), os->toNumber(-params+1)));
+				return 1;
+			}
+			return 0;
+		}
+		
+		static int getrandseed(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber((OS_NUMBER)os->core->rand_seed);
+			return 1;
+		}
+		
+		static int setrandseed(OS * os, int params, int, int, void*)
+		{
+			os->core->rand_seed = (OS_U32)os->toNumber(-params);
+			return 0;
+		}
+		
+		static int fmod(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(OS_MATH_FMOD(os->toNumber(-params), os->toNumber(-params+1)));
+			return 1;
+		}
+		
+		static int modf(OS * os, int params, int, int, void*)
+		{
+			double ip;
+			double fp = ::modf(os->toNumber(-params), &ip);
+			os->pushNumber(ip);
+			os->pushNumber(fp);
+			return 2;
+		}
+		
+		static int sqrt(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(::sqrt(os->toNumber(-params)));
+			return 1;
+		}
+		
+		static int log(OS * os, int params, int, int, void*)
+		{
+			double x = os->toNumber(-params);
+			OS_NUMBER base;
+			if(os->isNumber(-params+1, &base)){
+				if(base == 10){
+					os->pushNumber(::log10(x));
+				}else{
+					os->pushNumber(::log(x)/::log(base));
+				}
+			}else{
+				os->pushNumber(::log(x));
+			}
+			return 1;
+		}
+		
+		static int deg(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(os->toNumber(-params)/OS_RADIANS_PER_DEGREE);
+			return 1;
+		}
+		
+		static int rad(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(os->toNumber(-params)*OS_RADIANS_PER_DEGREE);
+			return 1;
+		}
 	};
 	Func list[] = {
+		{OS_TEXT("min"), Math::min_func},
+		{OS_TEXT("max"), Math::max_func},
+		{OS_TEXT("abs"), Math::abs},
+		{OS_TEXT("ceil"), Math::ceil},
+		{OS_TEXT("floor"), Math::floor},
+		{OS_TEXT("round"), Math::round},
+		{OS_TEXT("sin"), Math::sin},
+		{OS_TEXT("sinh"), Math::sinh},
+		{OS_TEXT("cos"), Math::cos},
+		{OS_TEXT("cosh"), Math::cosh},
+		{OS_TEXT("tan"), Math::tan},
+		{OS_TEXT("tanh"), Math::tanh},
+		{OS_TEXT("acos"), Math::acos},
+		{OS_TEXT("asin"), Math::asin},
+		{OS_TEXT("atan"), Math::atan},
+		{OS_TEXT("atan2"), Math::atan2},
+		{OS_TEXT("exp"), Math::exp},
+		{OS_TEXT("frexp"), Math::frexp},
+		{OS_TEXT("ldexp"), Math::ldexp},
+		{OS_TEXT("rand"), Math::random},
+		{OS_TEXT("__get@randseed"), Math::getrandseed},
+		{OS_TEXT("__set@randseed"), Math::setrandseed},
+		{OS_TEXT("fmod"), Math::fmod},
+		{OS_TEXT("modf"), Math::modf},
+		{OS_TEXT("sqrt"), Math::sqrt},
+		{OS_TEXT("log"), Math::log},
+		{OS_TEXT("deg"), Math::deg},
+		{OS_TEXT("rad"), Math::rad},
 		{}
 	};
 	getGlobalObject(OS_TEXT("Math"));
@@ -13971,7 +14338,7 @@ void OS::initMathLibrary()
 	pop();
 }
 
-void OS::initScript()
+void OS::initPreScript()
 {
 	const OS_CHAR * code = 
 		OS_TEXT("Object.__get@length = function(){ return #this }")
@@ -13979,6 +14346,9 @@ void OS::initScript()
 	eval(code);
 }
 
+void OS::initPostScript()
+{
+}
 void OS::Core::syncStackRetValues(int need_ret_values, int cur_ret_values)
 {
 	if(cur_ret_values > need_ret_values){

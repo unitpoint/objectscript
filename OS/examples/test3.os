@@ -240,3 +240,29 @@ function(a){
 	}
 }(10)
 
+print "Script environment"
+print _E
+
+print "Math functions"
+var a = [Math.rand() Math.rand() Math.rand() Math.rand() Math.rand() Math.rand()]
+print("rand" a)
+
+// remove debug print from Array.__iter
+delete Array.__iter // delete our iterator, use default one
+
+var transform = function(a f){
+	var r = typeof a === "array" && [] || {}
+	for(var i, v in a){
+		r[i] = f(v)
+	}
+	return r
+}
+a = transform(a function(a){ return a*100 })
+print("mult 100" a)
+print("ceil" transform(a Math.ceil))
+print("floor" transform(a Math.floor))
+print("round(-1)" transform(a function(a){ return Math.round(a, -1) }))
+print("round(2)" transform(a function(a){ return Math.round(a, 2) }))
+print("sin" transform(a Math.sin))
+print("cos" transform(a Math.cos))
+print("tan" transform(a Math.tan))

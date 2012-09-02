@@ -72,9 +72,9 @@
 #define OS_VSNPRINTF vsnprintf_s
 #define OS_SNPRINTF __snprintf__
 
-#define OS_MATH_POW pow
-#define OS_MATH_FLOOR floor
-#define OS_MATH_FMOD fmod
+#define OS_MATH_POW ::pow
+#define OS_MATH_FLOOR ::floor
+#define OS_MATH_FMOD ::fmod
 
 // select ObjectScript number type here
 #define OS_NUMBER double
@@ -84,13 +84,18 @@
 #define OS_CHAR char
 #define OS_INT __int64
 #define OS_FLOAT double
+#define OS_INT16 short
 #define OS_INT32 __int32
 #define OS_INT64 __int64
 #define OS_BYTE unsigned char
 #define OS_U16 unsigned short
-#define OS_INT16 short
+#define OS_U32 unsigned __int32
+#define OS_U64 unsigned __int64
 
 #define OS_TEXT(s) s
+
+#define OS_GLOBALS_VAR_NAME OS_TEXT("_G")
+#define OS_ENV_VAR_NAME OS_TEXT("_E")
 
 #define OS_AUTO_PRECISION 20
 
@@ -1289,7 +1294,7 @@ namespace ObjectScript
 			{
 				Program * prog; // retained
 				FunctionDecl * func_decl;
-				GCValue * env;
+				Value env;
 				Upvalues * upvalues; // retained
 
 				GCFunctionValue();
@@ -1631,6 +1636,7 @@ namespace ObjectScript
 					bool addLoopBreak(int pos, ELoopBreakType);
 					void fixLoopBreaks(int scope_start_pos, int scope_end_pos, StreamWriter*);
 
+					void addStdVars();
 					void addLocalVar(const String& name);
 					void addLocalVar(const String& name, LocalVarDesc&);
 				};
@@ -2019,6 +2025,11 @@ namespace ObjectScript
 				void pushFunction();
 			};
 
+			enum {
+				ENV_VAR_INDEX,
+				GLOBALS_VAR_INDEX,
+			};
+
 			struct Upvalues
 			{
 				int ref_count;
@@ -2174,6 +2185,9 @@ namespace ObjectScript
 				String syntax_debugger;
 				String syntax_debuglocals;
 
+				String var_globals;
+				String var_env;
+
 				int __dummy__;
 
 				Strings(OS * allocator);
@@ -2243,6 +2257,21 @@ namespace ObjectScript
 				bool recompile_sourcecode;
 			} settings;
 
+			enum {
+				RAND_STATE_SIZE = 624
+			};
+
+			OS_U32 rand_state[RAND_STATE_SIZE+1];
+			OS_U32 rand_seed;
+			OS_U32 * rand_next;
+			int rand_left;
+
+			void randInitialize(OS_U32 seed);
+			void randReload();
+			double getRand();
+			double getRand(double up);
+			double getRand(double min, double max);
+
 			void * malloc(int size OS_DBG_FILEPOS_DECL);
 			void free(void * p);
 
@@ -2276,7 +2305,7 @@ namespace ObjectScript
 			bool isValueUsed(GCValue*);
 #endif
 
-			GCFunctionValue * newFunctionValue(StackFunction*, Program*, FunctionDecl*);
+			GCFunctionValue * newFunctionValue(StackFunction*, Program*, FunctionDecl*, Value env);
 			void clearFunctionValue(GCFunctionValue*);
 
 			// Upvalues * newUpvalues(int num_parents);
@@ -2353,8 +2382,8 @@ namespace ObjectScript
 			// binary operator
 			void pushOpResultValue(int opcode, Value left_value, Value right_value);
 
-			void setGlobalValue(const String& name, Value value, bool prototype_enabled, bool setter_enabled);
-			void setGlobalValue(const OS_CHAR * name, Value value, bool prototype_enabled, bool setter_enabled);
+			void setGlobalValue(const String& name, Value value, bool setter_enabled);
+			void setGlobalValue(const OS_CHAR * name, Value value, bool setter_enabled);
 
 			int getStackOffs(int offs);
 			Value getStackValue(int offs);
@@ -2394,8 +2423,8 @@ namespace ObjectScript
 			void initTableProperties(Table * dst, Table * src);
 
 			Property * setTableValue(Table * table, const PropertyIndex& index, Value val);
-			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool prototype_enabled, bool setter_enabled);
-			void setPropertyValue(Value table_value, const PropertyIndex& index, Value val, bool prototype_enabled, bool setter_enabled);
+			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool setter_enabled);
+			void setPropertyValue(Value table_value, const PropertyIndex& index, Value val, bool setter_enabled);
 
 			bool getPropertyValue(Value& result, Table * table, const PropertyIndex& index);
 			bool getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled);
@@ -2442,7 +2471,8 @@ namespace ObjectScript
 		void initFunctionClass();
 		void initStringClass();
 		void initMathLibrary();
-		void initScript();
+		void initPreScript();
+		void initPostScript();
 
 	public:
 
@@ -2492,16 +2522,16 @@ namespace ObjectScript
 		void getProperty(const OS_CHAR*, bool prototype_enabled = true, bool getter_enabled = true);
 		void getProperty(const Core::String&, bool prototype_enabled = true, bool getter_enabled = true);
 		
-		void setProperty(bool prototype_enabled = true, bool setter_enabled = true);
-		void setProperty(const OS_CHAR*, bool prototype_enabled = true, bool setter_enabled = true);
-		void setProperty(const Core::String&, bool prototype_enabled = true, bool setter_enabled = true);
+		void setProperty(bool setter_enabled = true);
+		void setProperty(const OS_CHAR*, bool setter_enabled = true);
+		void setProperty(const Core::String&, bool setter_enabled = true);
 		void addProperty();
 
 		void getGlobal(const OS_CHAR*, bool prototype_enabled = true, bool getter_enabled = true);
 		void getGlobal(const Core::String&, bool prototype_enabled = true, bool getter_enabled = true);
 
-		void setGlobal(const OS_CHAR*, bool prototype_enabled = true, bool setter_enabled = true);
-		void setGlobal(const Core::String&, bool prototype_enabled = true, bool setter_enabled = true);
+		void setGlobal(const OS_CHAR*, bool setter_enabled = true);
+		void setGlobal(const Core::String&, bool setter_enabled = true);
 
 		void getPrototype();
 		void setPrototype();
