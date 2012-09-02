@@ -4401,6 +4401,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 	Expression * params = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_ARRAY, recent_token);
 	params->ret_values = 1;
 	readToken();
+	if(recent_token && recent_token->type == Tokenizer::END_ARRAY_BLOCK){
+		readToken();
+		return params;
+	}
 	Params p = Params().setAllowBinaryOperator(true);
 	for(;;){
 		Expression * exp = expectSingleExpression(scope, p);

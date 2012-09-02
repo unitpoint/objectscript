@@ -266,3 +266,6 @@ print("round(2)" transform(a function(a){ return Math.round(a, 2) }))
 print("sin" transform(a Math.sin))
 print("cos" transform(a Math.cos))
 print("tan" transform(a Math.tan))
+
+_E = extends _E Math
+print("round(3)" transform(a function(a){ return round(a, 3) }))

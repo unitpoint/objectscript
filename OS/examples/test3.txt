@@ -1,6 +1,6 @@
 
 [FILE] test3.os
-[2] print(5 " differences")
+[2] print([] 5 " differences")
 
 begin function
   begin locals, total 48
@@ -19,11 +19,14 @@ begin function
   end locals
   begin call
     get env var print
-    begin params 2
+    begin params 3
+      begin array 0
+      end array
+      ,
       push const number 5
       ,
       push const string " differences"
-    end params ret values 2
+    end params ret values 3
   end call ret values 0
 
 
@@ -2397,14 +2400,7 @@ begin function
               end typeof
               push const string "array"
             end logic ===
-            begin array 1
-              begin set auto index
-                begin params 2
-                  nop
-                  ,
-                  const null
-                end params ret values 1
-              end set auto index
+            begin array 0
             end array
           end logic &&
           begin object 0
@@ -2709,6 +2705,49 @@ begin function
             get env var Math
             push const string "tan"
           end get property ret values 1
+        end params ret values 2
+      end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[270] _E = extends _E Math
+
+  begin set local var
+    begin extends
+      get local var _E (0 0)
+      get env var Math
+    end extends ret values 1
+  end set local var _E (0 0)
+
+
+[271] print("round(3)" transform(a function(a){ return round(a, 3) }))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "round(3)"
+      ,
+      begin call
+        get local var transform (47 0)
+        begin params 2
+          get local var a (46 0)
+          ,
+          begin function
+            begin locals, total 3
+              0 a (param)
+              1 _E
+              2 _G
+            end locals
+            begin tail call
+              get env var round
+              begin params 2
+                get local var a (0 0 param)
+                ,
+                push const number 3
+              end params ret values 2
+            end tail call
+          end function
         end params ret values 2
       end call ret values 1
     end params ret values 2
