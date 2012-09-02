@@ -118,7 +118,6 @@ var Person = {
         return this.firstname .. " " .. this.lastname
     }
 }
-
 // create new instance of Person class
 var p = Person("James", "Bond")
 p.walk()

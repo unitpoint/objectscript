@@ -95,7 +95,6 @@
 // #define OS_INFINITE_LOOP_OPCODES 100000000
 
 #define OS_CALL_STACK_MAX_SIZE 200
-#define OS_RESERVE_STACK_SIZE 32
 
 #define OS_VERSION OS_TEXT("0.91-vm2")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
@@ -256,6 +255,9 @@ namespace ObjectScript
 
 			struct CachedBlock
 			{
+#ifdef OS_DEBUG
+				int mark;
+#endif
 				Page * page;
 				CachedBlock * next;
 			};
@@ -271,6 +273,9 @@ namespace ObjectScript
 				MemBlock * dbg_mem_next;
 #endif
 				int block_size;
+#ifdef OS_DEBUG
+				int mark;
+#endif
 			};
 
 			struct StdMemBlock
@@ -283,6 +288,9 @@ namespace ObjectScript
 				StdMemBlock * dbg_mem_next;
 #endif
 				int block_size;
+#ifdef OS_DEBUG
+				int mark;
+#endif
 			};
 
 			enum {
@@ -378,6 +386,11 @@ namespace ObjectScript
 				return buf[i];
 			}
 
+			T& lastElement()
+			{
+				OS_ASSERT(count > 0);
+				return buf[count-1];
+			}
 			const T& lastElement() const
 			{
 				OS_ASSERT(count > 0);
@@ -1206,12 +1219,11 @@ namespace ObjectScript
 			struct GCFunctionValue;
 
 			struct WeakRef { WeakRef(){} };
-			struct ValueData
+			struct Value
 			{
 				union {
 					int boolean;
 					OS_FLOAT number;
-					// StringData * string;
 					int value_id;
 					GCValue * value;
 					GCObjectValue * object;
@@ -1223,16 +1235,15 @@ namespace ObjectScript
 
 				OS_EValueType type;
 
-				ValueData();
-				ValueData(bool);
-				ValueData(OS_FLOAT);
-				ValueData(int);
-				ValueData(int, const WeakRef&);
-				// ValueData(const ValueData&);
-				ValueData(GCValue*);
+				Value();
+				Value(bool);
+				Value(OS_INT);
+				Value(OS_FLOAT);
+				Value(int);
+				Value(int, const WeakRef&);
+				Value(GCValue*);
 
-				// ValueData& operator=(const ValueData&);
-				ValueData& operator=(GCValue*);
+				Value& operator=(GCValue*);
 				
 				void clear();
 
@@ -1242,9 +1253,9 @@ namespace ObjectScript
 				bool isUserData() const;
 			};
 
-			struct ValueDataRetained: public ValueData
+			struct ValueDataRetained: public Value
 			{
-				typedef ValueData super;
+				typedef Value super;
 
 				ValueDataRetained();
 				ValueDataRetained(bool);
@@ -1252,10 +1263,10 @@ namespace ObjectScript
 				ValueDataRetained(int);
 				ValueDataRetained(int, const WeakRef&);
 				ValueDataRetained(GCValue*);
-				ValueDataRetained(const ValueData&);
+				ValueDataRetained(Value);
 				~ValueDataRetained();
 
-				ValueDataRetained& operator=(ValueData&);
+				ValueDataRetained& operator=(Value);
 				
 				void clear();
 
@@ -1284,18 +1295,17 @@ namespace ObjectScript
 					KeepStringIndex(){}
 				};
 
-				ValueData index;
+				Value index;
 
 				PropertyIndex(const PropertyIndex& index);
-				PropertyIndex(const ValueData& index);
-				PropertyIndex(const ValueData& index, const KeepStringIndex&);
+				PropertyIndex(Value index);
+				PropertyIndex(Value index, const KeepStringIndex&);
 				PropertyIndex(GCStringValue * index);
 				PropertyIndex(GCStringValue * index, const KeepStringIndex&);
 				PropertyIndex(const String& index);
 				PropertyIndex(const String& index, const KeepStringIndex&);
-				// ~PropertyIndex();
 
-				void convertStringToNumber();
+				void convertIndexStringToNumber();
 
 				bool isEqual(const PropertyIndex& b) const;
 				bool isEqual(int hash, const void * b, int size) const;
@@ -1305,14 +1315,14 @@ namespace ObjectScript
 
 			struct Property: public PropertyIndex
 			{
-				ValueData value;
+				Value value;
 
 				Property * hash_next;
 				Property * prev, * next;
 
 				Property(const PropertyIndex& index);
-				Property(const ValueData& index);
-				Property(const ValueData& index, const KeepStringIndex&);
+				Property(Value index);
+				Property(Value index, const KeepStringIndex&);
 				Property(GCStringValue * index);
 				Property(GCStringValue * index, const KeepStringIndex&);
 				~Property();
@@ -2006,7 +2016,7 @@ namespace ObjectScript
 				int ref_count;
 				int gc_time;
 
-				ValueData * locals;
+				Value * locals;
 				int num_locals;
 
 				bool is_stack_locals;
@@ -2182,22 +2192,22 @@ namespace ObjectScript
 
 			GCObjectValue * prototypes[PROTOTYPE_COUNT];
 
-			// Vector<ValueData> stack_values;
+			// Vector<Value> stack_values;
 			struct StackValues {
-				ValueData * buf;
+				Value * buf;
 				int capacity;
 				int count;
 
 				StackValues();
 				~StackValues();
 
-				ValueData& operator[](int i)
+				Value& operator[](int i)
 				{
 					OS_ASSERT(i >= 0 && i < count);
 					return buf[i];
 				}
 
-				ValueData& lastElement()
+				Value& lastElement()
 				{
 					OS_ASSERT(count > 0);
 					return buf[count-1];
@@ -2206,7 +2216,7 @@ namespace ObjectScript
 
 			void reserveStackValues(int new_capacity);
 
-			Vector<StackFunction*> call_stack_funcs;
+			Vector<StackFunction> call_stack_funcs;
 
 			GCValue * gc_grey_list_first;
 			bool gc_grey_root_initialized;
@@ -2234,7 +2244,7 @@ namespace ObjectScript
 			void gcInitGreyList();
 			void gcResetGreyList();
 			void gcAddToGreyList(GCValue*);
-			void gcAddToGreyList(ValueData&);
+			void gcAddToGreyList(Value);
 			void gcRemoveFromGreyList(GCValue*);
 			void gcMarkProgram(Program * prog);
 			void gcMarkTable(Table * table);
@@ -2250,7 +2260,7 @@ namespace ObjectScript
 			void gcFinishMarkPhase();
 			void gcFull();
 
-			void clearValue(ValueData&);
+			void clearValue(Value&);
 			void clearValue(GCValue*);
 			void deleteValue(GCValue*);
 
@@ -2264,11 +2274,11 @@ namespace ObjectScript
 			// Upvalues * newUpvalues(int num_parents);
 			void releaseUpvalues(Upvalues*);
 			void deleteUpvalues(Upvalues*);
-			void deleteStackFunction(StackFunction*);
+			void clearStackFunction(StackFunction*);
 
 			// GCValue * newValue();
-			// ValueData newBoolValue(bool);
-			// ValueData newNumberValue(OS_FLOAT);
+			// Value newBoolValue(bool);
+			// Value newNumberValue(OS_FLOAT);
 
 			GCStringValue * newStringValue(const String&);
 			GCStringValue * newStringValue(const String&, const String&);
@@ -2293,12 +2303,12 @@ namespace ObjectScript
 			GCObjectValue * newObjectValue(GCValue * prototype);
 			GCObjectValue * newArrayValue();
 
-			template<class T> T * pushValue(T * val){ pushValueData(ValueData(val)); return val; }
+			template<class T> T * pushValue(T * val){ pushValue(Value(val)); return val; }
 
-			void pushValueData(const ValueData val);
+			void pushValue(Value val);
 			void pushStackValue(int offs);
 			void copyValue(int raw_from, int raw_to);
-			void insertValue(const ValueData val, int offs);
+			void insertValue(Value val, int offs);
 			void pushNull();
 			void pushTrue();
 			void pushFalse();
@@ -2316,28 +2326,28 @@ namespace ObjectScript
 			GCObjectValue * pushObjectValue(GCValue * prototype);
 			GCObjectValue * pushArrayValue();
 
-			void pushTypeOf(const ValueData& val);
-			bool pushNumberOf(const ValueData& val);
-			bool pushStringOf(const ValueData& val);
-			bool pushValueOf(const ValueData& val);
-			GCObjectValue * pushArrayOf(ValueData& val);
-			GCObjectValue * pushObjectOf(ValueData& val);
-			GCUserDataValue * pushUserDataOf(ValueData& val);
-			bool pushFunctionOf(ValueData& val);
+			void pushTypeOf(Value val);
+			bool pushNumberOf(Value val);
+			bool pushStringOf(Value val);
+			bool pushValueOf(Value val);
+			GCObjectValue * pushArrayOf(Value val);
+			GCObjectValue * pushObjectOf(Value val);
+			GCUserDataValue * pushUserDataOf(Value val);
+			bool pushFunctionOf(Value val);
 
-			void pushCloneValue(ValueData& val);
+			void pushCloneValue(Value val);
 
 			// unary operator
-			void pushOpResultValue(int opcode, ValueData& value);
+			void pushOpResultValue(int opcode, Value value);
 
 			// binary operator
-			void pushOpResultValue(int opcode, ValueData& left_value, ValueData& right_value);
+			void pushOpResultValue(int opcode, Value left_value, Value right_value);
 
-			void setGlobalValue(const String& name, ValueData& value, bool prototype_enabled, bool setter_enabled);
-			void setGlobalValue(const OS_CHAR * name, ValueData& value, bool prototype_enabled, bool setter_enabled);
+			void setGlobalValue(const String& name, Value value, bool prototype_enabled, bool setter_enabled);
+			void setGlobalValue(const OS_CHAR * name, Value value, bool prototype_enabled, bool setter_enabled);
 
 			int getStackOffs(int offs);
-			ValueData getStackValue(int offs);
+			Value getStackValue(int offs);
 
 			void removeStackValues(int offs, int count);
 			void removeStackValue(int offs = -1);
@@ -2352,40 +2362,40 @@ namespace ObjectScript
 			GCValue * unregisterValue(int value_id);
 			void deleteValues(bool del_ref_counted_also);
 
-			bool valueToBool(const ValueData& val);
-			OS_INT valueToInt(const ValueData& val, bool valueof_enabled = false);
-			OS_FLOAT valueToNumber(const ValueData& val, bool valueof_enabled = false);
-			String valueToString(const ValueData& val, bool valueof_enabled = false);
+			bool valueToBool(Value val);
+			OS_INT valueToInt(Value val, bool valueof_enabled = false);
+			OS_FLOAT valueToNumber(Value val, bool valueof_enabled = false);
+			String valueToString(Value val, bool valueof_enabled = false);
 
-			bool isValueNumber(const ValueData& val, OS_FLOAT * out = NULL);
-			bool isValueString(const ValueData& val, String * out = NULL);
-			bool isValueString(const ValueData& val, OS::String * out = NULL);
+			bool isValueNumber(Value val, OS_FLOAT * out = NULL);
+			bool isValueString(Value val, String * out = NULL);
+			bool isValueString(Value val, OS::String * out = NULL);
 			bool isValueInstanceOf(GCValue * val, GCValue * prototype_val);
-			bool isValueInstanceOf(const ValueData& val, const ValueData& prototype_val);
+			bool isValueInstanceOf(Value val, Value prototype_val);
 
 			Table * newTable(OS_DBG_FILEPOS_START_DECL);
 			void deleteTable(Table*);
 			void addTableProperty(Table * table, Property * prop);
 			bool deleteTableProperty(Table * table, const PropertyIndex& index);
 			void deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
-			void deleteValueProperty(ValueData& table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
+			void deleteValueProperty(Value table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
 			void reorderTableNumericKeys(Table * table);
 			void reorderTableKeys(Table * table);
 			void initTableProperties(Table * dst, Table * src);
 
-			Property * setTableValue(Table * table, PropertyIndex& index, ValueData& val);
-			void setPropertyValue(GCValue * table_value, PropertyIndex& index, ValueData& val, bool prototype_enabled, bool setter_enabled);
-			void setPropertyValue(ValueData& table_value, PropertyIndex& index, ValueData& val, bool prototype_enabled, bool setter_enabled);
+			Property * setTableValue(Table * table, const PropertyIndex& index, Value val);
+			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool prototype_enabled, bool setter_enabled);
+			void setPropertyValue(Value table_value, const PropertyIndex& index, Value val, bool prototype_enabled, bool setter_enabled);
 
-			bool getPropertyValue(ValueData& result, Table * table, const PropertyIndex& index);
-			bool getPropertyValue(ValueData& result, GCValue * table_value, PropertyIndex& index, bool prototype_enabled);
-			bool getPropertyValue(ValueData& result, ValueData& table_value, PropertyIndex& index, bool prototype_enabled);
+			bool getPropertyValue(Value& result, Table * table, const PropertyIndex& index);
+			bool getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled);
+			bool getPropertyValue(Value& result, Value table_value, const PropertyIndex& index, bool prototype_enabled);
 
-			void pushPropertyValue(GCValue * table_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
-			void pushPropertyValue(ValueData& table_value, PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
+			void pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
+			void pushPropertyValue(Value table_value, const PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
 
-			void setPrototype(const ValueData& val, const ValueData& proto);
-			void pushPrototype(const ValueData& val);
+			void setPrototype(Value val, Value proto);
+			void pushPrototype(Value val);
 
 			void enterFunction(GCFunctionValue * func_value, GCValue * self, int params, int extra_remove_from_stack, int need_ret_values);
 			int leaveFunction();
