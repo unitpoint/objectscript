@@ -3,7 +3,6 @@
 
 /******************************************************************************
 * Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
-* Copyright (C) 2012 unitpoint.com (support@unitpoint.ru)
 *
 * Latest source code: https://github.com/unitpoint/objectscript
 *
@@ -40,7 +39,10 @@
 #include <stdlib.h>
 
 #define OS_ASSERT assert
-#define OS_DEBUG _DEBUG
+
+#ifdef _DEBUG
+#define OS_DEBUG
+#endif
 
 #define OS_MEMCMP memcmp
 #define OS_MEMMOVE memmove
@@ -70,15 +72,13 @@
 
 #define OS_TEXT(s) s
 
-#define OS_DEF_VAR_HASH_SIZE 4
-#define OS_DEF_VALUES_HASH_SIZE 16
-
 #define OS_AUTO_PRECISION 20
-#define OS_DEF_PRECISION OS_AUTO_PRECISION
 
 #define OS_DEF_FMT_BUF_SIZE 1024*10
 
-#define OS_INFINITE_LOOP_OPCODES 10000000000
+// uncomment it if need
+// #define OS_INFINITE_LOOP_OPCODES 100000000
+
 #define OS_CALL_STACK_MAX_SIZE 200
 #define OS_RESERVE_STACK_SIZE 32
 
@@ -93,8 +93,6 @@
 #define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
 
 #define OS_DEBUGGER_SAVE_NUM_LINES 11
-
-#define FUNC_VAL_ONE_PARENT
 
 namespace ObjectScript
 {
@@ -139,18 +137,14 @@ namespace ObjectScript
 		OS_GC_PHASE_SWEEP,
 	};
 
-	enum OS_EFatalError
-	{
-		OS_FATAL_ERROR_OPCODE,
-	};
-
 	enum
 	{
 		OS_WARNING	= 1<<0,
 		OS_ERROR	= 1<<1
 	};
 
-	enum OS_EOpcode {
+	enum OS_EOpcode
+	{
 		// binary operators
 
 		OP_LOGIC_PTR_EQ,	// ===
@@ -216,7 +210,6 @@ namespace ObjectScript
 			virtual void * malloc(int size) = 0;
 			virtual void free(void * p) = 0;
 
-			virtual int getPointerSize(void * p) = 0;
 			virtual int getAllocatedBytes() = 0;
 			virtual int getMaxAllocatedBytes() = 0;
 			virtual int getCachedBytes() = 0;
@@ -291,7 +284,6 @@ namespace ObjectScript
 			void * malloc(int size);
 			void free(void * p);
 
-			int getPointerSize(void * p);
 			int getAllocatedBytes();
 			int getMaxAllocatedBytes();
 			int getCachedBytes();
@@ -312,7 +304,6 @@ namespace ObjectScript
 			static int keyToHash(const void * buf1, int size1, const void * buf2, int size2);
 
 			static int cmp(const void * buf1, int len1, const void * buf2, int len2);
-			static int cmp(const void * buf1, int len1, const void * buf2, int len2, int maxLen);
 		};
 
 	protected:
@@ -449,9 +440,7 @@ namespace ObjectScript
 		template<class T> void vectorInsertAtIndex(Vector<T>& vec, int i, const T& val)
 		{
 			OS_ASSERT(i >= 0 && i <= vec.count);
-			if(vec.count+1 >= vec.capacity){
-				vectorReserveCapacity(vec, vec.capacity > 0 ? vec.capacity*2 : 4);
-			}
+			vectorReserveCapacity(vec, vec.count+1);
 			for(int j = vec.count-1; j >= i; j--){
 				new (vec.buf+j+1) T(vec.buf[j]);
 				vec.buf[j].~T();
@@ -479,6 +468,7 @@ namespace ObjectScript
 				OS_ASSERT(obj->ref_count == 0);
 				obj->~T();
 				free(obj);
+				obj = NULL;
 			}
 		}
 
@@ -675,7 +665,7 @@ namespace ObjectScript
 				void * readBytesAtPos(void*, int len, int pos);
 			};
 
-			class GCStringValue;
+			struct GCStringValue;
 			class StringBuffer;
 			class String
 			{
@@ -697,7 +687,7 @@ namespace ObjectScript
 				String(OS*, const void * buf1, int len1, const void * buf2, int len2);
 				// String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 				String(OS*, OS_INT value);
-				String(OS*, OS_FLOAT value, int precision);
+				String(OS*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
 				~String();
 
 				static String format(OS*, int temp_buf_size, const OS_CHAR * fmt, ...);
@@ -756,6 +746,7 @@ namespace ObjectScript
 				StringBuffer& append(const StringBuffer&);
 
 				StringBuffer& operator+=(const String&);
+				StringBuffer& operator+=(const OS_CHAR*);
 
 				operator String() const;
 				String toString() const;
@@ -881,11 +872,11 @@ namespace ObjectScript
 				{
 				protected:
 
-					OS * allocator;
 					~TextData();
 
 				public:
 
+					OS * allocator;
 					String filename;
 					Vector<String> lines;
 
@@ -893,8 +884,6 @@ namespace ObjectScript
 
 					TextData(OS*);
 
-					OS * getAllocator();
-					
 					TextData * retain();
 					void release();
 				};
@@ -910,7 +899,6 @@ namespace ObjectScript
 						// OS_FLOAT * vec3;
 						// OS_FLOAT * vec4;
 					};
-					TokenType type;
 
 					~TokenData();
 
@@ -921,9 +909,9 @@ namespace ObjectScript
 					String str;
 					int line, pos;
 					int ref_count;
+					TokenType type;
 
 					OS * getAllocator() const;
-					TokenType getType() const { return type; }
 
 					OS_FLOAT getFloat() const;
 
@@ -934,7 +922,7 @@ namespace ObjectScript
 
 					void setFloat(OS_FLOAT value);
 
-					operator const String& () const { return str; }
+					operator String () const { return str; }
 
 					bool isTypeOf(TokenType tokenType) const;
 				};
@@ -976,7 +964,7 @@ namespace ObjectScript
 
 				TokenData * addToken(const String& token, TokenType type, int line, int pos);
 
-				TokenType parseNum(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces);
+				bool parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces);
 				bool parseLines();
 
 			public:
@@ -984,15 +972,8 @@ namespace ObjectScript
 				Tokenizer(OS*);
 				~Tokenizer();
 
-				// void reset();
-
 				OS * getAllocator();
 				TextData * getTextData() const { return text_data; }
-
-				// bool isLoaded() const { return loaded; }
-
-				// bool isCompiled() const { return compiled; }
-				// void setCompiled(bool value){ compiled = value; }
 
 				bool isError() const { return error != ERROR_NOTHING; }
 				Error getErrorCode() const { return error; }
@@ -1036,8 +1017,7 @@ namespace ObjectScript
 				Property ** heads;
 				int head_mask;
 				int count;
-
-				OS_INT next_id;
+				OS_INT next_index;
 
 				Property * first, * last;
 				IteratorState * iterators;
@@ -1052,6 +1032,13 @@ namespace ObjectScript
 				void removeIterator(IteratorState*);
 			};
 
+			enum EGCColor
+			{
+				GC_WHITE,
+				GC_GREY,
+				GC_BLACK
+			};
+
 			struct GCValue
 			{
 				int value_id;
@@ -1059,18 +1046,15 @@ namespace ObjectScript
 				GCValue * prototype;
 				GCValue * hash_next;
 
+				Table * table;
+
 				// Value * gc_grey_prev;
 				GCValue * gc_grey_next;
 
-				Table * table;
-
 				OS_EValueType type;
+				bool is_object_instance;
 
-				enum {
-					GC_WHITE,
-					GC_GREY,
-					GC_BLACK
-				} gc_color;
+				EGCColor gc_color;
 
 				GCValue();
 				virtual ~GCValue();
@@ -1234,7 +1218,7 @@ namespace ObjectScript
 				void release();
 			};
 
-			struct Program;
+			class Program;
 			struct FunctionDecl;
 			struct FunctionRunningInstance;
 			struct GCFunctionValue: public GCValue
@@ -1331,6 +1315,7 @@ namespace ObjectScript
 					EXP_TYPE_OBJECT_SET_BY_EXP,
 					EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX,
 
+					EXP_TYPE_SUPER,
 					EXP_TYPE_TYPE_OF,
 					EXP_TYPE_VALUE_OF,
 					// EXP_TYPE_BOOLEAN_OF, == EXP_TYPE_LOGIC_BOOL
@@ -1784,6 +1769,9 @@ namespace ObjectScript
 					~LocalVar();
 				};
 
+#ifdef OS_DEBUG
+				int func_index;
+#endif
 				int parent_func_index;
 				LocalVar * locals;
 				int num_locals;
@@ -1819,6 +1807,7 @@ namespace ObjectScript
 
 					OP_PUSH_FUNCTION,
 
+					OP_PUSH_NEW_ARRAY,
 					OP_PUSH_NEW_OBJECT,
 					OP_OBJECT_SET_BY_AUTO_INDEX,
 					OP_OBJECT_SET_BY_EXP,
@@ -1905,6 +1894,8 @@ namespace ObjectScript
 
 					OP_LOGIC_BOOL,
 					OP_LOGIC_NOT,
+
+					OP_SUPER,
 
 					OP_TYPE_OF,
 					OP_VALUE_OF,
@@ -2013,8 +2004,8 @@ namespace ObjectScript
 
 			struct Strings
 			{
-				String __constructor;
-				// String __destructor;
+				String __construct;
+				// String __destruct;
 				String __get;
 				String __set;
 				String __del;
@@ -2063,6 +2054,7 @@ namespace ObjectScript
 				String typeof_userdata;
 				String typeof_function;
 
+				String syntax_super;
 				String syntax_typeof;
 				String syntax_valueof;
 				String syntax_booleanof;
@@ -2354,8 +2346,6 @@ namespace ObjectScript
 		Core::String changeFilenameExt(const OS_CHAR * filename, const OS_CHAR * ext);
 		Core::String getFilenameExt(const OS_CHAR * filename);
 
-		int getPointerSize(void * p);
-
 		void initGlobalFunctions();
 		void initObjectClass();
 		void initArrayClass();
@@ -2366,7 +2356,7 @@ namespace ObjectScript
 
 	public:
 
-		class String: public Core::String
+		class String: public Core::String // this string retains OS
 		{
 			typedef Core::String super;
 
@@ -2386,7 +2376,7 @@ namespace ObjectScript
 			String(OS*, const void * buf1, int len1, const void * buf2, int len2);
 			// String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 			String(OS*, OS_INT value);
-			String(OS*, OS_FLOAT value, int precision);
+			String(OS*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
 			~String();
 
 			String& operator=(const Core::String&);

@@ -212,12 +212,12 @@ int _tmain(int argc, _TCHAR* argv[])
 	OS * os = OS::create();
 
 	if(argc < 2){
-		printf("ObjctScript " OS_VERSION " Copyright (C) 2012 Evgeniy Golovin\n");
+		printf("ObjctScript " OS_VERSION " Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)\n");
 		printf("Latest version and source code: https://github.com/unitpoint/objectscript\n");
 		printf("\n");
 		printf("Usage: %s script [args]\n", getString(os, argv[0]).toChar());
 
-		os->release();
+		// os->release();
 		exit(1);
 	}
 
@@ -240,7 +240,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	os->pushCFunction(OS_getTimeSec);
 	os->setGlobal("getTimeSec");
 
-	os->run(argc >= 2 && argv[1] ? getString(os, argv[1]) : "test-data/test_fannkuch.os");
+	os->run(getString(os, argv[1])); // argc >= 2 && argv[1] ? getString(os, argv[1]) : "test-data/test3.os");
 	exit(1);
 	// os->eval("print arg");
 	{
