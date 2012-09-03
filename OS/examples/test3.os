@@ -259,17 +259,24 @@ var transform = function(a f){
 }
 a = transform(a function(a){ return a*100 })
 print("mult 100" a)
-print("ceil" transform(a math.ceil))
-print("floor" transform(a math.floor))
-print("round(-1)" transform(a function(a){ return math.round(a, -1) }))
-print("round(2)" transform(a function(a){ return math.round(a, 2) }))
-print("sin" transform(a math.sin))
-print("cos" transform(a math.cos))
-print("tan" transform(a math.tan))
+print("math.ceil" transform(a math.ceil))
+print("math.floor" transform(a math.floor))
+print("math.round(-1)" transform(a function(a){ return math.round(a, -1) }))
+print("math.round(2)" transform(a function(a){ return math.round(a, 2) }))
+print("math.sin" transform(a math.sin))
+print("math.cos" transform(a math.cos))
+print("math.tan" transform(a math.tan))
 
 _E = extends _E math
+print "Extend local environment to be able to use math module without namespace"
 print("round(3)" transform(a function(a){ return round(a, 3) }))
 print("PI" PI)
 
-require "core"
-print eval("return math.round(13.5)")
+var core = require("core")
+print("core.eval(math.round(13.5))" core.eval("return math.round(13.5)"))
+print("eval(math.round(13.5))" eval("return math.round(13.5)"))
+print("==============")
+print("Next: math namespace is not used\neval executes code in global environment by default\nso eval(round(13.5))" eval("return round(13.5)"))
+print("run eval in space of the current environment (round(13.5))" eval("return round(13.5)", _E))
+
+print _G

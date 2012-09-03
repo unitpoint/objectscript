@@ -1281,20 +1281,20 @@ namespace ObjectScript
 				bool isUserData() const;
 			};
 
-			struct ValueDataRetained: public Value
+			struct ValueRetained: public Value
 			{
 				typedef Value super;
 
-				ValueDataRetained();
-				ValueDataRetained(bool);
-				ValueDataRetained(OS_FLOAT);
-				ValueDataRetained(int);
-				ValueDataRetained(int, const WeakRef&);
-				ValueDataRetained(GCValue*);
-				ValueDataRetained(Value);
-				~ValueDataRetained();
+				ValueRetained();
+				ValueRetained(bool);
+				ValueRetained(OS_FLOAT);
+				ValueRetained(int);
+				ValueRetained(int, const WeakRef&);
+				ValueRetained(GCValue*);
+				ValueRetained(Value);
+				~ValueRetained();
 
-				ValueDataRetained& operator=(Value);
+				ValueRetained& operator=(Value);
 				
 				void clear();
 
@@ -2218,6 +2218,7 @@ namespace ObjectScript
 			int num_destroyed_values;
 
 			Table * string_values_table;
+			GCObjectValue * check_recursion;
 			GCObjectValue * global_vars;
 			GCObjectValue * user_pool;
 
@@ -2434,6 +2435,7 @@ namespace ObjectScript
 			bool isValueInstanceOf(Value val, Value prototype_val);
 
 			Table * newTable(OS_DBG_FILEPOS_START_DECL);
+			void clearTable(Table*);
 			void deleteTable(Table*);
 			void addTableProperty(Table * table, Property * prop);
 			bool deleteTableProperty(Table * table, const PropertyIndex& index);
@@ -2494,6 +2496,8 @@ namespace ObjectScript
 		Core::String getFilenamePath(const OS_CHAR * filename);
 		Core::String getFilenamePath(const OS_CHAR * filename, int len);
 
+		Core::String resolvePath(const Core::String& filename);
+		Core::String resolvePath(const Core::String& filename, const Core::String& paths);
 		Core::String resolvePath(const Core::String& filename, const Core::String& cur_path, const Core::String& paths);
 
 		void initGlobalFunctions();

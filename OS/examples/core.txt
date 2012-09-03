@@ -486,7 +486,7 @@ begin function
 
   begin code list
     begin return
-      get env var _E
+      get local var _E (0 0)
     end return values 1
   end code list ret values 0
 end function

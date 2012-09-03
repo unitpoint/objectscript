@@ -3,7 +3,7 @@
 [2] print(5 " differences")
 
 begin function
-  begin locals, total 48
+  begin locals, total 49
     0 _E
     1 _G
     35 Person
@@ -16,6 +16,7 @@ begin function
     42 v3
     46 a
     47 transform
+    48 core
   end locals
   begin call
     get env var print
@@ -2189,7 +2190,7 @@ begin function
           get env var print
           begin params 1
             begin debug locals
-              begin object 10
+              begin object 11
                 begin set by name
                   get local var Person (35 1)
                 end set by name: [Person]
@@ -2221,6 +2222,10 @@ begin function
                 begin set by name
                   get local var transform (47 1)
                 end set by name: [transform]
+                ,
+                begin set by name
+                  get local var core (48 1)
+                end set by name: [core]
                 ,
                 begin set by name
                   get local var a (0 0 param)
@@ -2507,12 +2512,12 @@ begin function
   end call ret values 0
 
 
-[262] print("ceil" transform(a math.ceil))
+[262] print("math.ceil" transform(a math.ceil))
 
   begin call
     get env var print
     begin params 2
-      push const string "ceil"
+      push const string "math.ceil"
       ,
       begin call
         get local var transform (47 0)
@@ -2529,12 +2534,12 @@ begin function
   end call ret values 0
 
 
-[263] print("floor" transform(a math.floor))
+[263] print("math.floor" transform(a math.floor))
 
   begin call
     get env var print
     begin params 2
-      push const string "floor"
+      push const string "math.floor"
       ,
       begin call
         get local var transform (47 0)
@@ -2551,12 +2556,12 @@ begin function
   end call ret values 0
 
 
-[264] print("round(-1)" transform(a function(a){ return math.round(a, -1) }))
+[264] print("math.round(-1)" transform(a function(a){ return math.round(a, -1) }))
 
   begin call
     get env var print
     begin params 2
-      push const string "round(-1)"
+      push const string "math.round(-1)"
       ,
       begin call
         get local var transform (47 0)
@@ -2588,12 +2593,12 @@ begin function
   end call ret values 0
 
 
-[265] print("round(2)" transform(a function(a){ return math.round(a, 2) }))
+[265] print("math.round(2)" transform(a function(a){ return math.round(a, 2) }))
 
   begin call
     get env var print
     begin params 2
-      push const string "round(2)"
+      push const string "math.round(2)"
       ,
       begin call
         get local var transform (47 0)
@@ -2623,12 +2628,12 @@ begin function
   end call ret values 0
 
 
-[266] print("sin" transform(a math.sin))
+[266] print("math.sin" transform(a math.sin))
 
   begin call
     get env var print
     begin params 2
-      push const string "sin"
+      push const string "math.sin"
       ,
       begin call
         get local var transform (47 0)
@@ -2645,12 +2650,12 @@ begin function
   end call ret values 0
 
 
-[267] print("cos" transform(a math.cos))
+[267] print("math.cos" transform(a math.cos))
 
   begin call
     get env var print
     begin params 2
-      push const string "cos"
+      push const string "math.cos"
       ,
       begin call
         get local var transform (47 0)
@@ -2667,12 +2672,12 @@ begin function
   end call ret values 0
 
 
-[268] print("tan" transform(a math.tan))
+[268] print("math.tan" transform(a math.tan))
 
   begin call
     get env var print
     begin params 2
-      push const string "tan"
+      push const string "math.tan"
       ,
       begin call
         get local var transform (47 0)
@@ -2699,7 +2704,17 @@ begin function
   end set local var _E (0 0)
 
 
-[271] print("round(3)" transform(a function(a){ return round(a, 3) }))
+[271] print "Extend local environment to be able to use math module without namespace"
+
+  begin call
+    get env var print
+    begin params 1
+      push const string "Extend local environment to be able to use math module without namespace"
+    end params ret values 1
+  end call ret values 0
+
+
+[272] print("round(3)" transform(a function(a){ return round(a, 3) }))
 
   begin call
     get env var print
@@ -2732,7 +2747,7 @@ begin function
   end call ret values 0
 
 
-[272] print("PI" PI)
+[273] print("PI" PI)
 
   begin call
     get env var print
@@ -2744,33 +2759,114 @@ begin function
   end call ret values 0
 
 
-[274] require "core"
+[275] var core = require("core")
 
-  begin call
-    get env var require
-    begin params 1
-      push const string "core"
-    end params ret values 1
-  end call ret values 0
+  begin set local var
+    begin call
+      get env var require
+      begin params 1
+        push const string "core"
+      end params ret values 1
+    end call ret values 1
+  end set local var core (48 0)
 
 
-[275] print eval("return math.round(13.5)")
+[276] print("core.eval(math.round(13.5))" core.eval("return math.round(13.5)"))
 
   begin call
     get env var print
-    begin params 1
+    begin params 2
+      push const string "core.eval(math.round(13.5))"
+      ,
+      begin call method
+        get local var core (48 0)
+        begin params 2
+          push const string "eval"
+          ,
+          push const string "return math.round(13.5)"
+        end params ret values 2
+      end call method ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[277] print("eval(math.round(13.5))" eval("return math.round(13.5)"))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "eval(math.round(13.5))"
+      ,
       begin call
         get env var eval
         begin params 1
           push const string "return math.round(13.5)"
         end params ret values 1
       end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[278] print("==============")
+
+  begin call
+    get env var print
+    begin params 1
+      push const string "=============="
+    end params ret values 1
+  end call ret values 0
+
+
+[279] print("Next: math namespace is not used\neval executes code in global environment by default\nso eval(round(13.5))" eval("return round(13.5)"))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "Next: math namespace is not used
+eval executes code in global environment by default
+so eval(round(13.5))"
+      ,
+      begin call
+        get env var eval
+        begin params 1
+          push const string "return round(13.5)"
+        end params ret values 1
+      end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[280] print("run eval in space of the current environment (round(13.5))" eval("return round(13.5)", _E))
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "run eval in space of the current environment (round(13.5))"
+      ,
+      begin call
+        get env var eval
+        begin params 2
+          push const string "return round(13.5)"
+          ,
+          get local var _E (0 0)
+        end params ret values 2
+      end call ret values 1
+    end params ret values 2
+  end call ret values 0
+
+
+[282] print _G
+
+  begin call
+    get env var print
+    begin params 1
+      get local var _G (1 0)
     end params ret values 1
   end call ret values 0
 
   begin code list
     begin return
-      get env var _E
+      get local var _E (0 0)
     end return values 1
   end code list ret values 0
 end function

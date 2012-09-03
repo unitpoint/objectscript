@@ -383,7 +383,7 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_INT64 a)
 
 OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, float a, int precision)
 {
-	return numToStr(dst, a, precision);
+	return numToStr(dst, (double)a, precision);
 }
 
 OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
@@ -4184,8 +4184,11 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 			Tokenizer::NAME, recent_token->line, recent_token->pos);
 
 		ExpressionList& func_exp_list = ret_values == 1 ? list[0]->list : list;
-		Expression * name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, name_token);
+		Expression * name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, name_token);
 		name_exp->ret_values = 1;
+		if(!findLocalVar(name_exp->local_var, scope, allocator->core->strings->var_env, scope->num_locals, false)){
+			OS_ASSERT(false);
+		}
 		Expression * ret_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_RETURN, recent_token, name_exp);
 		ret_exp->ret_values = 1;
 		func_exp_list.add(ret_exp);
@@ -5632,15 +5635,16 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, 
 	const Params& _p, bool& is_finished)
 {
+	TokenData * binary_operator = recent_token;
+	OS_ASSERT(binary_operator->isTypeOf(Tokenizer::BINARY_OPERATOR));
+	
 	Params p = Params(_p)
 		.setAllowAssign(false)
 		.setAllowBinaryOperator(false)
 		// .setAllowParams(false)
-		.setAllowAutoCall(false)
+		.setAllowAutoCall(false) // binary_operator->type == Tokenizer::OPERATOR_ASSIGN)
 		.setAllowRootBlocks(false);
 
-	TokenData * binary_operator = recent_token;
-	OS_ASSERT(binary_operator->isTypeOf(Tokenizer::BINARY_OPERATOR));
 	readToken();
 	Expression * exp2 = expectSingleExpression(scope, Params(p).setAllowParams(false)); // false, allow_param, false, false, false);
 	if(!exp2){
@@ -7904,7 +7908,7 @@ OS::Core::Table * OS::Core::newTable(OS_DBG_FILEPOS_START_DECL)
 	return new (malloc(sizeof(Table) OS_DBG_FILEPOS_PARAM)) Table();
 }
 
-void OS::Core::deleteTable(Table * table)
+void OS::Core::clearTable(Table * table)
 {
 	OS_ASSERT(table);
 	Property * prop = table->last, * prev;
@@ -7929,6 +7933,14 @@ void OS::Core::deleteTable(Table * table)
 	// OS_ASSERT(table->count == 0 && !table->first && !table->last);
 	free(table->heads);
 	table->heads = NULL;
+	table->head_mask = 0;
+	table->next_index = 0;
+}
+
+void OS::Core::deleteTable(Table * table)
+{
+	OS_ASSERT(table);
+	clearTable(table);
 	table->~Table();
 	free(table);
 }
@@ -8385,31 +8397,31 @@ bool OS::Core::Value::isUserData() const
 
 // =====================================================================
 
-OS::Core::ValueDataRetained::ValueDataRetained(): super()
+OS::Core::ValueRetained::ValueRetained(): super()
 {
 }
 
-OS::Core::ValueDataRetained::ValueDataRetained(bool val): super(val)
-{
-	// retain();
-}
-
-OS::Core::ValueDataRetained::ValueDataRetained(OS_FLOAT val): super(val)
+OS::Core::ValueRetained::ValueRetained(bool val): super(val)
 {
 	// retain();
 }
 
-OS::Core::ValueDataRetained::ValueDataRetained(int val): super(val)
+OS::Core::ValueRetained::ValueRetained(OS_FLOAT val): super(val)
 {
 	// retain();
 }
 
-OS::Core::ValueDataRetained::ValueDataRetained(int val, const WeakRef& wr): super(val, wr)
+OS::Core::ValueRetained::ValueRetained(int val): super(val)
 {
 	// retain();
 }
 
-OS::Core::ValueDataRetained::ValueDataRetained(GCValue * val): super(val)
+OS::Core::ValueRetained::ValueRetained(int val, const WeakRef& wr): super(val, wr)
+{
+	// retain();
+}
+
+OS::Core::ValueRetained::ValueRetained(GCValue * val): super(val)
 {
 	// retain();
 	if(val){
@@ -8417,17 +8429,17 @@ OS::Core::ValueDataRetained::ValueDataRetained(GCValue * val): super(val)
 	}
 }
 
-OS::Core::ValueDataRetained::ValueDataRetained(Value b): super(b)
+OS::Core::ValueRetained::ValueRetained(Value b): super(b)
 {
 	retain();
 }
 
-OS::Core::ValueDataRetained::~ValueDataRetained()
+OS::Core::ValueRetained::~ValueRetained()
 {
 	release();
 }
 
-OS::Core::ValueDataRetained& OS::Core::ValueDataRetained::operator=(Value b)
+OS::Core::ValueRetained& OS::Core::ValueRetained::operator=(Value b)
 {
 	release();
 	super::operator=(b);
@@ -8436,13 +8448,13 @@ OS::Core::ValueDataRetained& OS::Core::ValueDataRetained::operator=(Value b)
 }
 
 				
-void OS::Core::ValueDataRetained::clear()
+void OS::Core::ValueRetained::clear()
 {
 	release();
 	super::clear();
 }
 
-void OS::Core::ValueDataRetained::retain()
+void OS::Core::ValueRetained::retain()
 {
 	switch(type){
 	case OS_VALUE_TYPE_STRING:
@@ -8458,7 +8470,7 @@ void OS::Core::ValueDataRetained::retain()
 	}
 }
 
-void OS::Core::ValueDataRetained::release()
+void OS::Core::ValueRetained::release()
 {
 	switch(type){
 	case OS_VALUE_TYPE_STRING:
@@ -8789,8 +8801,22 @@ OS::Core::String OS::Core::valueToString(Value val, bool valueof_enabled)
 			return valueToString(stack_values.lastElement(), false);
 		}
 		*/
+		OS_ASSERT(check_recursion && check_recursion->type == OS_VALUE_TYPE_OBJECT);
+		if(++check_recursion->external_ref_count == 1 && check_recursion->table){
+			clearTable(check_recursion->table);
+		}
+		setPropertyValue(check_recursion, val, Core::Value(true), false);
 		pushValueOf(val);
-		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this};
+		struct Pop { 
+			Core * core; 
+			~Pop()
+			{ 
+				core->pop(); 
+				if(--core->check_recursion->external_ref_count == 0 && core->check_recursion->table){
+					core->clearTable(core->check_recursion->table);
+				}
+			}
+		} pop = {this};
 		return valueToString(stack_values.lastElement(), false);
 	}
 	return String(allocator);
@@ -9618,6 +9644,8 @@ OS::Core::Core(OS * p_allocator)
 	strings = NULL;
 	OS_MEMSET(prototypes, 0, sizeof(prototypes));
 	
+	string_values_table = NULL;
+	check_recursion = NULL;
 	global_vars = NULL;
 	user_pool = NULL;
 
@@ -9625,13 +9653,18 @@ OS::Core::Core(OS * p_allocator)
 	num_destroyed_values = 0;
 
 	settings.create_debug_info = false;
-	settings.create_debug_opcodes = false;
 	settings.recompile_sourcecode = false;
+#ifndef OS_DEBUG
+	settings.create_debug_opcodes = false;
+#else
+	settings.create_debug_opcodes = true;
+#endif
 
 	gcInitGreyList();
 
 	OS_MEMSET(rand_state, 0, sizeof(rand_state));
 	rand_next = NULL;
+	rand_seed = 0;
 	rand_left = 0;
 
 	/*
@@ -9646,7 +9679,7 @@ OS::Core::Core(OS * p_allocator)
 
 OS::Core::~Core()
 {
-	OS_ASSERT(!strings && !global_vars && !user_pool);
+	OS_ASSERT(!strings && !global_vars && !user_pool && !check_recursion);
 	for(int i = 0; i < PROTOTYPE_COUNT; i++){
 		OS_ASSERT(!prototypes[i]);
 	}
@@ -9708,6 +9741,7 @@ bool OS::Core::init()
 		prototypes[i] = newObjectValue(NULL);
 		prototypes[i]->type = OS_VALUE_TYPE_OBJECT;
 	}
+	check_recursion = newObjectValue();
 	global_vars = newObjectValue();
 	user_pool = newObjectValue();
 	
@@ -9749,6 +9783,7 @@ void OS::Core::shutdown()
 
 	gcResetGreyList();
 	
+	check_recursion = NULL;
 	global_vars = NULL;
 	user_pool = NULL;
 
@@ -9871,7 +9906,31 @@ OS::Core::String OS::resolvePath(const Core::String& filename, const Core::Strin
 			return filename;
 		}
 	}
+	if(getFilenameExt(filename).getLen() == 0){
+		return resolvePath(String(this, filename) + OS_SOURCECODE_EXT, cur_path, paths);
+	}
+
 	return Core::String(this);
+}
+
+OS::Core::String OS::resolvePath(const Core::String& filename, const Core::String& paths)
+{
+	Core::String cur_path(this);
+	if(core->call_stack_funcs.count > 0){
+		for(int i = core->call_stack_funcs.count-1; i >= 0; i--){
+			Core::StackFunction * stack_func = core->call_stack_funcs.buf + i;
+			if(stack_func->func->prog->filename.getLen() > 0){
+				cur_path = getFilenamePath(stack_func->func->prog->filename);
+				break;
+			}
+		}
+	}
+	return resolvePath(filename, cur_path, paths);
+}
+
+OS::Core::String OS::resolvePath(const Core::String& filename)
+{
+	return resolvePath(filename, Core::String(this));
 }
 
 void OS::Core::error(int code, const OS_CHAR * message)
@@ -10156,6 +10215,7 @@ int OS::Core::gcStep()
 		gc_time++;
 		
 		// int old_count = gc_grey_added_count;
+		gcAddToGreyList(check_recursion);
 		gcAddToGreyList(global_vars);
 		gcAddToGreyList(user_pool);
 		int i;
@@ -10470,6 +10530,9 @@ bool OS::Core::isValueUsed(GCValue * val)
 
 	} lib = {this, val};
 
+	if(lib.findAt(check_recursion)){
+		return true;
+	}
 	if(lib.findAt(global_vars)){
 		return true;
 	}
@@ -13874,6 +13937,12 @@ void OS::initGlobalFunctions()
 			os->compileFile(os->toString(-params), required);
 			return 1;
 		}
+
+		static int resolvePath(OS * os, int params, int, int, void*)
+		{
+			os->pushString(os->resolvePath((os->toString(-1))));
+			return 1;
+		}
 	};
 	Func list[] = {
 		{OS_TEXT("print"), Lib::print},
@@ -13881,6 +13950,7 @@ void OS::initGlobalFunctions()
 		{OS_TEXT("concat"), Lib::concat},
 		{OS_TEXT("compileText"), Lib::compileText},
 		{OS_TEXT("compileFile"), Lib::compileFile},
+		{OS_TEXT("resolvePath"), Lib::resolvePath},
 		{}
 	};
 	pushGlobals();
@@ -14055,6 +14125,7 @@ void OS::initObjectClass()
 					bool is_generic_array = true;
 					int need_index = 0;
 					Core::Property * prop = self->table->first;
+					Core::Value temp;
 					for(int i = 0; prop; prop = prop->next, i++, need_index++){
 						if(prop->index.type == OS_VALUE_TYPE_NUMBER && prop->index.v.number == (OS_FLOAT)need_index){
 							/* if(i > 100){
@@ -14064,6 +14135,15 @@ void OS::initObjectClass()
 							if(need_index > 0){
 								buf += OS_TEXT(",");
 							}
+
+							if(os->core->getPropertyValue(temp, os->core->check_recursion, prop->value, false)){
+								buf += OS_TEXT("<<RECURSION>>");
+								continue;
+							}
+							if(prop->value.getGCValue()){
+								os->core->setPropertyValue(os->core->check_recursion, prop->value, Core::Value(true), false);
+							}
+
 							Core::String value_str = os->core->valueToString(prop->value, true);
 							if(prop->value.type == OS_VALUE_TYPE_STRING){
 								appendQuotedString(buf, value_str);
@@ -14092,6 +14172,7 @@ void OS::initObjectClass()
 					buf += OS_TEXT("{");
 					int need_index = 0;
 					Core::Property * prop = self->table->first;
+					Core::Value temp;
 					for(int i = 0; prop; prop = prop->next, i++){
 						/* if(i > 100){
 							buf += OS_TEXT("...");
@@ -14107,12 +14188,29 @@ void OS::initObjectClass()
 							}
 							need_index = (int)(prop->index.v.number + 1);
 						}else if(prop->index.type == OS_VALUE_TYPE_STRING){
+							OS_ASSERT(!prop->index.v.string->table);
 							appendQuotedString(buf, os->core->valueToString(prop->index));
 							buf += OS_TEXT(":");
 						}else{
-							buf += os->core->valueToString(prop->index);
+							if(os->core->getPropertyValue(temp, os->core->check_recursion, prop->index, false)){
+								buf += OS_TEXT("<<RECURSION>>");
+							}else{
+								if(prop->index.getGCValue()){
+									os->core->setPropertyValue(os->core->check_recursion, prop->index, Core::Value(true), false);
+								}
+								buf += os->core->valueToString(prop->index);
+							}
 							buf += OS_TEXT(":");
 						}
+
+						if(os->core->getPropertyValue(temp, os->core->check_recursion, prop->value, false)){
+							buf += OS_TEXT("<<RECURSION>>");
+							continue;
+						}
+						if(prop->value.getGCValue()){
+							os->core->setPropertyValue(os->core->check_recursion, prop->value, Core::Value(true), false);
+						}
+
 						Core::String value_str = os->core->valueToString(prop->value, true);
 						if(prop->value.type == OS_VALUE_TYPE_STRING){
 							appendQuotedString(buf, value_str);
@@ -14238,26 +14336,36 @@ void OS::initFunctionClass()
 			return os->call(params-1, need_ret_values);
 		}
 
-		static int applyEnv(OS * os, int params, int closure_values, int need_ret_values, void * user_params)
+		static int applyEnv(OS * os, int params, int, int need_ret_values, void *)
 		{
-			Core::Value func = os->core->getStackValue(-params-closure_values-1);
+			Core::Value save_env;
+			Core::Value func = os->core->getStackValue(-params-1);
 			if(func.type == OS_VALUE_TYPE_FUNCTION){
-				Core::Value env = os->core->getStackValue(-params-closure_values);
-				func.v.func->env = env.getGCValue();
+				save_env = func.v.func->env;
+				func.v.func->env = os->core->getStackValue(-params).getGCValue();
 			}
 			os->remove(-params);
-			return apply(os, params-1, closure_values, need_ret_values, user_params);
+			int r = apply(os, params-1, 0, need_ret_values, NULL);
+			if(func.type == OS_VALUE_TYPE_FUNCTION){
+				func.v.func->env = save_env;
+			}
+			return r;
 		}
 		
-		static int callEnv(OS * os, int params, int closure_values, int need_ret_values, void * user_params)
+		static int callEnv(OS * os, int params, int, int need_ret_values, void *)
 		{
-			Core::Value func = os->core->getStackValue(-params-closure_values-1);
+			Core::Value save_env;
+			Core::Value func = os->core->getStackValue(-params-1);
 			if(func.type == OS_VALUE_TYPE_FUNCTION){
-				Core::Value env = os->core->getStackValue(-params-closure_values);
-				func.v.func->env = env.getGCValue();
+				save_env = func.v.func->env;
+				func.v.func->env = os->core->getStackValue(-params).getGCValue();
 			}
 			os->remove(-params);
-			return call(os, params-1, closure_values, need_ret_values, user_params);
+			int r = call(os, params-1, 0, need_ret_values, NULL);
+			if(func.type == OS_VALUE_TYPE_FUNCTION){
+				func.v.func->env = save_env;
+			}
+			return r;
 		}
 
 		static int getEnv(OS * os, int params, int, int, void*)
@@ -14309,24 +14417,24 @@ void OS::initFunctionClass()
 	It's port from PHP framework.
 */
 
-#define RAND_N             RAND_STATE_SIZE      /* length of state vector */
-#define RAND_M             (397)                /* a period parameter */
-#define RAND_hiBit(u)      ((u) & 0x80000000U)  /* mask all but highest   bit of u */
-#define RAND_loBit(u)      ((u) & 0x00000001U)  /* mask all but lowest    bit of u */
-#define RAND_loBits(u)     ((u) & 0x7FFFFFFFU)  /* mask     the highest   bit of u */
-#define RAND_mixBits(u, v) (RAND_hiBit(u)|RAND_loBits(v)) /* move hi bit of u to hi bit of v */
+#define OS_RAND_N             RAND_STATE_SIZE      /* length of state vector */
+#define OS_RAND_M             (397)                /* a period parameter */
+#define OS_RAND_hiBit(u)      ((u) & 0x80000000U)  /* mask all but highest   bit of u */
+#define OS_RAND_loBit(u)      ((u) & 0x00000001U)  /* mask all but lowest    bit of u */
+#define OS_RAND_loBits(u)     ((u) & 0x7FFFFFFFU)  /* mask     the highest   bit of u */
+#define OS_RAND_mixBits(u, v) (OS_RAND_hiBit(u)|OS_RAND_loBits(v)) /* move hi bit of u to hi bit of v */
 
-#define RAND_twist(m,u,v)  (m ^ (RAND_mixBits(u,v)>>1) ^ ((OS_U32)(-(OS_INT32)(RAND_loBit(u))) & 0x9908b0dfU))
-#define RAND_MAX 0x7FFFFFFF		/* (1<<31) - 1 */ 
+#define OS_RAND_twist(m,u,v)  (m ^ (OS_RAND_mixBits(u,v)>>1) ^ ((OS_U32)(-(OS_INT32)(OS_RAND_loBit(u))) & 0x9908b0dfU))
+#define OS_RAND_MAX 0x7FFFFFFF		/* (1<<31) - 1 */ 
 
-#define RAND_RANGE(__n, __min, __max, __tmax) \
+#define OS_RAND_RANGE(__n, __min, __max, __tmax) \
     (__n) = (__min) + (long) ((double) ( (double) (__max) - (__min) + 1.0) * ((__n) / ((__tmax) + 1.0)))
 
 #ifdef _MSC_VER
 #include <windows.h>
-#define RAND_GENERATE_SEED() (((long) (time(0) * GetCurrentProcessId())) ^ ((long) (1000000.0)))
+#define OS_RAND_GENERATE_SEED() (((long) (time(0) * GetCurrentProcessId())) ^ ((long) (1000000.0)))
 #else
-#define RAND_GENERATE_SEED() (((long) (time(0) * getpid())) ^ ((long) (1000000.0)))
+#define OS_RAND_GENERATE_SEED() (((long) (time(0) * getpid())) ^ ((long) (1000000.0)))
 #endif 
 
 void OS::Core::randInitialize(OS_U32 seed)
@@ -14337,7 +14445,7 @@ void OS::Core::randInitialize(OS_U32 seed)
 	OS_U32 * r = s;
 
 	*s++ = seed & 0xffffffffU;
-	for(int i = 1; i < RAND_N; ++i ) {
+	for(int i = 1; i < OS_RAND_N; ++i ) {
 		*s++ = ( 1812433253U * ( *r ^ (*r >> 30) ) + i ) & 0xffffffffU;
 		r++;
 	}
@@ -14354,14 +14462,14 @@ void OS::Core::randReload()
 	OS_U32 * p = state;
 	int i;
 
-	for(i = RAND_N - RAND_M; i--; ++p){
-		*p = RAND_twist(p[RAND_M], p[0], p[1]);
+	for(i = OS_RAND_N - OS_RAND_M; i--; ++p){
+		*p = OS_RAND_twist(p[OS_RAND_M], p[0], p[1]);
 	}
-	for(i = RAND_M; --i; ++p){
-		*p = RAND_twist(p[RAND_M-RAND_N], p[0], p[1]);
+	for(i = OS_RAND_M; --i; ++p){
+		*p = OS_RAND_twist(p[OS_RAND_M-OS_RAND_N], p[0], p[1]);
 	}
-	*p = RAND_twist(p[RAND_M-RAND_N], p[0], state[0]);
-	rand_left = RAND_N;
+	*p = OS_RAND_twist(p[OS_RAND_M-OS_RAND_N], p[0], state[0]);
+	rand_left = OS_RAND_N;
 	rand_next = state;
 }
 
@@ -14372,7 +14480,7 @@ double OS::Core::getRand()
 
 	if(!rand_left){
 		if(!rand_next){
-			randInitialize(RAND_GENERATE_SEED());
+			randInitialize(OS_RAND_GENERATE_SEED());
 		}else{
 			randReload();
 		}
@@ -14383,7 +14491,7 @@ double OS::Core::getRand()
 	s1 ^= (s1 >> 11);
 	s1 ^= (s1 <<  7) & 0x9d2c5680U;
 	s1 ^= (s1 << 15) & 0xefc60000U;
-	return (double)((s1 ^ (s1 >> 18))>>1) / (double)RAND_MAX;
+	return (double)((s1 ^ (s1 >> 18))>>1) / (double)OS_RAND_MAX;
 }
 
 double OS::Core::getRand(double up)
@@ -14698,6 +14806,7 @@ void OS::initPreScript()
 		Object.__get@length = function(){ return #this }
 
 		function require(filename){
+			filename = resolvePath(filename)
 			return files_loaded[filename] 
 				|| function(){
 					files_loaded[filename] = compileFile(filename)()
@@ -14800,20 +14909,7 @@ int OS::Core::call(int params, int ret_values)
 
 bool OS::compileFile(const Core::String& p_filename, bool required)
 {
-	Core::String filename = p_filename, cur_path(this);
-	if(core->call_stack_funcs.count > 0){
-		for(int i = core->call_stack_funcs.count-1; i >= 0; i--){
-			Core::StackFunction * stack_func = core->call_stack_funcs.buf + i;
-			if(stack_func->func->prog->filename.getLen() > 0){
-				cur_path = getFilenamePath(stack_func->func->prog->filename);
-				break;
-			}
-		}
-	}
-	if(getFilenameExt(filename).getLen() == 0){
-		filename = String(this, filename) + OS_SOURCECODE_EXT;
-	}
-	filename = resolvePath(filename, cur_path, Core::String(this));
+	Core::String filename = resolvePath(p_filename);
 	
 	{
 		Core::String compiled_filename = changeFilenameExt(filename, OS_COMPILED_EXT);
