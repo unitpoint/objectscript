@@ -38,15 +38,33 @@
 #include <vadefs.h>
 #include <stdlib.h>
 
+// select ObjectScript number type here
+#define OS_NUMBER double
+// #define OS_NUMBER float	// could be a bit faster
+// #define OS_NUMBER int	// not recomended
+
+#define OS_CHAR char
+#define OS_INT __int64
+#define OS_FLOAT double
+#define OS_INT16 short
+#define OS_INT32 __int32
+#define OS_INT64 __int64
+#define OS_BYTE unsigned char
+#define OS_U16 unsigned short
+#define OS_U32 unsigned __int32
+#define OS_U64 unsigned __int64
+
+#define OS_TEXT(s) s
+
 #ifdef _DEBUG
 #define OS_DEBUG
 #define OS_ASSERT assert
 
-#define OS_DBG_FILEPOS_DECL , const char * dbg_filename, int dbg_line
+#define OS_DBG_FILEPOS_DECL , const OS_CHAR * dbg_filename, int dbg_line
 #define OS_DBG_FILEPOS_PARAM , dbg_filename, dbg_line
 #define OS_DBG_FILEPOS , __FILE__, __LINE__
 
-#define OS_DBG_FILEPOS_START_DECL const char * dbg_filename, int dbg_line
+#define OS_DBG_FILEPOS_START_DECL const OS_CHAR * dbg_filename, int dbg_line
 #define OS_DBG_FILEPOS_START_PARAM dbg_filename, dbg_line
 #define OS_DBG_FILEPOS_START __FILE__, __LINE__
 #else
@@ -68,31 +86,17 @@
 #define OS_STRNCMP strncmp
 #define OS_STRCHR strchr
 #define OS_STRSTR strstr
-#define OS_ISSPACE isspace
 #define OS_VSNPRINTF vsnprintf_s
 #define OS_SNPRINTF __snprintf__
+
+#define OS_IS_SPACE isspace
+#define OS_IS_ALPHA isalpha
+#define OS_IS_ALNUM isalnum // ((c) >= OS_TEXT('0') && (c) <= OS_TEXT('9'))
+#define OS_IS_SLASH(c) ((c) == OS_TEXT('/') || (c) == OS_TEXT('\\'))
 
 #define OS_MATH_POW ::pow
 #define OS_MATH_FLOOR ::floor
 #define OS_MATH_FMOD ::fmod
-
-// select ObjectScript number type here
-#define OS_NUMBER double
-// #define OS_NUMBER float	// could be a bit faster
-// #define OS_NUMBER int	// not recomended
-
-#define OS_CHAR char
-#define OS_INT __int64
-#define OS_FLOAT double
-#define OS_INT16 short
-#define OS_INT32 __int32
-#define OS_INT64 __int64
-#define OS_BYTE unsigned char
-#define OS_U16 unsigned short
-#define OS_U32 unsigned __int32
-#define OS_U64 unsigned __int64
-
-#define OS_TEXT(s) s
 
 #define OS_GLOBALS_VAR_NAME OS_TEXT("_G")
 #define OS_ENV_VAR_NAME OS_TEXT("_E")
@@ -100,6 +104,8 @@
 #define OS_AUTO_PRECISION 20
 
 #define OS_DEF_FMT_BUF_SIZE 1024*10
+
+#define OS_PATH_SEPARATOR OS_TEXT("\\")
 
 // uncomment it if need
 // #define OS_INFINITE_LOOP_OPCODES 100000000
@@ -276,7 +282,7 @@ namespace ObjectScript
 			{
 				Page * page;
 #ifdef OS_DEBUG
-				const char * dbg_filename;
+				const OS_CHAR * dbg_filename;
 				int dbg_line;
 				int dbg_id;
 				MemBlock * dbg_mem_prev;
@@ -291,7 +297,7 @@ namespace ObjectScript
 			struct StdMemBlock
 			{
 #ifdef OS_DEBUG
-				const char * dbg_filename;
+				const OS_CHAR * dbg_filename;
 				int dbg_line;
 				int dbg_id;
 				StdMemBlock * dbg_mem_prev;
@@ -625,7 +631,7 @@ namespace ObjectScript
 
 				FILE * f;
 
-				FileStreamWriter(OS*, const char * filename);
+				FileStreamWriter(OS*, const OS_CHAR * filename);
 				FileStreamWriter(OS*, FILE * f);
 				~FileStreamWriter();
 
@@ -716,7 +722,7 @@ namespace ObjectScript
 
 				FILE * f;
 
-				FileStreamReader(OS*, const char * filename);
+				FileStreamReader(OS*, const OS_CHAR * filename);
 				FileStreamReader(OS*, FILE * f);
 				~FileStreamReader();
 
@@ -752,7 +758,7 @@ namespace ObjectScript
 				String(OS*, const OS_CHAR*, int len, bool trim_left, bool trim_right);
 				String(OS*, const void*, int size);
 				String(OS*, const void * buf1, int len1, const void * buf2, int len2);
-				// String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
+				String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 				String(OS*, OS_INT value);
 				String(OS*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
 				~String();
@@ -764,6 +770,14 @@ namespace ObjectScript
 
 				const OS_CHAR * toChar() const { return string->toChar(); }
 				operator const OS_CHAR*() const { return string->toChar(); }
+
+				OS_CHAR operator[](int i)
+				{
+					if(i >= 0 && i < getLen()){
+						return toChar()[i];
+					}
+					return OS_TEXT('\0');
+				}
 
 				int getDataSize() const { return string->data_size; }
 				int getLen() const { return string->getLen(); }
@@ -1060,6 +1074,7 @@ namespace ObjectScript
 
 				int getNumTokens() const { return tokens.count; }
 				TokenData * getToken(int i) const { return tokens[i]; }
+				TokenData * removeToken(int i);
 				void insertToken(int i, TokenData * token OS_DBG_FILEPOS_DECL);
 			};
 
@@ -1647,6 +1662,7 @@ namespace ObjectScript
 					ERROR_NESTED_ROOT_BLOCK,
 					ERROR_LOCAL_VAL_NOT_DECLARED,
 					ERROR_VAR_ALREADY_EXIST,
+					ERROR_VAR_NAME,
 					ERROR_EXPECT_TOKEN_TYPE,
 					ERROR_EXPECT_TOKEN_STR,
 					ERROR_EXPECT_TOKEN,
@@ -1754,6 +1770,7 @@ namespace ObjectScript
 					bool allow_params;
 					// bool allow_var;
 					bool allow_auto_call;
+					bool allow_call;
 
 					Params();
 					Params(const Params&);
@@ -1765,6 +1782,7 @@ namespace ObjectScript
 					// Params& setAllowLeftSideParams(bool);
 					// Params& setAllowRightSideParams(bool);
 					Params& setAllowAutoCall(bool);
+					Params& setAllowCall(bool);
 				};
 
 				Expression * expectSingleExpression(Scope*, const Params& p);
@@ -1781,9 +1799,11 @@ namespace ObjectScript
 				Expression * stepPass2(Scope * scope, Expression * exp);
 				Expression * stepPass3(Scope * scope, Expression * exp);
 
+				bool isVarNameValid(const String& name);
+
 				Scope * expectTextExpression();
 				Scope * expectCodeExpression(Scope*, int ret_values = 0);
-				Scope * expectFunctionExpression(Scope*);
+				Expression * expectFunctionExpression(Scope*);
 				Expression * expectExtendsExpression(Scope*);
 				Expression * expectCloneExpression(Scope*);
 				Expression * expectDeleteExpression(Scope*);
@@ -2326,6 +2346,7 @@ namespace ObjectScript
 			GCStringValue * newStringValue(const OS_CHAR*, int len, bool trim_left, bool trim_right);
 			GCStringValue * newStringValue(const void * buf, int size);
 			GCStringValue * newStringValue(const void * buf1, int size1, const void * buf2, int size2);
+			GCStringValue * newStringValue(const void * buf1, int size1, const void * buf2, int size2, const void * buf3, int size3);
 			GCStringValue * newStringValue(GCStringValue*, GCStringValue*);
 			GCStringValue * newStringValue(OS_INT);
 			GCStringValue * newStringValue(OS_FLOAT, int);
@@ -2462,8 +2483,18 @@ namespace ObjectScript
 		void * malloc(int size OS_DBG_FILEPOS_DECL);
 		void free(void * p);
 
-		Core::String changeFilenameExt(const OS_CHAR * filename, const OS_CHAR * ext);
+		Core::String changeFilenameExt(const Core::String& filename, const Core::String& ext);
+		Core::String changeFilenameExt(const Core::String& filename, const OS_CHAR * ext);
+		
+		Core::String getFilenameExt(const Core::String& filename);
 		Core::String getFilenameExt(const OS_CHAR * filename);
+		Core::String getFilenameExt(const OS_CHAR * filename, int len);
+		
+		Core::String getFilenamePath(const Core::String& filename);
+		Core::String getFilenamePath(const OS_CHAR * filename);
+		Core::String getFilenamePath(const OS_CHAR * filename, int len);
+
+		Core::String resolvePath(const Core::String& filename, const Core::String& cur_path, const Core::String& paths);
 
 		void initGlobalFunctions();
 		void initObjectClass();
@@ -2502,7 +2533,9 @@ namespace ObjectScript
 			String& operator=(const Core::String&);
 			String& operator=(const String&);
 			String& operator+=(const String&);
+			String& operator+=(const OS_CHAR*);
 			String operator+(const String&) const;
+			String operator+(const OS_CHAR*) const;
 
 			String trim(bool trim_left = true, bool trim_right = true) const;
 		};
@@ -2594,7 +2627,7 @@ namespace ObjectScript
 		int getSetting(OS_ESettings);
 		int setSetting(OS_ESettings, int);
 
-		bool compileFilename(const Core::String& filename, bool required = false);
+		bool compileFile(const Core::String& filename, bool required = false);
 		bool compile(const Core::String& str);
 		bool compile();
 
@@ -2609,12 +2642,18 @@ namespace ObjectScript
 		int gc();
 		void gcFull();
 
-		struct Func
-		{
+		struct Func {
 			const OS_CHAR * name;
 			OS_CFunction func;
 		};
 		void setFuncs(const Func * list, int closure_values = 0, void * user_param = NULL); // null terminated list
+
+		struct Number {
+			const OS_CHAR * name;
+			OS_NUMBER value;
+		};
+		void setNumbers(const Number * list);
+
 		void getObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
 		void getGlobalObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
 	};

@@ -1,0 +1,492 @@
+
+[FILE] core.os
+[1] _E = _G
+
+begin function
+  begin locals, total 4
+    0 _E
+    1 _G
+    2 events
+    3 timers
+  end locals
+  begin set local var
+    get local var _G (1 0)
+  end set local var _E (0 0)
+
+
+[3] function eval(str, env){
+
+  begin set env var
+    begin function
+      begin locals, total 4
+        0 str (param)
+        1 env (param)
+        2 _E
+        3 _G
+      end locals
+
+[4] return compileText(str).applyEnv(env || _G, null, ...)
+
+      begin tail call method
+        begin call
+          get env var compileText
+          begin params 1
+            get local var str (0 0 param)
+          end params ret values 1
+        end call ret values 1
+        begin params 4
+          push const string "applyEnv"
+          ,
+          begin logic ||
+            get local var env (1 0 param)
+            get local var _G (3 0)
+          end logic ||
+          ,
+          const null
+          ,
+          push rest arguments
+        end params ret values 4
+      end tail call method
+    end function
+  end set env var eval
+
+
+[7] var events = {}
+
+  begin set local var
+    begin object 0
+    end object
+  end set local var events (2 0)
+
+
+[9] function addEventListener(event_name, func, user_params){
+
+  begin set env var
+    begin function
+      begin locals, total 5
+        0 event_name (param)
+        1 func (param)
+        2 user_params (param)
+        3 _E
+        4 _G
+      end locals
+
+[10] events[event_name][func] = user_params
+
+      begin set property
+        get local var user_params (2 0 param)
+        begin get property auto create
+          get local var auto create events (2 1)
+          get local var event_name (0 0 param)
+        end get property auto create ret values 1
+        get local var func (1 0 param)
+      end set property ret values 0
+    end function
+  end set env var addEventListener
+
+
+[13] function triggerEvent(event_name, params){
+
+  begin set env var
+    begin function
+      begin locals, total 8
+        0 event_name (param)
+        1 params (param)
+        2 _E
+        3 _G
+      end locals
+
+[14] for(var func, user_params in events[event_name]){
+
+      begin scope
+        begin locals 4
+          4 func
+          5 user_params
+          6 #func
+          7 #valid
+        end locals
+        new local var func (4 0)
+
+        new local var user_params (5 0)
+
+        new local var #func (6 0 temp)
+
+        new local var #valid (7 0 temp)
+
+        begin code list
+          begin set local var
+            begin call method
+              begin get property
+                get local var events (2 1)
+                get local var event_name (0 0 param)
+              end get property ret values 1
+              begin params 1
+                push const string "__iter"
+              end params ret values 1
+            end call method ret values 1
+          end set local var #func (6 0 temp)
+
+          begin loop
+            begin set local var
+              begin set local var
+                begin set local var
+                  begin call
+                    get local var #func (6 0 temp)
+                    begin params 0
+                    end params ret values 0
+                  end call ret values 3
+                end set local var user_params (5 0)
+              end set local var func (4 0)
+            end set local var #valid (7 0 temp)
+
+            begin if
+              begin bool exp
+                begin logic not
+                  get local var #valid (7 0 temp)
+                end logic not
+              end bool exp
+              begin then
+                break
+              end then
+            end if ret values 0
+
+
+[15] func(params user_params)
+
+            begin scope
+              begin call
+                get local var func (4 0)
+                begin params 2
+                  get local var params (1 0 param)
+                  ,
+                  get local var user_params (5 0)
+                end params ret values 2
+              end call ret values 0
+            end scope ret values 0
+          end loop ret values 0
+        end code list ret values 0
+      end scope ret values 0
+    end function
+  end set env var triggerEvent
+
+
+[19] var timers = {}
+
+  begin set local var
+    begin object 0
+    end object
+  end set local var timers (3 0)
+
+
+[21] function setTimeout(delay_ms, func, count){
+
+  begin set env var
+    begin function
+      begin locals, total 6
+        0 delay_ms (param)
+        1 func (param)
+        2 count (param)
+        3 _E
+        4 _G
+        5 i
+      end locals
+
+[22] count = count || 1
+
+      begin set local var
+        begin logic ||
+          get local var count (2 0 param)
+          push const number 1
+        end logic ||
+      end set local var count (2 0 param)
+
+
+[23] count > 0 && func || return;
+
+      begin pop
+        begin logic ||
+          begin logic &&
+            begin logic >
+              get local var count (2 0 param)
+              push const number 0
+            end logic >
+            get local var func (1 0 param)
+          end logic &&
+          begin code list
+            return
+          end code list ret values 1
+        end logic ||
+      end pop ret values 0
+
+
+[24] var i = #timers
+
+      begin set local var
+        begin length
+          get local var timers (3 1)
+        end length
+      end set local var i (5 0)
+
+
+[25] timers[i] = {
+
+      begin set property
+        begin object 4
+
+[26] next_time_ms = app.getTimeMS() + delay_ms
+
+          begin set by name
+            begin operator +
+              begin call method
+                get env var app
+                begin params 1
+                  push const string "getTimeMS"
+                end params ret values 1
+              end call method ret values 1
+              get local var delay_ms (0 0 param)
+            end operator +
+          end set by name: [next_time_ms]
+          ,
+
+[27] delay_ms = delay_ms
+
+          begin set by name
+            get local var delay_ms (0 0 param)
+          end set by name: [delay_ms]
+          ,
+
+[28] func = func
+
+          begin set by name
+            get local var func (1 0 param)
+          end set by name: [func]
+          ,
+
+[29] count = count
+
+          begin set by name
+            get local var count (2 0 param)
+          end set by name: [count]
+        end object
+
+[25] timers[i] = {
+
+        get local var auto create timers (3 1)
+        get local var i (5 0)
+      end set property ret values 0
+
+
+[31] return i
+
+      begin code list
+        begin return
+          get local var i (5 0)
+        end return values 1
+      end code list ret values 0
+    end function
+  end set env var setTimeout
+
+
+[34] function clearTimeout(t){
+
+  begin set env var
+    begin function
+      begin locals, total 3
+        0 t (param)
+        1 _E
+        2 _G
+      end locals
+
+[35] delete timers[t]
+
+      begin delete
+        get local var timers (3 1)
+        get local var t (0 0 param)
+      end delete
+    end function
+  end set env var clearTimeout
+
+
+[38] addEventListener("enterFrame", function(){
+
+  begin call
+    get env var addEventListener
+    begin params 2
+      push const string "enterFrame"
+      ,
+      begin function
+        begin locals, total 7
+          0 _E
+          1 _G
+          2 time_ms
+        end locals
+
+[39] var time_ms = app.getTimeMS()
+
+        begin set local var
+          begin call method
+            get env var app
+            begin params 1
+              push const string "getTimeMS"
+            end params ret values 1
+          end call method ret values 1
+        end set local var time_ms (2 0)
+
+
+[40] for(var i, t in timers){
+
+        begin scope
+          begin locals 4
+            3 i
+            4 t
+            5 #func
+            6 #valid
+          end locals
+          new local var i (3 0)
+
+          new local var t (4 0)
+
+          new local var #func (5 0 temp)
+
+          new local var #valid (6 0 temp)
+
+          begin code list
+            begin set local var
+              begin call method
+                get local var timers (3 1)
+                begin params 1
+                  push const string "__iter"
+                end params ret values 1
+              end call method ret values 1
+            end set local var #func (5 0 temp)
+
+            begin loop
+              begin set local var
+                begin set local var
+                  begin set local var
+                    begin call
+                      get local var #func (5 0 temp)
+                      begin params 0
+                      end params ret values 0
+                    end call ret values 3
+                  end set local var t (4 0)
+                end set local var i (3 0)
+              end set local var #valid (6 0 temp)
+
+              begin if
+                begin bool exp
+                  begin logic not
+                    get local var #valid (6 0 temp)
+                  end logic not
+                end bool exp
+                begin then
+                  break
+                end then
+              end if ret values 0
+
+
+[41] if(t.next_time_ms >= time_ms){
+
+              begin scope
+                begin if
+                  begin bool exp
+                    begin logic >=
+                      begin get property
+                        get local var t (4 0)
+                        push const string "next_time_ms"
+                      end get property ret values 1
+                      get local var time_ms (2 0)
+                    end logic >=
+                  end bool exp
+                  begin then
+
+[42] t.func()
+
+                    begin scope
+                      begin call method
+                        get local var t (4 0)
+                        begin params 1
+                          push const string "func"
+                        end params ret values 1
+                      end call method ret values 0
+
+
+[43] t.count = t.count - 1
+
+                      begin set property
+                        begin operator -
+                          begin get property
+                            get local var t (4 0)
+                            push const string "count"
+                          end get property ret values 1
+                          push const number 1
+                        end operator -
+                        get local var auto create t (4 0)
+                        push const string "count"
+                      end set property ret values 0
+
+
+[44] if(t.count <= 0){
+
+                      begin if
+                        begin bool exp
+                          begin logic <=
+                            begin get property
+                              get local var t (4 0)
+                              push const string "count"
+                            end get property ret values 1
+                            push const number 0
+                          end logic <=
+                        end bool exp
+                        begin then
+
+[45] delete timers[i]
+
+                          begin scope
+                            begin delete
+                              get local var timers (3 1)
+                              get local var i (3 0)
+                            end delete
+
+
+[46] continue
+
+                            continue
+                          end scope ret values 0
+                        end then
+                      end if ret values 0
+
+
+[48] t.next_time_ms = time_ms + t.delay_ms
+
+                      begin set property
+                        begin operator +
+                          get local var time_ms (2 0)
+                          begin get property
+                            get local var t (4 0)
+                            push const string "delay_ms"
+                          end get property ret values 1
+                        end operator +
+                        get local var auto create t (4 0)
+                        push const string "next_time_ms"
+                      end set property ret values 0
+                    end scope ret values 0
+                  end then
+                end if ret values 0
+              end scope ret values 0
+            end loop ret values 0
+          end code list ret values 0
+        end scope ret values 0
+      end function
+    end params ret values 2
+  end call ret values 0
+
+
+[51] })
+
+  begin code list
+    begin return
+      get env var _E
+    end return values 1
+  end code list ret values 0
+end function

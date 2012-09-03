@@ -15,7 +15,7 @@ using namespace ObjectScript;
 // =====================================================================
 // =====================================================================
 
-static int __snprintf__(char * buf, size_t num, const char * format, ...);
+static int __snprintf__(OS_CHAR * buf, size_t num, const OS_CHAR * format, ...);
 
 static bool isnan(float a)
 {
@@ -139,7 +139,7 @@ static const float nan_float = fromLittleEndianByteOrder(*(float*)&nan_data);
 
 static inline void parseSpaces(const OS_CHAR *& str)
 {
-	while(*str && OS_ISSPACE(*str))
+	while(*str && OS_IS_SPACE(*str))
 		str++;
 }
 
@@ -299,7 +299,7 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 
 				size_t specLen = OS_STRLEN(spec[i]);
 				str += specLen;
-				if(!*str || OS_ISSPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str)){
+				if(!*str || OS_IS_SPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str)){
 					OS_INT32 spec_val;
 					switch(i){
 					case 0:
@@ -571,7 +571,6 @@ OS::Core::String::String(OS * os, const void * buf1, int size1, const void * buf
 #endif
 }
 
-/*
 OS::Core::String::String(OS * os, const void * buf1, int size1, const void * buf2, int size2, const void * buf3, int size3)
 {
 	string = os->core->newStringValue(buf1, size1, buf2, size2, buf3, size3);
@@ -580,7 +579,6 @@ OS::Core::String::String(OS * os, const void * buf1, int size1, const void * buf
 	this->str = string->toChar();
 #endif
 }
-*/
 
 OS::Core::String::String(OS * os, OS_INT value)
 {
@@ -649,6 +647,9 @@ OS::Core::String& OS::Core::String::operator=(const String& b)
 		string->external_ref_count--;
 		string = b.string;
 		string->external_ref_count++;
+#ifdef OS_DEBUG
+		this->str = string->toChar();
+#endif
 	}
 	return *this;
 }
@@ -901,9 +902,19 @@ OS::String& OS::String::operator+=(const String& str)
 	return *this = allocator->core->newStringValue(*this, str);
 }
 
+OS::String& OS::String::operator+=(const OS_CHAR * str)
+{
+	return *this = allocator->core->newStringValue(toChar(), getDataSize(), str, OS_STRLEN(str)*sizeof(OS_CHAR));
+}
+
 OS::String OS::String::operator+(const String& str) const
 {
 	return String(allocator, allocator->core->newStringValue(*this, str));
+}
+
+OS::String OS::String::operator+(const OS_CHAR * str) const
+{
+	return String(allocator, allocator->core->newStringValue(toChar(), getDataSize(), str, OS_STRLEN(str)*sizeof(OS_CHAR)));
 }
 
 OS::String OS::String::trim(bool trim_left, bool trim_right) const
@@ -1273,6 +1284,13 @@ OS::Core::Tokenizer::~Tokenizer()
 	text_data->release();
 }
 
+OS::Core::Tokenizer::TokenData * OS::Core::Tokenizer::removeToken(int i)
+{
+	TokenData * token = getToken(i);
+	getAllocator()->vectorRemoveAtIndex(tokens, i);
+	return token;
+}
+
 void OS::Core::Tokenizer::insertToken(int i, TokenData * token OS_DBG_FILEPOS_DECL)
 {
 	getAllocator()->vectorInsertAtIndex(tokens, i, token OS_DBG_FILEPOS_PARAM);
@@ -1319,7 +1337,7 @@ OS::Core::Tokenizer::TokenData * OS::Core::Tokenizer::addToken(const String& str
 
 bool OS::Core::Tokenizer::parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces)
 {
-	if(Utils::parseFloat(str, fval) && (!*str || OS_ISSPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str))){
+	if(Utils::parseFloat(str, fval) && (!*str || OS_IS_SPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str))){
 		if(parse_end_spaces){
 			parseSpaces(str);
 		}
@@ -3050,6 +3068,10 @@ bool OS::Core::Compiler::compile()
 			dump += OS_TEXT(" VAR_ALREADY_EXIST");
 			break;
 
+		case ERROR_VAR_NAME:
+			dump += OS_TEXT(" VAR_NAME");
+			break;
+
 		case ERROR_EXPECT_TOKEN_TYPE:
 			dump += OS_TEXT(" EXPECT_TOKEN_TYPE ");
 			dump += Tokenizer::getTokenTypeName(expect_token_type);
@@ -3668,6 +3690,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass2(Scope * scope, Ex
 			for(; scope; scope = scope->parent){
 				for(int i = scope->locals.count-1; i >= 0; i--){
 					const Scope::LocalVar& local_var = scope->locals[i];
+					if(local_var.name.toChar()[0] == OS_TEXT('#')){
+						continue;
+					}
 					bool found = false;
 					for(int j = 0; j < vars.count; j++){
 						if(vars[j] == local_var.name){
@@ -4150,6 +4175,23 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 		return scope;
 	}
 	int ret_values = list.count == 1 && list[0]->ret_values > 0 && list[0]->type == EXP_TYPE_FUNCTION ? 1 : 0;
+	{
+		putNextTokenType(Tokenizer::CODE_SEPARATOR);
+		readToken();
+
+		TokenData * name_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), 
+			allocator->core->strings->var_env, 
+			Tokenizer::NAME, recent_token->line, recent_token->pos);
+
+		ExpressionList& func_exp_list = ret_values == 1 ? list[0]->list : list;
+		Expression * name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, name_token);
+		name_exp->ret_values = 1;
+		Expression * ret_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_RETURN, recent_token, name_exp);
+		ret_exp->ret_values = 1;
+		func_exp_list.add(ret_exp);
+
+		name_token->release();
+	}
 	exp = newExpressionFromList(list, ret_values);
 	switch(exp->type){
 	case EXP_TYPE_CODE_LIST:
@@ -4475,6 +4517,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 	bool is_dim = recent_token->type == Tokenizer::BEGIN_ARRAY_BLOCK;
 	TokenType end_exp_type = is_dim ? Tokenizer::END_ARRAY_BLOCK : Tokenizer::END_BRACKET_BLOCK;
 	readToken();
+	if(recent_token && recent_token->type == end_exp_type){
+		readToken();
+		return Lib::calcParamsExpression(this, scope, params);
+	}
 	Params p = Params().setAllowBinaryOperator(true);
 	for(;;){
 		Expression * exp = expectSingleExpression(scope, p);
@@ -4631,11 +4677,23 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectValueOfExpression(Sco
 	return exp;
 }
 
-OS::Core::Compiler::Scope * OS::Core::Compiler::expectFunctionExpression(Scope * parent)
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Scope * parent)
 {
 	Scope * scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(parent, EXP_TYPE_FUNCTION, recent_token);
 	scope->function = scope;
 	scope->ret_values = 1;
+	Expression * name_exp = NULL;
+	if(isNextToken(Tokenizer::NAME)){
+		TokenData * token = readToken();
+		name_exp = expectSingleExpression(scope, Params().setAllowCall(false));
+		if(!name_exp || !name_exp->isWriteable()){
+			setError(ERROR_EXPECT_WRITEABLE, token);
+			allocator->deleteObj(name_exp);
+			allocator->deleteObj(scope);
+			return NULL;
+		}
+		ungetToken();
+	}
 	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK)){
 		allocator->deleteObj(scope);
 		return NULL;
@@ -4688,7 +4746,10 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectFunctionExpression(Scope *
 	}
 	scope->addStdVars();
 	scope = expectCodeExpression(scope);
-	return scope;
+	if(!name_exp){
+		return scope;
+	}
+	return newBinaryExpression(parent, EXP_TYPE_ASSIGN, name_exp->token, name_exp, scope);
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope * scope)
@@ -4697,29 +4758,76 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 	if(!expectToken(Tokenizer::NAME)){
 		return NULL;
 	}
-	Expression * name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, recent_token);
-	name_exp->ret_values = 1;
-
-	Expression * exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, recent_token, name_exp);
+	Expression * name_exp;
+	Expression * exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, recent_token);
 	exp->ret_values = 1;
-	while(readToken()){
-		if(recent_token->type != Tokenizer::PARAM_SEPARATOR){
-			break;
-		}
+	if(recent_token->str == allocator->core->strings->syntax_function){
 		if(!expectToken(Tokenizer::NAME)){
 			allocator->deleteObj(exp);
 			return NULL;
 		}
-		name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, recent_token);
-		name_exp->ret_values = 1;
+		if(!isVarNameValid(recent_token->str)){
+			setError(ERROR_VAR_NAME, recent_token);
+			allocator->deleteObj(exp);
+			return NULL;
+		}
+		if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK)){
+			allocator->deleteObj(exp);
+			return NULL;
+		}
+		ungetToken();
 
+		TokenData * name_token = tokenizer->removeToken(next_token_index-1);
+		name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, name_token);
+		name_exp->ret_values = 1;
 		exp->list.add(name_exp);
 		exp->ret_values++;
-	}
-	if(recent_token->type == Tokenizer::OPERATOR_ASSIGN){
-		bool is_finished;
-		exp = finishBinaryOperator(scope, getOpcodeLevel(exp->type), exp, Params().setAllowParams(true), is_finished);
-		OS_ASSERT(is_finished);
+
+		ungetToken(); // return to function
+
+		Expression * func_exp = expectFunctionExpression(scope);
+		if(!func_exp){
+			allocator->deleteObj(exp);
+			return NULL;
+		}
+		OS_ASSERT(func_exp->type == EXP_TYPE_FUNCTION);
+		exp = newBinaryExpression(scope, EXP_TYPE_ASSIGN, name_exp->token, name_exp, func_exp);
+	}else{
+		if(!isVarNameValid(recent_token->str)){
+			setError(ERROR_VAR_NAME, recent_token);
+			allocator->deleteObj(exp);
+			return NULL;
+		}
+
+		name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, recent_token);
+		name_exp->ret_values = 1;
+		exp->list.add(name_exp);
+		exp->ret_values++;
+
+		while(readToken()){
+			if(recent_token->type != Tokenizer::PARAM_SEPARATOR){
+				break;
+			}
+			if(!expectToken(Tokenizer::NAME)){
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			if(!isVarNameValid(recent_token->str)){
+				setError(ERROR_VAR_NAME, recent_token);
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, recent_token);
+			name_exp->ret_values = 1;
+
+			exp->list.add(name_exp);
+			exp->ret_values++;
+		}
+		if(recent_token->type == Tokenizer::OPERATOR_ASSIGN){
+			bool is_finished;
+			exp = finishBinaryOperator(scope, getOpcodeLevel(exp->type), exp, Params().setAllowParams(true), is_finished);
+			OS_ASSERT(is_finished);
+		}
 	}
 	// Expression * exp = expectSingleExpression(scope, Params().setAllowParams(true).setAllowAssign(true)); // false, true, false, true, false);
 	Expression * ret_exp = exp;
@@ -5238,7 +5346,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectReturnExpression(Scop
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope * scope, ExpressionType exp_type, TokenData * token, Expression * left_exp, Expression * right_exp)
 {
-	OS_ASSERT(token->isTypeOf(Tokenizer::BINARY_OPERATOR));
+	// OS_ASSERT(token->isTypeOf(Tokenizer::BINARY_OPERATOR));
 	if(left_exp->isConstValue() && right_exp->isConstValue()){
 		struct Lib {
 			Compiler * compiler;
@@ -5786,6 +5894,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			continue;
 
 		case Tokenizer::BEGIN_BRACKET_BLOCK: // (
+			if(!p.allow_call){
+				return exp;
+			}
 			exp2 = expectParamsExpression(scope);
 			if(!exp2){
 				allocator->deleteObj(exp);
@@ -5815,6 +5926,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 OS::Core::Compiler::Params::Params()
 {
 	OS_MEMSET(this, 0, sizeof(*this));
+	allow_call = true;
 }
 
 OS::Core::Compiler::Params::Params(const Params& p)
@@ -5850,6 +5962,60 @@ OS::Core::Compiler::Params& OS::Core::Compiler::Params::setAllowAutoCall(bool va
 {
 	allow_auto_call = val;
 	return *this;
+}
+
+OS::Core::Compiler::Params& OS::Core::Compiler::Params::setAllowCall(bool val)
+{
+	allow_call = val;
+	return *this;
+}
+
+bool OS::Core::Compiler::isVarNameValid(const String& name)
+{
+	const String * list[] = {
+		&allocator->core->strings->syntax_super,
+		&allocator->core->strings->syntax_typeof,
+		&allocator->core->strings->syntax_valueof,
+		&allocator->core->strings->syntax_booleanof,
+		&allocator->core->strings->syntax_numberof,
+		&allocator->core->strings->syntax_stringof,
+		&allocator->core->strings->syntax_arrayof,
+		&allocator->core->strings->syntax_objectof,
+		&allocator->core->strings->syntax_userdataof,
+		&allocator->core->strings->syntax_functionof,
+		&allocator->core->strings->syntax_extends,
+		&allocator->core->strings->syntax_clone,
+		&allocator->core->strings->syntax_delete,
+		&allocator->core->strings->syntax_prototype,
+		&allocator->core->strings->syntax_var,
+		&allocator->core->strings->syntax_this,
+		&allocator->core->strings->syntax_arguments,
+		&allocator->core->strings->syntax_function,
+		&allocator->core->strings->syntax_null,
+		&allocator->core->strings->syntax_true,
+		&allocator->core->strings->syntax_false,
+		&allocator->core->strings->syntax_return,
+		&allocator->core->strings->syntax_class,
+		&allocator->core->strings->syntax_enum,
+		&allocator->core->strings->syntax_switch,
+		&allocator->core->strings->syntax_case,
+		&allocator->core->strings->syntax_default,
+		&allocator->core->strings->syntax_if,
+		&allocator->core->strings->syntax_else,
+		&allocator->core->strings->syntax_elseif,
+		&allocator->core->strings->syntax_for,
+		&allocator->core->strings->syntax_in,
+		&allocator->core->strings->syntax_break,
+		&allocator->core->strings->syntax_continue,
+		&allocator->core->strings->syntax_debugger,
+		&allocator->core->strings->syntax_debuglocals
+	};
+	for(int i = 0; i < sizeof(list)/sizeof(list[0]); i++){
+		if(name == *(list[i])){
+			return false;
+		}
+	}
+	return true;
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scope * scope)
@@ -5988,13 +6154,16 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			if(!exp){
 				return NULL;
 			}
+			if(!exp->ret_values){
+				return exp;
+			}
 			return finishValueExpression(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_return){
-			if(!p.allow_root_blocks){
+			/* if(!p.allow_root_blocks){
 				setError(ERROR_NESTED_ROOT_BLOCK, token);
 				return NULL;
-			}
+			} */
 			return expectReturnExpression(scope);
 		}
 		if(token->str == allocator->core->strings->syntax_if){
@@ -7130,7 +7299,7 @@ void OS::Core::MemStreamWriter::writeByteAtPos(int value, int pos)
 
 // =====================================================================
 
-OS::Core::FileStreamWriter::FileStreamWriter(OS * allocator, const char * filename): StreamWriter(allocator)
+OS::Core::FileStreamWriter::FileStreamWriter(OS * allocator, const OS_CHAR * filename): StreamWriter(allocator)
 {
 	errno_t err = fopen_s(&f, filename, "wb");
 	(void)err;
@@ -7402,7 +7571,7 @@ OS_BYTE OS::Core::MemStreamReader::readByteAtPos(int pos)
 
 // =====================================================================
 
-OS::Core::FileStreamReader::FileStreamReader(OS * allocator, const char * filename): StreamReader(allocator)
+OS::Core::FileStreamReader::FileStreamReader(OS * allocator, const OS_CHAR * filename): StreamReader(allocator)
 {
 	errno_t err = fopen_s(&f, filename, "rb");
 	(void)err;
@@ -9609,32 +9778,100 @@ void OS::Core::shutdown()
 	deleteValues(true);
 }
 
-OS::Core::String OS::changeFilenameExt(const OS_CHAR * filename, const OS_CHAR * ext)
+OS::Core::String OS::changeFilenameExt(const Core::String& filename, const Core::String& ext)
 {
-	int len = OS_STRLEN(filename);
+	int len = filename.getLen();
+	for(int i = len-1; i >= 0; i--){
+		if(filename[i] == OS_TEXT('.')){
+			return Core::String(this, filename, i, ext, ext.getLen());
+		}
+		if(OS_IS_SLASH(filename[i])){
+			break;
+		}
+	}
+	return Core::String(this, filename, len, ext, ext.getLen());
+}
+
+OS::Core::String OS::changeFilenameExt(const Core::String& filename, const const OS_CHAR * ext)
+{
+	int len = filename.getLen();
 	for(int i = len-1; i >= 0; i--){
 		if(filename[i] == OS_TEXT('.')){
 			return Core::String(this, filename, i, ext, OS_STRLEN(ext));
 		}
-		if(filename[i] == OS_TEXT('\\') || filename[i] == OS_TEXT('/')){
+		if(OS_IS_SLASH(filename[i])){
 			break;
 		}
 	}
 	return Core::String(this, filename, len, ext, OS_STRLEN(ext));
 }
 
+OS::Core::String OS::getFilenameExt(const Core::String& filename)
+{
+	return getFilenameExt(filename, filename.getLen());
+}
+
 OS::Core::String OS::getFilenameExt(const OS_CHAR * filename)
 {
-	int len = OS_STRLEN(filename);
+	return getFilenameExt(filename, OS_STRLEN(filename));
+}
+
+OS::Core::String OS::getFilenameExt(const OS_CHAR * filename, int len)
+{
 	for(int i = len-1; i >= 0; i--){
 		if(filename[i] == OS_TEXT('.')){
 			return Core::String(this, filename+i, len-i);
 		}
-		if(filename[i] == OS_TEXT('\\') || filename[i] == OS_TEXT('/')){
+		if(OS_IS_SLASH(filename[i])){
 			break;
 		}
 	}
-	return Core::String(this, OS_TEXT(""));
+	return Core::String(this);
+}
+
+OS::Core::String OS::getFilenamePath(const Core::String& filename)
+{
+	return getFilenamePath(filename, filename.getLen());
+}
+
+OS::Core::String OS::getFilenamePath(const OS_CHAR * filename)
+{
+	return getFilenamePath(filename, OS_STRLEN(filename));
+}
+
+OS::Core::String OS::getFilenamePath(const OS_CHAR * filename, int len)
+{
+	for(int i = len-1; i >= 0; i--){
+		if(OS_IS_SLASH(filename[i])){
+			return Core::String(this, filename, i);
+		}
+	}
+	return Core::String(this);
+}
+
+#define OS_IS_UNC_PATH(path, len) \
+	(len >= 2 && OS_IS_SLASH(path[0]) && OS_IS_SLASH(path[1]))
+#define OS_IS_ABSOLUTE_PATH(path, len) \
+	(len >= 2 && ((OS_IS_ALPHA(path[0]) && path[1] == ':') || OS_IS_UNC_PATH(path, len))) 
+
+OS::Core::String OS::resolvePath(const Core::String& filename, const Core::String& cur_path, const Core::String& paths)
+{
+	int len = filename.getLen();
+	if(!OS_IS_ABSOLUTE_PATH(filename, len) && cur_path.getLen()){
+		Core::String resolved_path(this, cur_path, cur_path.getLen(), OS_PATH_SEPARATOR, OS_STRLEN(OS_PATH_SEPARATOR), filename, len);
+		Core::FileStreamReader file(this, resolved_path);
+		if(file.f){
+			return resolved_path;
+		}
+	}
+	// TODO: use paths
+	{
+		Core::FileStreamReader file(this, filename);
+		if(file.f){
+			return filename;
+		}
+	}
+	return Core::String(this);
 }
 
 void OS::Core::error(int code, const OS_CHAR * message)
@@ -10484,13 +10721,13 @@ OS::Core::GCStringValue * OS::Core::newStringValue(const OS_CHAR * str, int len,
 OS::Core::GCStringValue * OS::Core::newStringValue(const OS_CHAR * str, int len, bool trim_left, bool trim_right)
 {
 	if(trim_left){
-		while(len > 0 && OS_ISSPACE(*str)){
+		while(len > 0 && OS_IS_SPACE(*str)){
 			str++;
 			len--;
 		}
 	}
 	if(trim_right){
-		while(len > 0 && OS_ISSPACE(str[len-1])){
+		while(len > 0 && OS_IS_SPACE(str[len-1])){
 			len--;
 		}
 	}
@@ -10503,14 +10740,14 @@ OS::Core::GCStringValue * OS::Core::newStringValue(const String& p_str, bool tri
 	int len = p_str.getLen();
 	bool changed = false;
 	if(trim_left){
-		while(len > 0 && OS_ISSPACE(*str)){
+		while(len > 0 && OS_IS_SPACE(*str)){
 			str++;
 			len--;
 			changed = true;
 		}
 	}
 	if(trim_right){
-		while(len > 0 && OS_ISSPACE(str[len-1])){
+		while(len > 0 && OS_IS_SPACE(str[len-1])){
 			len--;
 			changed = true;
 		}
@@ -10580,6 +10817,29 @@ OS::Core::GCStringValue * OS::Core::newStringValue(const void * buf1, int size1,
 	prop->value = Value(value->value_id, WeakRef());
 	addTableProperty(string_values_table, prop);
 	return value;
+}
+
+OS::Core::GCStringValue * OS::Core::newStringValue(const void * buf1, int size1, const void * buf2, int size2, const void * buf3, int size3)
+{
+	if(size1 <= 0){
+		return newStringValue(buf2, size2, buf3, size3);
+	}
+	if(size2 <= 0){
+		return newStringValue(buf1, size1, buf3, size3);
+	}
+	if(size3 <= 0){
+		return newStringValue(buf1, size1, buf2, size2);
+	}
+	if(size1 + size2 + size3 <= 1024){
+		OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + size3 + sizeof(OS_CHAR));
+		OS_MEMCPY(buf, buf1, size1);
+		OS_MEMCPY(buf+size1, buf2, size2);
+		OS_MEMCPY(buf+size1+size2, buf3, size3);
+		buf[size1+size2+size3] = (OS_CHAR)0;
+		return newStringValue(buf, (size1 + size2 + size3) / sizeof(OS_CHAR));
+	}
+	GCStringValue * str = newStringValue(buf1, size1, buf2, size2);
+	return newStringValue(str->toBytes(), str->data_size, buf3, size3);
 }
 
 OS::Core::GCStringValue * OS::Core::newStringValue(GCStringValue * a, GCStringValue * b)
@@ -11669,7 +11929,7 @@ OS::Core::Value OS::Core::getStackValue(int offs)
 	if(offs == OS_REGISTER_USERPOOL - 1){
 		return user_pool;
 	}
-	OS_ASSERT(false);
+	// OS_ASSERT(false);
 	return Value();
 }
 
@@ -12482,6 +12742,9 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, GCValue * self, int p
 	// OS_ASSERT(self);
 
 	FunctionDecl * func_decl = func_value->func_decl;
+	/* if(func_decl->prog_func_index == 0 && self){
+		func_value->env = self;
+	} */
 	int num_extra_params = params > func_decl->num_params ? params - func_decl->num_params : 0;
 	// int locals_mem_size = sizeof(Value) * (func_decl->num_locals + num_extra_params);
 	// int parents_mem_size = sizeof(FunctionRunningInstance*) * func_decl->max_up_count;
@@ -12588,6 +12851,7 @@ restart:
 	GCStringValue ** prog_strings = prog->const_strings;
 
 	int caller_stack_pos = stack_func->caller_stack_pos;
+	// int bottom_stack_pos = stack_func->bottom_stack_pos;
 
 	OS * allocator = this->allocator;
 
@@ -12604,8 +12868,9 @@ restart:
 #else
 	for(;;){
 #endif
+		stack_func = &call_stack_funcs.lastElement(); // could be invalid because of stack resize
 		OS_ASSERT(stack_values.count >= stack_func->bottom_stack_pos);
-		stack_func->opcodes_pos = opcodes.pos;
+		stack_func->opcodes_pos = opcodes.pos; // used by error to show currect position if debug info present
 #ifdef OS_INFINITE_LOOP_OPCODES
 		if(opcodes_executed >= OS_INFINITE_LOOP_OPCODES){
 			OS_ASSERT(false);
@@ -12645,7 +12910,7 @@ restart:
 		case Program::OP_PUSH_NUMBER:
 			i = opcodes.readUVariable();
 			OS_ASSERT(i >= 0 && i < prog_num_numbers);
-			pushValue(Value(prog_numbers[i]));
+			pushNumber(prog_numbers[i]);
 			break;
 
 		case Program::OP_PUSH_STRING:
@@ -13482,6 +13747,16 @@ void OS::setFuncs(const Func * list, int closure_values, void * user_param)
 	}
 }
 
+void OS::setNumbers(const Number * list)
+{
+	for(; list->name; list++){
+		pushStackValue(-1);
+		pushString(list->name);
+		pushNumber(list->value);
+		setProperty(false);
+	}
+}
+
 void OS::getObject(const OS_CHAR * name, bool prototype_enabled, bool setter_enabled)
 {
 	pushStackValue(-1); // 2: copy parent object
@@ -13538,9 +13813,9 @@ void OS::initGlobalFunctions()
 {
 	struct Lib
 	{
-		static int print(OS * os, int params, int closure_values, int, void*)
+		static int print(OS * os, int params, int, int, void*)
 		{
-			int params_offs = os->getAbsoluteOffs(-params-closure_values);
+			int params_offs = os->getAbsoluteOffs(-params);
 			for(int i = 0; i < params; i++){
 				String str = os->toString(params_offs + i);
 				printf("%s", str.toChar());
@@ -13556,9 +13831,9 @@ void OS::initGlobalFunctions()
 			return 0;
 		}
 
-		static int echo(OS * os, int params, int closure_values, int, void*)
+		static int echo(OS * os, int params, int, int, void*)
 		{
-			int params_offs = os->getAbsoluteOffs(-params-closure_values);
+			int params_offs = os->getAbsoluteOffs(-params);
 			for(int i = 0; i < params; i++){
 				String str = os->toString(params_offs + i);
 				printf("%s", str.toChar());
@@ -13567,17 +13842,36 @@ void OS::initGlobalFunctions()
 			return 0;
 		}
 
-		static int concat(OS * os, int params, int closure_values, int, void*)
+		static int concat(OS * os, int params, int, int, void*)
 		{
 			if(params < 1){
 				return 0;
 			}
 			OS::Core::StringBuffer buf(os);
-			int params_offs = os->getAbsoluteOffs(-params-closure_values);
+			int params_offs = os->getAbsoluteOffs(-params);
 			for(int i = 0; i < params; i++){
 				buf += os->toString(params_offs + i);
 			}
 			os->core->pushValue(buf.toGCStringValue());
+			return 1;
+		}
+
+		static int compileText(OS * os, int params, int, int need_ret_values, void*)
+		{
+			if(params < 1 || need_ret_values < 1){
+				return 0;
+			}
+			os->compile();
+			return 1;
+		}
+
+		static int compileFile(OS * os, int params, int, int need_ret_values, void*)
+		{
+			if(params < 1 || need_ret_values < 1){
+				return 0;
+			}
+			bool required = os->toBool(-params+1);
+			os->compileFile(os->toString(-params), required);
 			return 1;
 		}
 	};
@@ -13585,6 +13879,8 @@ void OS::initGlobalFunctions()
 		{OS_TEXT("print"), Lib::print},
 		{OS_TEXT("echo"), Lib::echo},
 		{OS_TEXT("concat"), Lib::concat},
+		{OS_TEXT("compileText"), Lib::compileText},
+		{OS_TEXT("compileFile"), Lib::compileFile},
 		{}
 	};
 	pushGlobals();
@@ -13905,9 +14201,9 @@ void OS::initFunctionClass()
 {
 	struct Function
 	{
-		static int apply(OS * os, int params, int closure_values, int need_ret_values, void*)
+		static int apply(OS * os, int params, int, int need_ret_values, void*)
 		{
-			int offs = os->getAbsoluteOffs(-params-closure_values);
+			int offs = os->getAbsoluteOffs(-params);
 			os->pushStackValue(offs-1); // self as func
 			if(params < 1){
 				os->pushNull();
@@ -13926,10 +14222,10 @@ void OS::initFunctionClass()
 			}
 			return os->call(0, need_ret_values);
 		}
-		
-		static int call(OS * os, int params, int closure_values, int need_ret_values, void*)
+
+		static int call(OS * os, int params, int, int need_ret_values, void*)
 		{
-			int offs = os->getAbsoluteOffs(-params-closure_values);
+			int offs = os->getAbsoluteOffs(-params);
 			os->pushStackValue(offs-1); // self as func
 			if(params < 1){
 				os->pushNull(); // this
@@ -13942,15 +14238,61 @@ void OS::initFunctionClass()
 			return os->call(params-1, need_ret_values);
 		}
 
-		static int iterator(OS * os, int params, int closure_values, int need_ret_values, void*)
+		static int applyEnv(OS * os, int params, int closure_values, int need_ret_values, void * user_params)
 		{
-			os->pushStackValue(-params-closure_values-1); // self as func
+			Core::Value func = os->core->getStackValue(-params-closure_values-1);
+			if(func.type == OS_VALUE_TYPE_FUNCTION){
+				Core::Value env = os->core->getStackValue(-params-closure_values);
+				func.v.func->env = env.getGCValue();
+			}
+			os->remove(-params);
+			return apply(os, params-1, closure_values, need_ret_values, user_params);
+		}
+		
+		static int callEnv(OS * os, int params, int closure_values, int need_ret_values, void * user_params)
+		{
+			Core::Value func = os->core->getStackValue(-params-closure_values-1);
+			if(func.type == OS_VALUE_TYPE_FUNCTION){
+				Core::Value env = os->core->getStackValue(-params-closure_values);
+				func.v.func->env = env.getGCValue();
+			}
+			os->remove(-params);
+			return call(os, params-1, closure_values, need_ret_values, user_params);
+		}
+
+		static int getEnv(OS * os, int params, int, int, void*)
+		{
+			Core::Value func = os->core->getStackValue(-params-1);
+			if(func.type == OS_VALUE_TYPE_FUNCTION){
+				os->core->pushValue(func.v.func->env);
+				return 1;
+			}
+			return 0;
+		}
+
+		static int setEnv(OS * os, int params, int, int, void*)
+		{
+			Core::Value func = os->core->getStackValue(-params-1);
+			if(func.type == OS_VALUE_TYPE_FUNCTION){
+				Core::Value env = os->core->getStackValue(-params);
+				func.v.func->env = env.getGCValue();
+			}
+			return 0;
+		}
+
+		static int iterator(OS * os, int params, int, int need_ret_values, void*)
+		{
+			os->pushStackValue(-params-1); // self as func
 			return 1;
 		}
 	};
 	Func list[] = {
 		{OS_TEXT("apply"), Function::apply},
+		{OS_TEXT("applyEnv"), Function::applyEnv},
 		{OS_TEXT("call"), Function::call},
+		{OS_TEXT("callEnv"), Function::callEnv},
+		{OS_TEXT("__get@") OS_ENV_VAR_NAME, Function::getEnv},
+		{OS_TEXT("__set@") OS_ENV_VAR_NAME, Function::setEnv},
 		{core->strings->__iter, Function::iterator},
 		{}
 	};
@@ -14195,7 +14537,6 @@ void OS::initMathLibrary()
 		
 		static int atan2(OS * os, int params, int, int, void*)
 		{
-			// I could ignore number of params because of NaN returned in this case
 			os->pushNumber(::atan2(os->toNumber(-params), os->toNumber(-params+1)));
 			return 1;
 		}
@@ -14326,7 +14667,7 @@ void OS::initMathLibrary()
 		{OS_TEXT("exp"), Math::exp},
 		{OS_TEXT("frexp"), Math::frexp},
 		{OS_TEXT("ldexp"), Math::ldexp},
-		{OS_TEXT("rand"), Math::random},
+		{OS_TEXT("random"), Math::random},
 		{OS_TEXT("__get@randseed"), Math::getrandseed},
 		{OS_TEXT("__set@randseed"), Math::setrandseed},
 		{OS_TEXT("fmod"), Math::fmod},
@@ -14337,22 +14678,39 @@ void OS::initMathLibrary()
 		{OS_TEXT("rad"), Math::rad},
 		{}
 	};
-	getGlobalObject(OS_TEXT("Math"));
+	Number numbers[] = {
+		{OS_TEXT("PI"), OS_MATH_PI},
+		{}
+	};
+
+	getGlobalObject(OS_TEXT("math"));
 	setFuncs(list);
+	setNumbers(numbers);
 	pop();
 }
 
+#define OS_AUTO_TEXT(exp) OS_TEXT(#exp)
+
 void OS::initPreScript()
 {
-	const OS_CHAR * code = 
-		OS_TEXT("Object.__get@length = function(){ return #this }")
-		;
-	eval(code);
+	eval(OS_AUTO_TEXT(
+		// OS code here
+		Object.__get@length = function(){ return #this }
+
+		function require(filename){
+			return files_loaded[filename] 
+				|| function(){
+					files_loaded[filename] = compileFile(filename)()
+					return files_loaded[filename]
+				}()
+		}
+	));
 }
 
 void OS::initPostScript()
 {
 }
+
 void OS::Core::syncStackRetValues(int need_ret_values, int cur_ret_values)
 {
 	if(cur_ret_values > need_ret_values){
@@ -14440,8 +14798,23 @@ int OS::Core::call(int params, int ret_values)
 	return false;
 }
 
-bool OS::compileFilename(const Core::String& filename, bool required)
+bool OS::compileFile(const Core::String& p_filename, bool required)
 {
+	Core::String filename = p_filename, cur_path(this);
+	if(core->call_stack_funcs.count > 0){
+		for(int i = core->call_stack_funcs.count-1; i >= 0; i--){
+			Core::StackFunction * stack_func = core->call_stack_funcs.buf + i;
+			if(stack_func->func->prog->filename.getLen() > 0){
+				cur_path = getFilenamePath(stack_func->func->prog->filename);
+				break;
+			}
+		}
+	}
+	if(getFilenameExt(filename).getLen() == 0){
+		filename = String(this, filename) + OS_SOURCECODE_EXT;
+	}
+	filename = resolvePath(filename, cur_path, Core::String(this));
+	
 	{
 		Core::String compiled_filename = changeFilenameExt(filename, OS_COMPILED_EXT);
 		Core::FileStreamReader file(this, compiled_filename);
@@ -14453,9 +14826,11 @@ bool OS::compileFilename(const Core::String& filename, bool required)
 	Core::FileStreamReader file(this, filename);
 	if(!file.f){
 		if(required){
-			core->error(OS_ERROR, String::format(this, OS_TEXT("required filename %s is not exist"), filename.toChar()));
+			core->error(OS_ERROR, String::format(this, OS_TEXT("required filename %s is not exist"), p_filename.toChar()));
 			return false;
 		}
+		core->error(OS_WARNING, String::format(this, OS_TEXT("filename %s is not exist"), p_filename.toChar()));
+		return false;
 	}
 
 
@@ -14471,6 +14846,9 @@ bool OS::compileFilename(const Core::String& filename, bool required)
 
 bool OS::compile(const Core::String& str)
 {
+	if(str.getDataSize() == 0){
+		return false;
+	}
 	Core::Tokenizer tokenizer(this);
 	tokenizer.parseText(str.toChar(), str.getLen(), String(this));
 
@@ -14480,15 +14858,9 @@ bool OS::compile(const Core::String& str)
 
 bool OS::compile()
 {
-	Core::String str(this);
-	Core::Value val = core->getStackValue(-1);
-	if(core->isValueString(val, &str)){
-		pop(1);
-		return compile(str);
-	}
+	Core::String str = toString(-1);
 	pop(1);
-	pushNull();
-	return false;
+	return compile(str);
 }
 
 int OS::call(int params, int ret_values)
@@ -14517,7 +14889,7 @@ int OS::run(const OS_CHAR * filename, bool required, int params, int ret_values)
 
 int OS::run(const Core::String& filename, bool required, int params, int ret_values)
 {
-	compileFilename(filename, required);
+	compileFile(filename, required);
 	pushNull();
 	move(-2, 2, -2-params);
 	int ret = core->call(params, ret_values);
@@ -14641,7 +15013,7 @@ int OS::Value::getId() const
 }
 */
 
-static int __snprintf__(char * buf, size_t num, const char * format, ...)
+static int __snprintf__(OS_CHAR * buf, size_t num, const OS_CHAR * format, ...)
 {
 	va_list va;
 	va_start(va, format);

@@ -244,8 +244,8 @@ print "Script environment"
 print _E
 
 print "Math functions"
-var a = [Math.rand() Math.rand() Math.rand() Math.rand() Math.rand() Math.rand()]
-print("rand" a)
+var a = [math.random() math.random() math.random() math.random() math.random() math.random()]
+print("random" a)
 
 // remove debug print from Array.__iter
 delete Array.__iter // delete our iterator, use default one
@@ -259,13 +259,17 @@ var transform = function(a f){
 }
 a = transform(a function(a){ return a*100 })
 print("mult 100" a)
-print("ceil" transform(a Math.ceil))
-print("floor" transform(a Math.floor))
-print("round(-1)" transform(a function(a){ return Math.round(a, -1) }))
-print("round(2)" transform(a function(a){ return Math.round(a, 2) }))
-print("sin" transform(a Math.sin))
-print("cos" transform(a Math.cos))
-print("tan" transform(a Math.tan))
+print("ceil" transform(a math.ceil))
+print("floor" transform(a math.floor))
+print("round(-1)" transform(a function(a){ return math.round(a, -1) }))
+print("round(2)" transform(a function(a){ return math.round(a, 2) }))
+print("sin" transform(a math.sin))
+print("cos" transform(a math.cos))
+print("tan" transform(a math.tan))
 
-_E = extends _E Math
+_E = extends _E math
 print("round(3)" transform(a function(a){ return round(a, 3) }))
+print("PI" PI)
+
+require "core"
+print eval("return math.round(13.5)")

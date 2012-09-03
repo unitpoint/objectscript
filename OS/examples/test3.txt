@@ -1,6 +1,6 @@
 
 [FILE] test3.os
-[2] print([] 5 " differences")
+[2] print(5 " differences")
 
 begin function
   begin locals, total 48
@@ -19,14 +19,11 @@ begin function
   end locals
   begin call
     get env var print
-    begin params 3
-      begin array 0
-      end array
-      ,
+    begin params 2
       push const number 5
       ,
       push const string " differences"
-    end params ret values 3
+    end params ret values 2
   end call ret values 0
 
 
@@ -409,8 +406,7 @@ begin function
       begin set local var
         begin call
           get local var test (11 0)
-          begin params 1
-            nop
+          begin params 0
           end params ret values 0
         end call ret values 2
       end set local var b (13 0)
@@ -444,8 +440,7 @@ begin function
         begin set local var
           begin call
             get local var test (11 0)
-            begin params 1
-              nop
+            begin params 0
             end params ret values 0
           end call ret values 3
         end set local var c (16 0)
@@ -1271,10 +1266,8 @@ begin function
 
   begin call method
     get local var p (36 0)
-    begin params 2
+    begin params 1
       push const string "walk"
-      ,
-      nop
     end params ret values 1
   end call method ret values 0
 
@@ -1334,8 +1327,7 @@ begin function
   begin set local var
     begin call
       get local var IvanPerson (37 0)
-      begin params 1
-        nop
+      begin params 0
       end params ret values 0
     end call ret values 1
   end set local var p (38 0)
@@ -1345,10 +1337,8 @@ begin function
 
   begin call method
     get local var p (38 0)
-    begin params 2
+    begin params 1
       push const string "walk"
-      ,
-      nop
     end params ret values 1
   end call method ret values 0
 
@@ -2284,72 +2274,60 @@ begin function
   end call ret values 0
 
 
-[247] var a = [Math.rand() Math.rand() Math.rand() Math.rand() Math.rand() Math.rand()]
+[247] var a = [math.random() math.random() math.random() math.random() math.random() math.random()]
 
   begin set local var
     begin array 6
       begin set auto index
         begin call method
-          get env var Math
-          begin params 2
-            push const string "rand"
-            ,
-            nop
+          get env var math
+          begin params 1
+            push const string "random"
           end params ret values 1
         end call method ret values 1
       end set auto index
       ,
       begin set auto index
         begin call method
-          get env var Math
-          begin params 2
-            push const string "rand"
-            ,
-            nop
+          get env var math
+          begin params 1
+            push const string "random"
           end params ret values 1
         end call method ret values 1
       end set auto index
       ,
       begin set auto index
         begin call method
-          get env var Math
-          begin params 2
-            push const string "rand"
-            ,
-            nop
+          get env var math
+          begin params 1
+            push const string "random"
           end params ret values 1
         end call method ret values 1
       end set auto index
       ,
       begin set auto index
         begin call method
-          get env var Math
-          begin params 2
-            push const string "rand"
-            ,
-            nop
+          get env var math
+          begin params 1
+            push const string "random"
           end params ret values 1
         end call method ret values 1
       end set auto index
       ,
       begin set auto index
         begin call method
-          get env var Math
-          begin params 2
-            push const string "rand"
-            ,
-            nop
+          get env var math
+          begin params 1
+            push const string "random"
           end params ret values 1
         end call method ret values 1
       end set auto index
       ,
       begin set auto index
         begin call method
-          get env var Math
-          begin params 2
-            push const string "rand"
-            ,
-            nop
+          get env var math
+          begin params 1
+            push const string "random"
           end params ret values 1
         end call method ret values 1
       end set auto index
@@ -2357,12 +2335,12 @@ begin function
   end set local var a (46 0)
 
 
-[248] print("rand" a)
+[248] print("random" a)
 
   begin call
     get env var print
     begin params 2
-      push const string "rand"
+      push const string "random"
       ,
       get local var a (46 0)
     end params ret values 2
@@ -2529,7 +2507,7 @@ begin function
   end call ret values 0
 
 
-[262] print("ceil" transform(a Math.ceil))
+[262] print("ceil" transform(a math.ceil))
 
   begin call
     get env var print
@@ -2542,7 +2520,7 @@ begin function
           get local var a (46 0)
           ,
           begin get property
-            get env var Math
+            get env var math
             push const string "ceil"
           end get property ret values 1
         end params ret values 2
@@ -2551,7 +2529,7 @@ begin function
   end call ret values 0
 
 
-[263] print("floor" transform(a Math.floor))
+[263] print("floor" transform(a math.floor))
 
   begin call
     get env var print
@@ -2564,7 +2542,7 @@ begin function
           get local var a (46 0)
           ,
           begin get property
-            get env var Math
+            get env var math
             push const string "floor"
           end get property ret values 1
         end params ret values 2
@@ -2573,7 +2551,7 @@ begin function
   end call ret values 0
 
 
-[264] print("round(-1)" transform(a function(a){ return Math.round(a, -1) }))
+[264] print("round(-1)" transform(a function(a){ return math.round(a, -1) }))
 
   begin call
     get env var print
@@ -2592,7 +2570,7 @@ begin function
               2 _G
             end locals
             begin tail call method
-              get env var Math
+              get env var math
               begin params 3
                 push const string "round"
                 ,
@@ -2610,7 +2588,7 @@ begin function
   end call ret values 0
 
 
-[265] print("round(2)" transform(a function(a){ return Math.round(a, 2) }))
+[265] print("round(2)" transform(a function(a){ return math.round(a, 2) }))
 
   begin call
     get env var print
@@ -2629,7 +2607,7 @@ begin function
               2 _G
             end locals
             begin tail call method
-              get env var Math
+              get env var math
               begin params 3
                 push const string "round"
                 ,
@@ -2645,7 +2623,7 @@ begin function
   end call ret values 0
 
 
-[266] print("sin" transform(a Math.sin))
+[266] print("sin" transform(a math.sin))
 
   begin call
     get env var print
@@ -2658,7 +2636,7 @@ begin function
           get local var a (46 0)
           ,
           begin get property
-            get env var Math
+            get env var math
             push const string "sin"
           end get property ret values 1
         end params ret values 2
@@ -2667,7 +2645,7 @@ begin function
   end call ret values 0
 
 
-[267] print("cos" transform(a Math.cos))
+[267] print("cos" transform(a math.cos))
 
   begin call
     get env var print
@@ -2680,7 +2658,7 @@ begin function
           get local var a (46 0)
           ,
           begin get property
-            get env var Math
+            get env var math
             push const string "cos"
           end get property ret values 1
         end params ret values 2
@@ -2689,7 +2667,7 @@ begin function
   end call ret values 0
 
 
-[268] print("tan" transform(a Math.tan))
+[268] print("tan" transform(a math.tan))
 
   begin call
     get env var print
@@ -2702,7 +2680,7 @@ begin function
           get local var a (46 0)
           ,
           begin get property
-            get env var Math
+            get env var math
             push const string "tan"
           end get property ret values 1
         end params ret values 2
@@ -2711,12 +2689,12 @@ begin function
   end call ret values 0
 
 
-[270] _E = extends _E Math
+[270] _E = extends _E math
 
   begin set local var
     begin extends
       get local var _E (0 0)
-      get env var Math
+      get env var math
     end extends ret values 1
   end set local var _E (0 0)
 
@@ -2752,4 +2730,47 @@ begin function
       end call ret values 1
     end params ret values 2
   end call ret values 0
+
+
+[272] print("PI" PI)
+
+  begin call
+    get env var print
+    begin params 2
+      push const string "PI"
+      ,
+      get env var PI
+    end params ret values 2
+  end call ret values 0
+
+
+[274] require "core"
+
+  begin call
+    get env var require
+    begin params 1
+      push const string "core"
+    end params ret values 1
+  end call ret values 0
+
+
+[275] print eval("return math.round(13.5)")
+
+  begin call
+    get env var print
+    begin params 1
+      begin call
+        get env var eval
+        begin params 1
+          push const string "return math.round(13.5)"
+        end params ret values 1
+      end call ret values 1
+    end params ret values 1
+  end call ret values 0
+
+  begin code list
+    begin return
+      get env var _E
+    end return values 1
+  end code list ret values 0
 end function

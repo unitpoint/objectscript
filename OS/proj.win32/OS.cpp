@@ -248,10 +248,15 @@ int _tmain(int argc, _TCHAR* argv[])
 	// exit(1);
 	// os->eval("print arg");
 	{
-		int mem_usage = os->getAllocatedBytes();
+		int mem_allocated = os->getAllocatedBytes()/1024;
+		int mem_cached = os->getCachedBytes()/1024;
 		os->gcFull();
-		int after_mem_usage = os->getAllocatedBytes();
-		int i = mem_usage;
+		int after_mem_allocated = os->getAllocatedBytes()/1024;
+		int after_mem_cached = os->getCachedBytes()/1024;
+		printf("Mem allocated: %d %d (Kb), cached: %d %d (Kb), used: %d %d (Kb)\n", 
+			mem_allocated, after_mem_allocated, 
+			mem_cached, after_mem_cached,
+			mem_allocated - mem_cached, after_mem_allocated - after_mem_cached);
 	}
 
 	os->release();
