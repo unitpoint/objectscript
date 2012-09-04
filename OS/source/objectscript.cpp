@@ -8989,6 +8989,7 @@ OS::Core::GCValue * OS::Core::unregisterValue(int value_id)
 			}else{
 				values.heads[slot] = value->hash_next;
 			}
+			OS_ASSERT(values.count > 0);
 			values.count--;
 			value->hash_next = NULL;
 			return value;
@@ -9010,11 +9011,10 @@ void OS::Core::deleteValues(bool del_ref_counted_also)
 				for(GCValue * value = values.heads[i], * next; value; value = next){
 					next = value->hash_next;
 					if(del_ref_counted_also || !value->external_ref_count){
-						if(values.heads[i] == value){
+						/* if(values.heads[i] == value){
 							values.heads[i] = next;
 						}
-						values.count--;
-						value->hash_next = NULL;
+						value->hash_next = NULL; */
 						deleteValue(value);
 					}
 				}
