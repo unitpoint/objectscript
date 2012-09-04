@@ -8801,22 +8801,8 @@ OS::Core::String OS::Core::valueToString(Value val, bool valueof_enabled)
 			return valueToString(stack_values.lastElement(), false);
 		}
 		*/
-		OS_ASSERT(check_recursion && check_recursion->type == OS_VALUE_TYPE_OBJECT);
-		if(++check_recursion->external_ref_count == 1 && check_recursion->table){
-			clearTable(check_recursion->table);
-		}
-		setPropertyValue(check_recursion, val, Core::Value(true), false);
 		pushValueOf(val);
-		struct Pop { 
-			Core * core; 
-			~Pop()
-			{ 
-				core->pop(); 
-				if(--core->check_recursion->external_ref_count == 0 && core->check_recursion->table){
-					core->clearTable(core->check_recursion->table);
-				}
-			}
-		} pop = {this};
+		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this};
 		return valueToString(stack_values.lastElement(), false);
 	}
 	return String(allocator);
@@ -11207,6 +11193,22 @@ bool OS::Core::pushValueOf(Value val)
 		pushValue(val);
 		return true;
 	}
+
+	OS_ASSERT(check_recursion && check_recursion->type == OS_VALUE_TYPE_OBJECT);
+	if(++check_recursion->external_ref_count == 1 && check_recursion->table){
+		clearTable(check_recursion->table);
+	}
+	setPropertyValue(check_recursion, val, Value(true), false);
+	struct Finalizer { 
+		Core * core; 
+		~Finalizer()
+		{ 
+			if(--core->check_recursion->external_ref_count == 0 && core->check_recursion->table){
+				core->clearTable(core->check_recursion->table);
+			}
+		}
+	} finalizer = {this};
+
 	bool prototype_enabled = true;
 	Value func;
 	if(getPropertyValue(func, val.v.value, PropertyIndex(strings->__valueof, PropertyIndex::KeepStringIndex()), prototype_enabled)
@@ -11744,10 +11746,13 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 					}
 				}
 			}
-			{
+			if(is_left_side){
 				core->pushValueOf(left_value);
-				Value left_value = core->stack_values.lastElement();
-				pushBinaryOpcodeValue(opcode, left_value, right_value);
+				pushBinaryOpcodeValue(opcode, core->stack_values.lastElement(), right_value);
+				core->removeStackValue(-2);
+			}else{
+				core->pushValueOf(right_value);
+				pushBinaryOpcodeValue(opcode, left_value, core->stack_values.lastElement());
 				core->removeStackValue(-2);
 			}
 		}
@@ -14807,10 +14812,10 @@ void OS::initPreScript()
 
 		function require(filename){
 			filename = resolvePath(filename)
-			return files_loaded[filename] 
+			return modules_loaded[filename] 
 				|| function(){
-					files_loaded[filename] = compileFile(filename)()
-					return files_loaded[filename]
+					modules_loaded[filename] = compileFile(filename)()
+					return modules_loaded[filename]
 				}()
 		}
 	));

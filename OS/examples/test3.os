@@ -58,7 +58,6 @@ print {firstname="Ivan" lastname="Petrov"}
 	}
 
 	print "Object iterator test, only keys"
-	obj = { null awesome=true 12 "excellent" }
 	for(k in obj){
 		print k
 	}
@@ -153,7 +152,7 @@ var vec3 = {
 var v1 = vec3(10 20 30)
 var v2 = vec3(1 2 3)
 var v3 = v1 + v2 * v2
-print v3
+print "should be {x:11,y:24,z:39} " .. v3
 
 ;{
 	print "Test properties"
@@ -165,10 +164,10 @@ print v3
 	}
 	
 	// get property
-	print a["color"]
+	print "should be red: " .. a["color"]
 	// set property
 	a.color = "blue"
-	print a.color
+	print "should be blue: " .. a.color
 	
 	a = {
 		_color = "white"
@@ -187,13 +186,14 @@ print v3
 	}
 	
 	// get property
-	print a.color
+	print "should be white: " .. a.color
+	print "should be null: " .. a.color2
 	// set property
 	a.color = "green"
-	print a.color
+	print "should be green: " .. a.color
 	// delete property
 	delete a.color
-	print a.color	
+	print "should be null: " .. a.color	
 	
 	print "Test multi dimensional properties"
 	a = {
@@ -211,14 +211,14 @@ print v3
 	// set property
 	a[1, 2] = 5		// a.__setdim(5, 1, 2)
 	// get property
-	print a[1, 2]	// print(a.__getdim(1, 2))
+	print "should be 5: " .. a[1, 2]	// print(a.__getdim(1, 2))
 	// delete property
 	delete a[1, 2]	// a.__deldim(1, 2)
-	print a[1, 2]	// print(a.__getdim(1, 2))	
+	print "should be null: " .. a[1, 2]	// print(a.__getdim(1, 2))	
 }
 
 print "Test function inline call"
-print function(a b c){ return a + b * c }(1 2 3)
+print "should be 7: " .. (function(a b c){ return a + b * c }(1 2 3))
 
 ;{
 	print "Test local vars scope"
@@ -276,7 +276,7 @@ var core = require("core")
 print("core.eval(math.round(13.5))" core.eval("return math.round(13.5)"))
 print("eval(math.round(13.5))" eval("return math.round(13.5)"))
 print("==============")
-print("Next: math namespace is not used\neval executes code in global environment by default\nso eval(round(13.5))" eval("return round(13.5)"))
+print("Next: math namespace is not used\nbut eval executes code in global environment by default\nso eval(round(13.5))" eval("return round(13.5)"))
 print("run eval in space of the current environment (round(13.5))" eval("return round(13.5)", _E))
 
 print _G

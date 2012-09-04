@@ -594,30 +594,7 @@ begin function
     end call ret values 0
 
 
-[61] obj = { null awesome=true 12 "excellent" }
-
-    begin set local var
-      begin object 4
-        begin set auto index
-          const null
-        end set auto index
-        ,
-        begin set by name
-          const true
-        end set by name: [awesome]
-        ,
-        begin set auto index
-          push const number 12
-        end set auto index
-        ,
-        begin set auto index
-          push const string "excellent"
-        end set auto index
-      end object
-    end set local var obj (17 0)
-
-
-[62] for(k in obj){
+[61] for(k in obj){
 
     begin scope
       begin locals 3
@@ -664,7 +641,7 @@ begin function
           end if ret values 0
 
 
-[63] print k
+[62] print k
 
           begin scope
             begin call
@@ -679,7 +656,7 @@ begin function
     end scope ret values 0
 
 
-[66] print "Array iterator test"
+[65] print "Array iterator test"
 
     begin call
       get env var print
@@ -689,7 +666,7 @@ begin function
     end call ret values 0
 
 
-[67] Array.__iter = function(){
+[66] Array.__iter = function(){
 
     begin set property
       begin function
@@ -700,7 +677,7 @@ begin function
           3 self
         end locals
 
-[68] var i, self = 0, this
+[67] var i, self = 0, this
 
         begin set local var
           begin set local var
@@ -713,7 +690,7 @@ begin function
         end set local var i (2 0)
 
 
-[69] return function(){
+[68] return function(){
 
         begin code list
           begin return
@@ -723,7 +700,7 @@ begin function
                 1 _G
               end locals
 
-[70] if(i < #self){
+[69] if(i < #self){
 
               begin if
                 begin bool exp
@@ -736,7 +713,7 @@ begin function
                 end bool exp
                 begin then
 
-[71] print("... inside of array iter func: " i self[i])
+[70] print("... inside of array iter func: " i self[i])
 
                   begin scope
                     begin locals 1
@@ -757,7 +734,7 @@ begin function
                     end call ret values 0
 
 
-[72] return true, i, self[i++]
+[71] return true, i, self[i++]
 
                     begin code list
                       begin return
@@ -792,14 +769,14 @@ begin function
         end code list ret values 0
       end function
 
-[67] Array.__iter = function(){
+[66] Array.__iter = function(){
 
       get env var auto create Array
       push const string "__iter"
     end set property ret values 0
 
 
-[76] for(k, v in [10 20 30 40 50]){
+[75] for(k, v in [10 20 30 40 50]){
 
     begin scope
       begin locals 4
@@ -871,7 +848,7 @@ begin function
           end if ret values 0
 
 
-[77] print( k " --> " v )
+[76] print( k " --> " v )
 
           begin scope
             begin call
@@ -890,7 +867,7 @@ begin function
     end scope ret values 0
 
 
-[80] print("Test array prototype:", [1 2 3].prototype === Array)
+[79] print("Test array prototype:", [1 2 3].prototype === Array)
 
     begin call
       get env var print
@@ -920,7 +897,7 @@ begin function
     end call ret values 0
 
 
-[82] print "Test range iterator"
+[81] print "Test range iterator"
 
     begin call
       get env var print
@@ -930,7 +907,7 @@ begin function
     end call ret values 0
 
 
-[83] var range = function(a, b){
+[82] var range = function(a, b){
 
     begin set local var
       begin function
@@ -941,7 +918,7 @@ begin function
           3 _G
         end locals
 
-[84] return function(){
+[83] return function(){
 
         begin return
           begin function
@@ -950,7 +927,7 @@ begin function
               1 _G
             end locals
 
-[85] if(a <= b){
+[84] if(a <= b){
 
             begin if
               begin bool exp
@@ -961,7 +938,7 @@ begin function
               end bool exp
               begin then
 
-[86] return true, a++
+[85] return true, a++
 
                 begin scope
                   begin locals 1
@@ -994,7 +971,7 @@ begin function
     end set local var range (29 0)
 
 
-[90] for(var i in range(10, 13)){
+[89] for(var i in range(10, 13)){
 
     begin scope
       begin locals 3
@@ -1048,7 +1025,7 @@ begin function
           end if ret values 0
 
 
-[91] print "i = "..i
+[90] print "i = "..i
 
           begin scope
             begin call
@@ -1067,7 +1044,7 @@ begin function
   end scope ret values 0
 
 
-[96] print "7 && 9 = "..(7 && 9)
+[95] print "7 && 9 = "..(7 && 9)
 
   begin call
     get env var print
@@ -1083,7 +1060,7 @@ begin function
   end call ret values 0
 
 
-[97] print "7 || 9 = "..(7 || 9)
+[96] print "7 || 9 = "..(7 || 9)
 
   begin call
     get env var print
@@ -1099,7 +1076,7 @@ begin function
   end call ret values 0
 
 
-[102] var v1 = {x=1 y=2}
+[101] var v1 = {x=1 y=2}
 
   begin scope
     begin locals 2
@@ -1119,7 +1096,7 @@ begin function
     end set local var v1 (33 0)
 
 
-[103] var a = {[v1]="vv1" v2="vv2"}
+[102] var a = {[v1]="vv1" v2="vv2"}
 
     begin set local var
       begin object 2
@@ -1135,7 +1112,7 @@ begin function
     end set local var a (34 0)
 
 
-[104] print( a[v1] a.v2 )
+[103] print( a[v1] a.v2 )
 
     begin call
       get env var print
@@ -1154,12 +1131,12 @@ begin function
   end scope ret values 0
 
 
-[109] var Person = {
+[108] var Person = {
 
   begin set local var
     begin object 3
 
-[110] __construct: function(firstname, lastname){
+[109] __construct: function(firstname, lastname){
 
       begin set by name
         begin function
@@ -1170,7 +1147,7 @@ begin function
             3 _G
           end locals
 
-[111] this.firstname = firstname
+[110] this.firstname = firstname
 
           begin set property
             get local var firstname (0 0 param)
@@ -1179,7 +1156,7 @@ begin function
           end set property ret values 0
 
 
-[112] this.lastname = lastname
+[111] this.lastname = lastname
 
           begin set property
             get local var lastname (1 0 param)
@@ -1190,7 +1167,7 @@ begin function
       end set by name: [__construct]
       ,
 
-[114] walk = function(){
+[113] walk = function(){
 
       begin set by name
         begin function
@@ -1199,7 +1176,7 @@ begin function
             1 _G
           end locals
 
-[115] print this.fullname .. " is walking!"
+[114] print this.fullname .. " is walking!"
 
           begin call
             get env var print
@@ -1217,7 +1194,7 @@ begin function
       end set by name: [walk]
       ,
 
-[117] __get@fullname = function(){
+[116] __get@fullname = function(){
 
       begin set by name
         begin function
@@ -1226,7 +1203,7 @@ begin function
             1 _G
           end locals
 
-[118] return this.firstname .. " " .. this.lastname
+[117] return this.firstname .. " " .. this.lastname
 
           begin return
             begin operator ..
@@ -1249,7 +1226,7 @@ begin function
   end set local var Person (35 0)
 
 
-[122] var p = Person("James", "Bond")
+[121] var p = Person("James", "Bond")
 
   begin set local var
     begin call
@@ -1263,7 +1240,7 @@ begin function
   end set local var p (36 0)
 
 
-[123] p.walk()
+[122] p.walk()
 
   begin call method
     get local var p (36 0)
@@ -1273,7 +1250,7 @@ begin function
   end call method ret values 0
 
 
-[124] print p
+[123] print p
 
   begin call
     get env var print
@@ -1283,14 +1260,14 @@ begin function
   end call ret values 0
 
 
-[127] var IvanPerson = extends Person {
+[126] var IvanPerson = extends Person {
 
   begin set local var
     begin extends
       get local var Person (35 0)
       begin object 1
 
-[128] __construct: function(){
+[127] __construct: function(){
 
         begin set by name
           begin function
@@ -1299,7 +1276,7 @@ begin function
               1 _G
             end locals
 
-[129] super.__construct.call(this, "Ivan", "Petrov")
+[128] super.__construct.call(this, "Ivan", "Petrov")
 
             begin call method
               begin get property
@@ -1323,7 +1300,7 @@ begin function
   end set local var IvanPerson (37 0)
 
 
-[133] var p = IvanPerson()
+[132] var p = IvanPerson()
 
   begin set local var
     begin call
@@ -1334,7 +1311,7 @@ begin function
   end set local var p (38 0)
 
 
-[134] p.walk()
+[133] p.walk()
 
   begin call method
     get local var p (38 0)
@@ -1344,7 +1321,7 @@ begin function
   end call method ret values 0
 
 
-[135] print p
+[134] print p
 
   begin call
     get env var print
@@ -1354,12 +1331,12 @@ begin function
   end call ret values 0
 
 
-[139] var vec3 = {
+[138] var vec3 = {
 
   begin set local var
     begin object 3
 
-[140] __construct = function(x, y, z){
+[139] __construct = function(x, y, z){
 
       begin set by name
         begin function
@@ -1371,7 +1348,7 @@ begin function
             4 _G
           end locals
 
-[141] this.x = x
+[140] this.x = x
 
           begin set property
             get local var x (0 0 param)
@@ -1380,7 +1357,7 @@ begin function
           end set property ret values 0
 
 
-[142] this.y = y
+[141] this.y = y
 
           begin set property
             get local var y (1 0 param)
@@ -1389,7 +1366,7 @@ begin function
           end set property ret values 0
 
 
-[143] this.z = z
+[142] this.z = z
 
           begin set property
             get local var z (2 0 param)
@@ -1400,7 +1377,7 @@ begin function
       end set by name: [__construct]
       ,
 
-[145] __add = function(a, b){
+[144] __add = function(a, b){
 
       begin set by name
         begin function
@@ -1411,7 +1388,7 @@ begin function
             3 _G
           end locals
 
-[146] return vec3(a.x + b.x, a.y + b.y, a.z + b.z)
+[145] return vec3(a.x + b.x, a.y + b.y, a.z + b.z)
 
           begin tail call
             get local var vec3 (39 1)
@@ -1454,7 +1431,7 @@ begin function
       end set by name: [__add]
       ,
 
-[148] __mul = function(a, b){
+[147] __mul = function(a, b){
 
       begin set by name
         begin function
@@ -1465,7 +1442,7 @@ begin function
             3 _G
           end locals
 
-[149] return vec3(a.x * b.x, a.y * b.y, a.z * b.z)
+[148] return vec3(a.x * b.x, a.y * b.y, a.z * b.z)
 
           begin tail call
             get local var vec3 (39 1)
@@ -1510,7 +1487,7 @@ begin function
   end set local var vec3 (39 0)
 
 
-[153] var v1 = vec3(10 20 30)
+[152] var v1 = vec3(10 20 30)
 
   begin set local var
     begin call
@@ -1526,7 +1503,7 @@ begin function
   end set local var v1 (40 0)
 
 
-[154] var v2 = vec3(1 2 3)
+[153] var v2 = vec3(1 2 3)
 
   begin set local var
     begin call
@@ -1542,7 +1519,7 @@ begin function
   end set local var v2 (41 0)
 
 
-[155] var v3 = v1 + v2 * v2
+[154] var v3 = v1 + v2 * v2
 
   begin set local var
     begin operator +
@@ -1555,17 +1532,20 @@ begin function
   end set local var v3 (42 0)
 
 
-[156] print v3
+[155] print "should be {x:11,y:24,z:39} " .. v3
 
   begin call
     get env var print
     begin params 1
-      get local var v3 (42 0)
+      begin operator ..
+        push const string "should be {x:11,y:24,z:39} "
+        get local var v3 (42 0)
+      end operator ..
     end params ret values 1
   end call ret values 0
 
 
-[159] print "Test properties"
+[158] print "Test properties"
 
   begin scope
     begin locals 1
@@ -1579,19 +1559,19 @@ begin function
     end call ret values 0
 
 
-[161] var a = {
+[160] var a = {
 
     begin set local var
       begin object 3
 
-[162] _color = "red"
+[161] _color = "red"
 
         begin set by name
           push const string "red"
         end set by name: [_color]
         ,
 
-[163] __get@color = function(){ return this._color }
+[162] __get@color = function(){ return this._color }
 
         begin set by name
           begin function
@@ -1609,7 +1589,7 @@ begin function
         end set by name: [__get@color]
         ,
 
-[164] __set@color = function(v){ this._color = v }
+[163] __set@color = function(v){ this._color = v }
 
         begin set by name
           begin function
@@ -1629,20 +1609,23 @@ begin function
     end set local var a (43 0)
 
 
-[168] print a["color"]
+[167] print "should be red: " .. a["color"]
 
     begin call
       get env var print
       begin params 1
-        begin get property
-          get local var a (43 0)
-          push const string "color"
-        end get property ret values 1
+        begin operator ..
+          push const string "should be red: "
+          begin get property
+            get local var a (43 0)
+            push const string "color"
+          end get property ret values 1
+        end operator ..
       end params ret values 1
     end call ret values 0
 
 
-[170] a.color = "blue"
+[169] a.color = "blue"
 
     begin set property
       push const string "blue"
@@ -1651,32 +1634,35 @@ begin function
     end set property ret values 0
 
 
-[171] print a.color
+[170] print "should be blue: " .. a.color
 
     begin call
       get env var print
       begin params 1
-        begin get property
-          get local var a (43 0)
-          push const string "color"
-        end get property ret values 1
+        begin operator ..
+          push const string "should be blue: "
+          begin get property
+            get local var a (43 0)
+            push const string "color"
+          end get property ret values 1
+        end operator ..
       end params ret values 1
     end call ret values 0
 
 
-[173] a = {
+[172] a = {
 
     begin set local var
       begin object 4
 
-[174] _color = "white"
+[173] _color = "white"
 
         begin set by name
           push const string "white"
         end set by name: [_color]
         ,
 
-[175] __get = function(name){
+[174] __get = function(name){
 
         begin set by name
           begin function
@@ -1686,7 +1672,7 @@ begin function
               2 _G
             end locals
 
-[176] if(name == "color")
+[175] if(name == "color")
 
             begin if
               begin bool exp
@@ -1697,7 +1683,7 @@ begin function
               end bool exp
               begin then
 
-[177] return this._color
+[176] return this._color
 
                 begin code list
                   begin return
@@ -1713,7 +1699,7 @@ begin function
         end set by name: [__get]
         ,
 
-[179] __set = function(name, v){
+[178] __set = function(name, v){
 
         begin set by name
           begin function
@@ -1724,7 +1710,7 @@ begin function
               3 _G
             end locals
 
-[180] if(name == "color")
+[179] if(name == "color")
 
             begin if
               begin bool exp
@@ -1735,7 +1721,7 @@ begin function
               end bool exp
               begin then
 
-[181] this._color = v
+[180] this._color = v
 
                 begin set property
                   get local var v (1 0 param)
@@ -1748,7 +1734,7 @@ begin function
         end set by name: [__set]
         ,
 
-[183] __del = function(name){
+[182] __del = function(name){
 
         begin set by name
           begin function
@@ -1758,7 +1744,7 @@ begin function
               2 _G
             end locals
 
-[184] if(name == "color")
+[183] if(name == "color")
 
             begin if
               begin bool exp
@@ -1769,7 +1755,7 @@ begin function
               end bool exp
               begin then
 
-[185] delete this._color
+[184] delete this._color
 
                 begin delete
                   push this
@@ -1783,15 +1769,34 @@ begin function
     end set local var a (43 0)
 
 
-[190] print a.color
+[189] print "should be white: " .. a.color
 
     begin call
       get env var print
       begin params 1
-        begin get property
-          get local var a (43 0)
-          push const string "color"
-        end get property ret values 1
+        begin operator ..
+          push const string "should be white: "
+          begin get property
+            get local var a (43 0)
+            push const string "color"
+          end get property ret values 1
+        end operator ..
+      end params ret values 1
+    end call ret values 0
+
+
+[190] print "should be null: " .. a.color2
+
+    begin call
+      get env var print
+      begin params 1
+        begin operator ..
+          push const string "should be null: "
+          begin get property
+            get local var a (43 0)
+            push const string "color2"
+          end get property ret values 1
+        end operator ..
       end params ret values 1
     end call ret values 0
 
@@ -1805,15 +1810,18 @@ begin function
     end set property ret values 0
 
 
-[193] print a.color
+[193] print "should be green: " .. a.color
 
     begin call
       get env var print
       begin params 1
-        begin get property
-          get local var a (43 0)
-          push const string "color"
-        end get property ret values 1
+        begin operator ..
+          push const string "should be green: "
+          begin get property
+            get local var a (43 0)
+            push const string "color"
+          end get property ret values 1
+        end operator ..
       end params ret values 1
     end call ret values 0
 
@@ -1826,15 +1834,18 @@ begin function
     end delete
 
 
-[196] print a.color
+[196] print "should be null: " .. a.color
 
     begin call
       get env var print
       begin params 1
-        begin get property
-          get local var a (43 0)
-          push const string "color"
-        end get property ret values 1
+        begin operator ..
+          push const string "should be null: "
+          begin get property
+            get local var a (43 0)
+            push const string "color"
+          end get property ret values 1
+        end operator ..
       end params ret values 1
     end call ret values 0
 
@@ -1971,21 +1982,24 @@ begin function
     end set dim ret values 0
 
 
-[214] print a[1, 2]	// print(a.__getdim(1, 2))
+[214] print "should be 5: " .. a[1, 2]	// print(a.__getdim(1, 2))
 
     begin call
       get env var print
       begin params 1
-        begin call method
-          get local var a (43 0)
-          begin params 3
-            push const string "__getdim"
-            ,
-            push const number 1
-            ,
-            push const number 2
-          end params ret values 3
-        end call method ret values 1
+        begin operator ..
+          push const string "should be 5: "
+          begin call method
+            get local var a (43 0)
+            begin params 3
+              push const string "__getdim"
+              ,
+              push const number 1
+              ,
+              push const number 2
+            end params ret values 3
+          end call method ret values 1
+        end operator ..
       end params ret values 1
     end call ret values 0
 
@@ -2004,21 +2018,24 @@ begin function
     end call method ret values 0
 
 
-[217] print a[1, 2]	// print(a.__getdim(1, 2))
+[217] print "should be null: " .. a[1, 2]	// print(a.__getdim(1, 2))
 
     begin call
       get env var print
       begin params 1
-        begin call method
-          get local var a (43 0)
-          begin params 3
-            push const string "__getdim"
-            ,
-            push const number 1
-            ,
-            push const number 2
-          end params ret values 3
-        end call method ret values 1
+        begin operator ..
+          push const string "should be null: "
+          begin call method
+            get local var a (43 0)
+            begin params 3
+              push const string "__getdim"
+              ,
+              push const number 1
+              ,
+              push const number 2
+            end params ret values 3
+          end call method ret values 1
+        end operator ..
       end params ret values 1
     end call ret values 0
   end scope ret values 0
@@ -2034,38 +2051,43 @@ begin function
   end call ret values 0
 
 
-[221] print function(a b c){ return a + b * c }(1 2 3)
+[221] print "should be 7: " .. (function(a b c){ return a + b * c }(1 2 3))
 
   begin call
     get env var print
     begin params 1
-      begin call
-        begin function
-          begin locals, total 5
-            0 a (param)
-            1 b (param)
-            2 c (param)
-            3 _E
-            4 _G
-          end locals
-          begin return
-            begin operator +
-              get local var a (0 0 param)
-              begin operator *
-                get local var b (1 0 param)
-                get local var c (2 0 param)
-              end operator *
-            end operator +
-          end return values 1
-        end function
-        begin params 3
-          push const number 1
-          ,
-          push const number 2
-          ,
-          push const number 3
-        end params ret values 3
-      end call ret values 1
+      begin operator ..
+        push const string "should be 7: "
+        begin single value
+          begin call
+            begin function
+              begin locals, total 5
+                0 a (param)
+                1 b (param)
+                2 c (param)
+                3 _E
+                4 _G
+              end locals
+              begin return
+                begin operator +
+                  get local var a (0 0 param)
+                  begin operator *
+                    get local var b (1 0 param)
+                    get local var c (2 0 param)
+                  end operator *
+                end operator +
+              end return values 1
+            end function
+            begin params 3
+              push const number 1
+              ,
+              push const number 2
+              ,
+              push const number 3
+            end params ret values 3
+          end call ret values 1
+        end single value
+      end operator ..
     end params ret values 1
   end call ret values 0
 
@@ -2817,13 +2839,13 @@ begin function
   end call ret values 0
 
 
-[279] print("Next: math namespace is not used\neval executes code in global environment by default\nso eval(round(13.5))" eval("return round(13.5)"))
+[279] print("Next: math namespace is not used\nbut eval executes code in global environment by default\nso eval(round(13.5))" eval("return round(13.5)"))
 
   begin call
     get env var print
     begin params 2
       push const string "Next: math namespace is not used
-eval executes code in global environment by default
+but eval executes code in global environment by default
 so eval(round(13.5))"
       ,
       begin call
