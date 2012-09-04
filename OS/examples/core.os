@@ -40,11 +40,11 @@ addEventListener("enterFrame", function(){
 	for(var i, t in timers){
 		if(t.next_time_ms >= time_ms){
 			t.func()
-			t.count = t.count - 1
-			if(t.count <= 0){
+			if(t.count <= 1){
 				delete timers[i]
 				continue
 			}
+			t.count = t.count - 1
 			t.next_time_ms = time_ms + t.delay_ms
 		}
 	}

@@ -411,7 +411,38 @@ begin function
                       end call method ret values 0
 
 
-[43] t.count = t.count - 1
+[43] if(t.count <= 1){
+
+                      begin if
+                        begin bool exp
+                          begin logic <=
+                            begin get property
+                              get local var t (4 0)
+                              push const string "count"
+                            end get property ret values 1
+                            push const number 1
+                          end logic <=
+                        end bool exp
+                        begin then
+
+[44] delete timers[i]
+
+                          begin scope
+                            begin delete
+                              get local var timers (3 1)
+                              get local var i (3 0)
+                            end delete
+
+
+[45] continue
+
+                            continue
+                          end scope ret values 0
+                        end then
+                      end if ret values 0
+
+
+[47] t.count = t.count - 1
 
                       begin set property
                         begin operator -
@@ -424,37 +455,6 @@ begin function
                         get local var auto create t (4 0)
                         push const string "count"
                       end set property ret values 0
-
-
-[44] if(t.count <= 0){
-
-                      begin if
-                        begin bool exp
-                          begin logic <=
-                            begin get property
-                              get local var t (4 0)
-                              push const string "count"
-                            end get property ret values 1
-                            push const number 0
-                          end logic <=
-                        end bool exp
-                        begin then
-
-[45] delete timers[i]
-
-                          begin scope
-                            begin delete
-                              get local var timers (3 1)
-                              get local var i (3 0)
-                            end delete
-
-
-[46] continue
-
-                            continue
-                          end scope ret values 0
-                        end then
-                      end if ret values 0
 
 
 [48] t.next_time_ms = time_ms + t.delay_ms

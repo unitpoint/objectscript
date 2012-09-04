@@ -35,15 +35,21 @@
 #include <string.h>
 #include <malloc.h>
 #include <new.h>
-#include <vadefs.h>
 #include <stdlib.h>
+
+#if defined _MSC_VER && !defined IW_SDK
+#include <vadefs.h>
+#endif
+
+#ifdef _DEBUG
+#define OS_DEBUG
+#endif
 
 // select ObjectScript number type here
 #define OS_NUMBER double
 // #define OS_NUMBER float	// could be a bit faster
 // #define OS_NUMBER int	// not recomended
 
-#define OS_CHAR char
 #define OS_INT __int64
 #define OS_FLOAT double
 #define OS_INT16 short
@@ -54,10 +60,11 @@
 #define OS_U32 unsigned __int32
 #define OS_U64 unsigned __int64
 
+#define OS_CHAR char
 #define OS_TEXT(s) s
 
-#ifdef _DEBUG
-#define OS_DEBUG
+#ifdef OS_DEBUG
+
 #define OS_ASSERT assert
 
 #define OS_DBG_FILEPOS_DECL , const OS_CHAR * dbg_filename, int dbg_line
@@ -67,7 +74,9 @@
 #define OS_DBG_FILEPOS_START_DECL const OS_CHAR * dbg_filename, int dbg_line
 #define OS_DBG_FILEPOS_START_PARAM dbg_filename, dbg_line
 #define OS_DBG_FILEPOS_START __FILE__, __LINE__
+
 #else
+
 #define OS_ASSERT(a)
 #define OS_DBG_FILEPOS_DECL
 #define OS_DBG_FILEPOS_PARAM
@@ -75,7 +84,8 @@
 #define OS_DBG_FILEPOS_START_DECL
 #define OS_DBG_FILEPOS_START_PARAM
 #define OS_DBG_FILEPOS_START
-#endif
+
+#endif // OS_DEBUG
 
 #define OS_MEMCMP memcmp
 #define OS_MEMMOVE memmove
@@ -86,8 +96,8 @@
 #define OS_STRNCMP strncmp
 #define OS_STRCHR strchr
 #define OS_STRSTR strstr
-#define OS_VSNPRINTF vsnprintf_s
-#define OS_SNPRINTF __snprintf__
+#define OS_VSNPRINTF OS_vsnprintf
+#define OS_SNPRINTF OS_snprintf
 
 #define OS_IS_SPACE isspace
 #define OS_IS_ALPHA isalpha
@@ -230,12 +240,25 @@ namespace ObjectScript
 	{
 	public:
 
-		class MemoryManager
+		class RetainedObject
 		{
+		protected:
+
+			int ref_count;
+
+			virtual ~RetainedObject();
+
 		public:
 
-			// MemoryManager();
-			virtual ~MemoryManager();
+			RetainedObject();
+
+			virtual RetainedObject * retain();
+			virtual void release();
+		};
+
+		class MemoryManager: public RetainedObject
+		{
+		public:
 
 			virtual void * malloc(int size OS_DBG_FILEPOS_DECL) = 0;
 			virtual void free(void * p) = 0;
@@ -2472,33 +2495,21 @@ namespace ObjectScript
 			void shutdown();
 		};
 
+		class ObjectScriptExtention;
+
 		MemoryManager * memory_manager;
+		ObjectScriptExtention * ext;
 		Core * core;
 		int ref_count;
 
-		OS(MemoryManager*);
+		OS();
 		virtual ~OS();
 
-		bool init();
+		bool init(ObjectScriptExtention * ext, MemoryManager * manager);
 		void shutdown();
 
 		void * malloc(int size OS_DBG_FILEPOS_DECL);
 		void free(void * p);
-
-		Core::String changeFilenameExt(const Core::String& filename, const Core::String& ext);
-		Core::String changeFilenameExt(const Core::String& filename, const OS_CHAR * ext);
-		
-		Core::String getFilenameExt(const Core::String& filename);
-		Core::String getFilenameExt(const OS_CHAR * filename);
-		Core::String getFilenameExt(const OS_CHAR * filename, int len);
-		
-		Core::String getFilenamePath(const Core::String& filename);
-		Core::String getFilenamePath(const OS_CHAR * filename);
-		Core::String getFilenamePath(const OS_CHAR * filename, int len);
-
-		Core::String resolvePath(const Core::String& filename);
-		Core::String resolvePath(const Core::String& filename, const Core::String& paths);
-		Core::String resolvePath(const Core::String& filename, const Core::String& cur_path, const Core::String& paths);
 
 		void initGlobalFunctions();
 		void initObjectClass();
@@ -2526,6 +2537,7 @@ namespace ObjectScript
 			String(OS*, const Core::String&);
 			String(OS*, const OS_CHAR*);
 			String(OS*, const OS_CHAR*, int len);
+			String(OS*, const OS_CHAR*, int len, const OS_CHAR*, int len2);
 			String(OS*, const OS_CHAR*, int len, bool trim_left, bool trim_right);
 			String(OS*, const void*, int size);
 			String(OS*, const void * buf1, int len1, const void * buf2, int len2);
@@ -2544,7 +2556,34 @@ namespace ObjectScript
 			String trim(bool trim_left = true, bool trim_right = true) const;
 		};
 
-		static OS * create(MemoryManager * = NULL);
+		class ObjectScriptExtention: public RetainedObject
+		{
+		public:
+
+			virtual bool preInit(OS*) = 0;
+			virtual bool postInit(){ return true; }
+			virtual void shutdown() = 0;
+
+			virtual String resolvePath(const String& filename, const String& cur_path, const String& paths) = 0;
+		};
+
+		class StdExtention: public ObjectScriptExtention
+		{
+		protected:
+
+			OS * os;
+
+		public:
+			
+			StdExtention();
+
+			bool preInit(OS*);
+			void shutdown();
+
+			String resolvePath(const String& filename, const String& cur_path, const String& paths);
+		};
+
+		static OS * create(ObjectScriptExtention* = NULL, MemoryManager* = NULL);
 
 		OS * retain();
 		void release();
@@ -2631,16 +2670,16 @@ namespace ObjectScript
 		int getSetting(OS_ESettings);
 		int setSetting(OS_ESettings, int);
 
-		bool compileFile(const Core::String& filename, bool required = false);
-		bool compile(const Core::String& str);
+		bool compileFile(const String& filename, bool required = false);
+		bool compile(const String& str);
 		bool compile();
 
 		int call(int params = 0, int ret_values = 0);
 		int eval(const OS_CHAR * str, int params = 0, int ret_values = 0);
-		int eval(const Core::String& str, int params = 0, int ret_values = 0);
+		int eval(const String& str, int params = 0, int ret_values = 0);
 
 		int run(const OS_CHAR * filename, bool required = false, int params = 0, int ret_values = 0);
-		int run(const Core::String& filename, bool required = false, int params = 0, int ret_values = 0);
+		int run(const String& filename, bool required = false, int params = 0, int ret_values = 0);
 
 		// return next gc phase
 		int gc();
@@ -2660,6 +2699,21 @@ namespace ObjectScript
 
 		void getObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
 		void getGlobalObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
+
+		String changeFilenameExt(const String& filename, const String& ext);
+		String changeFilenameExt(const String& filename, const OS_CHAR * ext);
+		
+		String getFilenameExt(const String& filename);
+		String getFilenameExt(const OS_CHAR * filename);
+		String getFilenameExt(const OS_CHAR * filename, int len);
+		
+		String getFilenamePath(const String& filename);
+		String getFilenamePath(const OS_CHAR * filename);
+		String getFilenamePath(const OS_CHAR * filename, int len);
+
+		String resolvePath(const String& filename);
+		String resolvePath(const String& filename, const String& paths);
+		String resolvePath(const String& filename, const String& cur_path, const String& paths);
 	};
 
 } // namespace OS

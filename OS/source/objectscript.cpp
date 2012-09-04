@@ -1,7 +1,7 @@
 #include "objectscript.h"
 #include <time.h>
 
-#ifdef _MSC_VER
+#if defined _MSC_VER && !defined IW_SDK
 #define DEBUG_BREAK __debugbreak()
 #else
 #include <signal.h>
@@ -15,15 +15,26 @@ using namespace ObjectScript;
 // =====================================================================
 // =====================================================================
 
-static int __snprintf__(OS_CHAR * buf, size_t num, const OS_CHAR * format, ...);
+static int OS_snprintf(OS_CHAR * buf, size_t buf_size, const OS_CHAR * format, ...);
 
-static bool isnan(float a)
+#if defined _MSC_VER && !defined IW_SDK
+#define OS_vsnprintf vsnprintf_s
+#else
+static int OS_vsnprintf(OS_CHAR * buf, size_t buf_size, size_t max_count, const OS_CHAR * format, va_list va)
+{
+	(void)max_count;
+	return vsnprintf(buf, buf_size, format, va);
+}
+#endif
+
+	
+static bool OS_isnan(float a)
 {
 	volatile float b = a;
 	return b != b;
 }
 
-static bool isnan(double a)
+static bool OS_isnan(double a)
 {
 	volatile double b = a;
 	return b != b;
@@ -825,6 +836,11 @@ OS::String::String(OS * allocator, const Core::String& str): super(str)
 }
 
 OS::String::String(OS * allocator, const OS_CHAR * str): super(allocator, str)
+{
+	this->allocator = allocator->retain();
+}
+
+OS::String::String(OS * allocator, const OS_CHAR * str1, int len1, const OS_CHAR * str2, int len2): super(allocator, str1, len1, str2, len2)
 {
 	this->allocator = allocator->retain();
 }
@@ -3004,13 +3020,13 @@ bool OS::Core::Compiler::compile()
 		prog_numbers_table = allocator->core->newTable(OS_DBG_FILEPOS_START);
 		prog_opcodes = new (malloc(sizeof(MemStreamWriter) OS_DBG_FILEPOS)) MemStreamWriter(allocator);
 
-		const String& filename = tokenizer->getTextData()->filename;
+		OS::String filename(allocator, tokenizer->getTextData()->filename);
 		if(allocator->core->settings.create_debug_opcodes){
 			Core::StringBuffer dump(allocator);
 			exp->debugPrint(dump, this, 0);
-			String dump_filename = filename.getDataSize() 
+			OS::String dump_filename = filename.getDataSize() 
 				? allocator->changeFilenameExt(filename, allocator->getFilenameExt(OS_DEBUG_OPCODES_FILENAME)) 
-				: String(allocator, OS_DEBUG_OPCODES_FILENAME);
+				: OS::String(allocator, OS_DEBUG_OPCODES_FILENAME);
 			FileStreamWriter(allocator, dump_filename).writeBytes(dump.buf, dump.count * sizeof(OS_CHAR));
 		}
 		bool create_debug_info = filename.getDataSize() && allocator->core->settings.create_debug_info;
@@ -7305,15 +7321,14 @@ void OS::Core::MemStreamWriter::writeByteAtPos(int value, int pos)
 
 OS::Core::FileStreamWriter::FileStreamWriter(OS * allocator, const OS_CHAR * filename): StreamWriter(allocator)
 {
-	errno_t err = fopen_s(&f, filename, "wb");
-	(void)err;
-	OS_ASSERT(f);
+	f = fopen(filename, "wb");
+	// OS_ASSERT(f);
 }
 
 OS::Core::FileStreamWriter::FileStreamWriter(OS * allocator, FILE * f): StreamWriter(allocator)
 {
 	this->f = f;
-	OS_ASSERT(f);
+	// OS_ASSERT(f);
 }
 
 OS::Core::FileStreamWriter::~FileStreamWriter()
@@ -7577,15 +7592,14 @@ OS_BYTE OS::Core::MemStreamReader::readByteAtPos(int pos)
 
 OS::Core::FileStreamReader::FileStreamReader(OS * allocator, const OS_CHAR * filename): StreamReader(allocator)
 {
-	errno_t err = fopen_s(&f, filename, "rb");
-	(void)err;
+	f = fopen(filename, "rb");
 	// OS_ASSERT(f);
 }
 
 OS::Core::FileStreamReader::FileStreamReader(OS * allocator, FILE * f): StreamReader(allocator)
 {
 	this->f = f;
-	OS_ASSERT(f);
+	// OS_ASSERT(f);
 }
 
 OS::Core::FileStreamReader::~FileStreamReader()
@@ -8639,8 +8653,8 @@ bool OS::Core::valueToBool(Value val)
 		return val.v.boolean ? true : false;
 
 	case OS_VALUE_TYPE_NUMBER:
-		// return val->value.number && !isnan(val->value.number);
-		return !isnan((OS_FLOAT)val.v.number);
+		// return val->value.number && !OS_isnan(val->value.number);
+		return !OS_isnan((OS_FLOAT)val.v.number);
 
 	// case OS_VALUE_TYPE_STRING:
 	//	return val->value.string_data->data_size > 0;
@@ -9123,7 +9137,41 @@ OS::Core::Strings::Strings(OS * allocator)
 // =====================================================================
 // =====================================================================
 
-OS::MemoryManager::~MemoryManager()
+OS::RetainedObject::RetainedObject()
+{
+	ref_count = 1;
+}
+
+OS::RetainedObject::~RetainedObject()
+{
+}
+
+OS::RetainedObject * OS::RetainedObject::retain()
+{
+	ref_count++;
+	return this;
+}
+
+void OS::RetainedObject::release()
+{
+	if(--ref_count <= 0){
+		OS_ASSERT(ref_count == 0);
+		delete this;
+	}
+}
+
+OS::StdExtention::StdExtention()
+{
+	os = NULL;
+}
+
+bool OS::StdExtention::preInit(OS * p_os)
+{
+	os = p_os;
+	return true;
+}
+
+void OS::StdExtention::shutdown()
 {
 }
 
@@ -9556,24 +9604,21 @@ int OS::SmartMemoryManager::getCachedBytes()
 // =====================================================================
 // =====================================================================
 
-OS::OS(MemoryManager * manager)
+OS::OS()
 {
 	ref_count = 1;
-	memory_manager = manager;
-	if(!memory_manager){
-		memory_manager = new SmartMemoryManager();
-	}
-	// debug
-	// setMemBreakpoint(35);
-	core = new (malloc(sizeof(Core) OS_DBG_FILEPOS)) Core(this);
+	memory_manager = NULL;
+	ext = NULL;
+	core = NULL;
 }
 
 OS::~OS()
 {
 	OS_ASSERT(ref_count == 0);
-	OS_ASSERT(!core);
+	OS_ASSERT(!core && !ext && !memory_manager);
 	// deleteObj(core);
-	delete memory_manager;
+	// delete memory_manager;
+	// memory_manager->release();
 }
 
 void * OS::malloc(int size OS_DBG_FILEPOS_DECL)
@@ -9671,19 +9716,23 @@ OS::Core::~Core()
 	}
 }
 
-OS * OS::create(MemoryManager * manager)
+OS * OS::create(ObjectScriptExtention * ext, MemoryManager * manager)
 {
-	OS * os = new OS(manager);
-	if(os->init()){
+	OS * os = new OS();
+	if(os->init(ext, manager)){
 		return os;
 	}
 	delete os;
 	return NULL;
 }
 
-bool OS::init()
+bool OS::init(ObjectScriptExtention * p_ext, MemoryManager * p_manager)
 {
-	if(core->init()){
+	memory_manager = p_manager ? (MemoryManager*)p_manager->retain() : new SmartMemoryManager();
+	ext = p_ext ? (ObjectScriptExtention*)p_ext->retain() : new StdExtention();
+	core = new (malloc(sizeof(Core) OS_DBG_FILEPOS)) Core(this);
+
+	if(core->init() && ext->preInit(this)){
 		initPreScript();
 		initGlobalFunctions();
 		initObjectClass();
@@ -9692,17 +9741,24 @@ bool OS::init()
 		initFunctionClass();
 		initMathLibrary();
 		initPostScript();
-		return true;
+		return ext->postInit();
 	}
 	return false;
 }
 
 void OS::shutdown()
 {
+	ext->shutdown();
+	ext->release();
+	ext = NULL;
+
 	core->shutdown();
 	core->~Core();
 	free(core);
 	core = NULL;
+
+	memory_manager->release();
+	memory_manager = NULL;
 }
 
 OS * OS::retain()
@@ -9799,75 +9855,80 @@ void OS::Core::shutdown()
 	deleteValues(true);
 }
 
-OS::Core::String OS::changeFilenameExt(const Core::String& filename, const Core::String& ext)
+OS::String OS::changeFilenameExt(const String& filename, const String& ext)
 {
 	int len = filename.getLen();
 	for(int i = len-1; i >= 0; i--){
 		if(filename[i] == OS_TEXT('.')){
-			return Core::String(this, filename, i, ext, ext.getLen());
+			return String(this, filename, i, ext, ext.getLen());
 		}
 		if(OS_IS_SLASH(filename[i])){
 			break;
 		}
 	}
-	return Core::String(this, filename, len, ext, ext.getLen());
+	return String(this, filename, len, ext, ext.getLen());
 }
 
-OS::Core::String OS::changeFilenameExt(const Core::String& filename, const const OS_CHAR * ext)
+OS::String OS::changeFilenameExt(const String& filename, const OS_CHAR * ext)
 {
 	int len = filename.getLen();
 	for(int i = len-1; i >= 0; i--){
 		if(filename[i] == OS_TEXT('.')){
-			return Core::String(this, filename, i, ext, OS_STRLEN(ext));
+			return String(this, filename, i, ext, OS_STRLEN(ext));
 		}
 		if(OS_IS_SLASH(filename[i])){
 			break;
 		}
 	}
-	return Core::String(this, filename, len, ext, OS_STRLEN(ext));
+	return String(this, filename, len, ext, OS_STRLEN(ext));
 }
 
-OS::Core::String OS::getFilenameExt(const Core::String& filename)
+OS::String OS::getFilenameExt(const String& filename)
 {
 	return getFilenameExt(filename, filename.getLen());
 }
 
-OS::Core::String OS::getFilenameExt(const OS_CHAR * filename)
+OS::String OS::getFilenameExt(const OS_CHAR * filename)
 {
 	return getFilenameExt(filename, OS_STRLEN(filename));
 }
 
-OS::Core::String OS::getFilenameExt(const OS_CHAR * filename, int len)
+OS::String OS::getFilenameExt(const OS_CHAR * filename, int len)
 {
 	for(int i = len-1; i >= 0; i--){
 		if(filename[i] == OS_TEXT('.')){
-			return Core::String(this, filename+i, len-i);
+			return String(this, filename+i, len-i);
 		}
 		if(OS_IS_SLASH(filename[i])){
 			break;
 		}
 	}
-	return Core::String(this);
+	return String(this);
 }
 
-OS::Core::String OS::getFilenamePath(const Core::String& filename)
+OS::String OS::getFilenamePath(const String& filename)
 {
 	return getFilenamePath(filename, filename.getLen());
 }
 
-OS::Core::String OS::getFilenamePath(const OS_CHAR * filename)
+OS::String OS::getFilenamePath(const OS_CHAR * filename)
 {
 	return getFilenamePath(filename, OS_STRLEN(filename));
 }
 
-OS::Core::String OS::getFilenamePath(const OS_CHAR * filename, int len)
+OS::String OS::getFilenamePath(const OS_CHAR * filename, int len)
 {
 	for(int i = len-1; i >= 0; i--){
 		if(OS_IS_SLASH(filename[i])){
-			return Core::String(this, filename, i);
+			return String(this, filename, i);
 		}
 	}
-	return Core::String(this);
+	return String(this);
+}
+
+OS::String OS::resolvePath(const String& filename, const String& cur_path, const String& paths)
+{
+	return ext->resolvePath(filename, cur_path, paths);
 }
 
 #define OS_IS_UNC_PATH(path, len) \
@@ -9875,33 +9936,34 @@ OS::Core::String OS::getFilenamePath(const OS_CHAR * filename, int len)
 #define OS_IS_ABSOLUTE_PATH(path, len) \
 	(len >= 2 && ((OS_IS_ALPHA(path[0]) && path[1] == ':') || OS_IS_UNC_PATH(path, len))) 
 
-OS::Core::String OS::resolvePath(const Core::String& filename, const Core::String& cur_path, const Core::String& paths)
+OS::String OS::StdExtention::resolvePath(const String& filename, const String& cur_path, const String& paths)
 {
 	int len = filename.getLen();
 	if(!OS_IS_ABSOLUTE_PATH(filename, len) && cur_path.getLen()){
-		Core::String resolved_path(this, cur_path, cur_path.getLen(), OS_PATH_SEPARATOR, OS_STRLEN(OS_PATH_SEPARATOR), filename, len);
-		Core::FileStreamReader file(this, resolved_path);
+		// Core::String resolved_path(os, cur_path, cur_path.getLen(), OS_PATH_SEPARATOR, OS_STRLEN(OS_PATH_SEPARATOR), filename, len);
+		String resolved_path = cur_path + OS_PATH_SEPARATOR + filename;
+		Core::FileStreamReader file(os, resolved_path);
 		if(file.f){
-			return resolved_path;
+			return String(os, resolved_path);
 		}
 	}
 	// TODO: use paths
 	{
-		Core::FileStreamReader file(this, filename);
+		Core::FileStreamReader file(os, filename);
 		if(file.f){
 			return filename;
 		}
 	}
-	if(getFilenameExt(filename).getLen() == 0){
-		return resolvePath(String(this, filename) + OS_SOURCECODE_EXT, cur_path, paths);
+	if(os->getFilenameExt(filename).getLen() == 0){
+		return resolvePath(filename + OS_SOURCECODE_EXT, cur_path, paths);
 	}
 
-	return Core::String(this);
+	return String(os);
 }
 
-OS::Core::String OS::resolvePath(const Core::String& filename, const Core::String& paths)
+OS::String OS::resolvePath(const String& filename, const String& paths)
 {
-	Core::String cur_path(this);
+	String cur_path(this);
 	if(core->call_stack_funcs.count > 0){
 		for(int i = core->call_stack_funcs.count-1; i >= 0; i--){
 			Core::StackFunction * stack_func = core->call_stack_funcs.buf + i;
@@ -9914,9 +9976,9 @@ OS::Core::String OS::resolvePath(const Core::String& filename, const Core::Strin
 	return resolvePath(filename, cur_path, paths);
 }
 
-OS::Core::String OS::resolvePath(const Core::String& filename)
+OS::String OS::resolvePath(const String& filename)
 {
-	return resolvePath(filename, Core::String(this));
+	return resolvePath(filename, String(this));
 }
 
 void OS::Core::error(int code, const OS_CHAR * message)
@@ -13945,7 +14007,7 @@ void OS::initGlobalFunctions()
 
 		static int resolvePath(OS * os, int params, int, int, void*)
 		{
-			os->pushString(os->resolvePath((os->toString(-1))));
+			os->pushString(os->resolvePath(os->toString(-1)));
 			return 1;
 		}
 	};
@@ -14435,11 +14497,13 @@ void OS::initFunctionClass()
 #define OS_RAND_RANGE(__n, __min, __max, __tmax) \
     (__n) = (__min) + (long) ((double) ( (double) (__max) - (__min) + 1.0) * ((__n) / ((__tmax) + 1.0)))
 
-#ifdef _MSC_VER
+#if defined _MSC_VER && !defined IW_SDK
 #include <windows.h>
 #define OS_RAND_GENERATE_SEED() (((long) (time(0) * GetCurrentProcessId())) ^ ((long) (1000000.0)))
-#else
+#elif !defined IW_SDK
 #define OS_RAND_GENERATE_SEED() (((long) (time(0) * getpid())) ^ ((long) (1000000.0)))
+#else
+#define OS_RAND_GENERATE_SEED() (((long) (time(0))) ^ ((long) (1000000.0)))
 #endif 
 
 void OS::Core::randInitialize(OS_U32 seed)
@@ -14912,12 +14976,12 @@ int OS::Core::call(int params, int ret_values)
 	return false;
 }
 
-bool OS::compileFile(const Core::String& p_filename, bool required)
+bool OS::compileFile(const String& p_filename, bool required)
 {
-	Core::String filename = resolvePath(p_filename);
+	String filename = resolvePath(p_filename);
 	
 	{
-		Core::String compiled_filename = changeFilenameExt(filename, OS_COMPILED_EXT);
+		String compiled_filename = changeFilenameExt(filename, OS_COMPILED_EXT);
 		Core::FileStreamReader file(this, compiled_filename);
 		if(file.f){
 			// TODO: check file time with original and load compiled file or the original
@@ -14945,7 +15009,7 @@ bool OS::compileFile(const Core::String& p_filename, bool required)
 	return compiler.compile();
 }
 
-bool OS::compile(const Core::String& str)
+bool OS::compile(const String& str)
 {
 	if(str.getDataSize() == 0){
 		return false;
@@ -14959,7 +15023,7 @@ bool OS::compile(const Core::String& str)
 
 bool OS::compile()
 {
-	Core::String str = toString(-1);
+	String str = toString(-1);
 	pop(1);
 	return compile(str);
 }
@@ -14971,10 +15035,10 @@ int OS::call(int params, int ret_values)
 
 int OS::eval(const OS_CHAR * str, int params, int ret_values)
 {
-	return eval(Core::String(this, str), params, ret_values);
+	return eval(String(this, str), params, ret_values);
 }
 
-int OS::eval(const Core::String& str, int params, int ret_values)
+int OS::eval(const String& str, int params, int ret_values)
 {
 	pushString(str);
 	compile();
@@ -14988,7 +15052,7 @@ int OS::run(const OS_CHAR * filename, bool required, int params, int ret_values)
 	return run(Core::String(this, filename), required, params, ret_values);
 }
 
-int OS::run(const Core::String& filename, bool required, int params, int ret_values)
+int OS::run(const String& filename, bool required, int params, int ret_values)
 {
 	compileFile(filename, required);
 	pushNull();
@@ -15114,12 +15178,11 @@ int OS::Value::getId() const
 }
 */
 
-static int __snprintf__(OS_CHAR * buf, size_t num, const OS_CHAR * format, ...)
+static int OS_snprintf(OS_CHAR * buf, size_t size, const OS_CHAR * format, ...)
 {
 	va_list va;
 	va_start(va, format);
-	int ret = OS_VSNPRINTF(buf, num, num/sizeof(OS_CHAR)-1, format, va);
+	int ret = OS_VSNPRINTF(buf, size, size/sizeof(OS_CHAR)-1, format, va);
 	va_end(va);
 	return ret;
 }
-
