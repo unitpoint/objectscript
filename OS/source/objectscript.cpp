@@ -15077,7 +15077,7 @@ int OS::eval(const String& str, int params, int ret_values)
 
 int OS::run(const OS_CHAR * filename, bool required, int params, int ret_values)
 {
-	return run(Core::String(this, filename), required, params, ret_values);
+	return run(String(this, filename), required, params, ret_values);
 }
 
 int OS::run(const String& filename, bool required, int params, int ret_values)
