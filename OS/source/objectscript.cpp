@@ -10008,18 +10008,21 @@ void OS::Core::error(int code, const OS_CHAR * message)
 
 void OS::Core::error(int code, const String& message)
 {
-	StackFunction * stack_func = &call_stack_funcs.lastElement();
-	GCFunctionValue * func_value = stack_func->func;
-	Program * prog = func_value->prog;
+	Program * prog = NULL;
 	Program::DebugInfoItem * debug_info = NULL;
-	if(prog->debug_info.count > 0){
-		int opcodes_offs = stack_func->opcodes_pos;
-		for(int i = 0; i < prog->debug_info.count; i++){
-			if(prog->debug_info[i].opcode_offs == opcodes_offs){
-				debug_info = &prog->debug_info[i];
-			}
-			if(prog->debug_info[i].opcode_offs > opcodes_offs){
-				break;
+	if(call_stack_funcs.count > 0){
+		StackFunction * stack_func = &call_stack_funcs.lastElement();
+		GCFunctionValue * func_value = stack_func->func;
+		prog = func_value->prog;
+		if(prog->debug_info.count > 0){
+			int opcodes_offs = stack_func->opcodes_pos;
+			for(int i = 0; i < prog->debug_info.count; i++){
+				if(prog->debug_info[i].opcode_offs == opcodes_offs){
+					debug_info = &prog->debug_info[i];
+				}
+				if(prog->debug_info[i].opcode_offs > opcodes_offs){
+					break;
+				}
 			}
 		}
 	}
@@ -15003,6 +15006,15 @@ int OS::Core::call(int params, int ret_values)
 bool OS::compileFile(const String& p_filename, bool required)
 {
 	String filename = resolvePath(p_filename);
+	if(filename.getDataSize() == 0){
+		if(required){
+			core->error(OS_ERROR, String::format(this, OS_TEXT("required filename %s is not exist"), p_filename.toChar()));
+			return false;
+		}
+		core->error(OS_WARNING, String::format(this, OS_TEXT("filename %s is not exist"), p_filename.toChar()));
+		return false;
+	}
+	
 	if(getFilenameExt(filename) == OS_COMPILED_EXT){
 		// TODO: load compiled file
 	}
