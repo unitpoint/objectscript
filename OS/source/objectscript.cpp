@@ -670,6 +670,11 @@ bool OS::Core::String::operator==(const String& b) const
 	return string == b.string;
 }
 
+bool OS::Core::String::operator==(const OS_CHAR * b) const
+{
+	return cmp(b) == 0;
+}
+
 bool OS::Core::String::operator==(GCStringValue * b) const
 {
 	return string == b;
@@ -683,6 +688,11 @@ bool OS::Core::String::operator!=(const String& b) const
 bool OS::Core::String::operator!=(const OS_CHAR * b) const
 {
 	return cmp(b) != 0;
+}
+
+bool OS::Core::String::operator!=(GCStringValue * b) const
+{
+	return string != b;
 }
 
 bool OS::Core::String::operator<=(const String& b) const
@@ -9961,6 +9971,11 @@ OS::String OS::StdExtention::resolvePath(const String& filename, const String& c
 	return String(os);
 }
 
+OS::String OS::StdExtention::getFilenameCompiled(const OS::String& resolved_filename)
+{
+	return os->changeFilenameExt(resolved_filename, OS_COMPILED_EXT);
+}
+
 OS::String OS::resolvePath(const String& filename, const String& paths)
 {
 	String cur_path(this);
@@ -9979,6 +9994,11 @@ OS::String OS::resolvePath(const String& filename, const String& paths)
 OS::String OS::resolvePath(const String& filename)
 {
 	return resolvePath(filename, String(this));
+}
+
+OS::String OS::getFilenameCompiled(const String& resolved_filename)
+{
+	return ext->getFilenameCompiled(resolved_filename);
 }
 
 void OS::Core::error(int code, const OS_CHAR * message)
@@ -13988,7 +14008,7 @@ void OS::initGlobalFunctions()
 
 		static int compileText(OS * os, int params, int, int need_ret_values, void*)
 		{
-			if(params < 1 || need_ret_values < 1){
+			if(params < 1){
 				return 0;
 			}
 			os->compile();
@@ -13997,7 +14017,7 @@ void OS::initGlobalFunctions()
 
 		static int compileFile(OS * os, int params, int, int need_ret_values, void*)
 		{
-			if(params < 1 || need_ret_values < 1){
+			if(params < 1){
 				return 0;
 			}
 			bool required = os->toBool(-params+1);
@@ -14007,8 +14027,12 @@ void OS::initGlobalFunctions()
 
 		static int resolvePath(OS * os, int params, int, int, void*)
 		{
-			os->pushString(os->resolvePath(os->toString(-1)));
-			return 1;
+			String filename = os->resolvePath(os->toString(-1));
+			if(filename.getDataSize()){
+				os->pushString(filename);
+				return 1;
+			}
+			return 0;
 		}
 	};
 	Func list[] = {
@@ -14979,9 +15003,13 @@ int OS::Core::call(int params, int ret_values)
 bool OS::compileFile(const String& p_filename, bool required)
 {
 	String filename = resolvePath(p_filename);
+	if(getFilenameExt(filename) == OS_COMPILED_EXT){
+		// TODO: load compiled file
+	}
 	
 	{
-		String compiled_filename = changeFilenameExt(filename, OS_COMPILED_EXT);
+		String compiled_filename = getFilenameCompiled(filename);
+		OS_ASSERT(getFilenameExt(filename) == OS_COMPILED_EXT);
 		Core::FileStreamReader file(this, compiled_filename);
 		if(file.f){
 			// TODO: check file time with original and load compiled file or the original

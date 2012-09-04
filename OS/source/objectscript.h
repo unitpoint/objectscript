@@ -2565,6 +2565,7 @@ namespace ObjectScript
 			virtual void shutdown() = 0;
 
 			virtual String resolvePath(const String& filename, const String& cur_path, const String& paths) = 0;
+			virtual String getFilenameCompiled(const String& resolved_filename) = 0;
 		};
 
 		class StdExtention: public ObjectScriptExtention
@@ -2581,6 +2582,7 @@ namespace ObjectScript
 			void shutdown();
 
 			String resolvePath(const String& filename, const String& cur_path, const String& paths);
+			String getFilenameCompiled(const String& resolved_filename);
 		};
 
 		static OS * create(ObjectScriptExtention* = NULL, MemoryManager* = NULL);
@@ -2714,6 +2716,8 @@ namespace ObjectScript
 		String resolvePath(const String& filename);
 		String resolvePath(const String& filename, const String& paths);
 		String resolvePath(const String& filename, const String& cur_path, const String& paths);
+
+		String getFilenameCompiled(const String& resolved_filename);
 	};
 
 } // namespace OS
