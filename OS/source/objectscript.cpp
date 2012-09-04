@@ -15021,7 +15021,7 @@ bool OS::compileFile(const String& p_filename, bool required)
 	
 	{
 		String compiled_filename = getFilenameCompiled(filename);
-		OS_ASSERT(getFilenameExt(filename) == OS_COMPILED_EXT);
+		OS_ASSERT(getFilenameExt(compiled_filename) == OS_COMPILED_EXT);
 		Core::FileStreamReader file(this, compiled_filename);
 		if(file.f){
 			// TODO: check file time with original and load compiled file or the original
