@@ -110,14 +110,6 @@
 #define OS_STRCHR strchr
 #define OS_STRSTR strstr
 
-#ifdef IW_SDK
-#define OS_VSNPRINTF vsnprintf
-#define OS_SNPRINTF snprintf
-#else
-#define OS_VSNPRINTF OS_vsnprintf
-#define OS_SNPRINTF OS_snprintf
-#endif // IW_SDK
-
 #define OS_VPRINTF vprintf
 #define OS_PRINTF ::printf
 
@@ -1829,20 +1821,16 @@ namespace ObjectScript
 					Params& setAllowBinaryOperator(bool);
 					Params& setAllowAssign(bool);
 					Params& setAllowParams(bool);
-					// Params& setAllowLeftSideParams(bool);
-					// Params& setAllowRightSideParams(bool);
 					Params& setAllowAutoCall(bool);
 					Params& setAllowCall(bool);
 				};
 
 				Expression * expectSingleExpression(Scope*, const Params& p);
 				Expression * expectSingleExpression(Scope*);
-					// bool allow_binary_operator, bool allow_param, bool allow_var, bool allow_assign, bool allow_auto_call);
 
 				Expression * expectExpressionValues(Expression * exp, int ret_values);
 				Expression * newExpressionFromList(ExpressionList& list, int ret_values);
 				Expression * newAssingExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
-				// Expression * newIndirectExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
 				Expression * newSingleValueExpression(Expression * exp);
 				
 				Expression * postProcessExpression(Scope * scope, Expression * exp);
@@ -1859,16 +1847,16 @@ namespace ObjectScript
 				Expression * expectDeleteExpression(Scope*);
 				Expression * expectValueOfExpression(Scope*, ExpressionType exp_type);
 				Expression * expectVarExpression(Scope*);
-				Expression * expectObjectExpression(Scope*);
-				Expression * expectArrayExpression(Scope*);
-				// Expression * finishParamsExpression(Scope*, Expression * params);
+				Expression * expectObjectExpression(Scope*, const Params& p);
+				Expression * expectArrayExpression(Scope*, const Params& p);
 				Expression * expectParamsExpression(Scope*);
-				// Expression * expectParamsExpression(Scope*, Expression * first_param);
 				Expression * expectReturnExpression(Scope*);
 				Expression * expectIfExpression(Scope*);
 				Expression * expectForExpression(Scope*);
 				Expression * expectDebugLocalsExpression(Scope*);
-				Expression * finishValueExpression(Scope*, Expression*, const Params& p); // bool allow_binary_operator, bool allow_param, bool allow_assign, bool allow_auto_call);
+				Expression * expectBracketExpression(Scope*, const Params& p);
+				Expression * finishValueExpression(Scope*, Expression*, const Params& p);
+				Expression * finishValueExpressionNoAutoCall(Scope*, Expression*, const Params& p);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, const Params& p, bool& is_finished); // bool allow_param, bool& is_finished);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 

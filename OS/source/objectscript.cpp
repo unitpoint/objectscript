@@ -7,13 +7,23 @@ using namespace ObjectScript;
 // =====================================================================
 // =====================================================================
 
-#ifndef IW_SDK
-int OS_vsnprintf(OS_CHAR * str, size_t size, const OS_CHAR *format, va_list va)
+#ifdef IW_SDK
+
+int OS_VSNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, va_list va)
+{
+	return vsnprintf(str, size, format, va);
+}
+
+#else
+
+int OS_VSNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, va_list va)
 {
 	return vsnprintf_s(str, size, size/sizeof(OS_CHAR), format, va);
 }
 
-int OS_snprintf(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
+#endif
+
+int OS_SNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
 {
 	
 	va_list va;
@@ -22,15 +32,14 @@ int OS_snprintf(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
 	va_end(va);
 	return ret;
 }
-#endif
 
-static bool OS_isnan(float a)
+static bool OS_ISNAN(float a)
 {
 	volatile float b = a;
 	return b != b;
 }
 
-static bool OS_isnan(double a)
+static bool OS_ISNAN(double a)
 {
 	volatile double b = a;
 	return b != b;
@@ -2286,7 +2295,6 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, exp_name, ret_values);
 			break;
 		}
-
 	}
 }
 
@@ -4351,12 +4359,17 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 	return scope;
 }
 
-OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scope * scope)
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scope * scope, const Params& org_p)
 {
 	OS_ASSERT(recent_token && recent_token->type == Tokenizer::BEGIN_CODE_BLOCK);
 	struct Lib {
 		Compiler * compiler;
 		Expression * obj_exp;
+
+		Expression * finishValue(Scope * scope, const Params& p)
+		{
+			return compiler->finishValueExpression(scope, obj_exp, Params(p).setAllowAssign(false).setAllowAutoCall(false));
+		}
 
 		void * malloc(int size OS_DBG_FILEPOS_DECL)
 		{
@@ -4400,7 +4413,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 		}
 		if(recent_token->type == Tokenizer::END_CODE_BLOCK){
 			readToken();
-			return lib.obj_exp;
+			return lib.finishValue(scope, org_p);
 		}
 		TokenData * name_token = recent_token;
 		if(name_token->type == Tokenizer::BEGIN_ARRAY_BLOCK){
@@ -4468,7 +4481,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 		lib.obj_exp->list.add(exp);
 		if(recent_token && recent_token->type == Tokenizer::END_CODE_BLOCK){
 			readToken();
-			return lib.obj_exp;
+			return lib.finishValue(scope, org_p);
 		}
 #if 11
 		if(!recent_token){
@@ -4490,14 +4503,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 	return NULL; // shut up compiler
 }
 
-OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope * scope)
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope * scope, const Params& __p)
 {
+	Params next_p = Params(__p).setAllowAssign(false).setAllowAutoCall(false);
 	Expression * params = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_ARRAY, recent_token);
 	params->ret_values = 1;
 	readToken();
 	if(recent_token && recent_token->type == Tokenizer::END_ARRAY_BLOCK){
 		readToken();
-		return params;
+		return finishValueExpression(scope, params, next_p);
 	}
 	Params p = Params().setAllowBinaryOperator(true);
 	for(;;){
@@ -4513,14 +4527,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 				return NULL;
 			}
 			readToken();
-			return params; // finishParamsExpression(scope, params);
+			return finishValueExpression(scope, params, next_p);
 		}
 		exp = expectExpressionValues(exp, 1);
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX, exp->token, exp);
 		params->list.add(exp);
 		if(recent_token && recent_token->type == Tokenizer::END_ARRAY_BLOCK){
 			readToken();
-			return params; // finishParamsExpression(scope, params);
+			return finishValueExpression(scope, params, next_p);
 		}
 #if 11
 		if(!recent_token){
@@ -4607,6 +4621,31 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 		}
 	}
 	return NULL; // shut up compiler
+}
+
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectBracketExpression(Scope * scope, const Params& p)
+{
+	OS_ASSERT(recent_token && recent_token->type == Tokenizer::BEGIN_BRACKET_BLOCK);
+	readToken();
+	Expression * exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true).setAllowAutoCall(true));
+	if(!exp){
+		return NULL;
+	}
+	exp = newSingleValueExpression(exp);
+	OS_ASSERT(exp->ret_values == 1);
+	if(!recent_token){
+		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
+		allocator->deleteObj(exp);
+		return NULL;
+	}
+	switch(recent_token->type){
+	case Tokenizer::END_BRACKET_BLOCK:
+		readToken();
+		return finishValueExpression(scope, exp, p);
+	}
+	setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
+	allocator->deleteObj(exp);
+	return NULL;
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectExtendsExpression(Scope * scope)
@@ -5736,6 +5775,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 	return finishBinaryOperator(scope, prev_level, exp, p, is_finished);
 }
 
+OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpressionNoAutoCall(Scope * scope, Expression * exp, const Params& p)
+{
+	return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+}
+
 OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope * scope, Expression * exp, const Params& _p)
 {
 	bool is_finished;
@@ -5782,7 +5826,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_POST_INC : EXP_TYPE_POST_DEC, exp->token, exp);
 			exp->ret_values = 1;
 			readToken();
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 
 		case Tokenizer::OPERATOR_CONCAT:    // ..
 		// case Tokenizer::REST_ARGUMENTS:  // ...
@@ -5875,7 +5919,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			if(!p.allow_auto_call){
 				return exp;
 			}
-			exp2 = expectObjectExpression(scope);
+			exp2 = expectObjectExpression(scope, p);
 			if(!exp2){
 				allocator->deleteObj(exp);
 				return NULL;
@@ -6094,7 +6138,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		OS_ASSERT(exp->ret_values == 1);
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(getUnaryExpressionType(token_type), exp->token, exp);
 		exp->ret_values = 1;
-		return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false)); // allow_binary_operator, allow_param, allow_assign, false);
+		return finishValueExpressionNoAutoCall(scope, exp, p); // allow_binary_operator, allow_param, allow_assign, false);
 
 	// pre ++, pre --
 	case Tokenizer::OPERATOR_INC:
@@ -6113,67 +6157,38 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_PRE_INC : EXP_TYPE_PRE_DEC, exp->token, exp);
 		exp->ret_values = 1;
 		readToken();
-		return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+		return finishValueExpressionNoAutoCall(scope, exp, p);
 	// end unary operators
 
 	case Tokenizer::BEGIN_CODE_BLOCK:
 		if(p.allow_root_blocks){
 			return expectCodeExpression(scope);
 		}
-		exp = expectObjectExpression(scope);
-		if(!exp){
-			return NULL;
-		}
-		OS_ASSERT(exp->ret_values == 1);
-		return finishValueExpression(scope, exp, Params(p).setAllowAssign(false).setAllowAutoCall(false));
+		return expectObjectExpression(scope, p);
 
 	case Tokenizer::BEGIN_ARRAY_BLOCK:
-		exp = expectArrayExpression(scope);
-		if(!exp){
-			return NULL;
-		}
-		OS_ASSERT(exp->ret_values == 1);
-		return finishValueExpression(scope, exp, Params(p).setAllowAssign(false).setAllowAutoCall(false));
+		return expectArrayExpression(scope, p);
 
 	case Tokenizer::BEGIN_BRACKET_BLOCK:
-		readToken();
-		exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true).setAllowAutoCall(true));
-		if(!exp){
-			return NULL;
-		}
-		exp = newSingleValueExpression(exp);
-		OS_ASSERT(exp->ret_values == 1);
-		if(!recent_token){
-			setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
-			allocator->deleteObj(exp);
-			return NULL;
-		}
-		switch(recent_token->type){
-		case Tokenizer::END_BRACKET_BLOCK:
-			readToken();
-			return finishValueExpression(scope, exp, p);
-		}
-		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
-		allocator->deleteObj(exp);
-		return NULL;
+		return expectBracketExpression(scope, p);
 
 	case Tokenizer::STRING:
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_STRING, token);
 		exp->ret_values = 1;
 		readToken();
-		return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+		return finishValueExpressionNoAutoCall(scope, exp, p);
 
 	case Tokenizer::NUMBER:
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NUMBER, token);
 		exp->ret_values = 1;
 		readToken();
-		return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+		return finishValueExpressionNoAutoCall(scope, exp, p);
 
 	case Tokenizer::REST_ARGUMENTS:
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_REST_ARGUMENTS, token);
 		exp->ret_values = 1;
 		readToken();
-		return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+		return finishValueExpressionNoAutoCall(scope, exp, p);
 
 	case Tokenizer::CODE_SEPARATOR:
 	case Tokenizer::END_ARRAY_BLOCK:
@@ -6238,40 +6253,40 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_ARGUMENTS, token);
 			exp->ret_values = 1;
 			readToken();
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_null){
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NULL, token);
 			exp->ret_values = 1;
 			readToken();
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_true){
 			token->setFloat(1);
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_TRUE, token);
 			exp->ret_values = 1;
 			readToken();
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_false){
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_FALSE, token);
 			exp->ret_values = 1;
 			readToken();
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_extends){
 			exp = expectExtendsExpression(scope);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_clone){
 			exp = expectCloneExpression(scope);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_delete){
 			if(!p.allow_root_blocks){
@@ -6284,70 +6299,70 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SUPER, token);
 			exp->ret_values = 1;
 			readToken();
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_typeof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_TYPE_OF);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_valueof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_VALUE_OF);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_booleanof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_LOGIC_BOOL);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_numberof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_NUMBER_OF);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_stringof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_STRING_OF);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_arrayof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_ARRAY_OF);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_objectof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_OBJECT_OF);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_userdataof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_USERDATA_OF);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_functionof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_FUNCTION_OF);
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_break){
 			if(!p.allow_root_blocks){
@@ -6378,7 +6393,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			if(!exp){
 				return NULL;
 			}
-			return finishValueExpression(scope, exp, Params(p).setAllowAutoCall(false));
+			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_class){
 			setError(ERROR_SYNTAX, token);
@@ -8638,8 +8653,8 @@ bool OS::Core::valueToBool(Value val)
 		return val.v.boolean ? true : false;
 
 	case OS_VALUE_TYPE_NUMBER:
-		// return val->value.number && !OS_isnan(val->value.number);
-		return !OS_isnan((OS_FLOAT)val.v.number);
+		// return val->value.number && !OS_ISNAN(val->value.number);
+		return !OS_ISNAN((OS_FLOAT)val.v.number);
 
 	// case OS_VALUE_TYPE_STRING:
 	//	return val->value.string_data->data_size > 0;
