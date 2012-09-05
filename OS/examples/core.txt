@@ -28,12 +28,14 @@ begin function
 [4] return compileText(str).applyEnv(env || _G, null, ...)
 
       begin tail call method
-        begin call
-          get env var compileText
-          begin params 1
+        begin call method
+          get local var _E (2 0)
+          begin params 2
+            push const string "compileText"
+            ,
             get local var str (0 0 param)
-          end params ret values 1
-        end call ret values 1
+          end params ret values 2
+        end call method ret values 1
         begin params 4
           push const string "applyEnv"
           ,
@@ -309,9 +311,11 @@ begin function
 
 [38] addEventListener("enterFrame", function(){
 
-  begin call
-    get env var addEventListener
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "addEventListener"
+      ,
       push const string "enterFrame"
       ,
       begin function
@@ -478,8 +482,8 @@ begin function
           end code list ret values 0
         end scope ret values 0
       end function
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [51] })

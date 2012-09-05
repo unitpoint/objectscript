@@ -1,33 +1,29 @@
 #include "objectscript.h"
 #include <time.h>
 
-#if defined _MSC_VER && !defined IW_SDK
-#define DEBUG_BREAK __debugbreak()
-#else
-#include <signal.h>
-#define DEBUG_BREAK raise(SIGTRAP)
-// #define DEBUG_BREAK __builtin_trap()
-#endif
-
 using namespace ObjectScript;
 
 // =====================================================================
 // =====================================================================
 // =====================================================================
 
-static int OS_snprintf(OS_CHAR * buf, size_t buf_size, const OS_CHAR * format, ...);
-
-#if defined _MSC_VER && !defined IW_SDK
-#define OS_vsnprintf vsnprintf_s
-#else
-static int OS_vsnprintf(OS_CHAR * buf, size_t buf_size, size_t max_count, const OS_CHAR * format, va_list va)
+#ifndef IW_SDK
+int OS_vsnprintf(OS_CHAR * str, size_t size, const OS_CHAR *format, va_list va)
 {
-	(void)max_count;
-	return vsnprintf(buf, buf_size, format, va);
+	return vsnprintf_s(str, size, size/sizeof(OS_CHAR), format, va);
+}
+
+int OS_snprintf(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
+{
+	
+	va_list va;
+	va_start(va, format);
+	int ret = OS_VSNPRINTF(str, size, format, va);
+	va_end(va);
+	return ret;
 }
 #endif
 
-	
 static bool OS_isnan(float a)
 {
 	volatile float b = a;
@@ -382,13 +378,13 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 
 OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_INT32 a)
 {
-	OS_SNPRINTF(dst, sizeof(*dst)*64, OS_TEXT("%i"), a);
+	OS_SNPRINTF(dst, sizeof(OS_CHAR)*63, OS_TEXT("%i"), a);
 	return dst;
 }
 
 OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_INT64 a)
 {
-	OS_SNPRINTF(dst, sizeof(*dst)*64, OS_TEXT("%li"), (long int)a);
+	OS_SNPRINTF(dst, sizeof(OS_CHAR)*63, OS_TEXT("%li"), (long int)a);
 	return dst;
 }
 
@@ -399,7 +395,7 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, float a, int precision)
 
 OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
 {
-	OS_CHAR fmt[128];
+	OS_CHAR buf[128];
 	if(precision <= 0) {
 		if(precision < 0) {
 #if 1
@@ -412,16 +408,16 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
 #endif
 			a = OS_MATH_FLOOR(a / p + 0.5f) * p;
 		}
-		OS_SNPRINTF(dst, sizeof(fmt), OS_TEXT("%.f"), a);
+		OS_SNPRINTF(dst, sizeof(buf)-sizeof(OS_CHAR), OS_TEXT("%.f"), a);
 		return dst;
 	}
 	if(precision == OS_AUTO_PRECISION){
-		OS_SNPRINTF(dst, sizeof(fmt), OS_TEXT("%g"), a);
+		OS_SNPRINTF(dst, sizeof(buf)-sizeof(OS_CHAR), OS_TEXT("%g"), a);
 		return dst;
 	}
 	
-	OS_SNPRINTF(fmt, sizeof(fmt), OS_TEXT("%%.%dg"), precision);
-	int n = OS_SNPRINTF(dst, sizeof(fmt), fmt, a);
+	OS_SNPRINTF(buf, sizeof(buf)-sizeof(OS_CHAR), OS_TEXT("%%.%dg"), precision);
+	int n = OS_SNPRINTF(dst, sizeof(buf)-sizeof(OS_CHAR), buf, a);
 
 	OS_ASSERT(n >= 1 && !OS_STRSTR(dst, OS_TEXT(".")) || dst[n-1] != '0');
 	// while(n > 0 && dst[n-1] == '0') dst[--n] = (OS_CHAR)0;
@@ -625,17 +621,17 @@ struct OS_VaListDtor
 	~OS_VaListDtor(){ va_end(*va); }
 };
 
-OS::Core::String OS::Core::String::format(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, ...)
+OS::Core::String OS::Core::String::format(OS * allocator, int temp_buf_len, const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
-	return String(allocator->core->newStringValueVa(temp_buf_size, fmt, va));
+	return String(allocator->core->newStringValueVa(temp_buf_len, fmt, va));
 }
 
-OS::Core::String OS::Core::String::formatVa(OS * allocator, int temp_buf_size, const OS_CHAR * fmt, va_list va)
+OS::Core::String OS::Core::String::formatVa(OS * allocator, int temp_buf_len, const OS_CHAR * fmt, va_list va)
 {
-	return String(allocator->core->newStringValueVa(temp_buf_size, fmt, va));
+	return String(allocator->core->newStringValueVa(temp_buf_len, fmt, va));
 }
 
 OS::Core::String OS::Core::String::format(OS * allocator, const OS_CHAR * fmt, ...)
@@ -643,12 +639,12 @@ OS::Core::String OS::Core::String::format(OS * allocator, const OS_CHAR * fmt, .
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
-	return String(allocator->core->newStringValueVa(OS_DEF_FMT_BUF_SIZE, fmt, va));
+	return String(allocator->core->newStringValueVa(OS_DEF_FMT_BUF_LEN, fmt, va));
 }
 
 OS::Core::String OS::Core::String::formatVa(OS * allocator, const OS_CHAR * fmt, va_list va)
 {
-	return String(allocator->core->newStringValueVa(OS_DEF_FMT_BUF_SIZE, fmt, va));
+	return String(allocator->core->newStringValueVa(OS_DEF_FMT_BUF_LEN, fmt, va));
 }
 
 OS::Core::String& OS::Core::String::operator=(const String& b)
@@ -1238,7 +1234,7 @@ OS::Core::Tokenizer::OperatorDesc OS::Core::Tokenizer::operator_desc[] =
 
 const int OS::Core::Tokenizer::operator_count = sizeof(operator_desc) / sizeof(operator_desc[0]);
 
-int __cdecl OS::Core::Tokenizer::CompareOperatorDesc(const void * a, const void * b) 
+int OS::Core::Tokenizer::compareOperatorDesc(const void * a, const void * b) 
 {
 	const OperatorDesc * op0 = (const OperatorDesc*)a;
 	const OperatorDesc * op1 = (const OperatorDesc*)b;
@@ -1248,7 +1244,7 @@ int __cdecl OS::Core::Tokenizer::CompareOperatorDesc(const void * a, const void 
 void OS::Core::Tokenizer::initOperatorsTable()
 {
 	if(!operator_initialized){
-		qsort(operator_desc, operator_count, sizeof(operator_desc[0]), CompareOperatorDesc);
+		qsort(operator_desc, operator_count, sizeof(operator_desc[0]), Tokenizer::compareOperatorDesc);
 		operator_initialized = true;
 	}
 }
@@ -2667,7 +2663,11 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_CALL_AUTO_PARAM:
 		OS_ASSERT(exp->list.count == 2);
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
-		if(!writeOpcodes(scope, exp->list)){
+		if(!writeOpcodes(scope, exp->list[0])){
+			return false;
+		}
+		prog_opcodes->writeByte(Program::OP_PUSH_NULL); // this
+		if(!writeOpcodes(scope, exp->list[1])){
 			return false;
 		}
 		prog_opcodes->writeByte(Program::getOpcodeType(exp->type));
@@ -3148,7 +3148,7 @@ bool OS::Core::Compiler::compile()
 			dump += OS::Core::String::format(allocator, "[%d] %s\n", error_token->line+1, error_token->text_data->lines[error_token->line].toChar());
 			dump += OS::Core::String::format(allocator, "pos %d, token: %s\n", error_token->pos+1, error_token->str.toChar());
 		}
-		printf("%s", dump.toString().toChar());
+		allocator->printf("%s", dump.toString().toChar());
 		// FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 		
 		allocator->pushNull();
@@ -3938,6 +3938,29 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass2(Scope * scope, Ex
 				allocator->vectorClear(exp->list);
 				allocator->deleteObj(exp);
 				return left_exp;
+			}
+			if(left_exp->type == EXP_TYPE_GET_ENV_VAR){
+				OS_ASSERT(left_exp->list.count == 0);
+				OS_ASSERT(right_exp->type == EXP_TYPE_PARAMS);
+				left_exp->type = EXP_TYPE_CONST_STRING;
+				allocator->vectorInsertAtIndex(right_exp->list, 0, left_exp OS_DBG_FILEPOS);
+				right_exp->ret_values++;
+
+				TokenData * name_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), 
+					allocator->core->strings->var_env, 
+					Tokenizer::NAME, left_exp->token->line, left_exp->token->pos);
+
+				left_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, name_token);
+				left_exp->ret_values = 1;
+				if(!findLocalVar(left_exp->local_var, scope, name_token->str, scope->function->num_params+ENV_VAR_INDEX+1, true)){
+					OS_ASSERT(false);
+				};
+				exp->list[0] = left_exp;
+
+				name_token->release();
+
+				exp->type = EXP_TYPE_CALL_METHOD;
+				return exp;
 			}
 			/* if(left_exp->type == EXP_TYPE_GET_DIM){
 				OS_ASSERT(left_exp->list.count == 2);
@@ -5535,10 +5558,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 			allocator->vectorInsertAtIndex(params->list, 0, left_exp OS_DBG_FILEPOS);
 			params->ret_values++;
 			return params; 
-			/* right_exp = params->list[0];
-			right_exp = newBinaryExpression(scope, exp_type, token, left_exp, right_exp);
-			params->list[0] = right_exp;
-			return params; */
 		}
 	}
 	left_exp = expectExpressionValues(left_exp, 1);
@@ -5694,9 +5713,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 	if(left_level == right_level){
 		// exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(left_exp_type, binary_operator, exp, exp2);
 		exp = newBinaryExpression(scope, left_exp_type, binary_operator, exp, exp2);
-		/* if(!recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR)){
-			return exp;
-		} */
 		return finishBinaryOperator(scope, prev_level, exp, p, is_finished);
 	}
 	if(left_level > right_level){
@@ -5706,9 +5722,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 			is_finished = false;
 			return exp;
 		}
-		/* if(!recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR)){
-			return exp;
-		} */
 		return finishBinaryOperator(scope, prev_level, exp, p, is_finished);
 	}
 	exp2 = finishBinaryOperator(scope, left_level, exp2, p, is_finished);
@@ -5758,9 +5771,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::OPERATOR_DEC:
 			if(exp->type != EXP_TYPE_NAME){
 				return exp;
-				/* setError(ERROR_SYNTAX, recent_token);
-				allocator->deleteObj(exp);
-				return NULL; */
 			}
 			OS_ASSERT(exp->ret_values == 1);
 			if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
@@ -6190,10 +6200,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return finishValueExpression(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_return){
-			/* if(!p.allow_root_blocks){
-				setError(ERROR_NESTED_ROOT_BLOCK, token);
-				return NULL;
-			} */
 			return expectReturnExpression(scope);
 		}
 		if(token->str == allocator->core->strings->syntax_if){
@@ -6775,9 +6781,6 @@ OS::Core::Program::~Program()
 	OS_ASSERT(ref_count == 0);
 	int i;
 	// values could be already destroyed by gc or will be destroyed soon
-	/* for(i = num_numbers+num_strings-1; i >= 0; i--){
-		allocator->core->releaseValue(const_values[i]);
-	} */
 	allocator->free(const_numbers);
 	const_numbers = NULL;
 
@@ -7331,43 +7334,32 @@ void OS::Core::MemStreamWriter::writeByteAtPos(int value, int pos)
 
 OS::Core::FileStreamWriter::FileStreamWriter(OS * allocator, const OS_CHAR * filename): StreamWriter(allocator)
 {
-	f = fopen(filename, "wb");
-	// OS_ASSERT(f);
-}
-
-OS::Core::FileStreamWriter::FileStreamWriter(OS * allocator, FILE * f): StreamWriter(allocator)
-{
-	this->f = f;
-	// OS_ASSERT(f);
+	f = allocator->openFile(filename, "wb");
 }
 
 OS::Core::FileStreamWriter::~FileStreamWriter()
 {
-	if(f){
-		fclose(f);
-	}
+	allocator->closeFile(f);
 }
 
 int OS::Core::FileStreamWriter::getPos() const
 {
-	return f ? ftell(f) : 0;
+	return allocator->seekFile(f, 0, SEEK_CUR);
 }
 
 void OS::Core::FileStreamWriter::setPos(int new_pos)
 {
 	OS_ASSERT(new_pos >= 0 && new_pos <= getSize());
-	if(f){
-		fseek(f, new_pos, SEEK_SET);
-	}
+	allocator->seekFile(f, new_pos, SEEK_SET);
 }
 
 int OS::Core::FileStreamWriter::getSize() const
 {
 	if(f){
 		int save_pos = getPos();
-		fseek(f, 0, SEEK_END);
-		int size = ftell(f);
-		fseek(f, save_pos, SEEK_SET);
+		allocator->seekFile(f, 0, SEEK_END);
+		int size = getPos();
+		allocator->seekFile(f, save_pos, SEEK_SET);
 		return size;
 	}
 	return 0;
@@ -7375,17 +7367,15 @@ int OS::Core::FileStreamWriter::getSize() const
 
 void OS::Core::FileStreamWriter::writeBytes(const void * buf, int len)
 {
-	if(f){
-		fwrite(buf, len, 1, f);
-	}
+	allocator->writeFile(buf, len, f);
 }
 
 void OS::Core::FileStreamWriter::writeBytesAtPos(const void * buf, int len, int pos)
 {
 	int save_pos = getPos();
-	fseek(f, pos, SEEK_SET);
+	allocator->seekFile(f, pos, SEEK_SET);
 	writeBytes(buf, len);
-	fseek(f, save_pos, SEEK_SET);
+	allocator->seekFile(f, save_pos, SEEK_SET);
 }
 
 // =====================================================================
@@ -7563,7 +7553,7 @@ void OS::Core::MemStreamReader::movePos(int len)
 	pos += len;
 }
 
-bool OS::Core::MemStreamReader::checkBytes(void * src, int len)
+bool OS::Core::MemStreamReader::checkBytes(const void * src, int len)
 {
 	OS_ASSERT(pos >= 0 && pos+len <= size);
 	bool r = OS_MEMCMP(buffer+pos, src, len) == 0;
@@ -7602,43 +7592,32 @@ OS_BYTE OS::Core::MemStreamReader::readByteAtPos(int pos)
 
 OS::Core::FileStreamReader::FileStreamReader(OS * allocator, const OS_CHAR * filename): StreamReader(allocator)
 {
-	f = fopen(filename, "rb");
-	// OS_ASSERT(f);
-}
-
-OS::Core::FileStreamReader::FileStreamReader(OS * allocator, FILE * f): StreamReader(allocator)
-{
-	this->f = f;
-	// OS_ASSERT(f);
+	f = allocator->openFile(filename, "rb");
 }
 
 OS::Core::FileStreamReader::~FileStreamReader()
 {
-	if(f){
-		fclose(f);
-	}
+	allocator->closeFile(f);
 }
 
 int OS::Core::FileStreamReader::getPos() const
 {
-	return f ? ftell(f) : 0;
+	return allocator->seekFile(f, 0, SEEK_CUR);
 }
 
 void OS::Core::FileStreamReader::setPos(int new_pos)
 {
 	OS_ASSERT(new_pos >= 0 && new_pos <= getSize());
-	if(f){
-		fseek(f, new_pos, SEEK_SET);
-	}
+	allocator->seekFile(f, new_pos, SEEK_SET);
 }
 
 int OS::Core::FileStreamReader::getSize() const
 {
 	if(f){
 		int save_pos = getPos();
-		fseek(f, 0, SEEK_END);
-		int size = ftell(f);
-		fseek(f, save_pos, SEEK_SET);
+		allocator->seekFile(f, 0, SEEK_END);
+		int size = getPos();
+		allocator->seekFile(f, save_pos, SEEK_SET);
 		return size;
 	}
 	return 0;
@@ -7646,12 +7625,10 @@ int OS::Core::FileStreamReader::getSize() const
 
 void OS::Core::FileStreamReader::movePos(int len)
 {
-	if(f){
-		fseek(f, len, SEEK_CUR);
-	}
+	allocator->seekFile(f, len, SEEK_CUR);
 }
 
-bool OS::Core::FileStreamReader::checkBytes(void * src, int len)
+bool OS::Core::FileStreamReader::checkBytes(const void * src, int len)
 {
 	void * buf = alloca(len);
 	readBytes(buf, len);
@@ -7660,9 +7637,7 @@ bool OS::Core::FileStreamReader::checkBytes(void * src, int len)
 
 void * OS::Core::FileStreamReader::readBytes(void * buf, int len)
 {
-	if(f){
-		fread(buf, len, 1, f);
-	}else{
+	if(!f || !allocator->readFile(buf, len, f)){
 		OS_MEMSET(buf, 0, len);
 	}
 	return buf;
@@ -7671,9 +7646,9 @@ void * OS::Core::FileStreamReader::readBytes(void * buf, int len)
 void * OS::Core::FileStreamReader::readBytesAtPos(void * buf, int len, int pos)
 {
 	int save_pos = getPos();
-	fseek(f, pos, SEEK_SET);
+	allocator->seekFile(f, pos, SEEK_SET);
 	readBytes(buf, len);
-	fseek(f, save_pos, SEEK_SET);
+	allocator->seekFile(f, save_pos, SEEK_SET);
 	return buf;
 }
 
@@ -8712,7 +8687,7 @@ OS_FLOAT OS::Core::valueToNumber(Value val, bool valueof_enabled)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_NULL:
-		return nan_float;
+		return 0; // nan_float;
 
 	case OS_VALUE_TYPE_BOOL:
 		return val.v.boolean;
@@ -8726,7 +8701,7 @@ OS_FLOAT OS::Core::valueToNumber(Value val, bool valueof_enabled)
 			if(val.v.string->isFloat(&fval)){
 				return fval;
 			}
-			return nan_float;
+			return 0; // nan_float;
 		}
 	}
 	if(valueof_enabled){
@@ -9011,10 +8986,6 @@ void OS::Core::deleteValues(bool del_ref_counted_also)
 				for(GCValue * value = values.heads[i], * next; value; value = next){
 					next = value->hash_next;
 					if(del_ref_counted_also || !value->external_ref_count){
-						/* if(values.heads[i] == value){
-							values.heads[i] = next;
-						}
-						value->hash_next = NULL; */
 						deleteValue(value);
 					}
 				}
@@ -9147,22 +9118,22 @@ OS::Core::Strings::Strings(OS * allocator)
 // =====================================================================
 // =====================================================================
 
-OS::RetainedObject::RetainedObject()
+OS::MemoryManager::MemoryManager()
 {
 	ref_count = 1;
 }
 
-OS::RetainedObject::~RetainedObject()
+OS::MemoryManager::~MemoryManager()
 {
 }
 
-OS::RetainedObject * OS::RetainedObject::retain()
+OS::MemoryManager * OS::MemoryManager::retain()
 {
 	ref_count++;
 	return this;
 }
 
-void OS::RetainedObject::release()
+void OS::MemoryManager::release()
 {
 	if(--ref_count <= 0){
 		OS_ASSERT(ref_count == 0);
@@ -9170,19 +9141,49 @@ void OS::RetainedObject::release()
 	}
 }
 
-OS::StdExtention::StdExtention()
+void * OS::openFile(const OS_CHAR * filename, const OS_CHAR * mode)\
 {
-	os = NULL;
+	return fopen(filename, mode);
 }
 
-bool OS::StdExtention::preInit(OS * p_os)
+int OS::readFile(void * buf, int size, void * f)
 {
-	os = p_os;
-	return true;
+	if(f){
+		return fread(buf, size, 1, (FILE*)f);
+	}
+	return 0;
 }
 
-void OS::StdExtention::shutdown()
+int OS::writeFile(const void * buf, int size, void * f)
 {
+	if(f){
+		return fwrite(buf, size, 1, (FILE*)f);
+	}
+	return 0;
+}
+
+int OS::seekFile(void * f, int offset, int whence)
+{
+	if(f){
+		fseek((FILE*)f, offset, whence);
+		return ftell((FILE*)f);
+	}
+	return 0;
+}
+
+void OS::closeFile(void * f)
+{
+	if(f){
+		fclose((FILE*)f);
+	}
+}
+
+void OS::printf(const OS_CHAR * format, ...)
+{
+	va_list va;
+	va_start(va, format);
+	OS_VPRINTF(format, va);
+	va_end(va);
 }
 
 OS::SmartMemoryManager::SmartMemoryManager()
@@ -9233,13 +9234,13 @@ OS::SmartMemoryManager::~SmartMemoryManager()
 #ifdef OS_DEBUG
 	{
 		for(MemBlock * mem = dbg_mem_list; mem; mem = mem->dbg_mem_next){
-			printf("[LEAK] %d bytes, id: %d, line %d, %s\n", mem->block_size, mem->dbg_id, mem->dbg_line, mem->dbg_filename);
+			OS_PRINTF("[LEAK] %d bytes, id: %d, line %d, %s\n", mem->block_size, mem->dbg_id, mem->dbg_line, mem->dbg_filename);
 		}
 	}
 	{
 		for(StdMemBlock * mem = dbg_std_mem_list; mem; mem = mem->dbg_mem_next){
 			OS_ASSERT(mem->block_size & 0x80000000);
-			printf("[LEAK] %d bytes, id: %d, line %d, %s\n", (mem->block_size & ~0x80000000), mem->dbg_id, mem->dbg_line, mem->dbg_filename);
+			OS_PRINTF("[LEAK] %d bytes, id: %d, line %d, %s\n", (mem->block_size & ~0x80000000), mem->dbg_id, mem->dbg_line, mem->dbg_filename);
 		}
 	}
 #endif
@@ -9258,18 +9259,16 @@ static const int STD_MEM_MARK_END = 0x35ae79fc;
 #define MEM_MARK_END_SIZE 0
 #endif
 
+int OS::SmartMemoryManager::comparePageDesc(const void * pa, const void * pb)
+{
+	PageDesc * a = (PageDesc*)pa;
+	PageDesc * b = (PageDesc*)pb;
+	return a->block_size - b->block_size;
+}
 
 void OS::SmartMemoryManager::sortPageDesc()
 {
-	struct Lib {
-		static int __cdecl comparePageDesc(const void * pa, const void * pb)
-		{
-			PageDesc * a = (PageDesc*)pa;
-			PageDesc * b = (PageDesc*)pb;
-			return a->block_size - b->block_size;
-		}
-	};
-	qsort(page_desc, num_page_desc, sizeof(page_desc[0]), Lib::comparePageDesc);
+	qsort(page_desc, num_page_desc, sizeof(page_desc[0]), comparePageDesc);
 }
 
 void OS::SmartMemoryManager::registerPageDesc(int block_size, int num_blocks)
@@ -9484,7 +9483,7 @@ void * OS::SmartMemoryManager::stdAlloc(int size OS_DBG_FILEPOS_DECL)
 	dbg_std_mem_list = mem_block;
 #endif
 	mem_block->block_size = size | 0x80000000;
-	allocated_bytes += size + sizeof(StdMemBlock);
+	allocated_bytes += size + sizeof(StdMemBlock) + MEM_MARK_END_SIZE;
 	if(max_allocated_bytes < allocated_bytes){
 		max_allocated_bytes = allocated_bytes;
 	}
@@ -9618,14 +9617,13 @@ OS::OS()
 {
 	ref_count = 1;
 	memory_manager = NULL;
-	ext = NULL;
 	core = NULL;
 }
 
 OS::~OS()
 {
 	OS_ASSERT(ref_count == 0);
-	OS_ASSERT(!core && !ext && !memory_manager);
+	OS_ASSERT(!core && !memory_manager);
 	// deleteObj(core);
 	// delete memory_manager;
 	// memory_manager->release();
@@ -9671,14 +9669,6 @@ void OS::setMemBreakpointId(int id)
 	memory_manager->setBreakpointId(id);
 }
 
-/*
-OS::Core::OpcodeTime::OpcodeTime()
-{
-	opcode = Program::OP_UNKNOWN;
-	time = 0;
-}
-*/
-
 OS::Core::Core(OS * p_allocator)
 {
 	allocator = p_allocator;
@@ -9707,15 +9697,6 @@ OS::Core::Core(OS * p_allocator)
 	rand_next = NULL;
 	rand_seed = 0;
 	rand_left = 0;
-
-	/*
-	if(!opcode_usage_initialized){
-		opcode_usage_initialized = true;
-		for(int i = 0; i < Program::OPCODE_COUNT; i++){
-			opcode_usage[i].opcode = (Program::OpcodeType)i;
-		}
-	}
-	*/
 }
 
 OS::Core::~Core()
@@ -9726,23 +9707,31 @@ OS::Core::~Core()
 	}
 }
 
-OS * OS::create(ObjectScriptExtention * ext, MemoryManager * manager)
+OS * OS::create(MemoryManager * manager)
 {
-	OS * os = new OS();
-	if(os->init(ext, manager)){
-		return os;
+	return create(new OS(), manager);
+}
+
+OS * OS::create(OS * os, MemoryManager * manager)
+{
+	return os->start(manager);
+}
+
+OS * OS::start(MemoryManager * manager)
+{
+	if(init(manager)){
+		return this;
 	}
-	delete os;
+	delete this;
 	return NULL;
 }
 
-bool OS::init(ObjectScriptExtention * p_ext, MemoryManager * p_manager)
+bool OS::init(MemoryManager * p_manager)
 {
-	memory_manager = p_manager ? (MemoryManager*)p_manager->retain() : new SmartMemoryManager();
-	ext = p_ext ? (ObjectScriptExtention*)p_ext->retain() : new StdExtention();
+	memory_manager = p_manager ? p_manager : new SmartMemoryManager();
 	core = new (malloc(sizeof(Core) OS_DBG_FILEPOS)) Core(this);
 
-	if(core->init() && ext->preInit(this)){
+	if(core->init()){
 		initPreScript();
 		initGlobalFunctions();
 		initObjectClass();
@@ -9751,17 +9740,13 @@ bool OS::init(ObjectScriptExtention * p_ext, MemoryManager * p_manager)
 		initFunctionClass();
 		initMathLibrary();
 		initPostScript();
-		return ext->postInit();
+		return true;
 	}
 	return false;
 }
 
 void OS::shutdown()
 {
-	ext->shutdown();
-	ext->release();
-	ext = NULL;
-
 	core->shutdown();
 	core->~Core();
 	free(core);
@@ -9936,44 +9921,39 @@ OS::String OS::getFilenamePath(const OS_CHAR * filename, int len)
 	return String(this);
 }
 
-OS::String OS::resolvePath(const String& filename, const String& cur_path, const String& paths)
-{
-	return ext->resolvePath(filename, cur_path, paths);
-}
-
 #define OS_IS_UNC_PATH(path, len) \
 	(len >= 2 && OS_IS_SLASH(path[0]) && OS_IS_SLASH(path[1]))
 #define OS_IS_ABSOLUTE_PATH(path, len) \
 	(len >= 2 && ((OS_IS_ALPHA(path[0]) && path[1] == ':') || OS_IS_UNC_PATH(path, len))) 
 
-OS::String OS::StdExtention::resolvePath(const String& filename, const String& cur_path, const String& paths)
+OS::String OS::resolvePath(const String& filename, const String& cur_path, const String& paths)
 {
 	int len = filename.getLen();
 	if(!OS_IS_ABSOLUTE_PATH(filename, len) && cur_path.getLen()){
 		// Core::String resolved_path(os, cur_path, cur_path.getLen(), OS_PATH_SEPARATOR, OS_STRLEN(OS_PATH_SEPARATOR), filename, len);
 		String resolved_path = cur_path + OS_PATH_SEPARATOR + filename;
-		Core::FileStreamReader file(os, resolved_path);
+		Core::FileStreamReader file(this, resolved_path);
 		if(file.f){
-			return String(os, resolved_path);
+			return String(this, resolved_path);
 		}
 	}
 	// TODO: use paths
 	{
-		Core::FileStreamReader file(os, filename);
+		Core::FileStreamReader file(this, filename);
 		if(file.f){
 			return filename;
 		}
 	}
-	if(os->getFilenameExt(filename).getLen() == 0){
+	if(getFilenameExt(filename).getLen() == 0){
 		return resolvePath(filename + OS_SOURCECODE_EXT, cur_path, paths);
 	}
 
-	return String(os);
+	return String(this);
 }
 
-OS::String OS::StdExtention::getFilenameCompiled(const OS::String& resolved_filename)
+OS::String OS::getCompiledFilename(const OS::String& resolved_filename)
 {
-	return os->changeFilenameExt(resolved_filename, OS_COMPILED_EXT);
+	return changeFilenameExt(resolved_filename, OS_COMPILED_EXT);
 }
 
 OS::String OS::resolvePath(const String& filename, const String& paths)
@@ -9994,11 +9974,6 @@ OS::String OS::resolvePath(const String& filename, const String& paths)
 OS::String OS::resolvePath(const String& filename)
 {
 	return resolvePath(filename, String(this));
-}
-
-OS::String OS::getFilenameCompiled(const String& resolved_filename)
-{
-	return ext->getFilenameCompiled(resolved_filename);
 }
 
 void OS::Core::error(int code, const OS_CHAR * message)
@@ -10039,10 +10014,10 @@ void OS::Core::error(int code, const String& message)
 		break;
 	}
 	if(debug_info){
-		printf("[%s] %s (line: %d, pos: %d, token: %s, filename: %s)\n", error_type, message.toChar(), debug_info->line, debug_info->pos, 
+		allocator->printf("[%s] %s (line: %d, pos: %d, token: %s, filename: %s)\n", error_type, message.toChar(), debug_info->line, debug_info->pos, 
 			debug_info->token.toChar(), prog->filename.toChar());
 	}else{
-		printf("[%s] %s\n", error_type, message.toChar());
+		allocator->printf("[%s] %s\n", error_type, message.toChar());
 	}
 }
 
@@ -10230,9 +10205,9 @@ void OS::Core::gcMarkValue(GCValue * value)
 	case OS_VALUE_TYPE_CFUNCTION:
 		{
 			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(value));
-			GCCFunctionValue * ñfunc_value = (GCCFunctionValue*)value;
-			Value * closure_values = (Value*)(ñfunc_value + 1);
-			for(int i = 0; i < ñfunc_value->num_closure_values; i++){
+			GCCFunctionValue * cfunc_value = (GCCFunctionValue*)value;
+			Value * closure_values = (Value*)(cfunc_value + 1);
+			for(int i = 0; i < cfunc_value->num_closure_values; i++){
 				gcAddToGreyList(closure_values[i]);
 			}
 			break;
@@ -10825,18 +10800,6 @@ void OS::Core::setPrototype(Value val, Value proto)
 	}
 }
 
-/*
-OS::Core::Value OS::Core::newBoolValue(bool val)
-{
-	return Value(val);
-}
-
-OS::Core::Value OS::Core::newNumberValue(OS_FLOAT val)
-{
-	return Value(val);
-}
-*/
-
 OS::Core::GCStringValue * OS::Core::newStringValue(const OS_CHAR * str)
 {
 	return newStringValue(str, OS_STRLEN(str));
@@ -11006,24 +10969,21 @@ OS::Core::GCStringValue * OS::Core::newStringValue(OS_FLOAT val, int precision)
 	return newStringValue(str);
 }
 
-OS::Core::GCStringValue * OS::Core::newStringValue(int temp_buf_size, const OS_CHAR * fmt, ...)
+OS::Core::GCStringValue * OS::Core::newStringValue(int temp_buf_len, const OS_CHAR * fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
-	OS_CHAR * buf = (OS_CHAR*)allocator->malloc(temp_buf_size * sizeof(OS_CHAR) OS_DBG_FILEPOS);
-	OS_VSNPRINTF(buf, sizeof(OS_CHAR) * temp_buf_size, temp_buf_size-1, fmt, va);
-	GCStringValue * result = newStringValue(buf);
-	allocator->free(buf);
-	va_end(va);
-	return result;
+	OS_VaListDtor va_dtor(&va);
+	return newStringValueVa(temp_buf_len, fmt, va);
 }
 
-OS::Core::GCStringValue * OS::Core::newStringValueVa(int temp_buf_size, const OS_CHAR * fmt, va_list va)
+OS::Core::GCStringValue * OS::Core::newStringValueVa(int temp_buf_len, const OS_CHAR * fmt, va_list va)
 {
-	OS_CHAR * buf = (OS_CHAR*)allocator->malloc(temp_buf_size * sizeof(OS_CHAR) OS_DBG_FILEPOS);
-	OS_VSNPRINTF(buf, sizeof(OS_CHAR) * temp_buf_size, temp_buf_size-1, fmt, va);
+	OS_ASSERT(temp_buf_len <= OS_DEF_FMT_BUF_LEN);
+	OS_CHAR * buf = (OS_CHAR*)malloc(temp_buf_len * sizeof(OS_CHAR) OS_DBG_FILEPOS);
+	OS_VSNPRINTF(buf, sizeof(OS_CHAR) * (temp_buf_len-1), fmt, va);
 	GCStringValue * result = newStringValue(buf);
-	allocator->free(buf);
+	free(buf);
 	return result;
 }
 
@@ -11044,10 +11004,9 @@ OS::Core::GCCFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, int 
 	res->user_param = user_param;
 	res->num_closure_values = num_closure_values;
 	Value * closure_values = (Value*)(res + 1);
-	OS_MEMCPY(closure_values, stack_values.buf + (stack_values.count - num_closure_values), sizeof(Value)*num_closure_values);
-	/* for(int i = 0; i < num_closure_values; i++){
-		closure_values[i] = stack_values[stack_values.count - num_closure_values + i];
-	} */
+	if(num_closure_values > 0){
+		OS_MEMCPY(closure_values, stack_values.buf + (stack_values.count - num_closure_values), sizeof(Value)*num_closure_values);
+	}
 	res->type = OS_VALUE_TYPE_CFUNCTION;
 	pop(num_closure_values);
 	registerValue(res);
@@ -12312,13 +12271,6 @@ void OS::newArray()
 	core->pushArrayValue();
 }
 
-/*
-void OS::pushValue(Value& value)
-{
-	core->pushValueAutoNull(value.value);
-}
-*/
-
 void OS::pushStackValue(int offs)
 {
 	core->pushStackValue(offs);
@@ -12338,52 +12290,6 @@ void OS::pushValueById(int id)
 {
 	core->pushValue(core->values.get(id));
 }
-
-/*
-void OS::getValueOf()
-{
-	Core::Value * value = core->getStackValue(-1);
-	if(value){
-		core->pushValueOf(value);
-		remove(-2);
-	}else{
-		pushNull();
-	}
-}
-
-void OS::getNumberOf()
-{
-	Core::Value * value = core->getStackValue(-1);
-	if(value){
-		core->pushNumberOf(value);
-		remove(-2);
-	}else{
-		pushNull();
-	}
-}
-
-void OS::getStringOf()
-{
-	Core::Value * value = core->getStackValue(-1);
-	if(value){
-		core->pushStringOf(value);
-		remove(-2);
-	}else{
-		pushNull();
-	}
-}
-
-void OS::getBooleanOf()
-{
-	Core::Value * value = core->getStackValue(-1);
-	if(value){
-		core->pushConstBoolValue(core->valueToBool(value));
-		remove(-2);
-	}else{
-		pushNull();
-	}
-}
-*/
 
 int OS::getStackSize()
 {
@@ -12509,31 +12415,10 @@ void * OS::toUserData(int offs, int crc)
 	return NULL;
 }
 
-/*
-bool OS::Value::isObject() const
-{
-	if(value){
-		switch(value->type){
-		case OS_VALUE_TYPE_OBJECT:
-		case OS_VALUE_TYPE_ARRAY:
-			return true;
-		}
-	}
-	return false;
-}
-*/
-
 bool OS::isArray(int offs)
 {
 	return isType(OS_VALUE_TYPE_ARRAY, offs);
 }
-
-/*
-bool OS::Value::isArray() const
-{
-	return isType(OS_VALUE_TYPE_ARRAY);
-}
-*/
 
 bool OS::isFunction(int offs)
 {
@@ -12568,16 +12453,6 @@ bool OS::isInstanceOf(int value_offs, int prototype_offs)
 {
 	return core->isValueInstanceOf(core->getStackValue(value_offs), core->getStackValue(prototype_offs));
 }
-
-/*
-bool OS::Value::isInstanceOf(Value& prototype_value) const
-{
-	if(value && prototype_value.value && allocator == prototype_value.allocator){
-		return allocator->core->isValueInstanceOf(value, prototype_value.value);
-	}
-	return false;
-}
-*/
 
 void OS::setProperty(bool setter_enabled)
 {
@@ -12895,9 +12770,6 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, GCValue * self, int p
 	// OS_ASSERT(self);
 
 	FunctionDecl * func_decl = func_value->func_decl;
-	/* if(func_decl->prog_func_index == 0 && self){
-		func_value->env = self;
-	} */
 	int num_extra_params = params > func_decl->num_params ? params - func_decl->num_params : 0;
 	// int locals_mem_size = sizeof(Value) * (func_decl->num_locals + num_extra_params);
 	// int parents_mem_size = sizeof(FunctionRunningInstance*) * func_decl->max_up_count;
@@ -12954,16 +12826,10 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, GCValue * self, int p
 	if(num_extra_params > 0 && func_decl->num_locals != params - num_extra_params){
 		OS_MEMCPY(extra_params, func_locals->locals + (params - num_extra_params), sizeof(Value) * num_extra_params);
 	}
-	/* for(i = 0; i < num_extra_params; i++){
-		extra_params[i] = func_locals[params - num_extra_params + i];
-	} */
 	int opcodes_vars = stack_func->bottom_stack_pos - stack_func->opcode_stack_pos;
 	if(opcodes_vars > 0){
 		OS_MEMSET(extra_params + num_extra_params, 0, sizeof(Value) * opcodes_vars);
 	}
-	/* for(; opcodes_vars > 0; opcodes_vars--, i++){
-		extra_params[i] = Value();
-	} */
 	int func_params = func_decl->num_params < params ? func_decl->num_params : params;
 	OS_ASSERT(func_params <= func_decl->num_locals);
 	if(func_decl->num_locals > func_params){
@@ -13342,7 +13208,7 @@ restart:
 				int ret_values = opcodes.readByte();
 				
 				OS_ASSERT(stack_values.count >= 1 + params);
-				insertValue(Value(), -params);
+				// insertValue(Value(), -params);
 				call(params, ret_values);
 				break;
 			}
@@ -13893,7 +13759,7 @@ void OS::setFuncs(const Func * list, int closure_values, void * user_param)
 		pushString(list->name);
 		// push closure_values for cfunction
 		for(int i = 0; i < closure_values; i++){
-			pushStackValue(-1-closure_values);
+			pushStackValue(-2-closure_values);
 		}
 		pushCFunction(list->func, closure_values, user_param);
 		setProperty(false);
@@ -13971,16 +13837,14 @@ void OS::initGlobalFunctions()
 			int params_offs = os->getAbsoluteOffs(-params);
 			for(int i = 0; i < params; i++){
 				String str = os->toString(params_offs + i);
-				printf("%s", str.toChar());
+				os->printf("%s", str.toChar());
 				if(i+1 < params){
-					printf("\t");
+					os->printf("\t");
 				}
 			}
 			if(params > 0){
-				printf("\n");
+				os->printf("\n");
 			}
-			fflush(stdout);
-			// flushall();
 			return 0;
 		}
 
@@ -13989,9 +13853,8 @@ void OS::initGlobalFunctions()
 			int params_offs = os->getAbsoluteOffs(-params);
 			for(int i = 0; i < params; i++){
 				String str = os->toString(params_offs + i);
-				printf("%s", str.toChar());
+				os->printf("%s", str.toChar());
 			}
-			fflush(stdout);
 			return 0;
 		}
 
@@ -14222,10 +14085,6 @@ void OS::initObjectClass()
 					Core::Value temp;
 					for(int i = 0; prop; prop = prop->next, i++, need_index++){
 						if(prop->index.type == OS_VALUE_TYPE_NUMBER && prop->index.v.number == (OS_FLOAT)need_index){
-							/* if(i > 100){
-								buf += OS_TEXT("...");
-								break;
-							} */
 							if(need_index > 0){
 								buf += OS_TEXT(",");
 							}
@@ -14268,10 +14127,6 @@ void OS::initObjectClass()
 					Core::Property * prop = self->table->first;
 					Core::Value temp;
 					for(int i = 0; prop; prop = prop->next, i++){
-						/* if(i > 100){
-							buf += OS_TEXT("...");
-							break;
-						} */
 						if(i > 0){
 							buf += OS_TEXT(",");
 						}
@@ -14641,7 +14496,7 @@ void OS::initMathLibrary()
 		
 		static int abs(OS * os, int params, int, int, void*)
 		{
-			os->pushNumber(::abs(os->toNumber(-params)));
+			os->pushNumber(::fabs(os->toNumber(-params)));
 			return 1;
 		}
 		
@@ -15020,7 +14875,7 @@ bool OS::compileFile(const String& p_filename, bool required)
 	}
 	
 	{
-		String compiled_filename = getFilenameCompiled(filename);
+		String compiled_filename = getCompiledFilename(filename);
 		OS_ASSERT(getFilenameExt(compiled_filename) == OS_COMPILED_EXT);
 		Core::FileStreamReader file(this, compiled_filename);
 		if(file.f){
@@ -15087,43 +14942,19 @@ int OS::eval(const String& str, int params, int ret_values)
 	return core->call(params, ret_values);
 }
 
-int OS::run(const OS_CHAR * filename, bool required, int params, int ret_values)
+int OS::require(const OS_CHAR * filename, bool required, int ret_values)
 {
-	return run(String(this, filename), required, params, ret_values);
+	return require(String(this, filename), required, ret_values);
 }
 
-int OS::run(const String& filename, bool required, int params, int ret_values)
+int OS::require(const String& filename, bool required, int ret_values)
 {
-	compileFile(filename, required);
+	getGlobal(OS_TEXT("require"));
 	pushNull();
-	move(-2, 2, -2-params);
-	int ret = core->call(params, ret_values);
-
-	// core->sortOpcodeUsage();
-
-	return ret;
+	pushString(filename);
+	pushBool(required);
+	return call(2, ret_values);
 }
-
-/*
-void OS::Core::sortOpcodeUsage()
-{
-	struct Lib {
-		static int __cdecl compare(const void * a, const void * b)
-		{
-			OpcodeTime * t1 = (OpcodeTime*)a;
-			OpcodeTime * t2 = (OpcodeTime*)b;
-			if(t1->time < t2->time){
-				return 1;
-			}
-			if(t1->time > t2->time){
-				return -1;
-			}
-			return 0;
-		}
-	};
-	qsort(opcode_usage, Program::OPCODE_COUNT, sizeof(opcode_usage[0]), Lib::compare); 
-}
-*/
 
 int OS::getSetting(OS_ESettings setting)
 {
@@ -15170,59 +15001,4 @@ int OS::gc()
 void OS::gcFull()
 {
 	core->gcFull();
-}
-
-// =====================================================================
-// =====================================================================
-// =====================================================================
-
-/*
-OS::Value::Value(OS * p_allocator, Core::Value * p_value)
-{
-	allocator = p_allocator->retain();
-	value = p_value ? p_value->retain() : NULL;
-}
-
-OS::Value::Value(Value& p_value)
-{
-	allocator = p_value.allocator->retain();
-	value = p_value.value ? p_value.value->retain() : NULL;
-}
-
-OS::Value::~Value()
-{
-	if(value){
-		allocator->core->releaseValue(value);
-	}
-	allocator->release();
-}
-
-OS::Value& OS::Value::operator=(Value& p_value)
-{
-	if(value != p_value.value){
-		if(value){
-			allocator->core->releaseValue(value);
-		}
-		value = p_value.value ? p_value.value->retain() : NULL;
-		if(allocator != p_value.allocator){
-			allocator->release();
-			allocator = p_value.allocator->retain();
-		}
-	}
-	return *this;
-}
-
-int OS::Value::getId() const
-{
-	return value ? value->value_id : 0;
-}
-*/
-
-static int OS_snprintf(OS_CHAR * buf, size_t size, const OS_CHAR * format, ...)
-{
-	va_list va;
-	va_start(va, format);
-	int ret = OS_VSNPRINTF(buf, size, size/sizeof(OS_CHAR)-1, format, va);
-	va_end(va);
-	return ret;
 }

@@ -244,7 +244,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	os->setGlobal("getTimeSec");
 
 	int start_mem_usage = os->getAllocatedBytes();
-	os->run(getString(os, argv[1])); // argc >= 2 && argv[1] ? getString(os, argv[1]) : "test-data/test3.os");
+	os->require(getString(os, argv[1])); // argc >= 2 && argv[1] ? getString(os, argv[1]) : "test-data/test3.os");
 	// exit(1);
 	// os->eval("print arg");
 	{

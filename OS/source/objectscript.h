@@ -50,15 +50,28 @@
 // #define OS_NUMBER float	// could be a bit faster
 // #define OS_NUMBER int	// not recomended
 
-#define OS_INT __int64
 #define OS_FLOAT double
 #define OS_INT16 short
-#define OS_INT32 __int32
-#define OS_INT64 __int64
 #define OS_BYTE unsigned char
 #define OS_U16 unsigned short
+
+#ifdef IW_SDK
+
+#define OS_INT int64
+#define OS_INT32 int32
+#define OS_INT64 int64
+#define OS_U32 uint32
+#define OS_U64 uint64
+
+#else
+
+#define OS_INT __int64
+#define OS_INT32 __int32
+#define OS_INT64 __int64
 #define OS_U32 unsigned __int32
 #define OS_U64 unsigned __int64
+
+#endif
 
 #define OS_CHAR char
 #define OS_TEXT(s) s
@@ -96,8 +109,17 @@
 #define OS_STRNCMP strncmp
 #define OS_STRCHR strchr
 #define OS_STRSTR strstr
+
+#ifdef IW_SDK
+#define OS_VSNPRINTF vsnprintf
+#define OS_SNPRINTF snprintf
+#else
 #define OS_VSNPRINTF OS_vsnprintf
 #define OS_SNPRINTF OS_snprintf
+#endif // IW_SDK
+
+#define OS_VPRINTF vprintf
+#define OS_PRINTF ::printf
 
 #define OS_IS_SPACE isspace
 #define OS_IS_ALPHA isalpha
@@ -108,12 +130,20 @@
 #define OS_MATH_FLOOR ::floor
 #define OS_MATH_FMOD ::fmod
 
+#if defined _MSC_VER // && !defined IW_SDK
+#define DEBUG_BREAK __debugbreak()
+#else
+#include <signal.h>
+#define DEBUG_BREAK raise(SIGTRAP)
+// #define DEBUG_BREAK __builtin_trap()
+#endif
+
 #define OS_GLOBALS_VAR_NAME OS_TEXT("_G")
 #define OS_ENV_VAR_NAME OS_TEXT("_E")
 
 #define OS_AUTO_PRECISION 20
 
-#define OS_DEF_FMT_BUF_SIZE 1024*10
+#define OS_DEF_FMT_BUF_LEN (1024*10)
 
 #define OS_PATH_SEPARATOR OS_TEXT("\\")
 
@@ -240,25 +270,20 @@ namespace ObjectScript
 	{
 	public:
 
-		class RetainedObject
+		class MemoryManager
 		{
 		protected:
 
 			int ref_count;
 
-			virtual ~RetainedObject();
+			virtual ~MemoryManager();
 
 		public:
 
-			RetainedObject();
+			MemoryManager();
 
-			virtual RetainedObject * retain();
-			virtual void release();
-		};
-
-		class MemoryManager: public RetainedObject
-		{
-		public:
+			MemoryManager * retain();
+			void release();
 
 			virtual void * malloc(int size OS_DBG_FILEPOS_DECL) = 0;
 			virtual void free(void * p) = 0;
@@ -353,6 +378,8 @@ namespace ObjectScript
 			int stat_free_count;
 
 			void registerPageDesc(int block_size, int num_blocks);
+			
+			static int comparePageDesc(const void * pa, const void * pb);
 			void sortPageDesc();
 
 			void * allocFromCachedBlock(int i OS_DBG_FILEPOS_DECL);
@@ -396,6 +423,9 @@ namespace ObjectScript
 
 			static int cmp(const void * buf1, int len1, const void * buf2, int len2);
 		};
+
+		class String;
+		class ObjectScriptExtention;
 
 	protected:
 
@@ -577,7 +607,6 @@ namespace ObjectScript
 			}
 		}
 
-		class String;
 		class Core
 		{
 		public:
@@ -652,10 +681,9 @@ namespace ObjectScript
 			{
 			public:
 
-				FILE * f;
+				void * f;
 
 				FileStreamWriter(OS*, const OS_CHAR * filename);
-				FileStreamWriter(OS*, FILE * f);
 				~FileStreamWriter();
 
 				int getPos() const;
@@ -682,7 +710,7 @@ namespace ObjectScript
 				virtual int getSize() const = 0;
 
 				virtual void movePos(int len) = 0;
-				virtual bool checkBytes(void*, int len) = 0;
+				virtual bool checkBytes(const void*, int len) = 0;
 
 				virtual void * readBytes(void*, int len) = 0;
 				virtual void * readBytesAtPos(void*, int len, int pos) = 0;
@@ -730,7 +758,7 @@ namespace ObjectScript
 				int getSize() const;
 
 				void movePos(int len);
-				bool checkBytes(void*, int len);
+				bool checkBytes(const void*, int len);
 
 				void * readBytes(void*, int len);
 				void * readBytesAtPos(void*, int len, int pos);
@@ -743,10 +771,9 @@ namespace ObjectScript
 			{
 			public:
 
-				FILE * f;
+				void * f;
 
 				FileStreamReader(OS*, const OS_CHAR * filename);
-				FileStreamReader(OS*, FILE * f);
 				~FileStreamReader();
 
 				int getPos() const;
@@ -755,7 +782,7 @@ namespace ObjectScript
 				int getSize() const;
 
 				void movePos(int len);
-				bool checkBytes(void*, int len);
+				bool checkBytes(const void*, int len);
 
 				void * readBytes(void*, int len);
 				void * readBytesAtPos(void*, int len, int pos);
@@ -786,8 +813,8 @@ namespace ObjectScript
 				String(OS*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
 				~String();
 
-				static String format(OS*, int temp_buf_size, const OS_CHAR * fmt, ...);
-				static String formatVa(OS*, int temp_buf_size, const OS_CHAR * fmt, va_list va);
+				static String format(OS*, int temp_buf_len, const OS_CHAR * fmt, ...);
+				static String formatVa(OS*, int temp_buf_len, const OS_CHAR * fmt, va_list va);
 				static String format(OS*, const OS_CHAR * fmt, ...);
 				static String formatVa(OS*, const OS_CHAR * fmt, va_list va);
 
@@ -1063,7 +1090,7 @@ namespace ObjectScript
 
 				// private:
 
-				static int __cdecl CompareOperatorDesc(const void * a, const void * b);
+				static int compareOperatorDesc(const void * a, const void * b) ;
 				static void initOperatorsTable();
 
 				TokenData * addToken(const String& token, TokenType type, int line, int pos OS_DBG_FILEPOS_DECL);
@@ -2374,8 +2401,8 @@ namespace ObjectScript
 			GCStringValue * newStringValue(GCStringValue*, GCStringValue*);
 			GCStringValue * newStringValue(OS_INT);
 			GCStringValue * newStringValue(OS_FLOAT, int);
-			GCStringValue * newStringValue(int temp_buf_size, const OS_CHAR * fmt, ...);
-			GCStringValue * newStringValueVa(int temp_buf_size, const OS_CHAR * fmt, va_list va);
+			GCStringValue * newStringValue(int temp_buf_len, const OS_CHAR * fmt, ...);
+			GCStringValue * newStringValueVa(int temp_buf_len, const OS_CHAR * fmt, va_list va);
 
 			GCCFunctionValue * newCFunctionValue(OS_CFunction func, void * user_param);
 			GCCFunctionValue * newCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
@@ -2495,18 +2522,14 @@ namespace ObjectScript
 			void shutdown();
 		};
 
-		class ObjectScriptExtention;
-
 		MemoryManager * memory_manager;
-		ObjectScriptExtention * ext;
 		Core * core;
 		int ref_count;
 
-		OS();
 		virtual ~OS();
 
-		bool init(ObjectScriptExtention * ext, MemoryManager * manager);
-		void shutdown();
+		// bool init(ObjectScriptExtention * ext, MemoryManager * manager);
+		virtual void shutdown();
 
 		void * malloc(int size OS_DBG_FILEPOS_DECL);
 		void free(void * p);
@@ -2556,36 +2579,13 @@ namespace ObjectScript
 			String trim(bool trim_left = true, bool trim_right = true) const;
 		};
 
-		class ObjectScriptExtention: public RetainedObject
-		{
-		public:
+		static OS * create(MemoryManager* = NULL);
+		static OS * create(OS *, MemoryManager* = NULL);
 
-			virtual bool preInit(OS*) = 0;
-			virtual bool postInit(){ return true; }
-			virtual void shutdown() = 0;
+		OS();
 
-			virtual String resolvePath(const String& filename, const String& cur_path, const String& paths) = 0;
-			virtual String getFilenameCompiled(const String& resolved_filename) = 0;
-		};
-
-		class StdExtention: public ObjectScriptExtention
-		{
-		protected:
-
-			OS * os;
-
-		public:
-			
-			StdExtention();
-
-			bool preInit(OS*);
-			void shutdown();
-
-			String resolvePath(const String& filename, const String& cur_path, const String& paths);
-			String getFilenameCompiled(const String& resolved_filename);
-		};
-
-		static OS * create(ObjectScriptExtention* = NULL, MemoryManager* = NULL);
+		virtual OS * start(MemoryManager* = NULL);
+		virtual bool init(MemoryManager* = NULL);
 
 		OS * retain();
 		void release();
@@ -2680,8 +2680,8 @@ namespace ObjectScript
 		int eval(const OS_CHAR * str, int params = 0, int ret_values = 0);
 		int eval(const String& str, int params = 0, int ret_values = 0);
 
-		int run(const OS_CHAR * filename, bool required = false, int params = 0, int ret_values = 0);
-		int run(const String& filename, bool required = false, int params = 0, int ret_values = 0);
+		int require(const OS_CHAR * filename, bool required = false, int ret_values = 0);
+		int require(const String& filename, bool required = false, int ret_values = 0);
 
 		// return next gc phase
 		int gc();
@@ -2715,9 +2715,16 @@ namespace ObjectScript
 
 		String resolvePath(const String& filename);
 		String resolvePath(const String& filename, const String& paths);
-		String resolvePath(const String& filename, const String& cur_path, const String& paths);
+		virtual String resolvePath(const String& filename, const String& cur_path, const String& paths);
+		virtual String getCompiledFilename(const String& resolved_filename);
 
-		String getFilenameCompiled(const String& resolved_filename);
+		virtual void * openFile(const OS_CHAR * filename, const OS_CHAR * mode);
+		virtual int readFile(void * buf, int size, void * f);
+		virtual int writeFile(const void * buf, int size, void * f);
+		virtual int seekFile(void * f, int offset, int whence);
+		virtual void closeFile(void * f);
+
+		virtual void printf(const OS_CHAR * fmt, ...);
 	};
 
 } // namespace OS

@@ -18,14 +18,16 @@ begin function
     47 transform
     48 core
   end locals
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const number 5
       ,
       push const string " differences"
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [5] var i = 4
@@ -67,12 +69,16 @@ begin function
 
 [9] print concat("name: " name ", count: " count ", time: " time)
 
-    begin call
-      get env var print
-      begin params 1
-        begin call
-          get env var concat
-          begin params 6
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
+        begin call method
+          get local var _E (0 0)
+          begin params 7
+            push const string "concat"
+            ,
             push const string "name: "
             ,
             get local var name (3 0)
@@ -84,18 +90,20 @@ begin function
             push const string ", time: "
             ,
             get local var time (5 0)
-          end params ret values 6
-        end call ret values 1
-      end params ret values 1
-    end call ret values 0
+          end params ret values 7
+        end call method ret values 1
+      end params ret values 2
+    end call method ret values 0
   end scope ret values 0
 
 
 [13] print {firstname="Ivan" lastname="Petrov"}
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       begin object 2
         begin set by name
           push const string "Ivan"
@@ -105,8 +113,8 @@ begin function
           push const string "Petrov"
         end set by name: [lastname]
       end object
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [17] var a = {x=1, y=3; "zero" "one", "two" last:7,}
@@ -156,25 +164,29 @@ begin function
 
 [18] print a[1]
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin get property
           get local var a (6 0)
           push const number 1
         end get property ret values 1
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [19] print a
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         get local var a (6 0)
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [22] a = {[2+3]="five" y=3}
@@ -195,25 +207,29 @@ begin function
 
 [23] print a[5]
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin get property
           get local var a (6 0)
           push const number 5
         end get property ret values 1
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [24] print a
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         get local var a (6 0)
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [26] a = {x=1 y=2}
@@ -249,22 +265,26 @@ begin function
 
 [29] print b[a]
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin get property
           get local var b (7 0)
           get local var a (6 0)
         end get property ret values 1
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [31] print([10, 20, 30, 40])
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin array 4
           begin set auto index
             push const number 10
@@ -282,15 +302,17 @@ begin function
             push const number 40
           end set auto index
         end array
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [33] print([10 20 30 40])
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin array 4
           begin set auto index
             push const number 10
@@ -308,8 +330,8 @@ begin function
             push const number 40
           end set auto index
         end array
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [36] var i, j, k = 0, 1, 3
@@ -331,9 +353,11 @@ begin function
 
 [37] echo("i="i", j="j", k="k"\n")
 
-    begin call
-      get env var echo
-      begin params 7
+    begin call method
+      get local var _E (0 0)
+      begin params 8
+        push const string "echo"
+        ,
         push const string "i="
         ,
         get local var i (8 0)
@@ -348,8 +372,8 @@ begin function
         ,
         push const string "
 "
-      end params ret values 7
-    end call ret values 0
+      end params ret values 8
+    end call method ret values 0
 
 
 [40] i, j = j, i
@@ -367,9 +391,11 @@ begin function
 
 [41] echo("after swap: i="i", j="j"\n")
 
-    begin call
-      get env var echo
-      begin params 5
+    begin call method
+      get local var _E (0 0)
+      begin params 6
+        push const string "echo"
+        ,
         push const string "after swap: i="
         ,
         get local var i (8 0)
@@ -380,8 +406,8 @@ begin function
         ,
         push const string "
 "
-      end params ret values 5
-    end call ret values 0
+      end params ret values 6
+    end call method ret values 0
 
 
 [44] var test = function(){ return 1, 2 }
@@ -416,9 +442,11 @@ begin function
 
 [46] print("results from function" "a="..a "b="..b)
 
-    begin call
-      get env var print
-      begin params 3
+    begin call method
+      get local var _E (0 0)
+      begin params 4
+        push const string "print"
+        ,
         push const string "results from function"
         ,
         begin operator ..
@@ -430,8 +458,8 @@ begin function
           push const string "b="
           get local var b (13 0)
         end operator ..
-      end params ret values 3
-    end call ret values 0
+      end params ret values 4
+    end call method ret values 0
 
 
 [49] var a, b, c = test()
@@ -451,9 +479,11 @@ begin function
 
 [50] print("results from function" "a="..a "b="..b "c="..c)
 
-    begin call
-      get env var print
-      begin params 4
+    begin call method
+      get local var _E (0 0)
+      begin params 5
+        push const string "print"
+        ,
         push const string "results from function"
         ,
         begin operator ..
@@ -470,8 +500,8 @@ begin function
           push const string "c="
           get local var c (16 0)
         end operator ..
-      end params ret values 4
-    end call ret values 0
+      end params ret values 5
+    end call method ret values 0
   end scope ret values 0
 
 
@@ -482,12 +512,14 @@ begin function
       17 obj
       29 range
     end locals
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         push const string "Object iterator test"
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [55] var obj = { null awesome=true 12 "excellent" }
@@ -568,16 +600,18 @@ begin function
 [57] print( k " --> " v )
 
           begin scope
-            begin call
-              get env var print
-              begin params 3
+            begin call method
+              get local var _E (0 0)
+              begin params 4
+                push const string "print"
+                ,
                 get local var k (18 0)
                 ,
                 push const string " --> "
                 ,
                 get local var v (19 0)
-              end params ret values 3
-            end call ret values 0
+              end params ret values 4
+            end call method ret values 0
           end scope ret values 0
         end loop ret values 0
       end code list ret values 0
@@ -586,12 +620,14 @@ begin function
 
 [60] print "Object iterator test, only keys"
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         push const string "Object iterator test, only keys"
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [61] for(k in obj){
@@ -644,12 +680,14 @@ begin function
 [62] print k
 
           begin scope
-            begin call
-              get env var print
-              begin params 1
+            begin call method
+              get local var _E (0 0)
+              begin params 2
+                push const string "print"
+                ,
                 get local var k (22 0)
-              end params ret values 1
-            end call ret values 0
+              end params ret values 2
+            end call method ret values 0
           end scope ret values 0
         end loop ret values 0
       end code list ret values 0
@@ -658,12 +696,14 @@ begin function
 
 [65] print "Array iterator test"
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         push const string "Array iterator test"
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [66] Array.__iter = function(){
@@ -719,9 +759,11 @@ begin function
                     begin locals 1
                       2 #temp
                     end locals
-                    begin call
-                      get env var print
-                      begin params 3
+                    begin call method
+                      get local var _E (0 0)
+                      begin params 4
+                        push const string "print"
+                        ,
                         push const string "... inside of array iter func: "
                         ,
                         get local var i (2 1)
@@ -730,8 +772,8 @@ begin function
                           get local var self (3 1)
                           get local var i (2 1)
                         end get property ret values 1
-                      end params ret values 3
-                    end call ret values 0
+                      end params ret values 4
+                    end call method ret values 0
 
 
 [71] return true, i, self[i++]
@@ -851,16 +893,18 @@ begin function
 [76] print( k " --> " v )
 
           begin scope
-            begin call
-              get env var print
-              begin params 3
+            begin call method
+              get local var _E (0 0)
+              begin params 4
+                push const string "print"
+                ,
                 get local var k (25 0)
                 ,
                 push const string " --> "
                 ,
                 get local var v (26 0)
-              end params ret values 3
-            end call ret values 0
+              end params ret values 4
+            end call method ret values 0
           end scope ret values 0
         end loop ret values 0
       end code list ret values 0
@@ -869,9 +913,11 @@ begin function
 
 [79] print("Test array prototype:", [1 2 3].prototype === Array)
 
-    begin call
-      get env var print
-      begin params 2
+    begin call method
+      get local var _E (0 0)
+      begin params 3
+        push const string "print"
+        ,
         push const string "Test array prototype:"
         ,
         begin logic ===
@@ -893,18 +939,20 @@ begin function
           end get property ret values 1
           get env var Array
         end logic ===
-      end params ret values 2
-    end call ret values 0
+      end params ret values 3
+    end call method ret values 0
 
 
 [81] print "Test range iterator"
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         push const string "Test range iterator"
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [82] var range = function(a, b){
@@ -1028,15 +1076,17 @@ begin function
 [90] print "i = "..i
 
           begin scope
-            begin call
-              get env var print
-              begin params 1
+            begin call method
+              get local var _E (0 0)
+              begin params 2
+                push const string "print"
+                ,
                 begin operator ..
                   push const string "i = "
                   get local var i (30 0)
                 end operator ..
-              end params ret values 1
-            end call ret values 0
+              end params ret values 2
+            end call method ret values 0
           end scope ret values 0
         end loop ret values 0
       end code list ret values 0
@@ -1046,9 +1096,11 @@ begin function
 
 [95] print "7 && 9 = "..(7 && 9)
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       begin operator ..
         push const string "7 && 9 = "
         begin logic &&
@@ -1056,15 +1108,17 @@ begin function
           push const number 9
         end logic &&
       end operator ..
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [96] print "7 || 9 = "..(7 || 9)
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       begin operator ..
         push const string "7 || 9 = "
         begin logic ||
@@ -1072,8 +1126,8 @@ begin function
           push const number 9
         end logic ||
       end operator ..
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [101] var v1 = {x=1 y=2}
@@ -1114,9 +1168,11 @@ begin function
 
 [103] print( a[v1] a.v2 )
 
-    begin call
-      get env var print
-      begin params 2
+    begin call method
+      get local var _E (0 0)
+      begin params 3
+        push const string "print"
+        ,
         begin get property
           get local var a (34 0)
           get local var v1 (33 0)
@@ -1126,8 +1182,8 @@ begin function
           get local var a (34 0)
           push const string "v2"
         end get property ret values 1
-      end params ret values 2
-    end call ret values 0
+      end params ret values 3
+    end call method ret values 0
   end scope ret values 0
 
 
@@ -1178,9 +1234,11 @@ begin function
 
 [114] print this.fullname .. " is walking!"
 
-          begin call
-            get env var print
-            begin params 1
+          begin call method
+            get local var _E (0 0)
+            begin params 2
+              push const string "print"
+              ,
               begin operator ..
                 begin get property
                   push this
@@ -1188,8 +1246,8 @@ begin function
                 end get property ret values 1
                 push const string " is walking!"
               end operator ..
-            end params ret values 1
-          end call ret values 0
+            end params ret values 2
+          end call method ret values 0
         end function
       end set by name: [walk]
       ,
@@ -1252,12 +1310,14 @@ begin function
 
 [123] print p
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       get local var p (36 0)
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [126] var IvanPerson = extends Person {
@@ -1323,12 +1383,14 @@ begin function
 
 [134] print p
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       get local var p (38 0)
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [138] var vec3 = {
@@ -1534,15 +1596,17 @@ begin function
 
 [155] print "should be {x:11,y:24,z:39} " .. v3
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       begin operator ..
         push const string "should be {x:11,y:24,z:39} "
         get local var v3 (42 0)
       end operator ..
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [158] print "Test properties"
@@ -1551,12 +1615,14 @@ begin function
     begin locals 1
       43 a
     end locals
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         push const string "Test properties"
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [160] var a = {
@@ -1611,9 +1677,11 @@ begin function
 
 [167] print "should be red: " .. a["color"]
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin operator ..
           push const string "should be red: "
           begin get property
@@ -1621,8 +1689,8 @@ begin function
             push const string "color"
           end get property ret values 1
         end operator ..
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [169] a.color = "blue"
@@ -1636,9 +1704,11 @@ begin function
 
 [170] print "should be blue: " .. a.color
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin operator ..
           push const string "should be blue: "
           begin get property
@@ -1646,8 +1716,8 @@ begin function
             push const string "color"
           end get property ret values 1
         end operator ..
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [172] a = {
@@ -1771,9 +1841,11 @@ begin function
 
 [189] print "should be white: " .. a.color
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin operator ..
           push const string "should be white: "
           begin get property
@@ -1781,15 +1853,17 @@ begin function
             push const string "color"
           end get property ret values 1
         end operator ..
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [190] print "should be null: " .. a.color2
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin operator ..
           push const string "should be null: "
           begin get property
@@ -1797,8 +1871,8 @@ begin function
             push const string "color2"
           end get property ret values 1
         end operator ..
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [192] a.color = "green"
@@ -1812,9 +1886,11 @@ begin function
 
 [193] print "should be green: " .. a.color
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin operator ..
           push const string "should be green: "
           begin get property
@@ -1822,8 +1898,8 @@ begin function
             push const string "color"
           end get property ret values 1
         end operator ..
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [195] delete a.color
@@ -1836,9 +1912,11 @@ begin function
 
 [196] print "should be null: " .. a.color
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin operator ..
           push const string "should be null: "
           begin get property
@@ -1846,18 +1924,20 @@ begin function
             push const string "color"
           end get property ret values 1
         end operator ..
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [198] print "Test multi dimensional properties"
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         push const string "Test multi dimensional properties"
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [199] a = {
@@ -1984,9 +2064,11 @@ begin function
 
 [214] print "should be 5: " .. a[1, 2]	// print(a.__getdim(1, 2))
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin operator ..
           push const string "should be 5: "
           begin call method
@@ -2000,8 +2082,8 @@ begin function
             end params ret values 3
           end call method ret values 1
         end operator ..
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [216] delete a[1, 2]	// a.__deldim(1, 2)
@@ -2020,9 +2102,11 @@ begin function
 
 [217] print "should be null: " .. a[1, 2]	// print(a.__getdim(1, 2))
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin operator ..
           push const string "should be null: "
           begin call method
@@ -2036,26 +2120,30 @@ begin function
             end params ret values 3
           end call method ret values 1
         end operator ..
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
   end scope ret values 0
 
 
 [220] print "Test function inline call"
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       push const string "Test function inline call"
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [221] print "should be 7: " .. (function(a b c){ return a + b * c }(1 2 3))
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       begin operator ..
         push const string "should be 7: "
         begin single value
@@ -2088,8 +2176,8 @@ begin function
           end call ret values 1
         end single value
       end operator ..
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [224] print "Test local vars scope"
@@ -2098,12 +2186,14 @@ begin function
     begin locals 1
       44 i
     end locals
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         push const string "Test local vars scope"
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
 
 
 [225] var i = 1;
@@ -2138,34 +2228,40 @@ begin function
 
 [229] print i
 
-      begin call
-        get env var print
-        begin params 1
+      begin call method
+        get local var _E (0 0)
+        begin params 2
+          push const string "print"
+          ,
           get local var i (45 0)
-        end params ret values 1
-      end call ret values 0
+        end params ret values 2
+      end call method ret values 0
     end scope ret values 0
 
 
 [231] print i
 
-    begin call
-      get env var print
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         get local var i (44 0)
-      end params ret values 1
-    end call ret values 0
+      end params ret values 2
+    end call method ret values 0
   end scope ret values 0
 
 
 [234] print "Test debuglocals"
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       push const string "Test debuglocals"
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [241] }(10)
@@ -2208,9 +2304,11 @@ begin function
 
 [239] print debuglocals
 
-        begin call
-          get env var print
-          begin params 1
+        begin call method
+          get local var _E (1 0)
+          begin params 2
+            push const string "print"
+            ,
             begin debug locals
               begin object 11
                 begin set by name
@@ -2258,8 +2356,8 @@ begin function
                 end set by name: [c]
               end object
             end debug locals
-          end params ret values 1
-        end call ret values 0
+          end params ret values 2
+        end call method ret values 0
       end scope ret values 0
     end function
 
@@ -2273,32 +2371,38 @@ begin function
 
 [243] print "Script environment"
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       push const string "Script environment"
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [244] print _E
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       get local var _E (0 0)
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [246] print "Math functions"
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       push const string "Math functions"
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [247] var a = [math.random() math.random() math.random() math.random() math.random() math.random()]
@@ -2364,14 +2468,16 @@ begin function
 
 [248] print("random" a)
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "random"
       ,
       get local var a (46 0)
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [251] delete Array.__iter // delete our iterator, use default one
@@ -2524,21 +2630,25 @@ begin function
 
 [261] print("mult 100" a)
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "mult 100"
       ,
       get local var a (46 0)
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [262] print("math.ceil" transform(a math.ceil))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "math.ceil"
       ,
       begin call
@@ -2552,15 +2662,17 @@ begin function
           end get property ret values 1
         end params ret values 2
       end call ret values 1
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [263] print("math.floor" transform(a math.floor))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "math.floor"
       ,
       begin call
@@ -2574,15 +2686,17 @@ begin function
           end get property ret values 1
         end params ret values 2
       end call ret values 1
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [264] print("math.round(-1)" transform(a function(a){ return math.round(a, -1) }))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "math.round(-1)"
       ,
       begin call
@@ -2611,15 +2725,17 @@ begin function
           end function
         end params ret values 2
       end call ret values 1
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [265] print("math.round(2)" transform(a function(a){ return math.round(a, 2) }))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "math.round(2)"
       ,
       begin call
@@ -2646,15 +2762,17 @@ begin function
           end function
         end params ret values 2
       end call ret values 1
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [266] print("math.sin" transform(a math.sin))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "math.sin"
       ,
       begin call
@@ -2668,15 +2786,17 @@ begin function
           end get property ret values 1
         end params ret values 2
       end call ret values 1
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [267] print("math.cos" transform(a math.cos))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "math.cos"
       ,
       begin call
@@ -2690,15 +2810,17 @@ begin function
           end get property ret values 1
         end params ret values 2
       end call ret values 1
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [268] print("math.tan" transform(a math.tan))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "math.tan"
       ,
       begin call
@@ -2712,8 +2834,8 @@ begin function
           end get property ret values 1
         end params ret values 2
       end call ret values 1
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [270] _E = extends _E math
@@ -2728,19 +2850,23 @@ begin function
 
 [271] print "Extend local environment to be able to use math module without namespace"
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       push const string "Extend local environment to be able to use math module without namespace"
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [272] print("round(3)" transform(a function(a){ return round(a, 3) }))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "round(3)"
       ,
       begin call
@@ -2754,50 +2880,58 @@ begin function
               1 _E
               2 _G
             end locals
-            begin tail call
-              get env var round
-              begin params 2
+            begin tail call method
+              get local var _E (1 0)
+              begin params 3
+                push const string "round"
+                ,
                 get local var a (0 0 param)
                 ,
                 push const number 3
-              end params ret values 2
-            end tail call
+              end params ret values 3
+            end tail call method
           end function
         end params ret values 2
       end call ret values 1
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [273] print("PI" PI)
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "PI"
       ,
       get env var PI
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [275] var core = require("core")
 
   begin set local var
-    begin call
-      get env var require
-      begin params 1
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "require"
+        ,
         push const string "core"
-      end params ret values 1
-    end call ret values 1
+      end params ret values 2
+    end call method ret values 1
   end set local var core (48 0)
 
 
 [276] print("core.eval(math.round(13.5))" core.eval("return math.round(13.5)"))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "core.eval(math.round(13.5))"
       ,
       begin call method
@@ -2808,83 +2942,99 @@ begin function
           push const string "return math.round(13.5)"
         end params ret values 2
       end call method ret values 1
-    end params ret values 2
-  end call ret values 0
+    end params ret values 3
+  end call method ret values 0
 
 
 [277] print("eval(math.round(13.5))" eval("return math.round(13.5)"))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "eval(math.round(13.5))"
       ,
-      begin call
-        get env var eval
-        begin params 1
+      begin call method
+        get local var _E (0 0)
+        begin params 2
+          push const string "eval"
+          ,
           push const string "return math.round(13.5)"
-        end params ret values 1
-      end call ret values 1
-    end params ret values 2
-  end call ret values 0
+        end params ret values 2
+      end call method ret values 1
+    end params ret values 3
+  end call method ret values 0
 
 
 [278] print("==============")
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       push const string "=============="
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
 
 [279] print("Next: math namespace is not used\nbut eval executes code in global environment by default\nso eval(round(13.5))" eval("return round(13.5)"))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "Next: math namespace is not used
 but eval executes code in global environment by default
 so eval(round(13.5))"
       ,
-      begin call
-        get env var eval
-        begin params 1
+      begin call method
+        get local var _E (0 0)
+        begin params 2
+          push const string "eval"
+          ,
           push const string "return round(13.5)"
-        end params ret values 1
-      end call ret values 1
-    end params ret values 2
-  end call ret values 0
+        end params ret values 2
+      end call method ret values 1
+    end params ret values 3
+  end call method ret values 0
 
 
 [280] print("run eval in space of the current environment (round(13.5))" eval("return round(13.5)", _E))
 
-  begin call
-    get env var print
-    begin params 2
+  begin call method
+    get local var _E (0 0)
+    begin params 3
+      push const string "print"
+      ,
       push const string "run eval in space of the current environment (round(13.5))"
       ,
-      begin call
-        get env var eval
-        begin params 2
+      begin call method
+        get local var _E (0 0)
+        begin params 3
+          push const string "eval"
+          ,
           push const string "return round(13.5)"
           ,
           get local var _E (0 0)
-        end params ret values 2
-      end call ret values 1
-    end params ret values 2
-  end call ret values 0
+        end params ret values 3
+      end call method ret values 1
+    end params ret values 3
+  end call method ret values 0
 
 
 [282] print _G
 
-  begin call
-    get env var print
-    begin params 1
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
       get local var _G (1 0)
-    end params ret values 1
-  end call ret values 0
+    end params ret values 2
+  end call method ret values 0
 
   begin code list
     begin return
