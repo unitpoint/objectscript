@@ -443,7 +443,7 @@ OS_INT OS::Utils::strToInt(const OS_CHAR * str)
 OS_FLOAT OS::Utils::strToFloat(const OS_CHAR* str)
 {
 	OS_FLOAT fval;
-	if(parseFloat(str, fval) && !*str){
+	if(parseFloat(str, fval) && (!*str || (*str==OS_TEXT('f') && !str[1]))){
 		return fval;
 	}
 	return 0;
@@ -1375,13 +1375,27 @@ OS::Core::Tokenizer::TokenData * OS::Core::Tokenizer::addToken(const String& str
 	return token;
 }
 
+static bool isValidCharAfterNumber(const OS_CHAR * str)
+{
+	return !*str || OS_IS_SPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str);
+}
+
 bool OS::Core::Tokenizer::parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces)
 {
-	if(Utils::parseFloat(str, fval) && (!*str || OS_IS_SPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str))){
-		if(parse_end_spaces){
-			parseSpaces(str);
+	if(Utils::parseFloat(str, fval)){
+		if(isValidCharAfterNumber(str)){
+			if(parse_end_spaces){
+				parseSpaces(str);
+			}
+			return true;
 		}
-		return true;
+		if(*str == OS_TEXT('f') && isValidCharAfterNumber(str+1)){
+			str++;
+			if(parse_end_spaces){
+				parseSpaces(str);
+			}
+			return true;
+		}
 	}
 	return false;
 }
@@ -3034,7 +3048,9 @@ bool OS::Core::Compiler::compile()
 	OS_ASSERT(!prog_functions.count && !prog_numbers.count && !prog_strings.count);
 	
 	Scope * scope = NULL;
-	if(!readToken()){
+	if(tokenizer->isError()){
+		setError(ERROR_SYNTAX, NULL);
+	}else if(!readToken()){
 		setError(ERROR_EXPECT_TOKEN, recent_token);
 	}else{
 		scope = expectTextExpression();
@@ -3168,6 +3184,12 @@ bool OS::Core::Compiler::compile()
 			}
 			dump += OS::Core::String::format(allocator, "[%d] %s\n", error_token->line+1, error_token->text_data->lines[error_token->line].toChar());
 			dump += OS::Core::String::format(allocator, "pos %d, token: %s\n", error_token->pos+1, error_token->str.toChar());
+		}else if(tokenizer->isError()){
+			if(tokenizer->getFilename().getDataSize() > 0){
+				dump += OS::Core::String::format(allocator, "filename %s\n", tokenizer->getFilename().toChar());
+			}
+			dump += OS::Core::String::format(allocator, "[%d] %s\n", tokenizer->getErrorLine()+1, tokenizer->getLineString(tokenizer->getErrorLine()).toChar());
+			dump += OS::Core::String::format(allocator, "pos %d\n", tokenizer->getErrorPos()+1);
 		}
 		allocator->printf("%s", dump.toString().toChar());
 		// FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
@@ -4220,16 +4242,17 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 			break;
 		}
 		TokenType token_type = recent_token->type;
+		if(token_type == Tokenizer::CODE_SEPARATOR){
+			if(!readToken()){
+				break;
+			}
+			token_type = recent_token->type;
+		}
 		if(token_type == Tokenizer::END_ARRAY_BLOCK 
 			|| token_type == Tokenizer::END_BRACKET_BLOCK
 			|| token_type == Tokenizer::END_CODE_BLOCK)
 		{
 			break;
-		}
-		if(token_type == Tokenizer::CODE_SEPARATOR){
-			if(!readToken()){
-				break;
-			}
 		}
 	}
 	if(isError()){
@@ -4330,16 +4353,17 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 		}
 		list.add(exp);
 		TokenType token_type = recent_token->type;
+		if(token_type == Tokenizer::CODE_SEPARATOR){
+			if(!readToken()){
+				break;
+			}
+			token_type = recent_token->type;
+		}
 		if(token_type == Tokenizer::END_ARRAY_BLOCK 
 			|| token_type == Tokenizer::END_BRACKET_BLOCK
 			|| token_type == Tokenizer::END_CODE_BLOCK)
 		{
 			break;
-		}
-		if(token_type == Tokenizer::CODE_SEPARATOR){
-			if(!readToken()){
-				break;
-			}
 		}
 	}
 	if(isError()){
@@ -4619,6 +4643,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 		// exp = expectExpressionValues(exp, 1);
 		params->list.add(exp);
 		// params->ret_values += exp->ret_values;
+		if(recent_token && (recent_token->type == Tokenizer::PARAM_SEPARATOR || recent_token->type == Tokenizer::CODE_SEPARATOR)){
+			readToken();
+		}
 		if(recent_token && recent_token->type == end_exp_type){
 			readToken();
 			return Lib::calcParamsExpression(this, scope, params);
@@ -4628,9 +4655,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 			setError(end_exp_type, recent_token);
 			allocator->deleteObj(params);
 			return NULL;
-		}
-		if(recent_token->type == Tokenizer::PARAM_SEPARATOR || recent_token->type == Tokenizer::CODE_SEPARATOR){
-			readToken();
 		}
 	}
 	return NULL; // shut up compiler
@@ -4867,7 +4891,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Sc
 	}
 	scope->addStdVars();
 	scope = expectCodeExpression(scope);
-	if(!name_exp){
+	if(!scope || !name_exp){
 		return scope;
 	}
 	return newBinaryExpression(parent, EXP_TYPE_ASSIGN, name_exp->token, name_exp, scope);
@@ -8670,7 +8694,7 @@ bool OS::Core::GCStringValue::isFloat(OS_FLOAT* p_val) const
 	const OS_CHAR * str = toChar();
 	const OS_CHAR * end = str + getLen();
 	OS_FLOAT val;
-	if(Utils::parseFloat(str, val) && str == end){
+	if(Utils::parseFloat(str, val) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
 		if(p_val) *p_val = val;
 		return true;
 	}
