@@ -3,7 +3,7 @@
 [2] print(5 " differences")
 
 begin function
-  begin locals, total 49
+  begin locals, total 50
     0 _E
     1 _G
     35 Person
@@ -17,6 +17,7 @@ begin function
     46 a
     47 transform
     48 core
+    49 __planet
   end locals
   begin call method
     get local var _E (0 0)
@@ -2310,7 +2311,7 @@ begin function
             push const string "print"
             ,
             begin debug locals
-              begin object 11
+              begin object 12
                 begin set by name
                   get local var Person (35 1)
                 end set by name: [Person]
@@ -2346,6 +2347,10 @@ begin function
                 begin set by name
                   get local var core (48 1)
                 end set by name: [core]
+                ,
+                begin set by name
+                  get local var __planet (49 1)
+                end set by name: [__planet]
                 ,
                 begin set by name
                   get local var a (0 0 param)
@@ -3025,7 +3030,82 @@ so eval(round(13.5))"
   end call method ret values 0
 
 
-[282] print _G
+[282] var __planet = "Mars"
+
+  begin set local var
+    push const string "Mars"
+  end set local var __planet (49 0)
+
+
+[283] function get planet(){ return __planet }
+
+  begin set env var
+    begin function
+      begin locals, total 2
+        0 _E
+        1 _G
+      end locals
+      begin return
+        get local var __planet (49 1)
+      end return values 1
+    end function
+  end set env var __get@planet
+
+
+[284] function set planet(a){ __planet = a }
+
+  begin set env var
+    begin function
+      begin locals, total 3
+        0 a (param)
+        1 _E
+        2 _G
+      end locals
+      begin set local var
+        get local var a (0 0 param)
+      end set local var __planet (49 1)
+    end function
+  end set env var __set@planet
+
+
+[286] print "Planet should be Mars: "..planet
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "Planet should be Mars: "
+        get env var planet
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[287] planet = "Mercury"
+
+  begin set env var
+    push const string "Mercury"
+  end set env var planet
+
+
+[288] print "Planet should be Mercury: "..planet
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "Planet should be Mercury: "
+        get env var planet
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[290] print _G
 
   begin call method
     get local var _E (0 0)

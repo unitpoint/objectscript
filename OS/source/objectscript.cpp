@@ -533,6 +533,15 @@ OS::Core::String::String(const String& s)
 #endif
 }
 
+OS::Core::String::String(OS * os, const String& a, const String& b)
+{
+	string = os->core->newStringValue(a, b);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
+}
+
 OS::Core::String::String(OS * os, const OS_CHAR * str)
 {
 	string = os->core->newStringValue(str);
@@ -3128,6 +3137,10 @@ bool OS::Core::Compiler::compile()
 			dump += OS_TEXT(" EXPECT_WRITEABLE");
 			break;
 
+		case ERROR_EXPECT_GET_OR_SET:
+			dump += OS_TEXT(" EXPECT_GET_OR_SET");
+			break;
+
 		case ERROR_EXPECT_EXPRESSION:
 			dump += OS_TEXT(" EXPECT_EXPRESSION");
 			break;
@@ -4776,14 +4789,31 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Sc
 	Expression * name_exp = NULL;
 	if(isNextToken(Tokenizer::NAME)){
 		TokenData * token = readToken();
-		name_exp = expectSingleExpression(scope, Params().setAllowCall(false));
-		if(!name_exp || !name_exp->isWriteable()){
-			setError(ERROR_EXPECT_WRITEABLE, token);
-			allocator->deleteObj(name_exp);
-			allocator->deleteObj(scope);
-			return NULL;
+		if(isNextToken(Tokenizer::NAME)){
+			String prefix(allocator);
+			if(token->str == allocator->core->strings->syntax_get){
+				prefix = allocator->core->strings->__getAt;
+			}else if(token->str == allocator->core->strings->syntax_set){
+				prefix = allocator->core->strings->__setAt;
+			}else{
+				setError(ERROR_EXPECT_GET_OR_SET, token);
+				allocator->deleteObj(name_exp);
+				allocator->deleteObj(scope);
+				return NULL;
+			}
+			token = readToken();
+			token->str = String(allocator, prefix, token->str);
+			name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, token);
+		}else{
+			name_exp = expectSingleExpression(scope, Params().setAllowCall(false));
+			if(!name_exp || !name_exp->isWriteable()){
+				setError(ERROR_EXPECT_WRITEABLE, token);
+				allocator->deleteObj(name_exp);
+				allocator->deleteObj(scope);
+				return NULL;
+			}
+			ungetToken();
 		}
-		ungetToken();
 	}
 	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK)){
 		allocator->deleteObj(scope);
@@ -4857,18 +4887,48 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			allocator->deleteObj(exp);
 			return NULL;
 		}
-		if(!isVarNameValid(recent_token->str)){
-			setError(ERROR_VAR_NAME, recent_token);
-			allocator->deleteObj(exp);
-			return NULL;
-		}
-		if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK)){
-			allocator->deleteObj(exp);
-			return NULL;
-		}
-		ungetToken();
+		TokenData * name_token;
+		if(recent_token->str == allocator->core->strings->syntax_get || recent_token->str == allocator->core->strings->syntax_set){
+			bool is_getter = recent_token->str == allocator->core->strings->syntax_get;
+			if(!expectToken(Tokenizer::NAME)){
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			if(!isVarNameValid(recent_token->str)){
+				setError(ERROR_VAR_NAME, recent_token);
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK)){
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			ungetToken();
+			ungetToken();
 
-		TokenData * name_token = tokenizer->removeToken(next_token_index-1);
+			name_token = tokenizer->removeToken(next_token_index-1);
+			name_token = tokenizer->removeToken(next_token_index-1);
+			//name_token->str = 
+			if(is_getter){
+				name_token->str = String(allocator, allocator->core->strings->__getAt, name_token->str);
+			}else{
+				name_token->str = String(allocator, allocator->core->strings->__setAt, name_token->str);
+			}
+		}else{
+			if(!isVarNameValid(recent_token->str)){
+				setError(ERROR_VAR_NAME, recent_token);
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK)){
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			ungetToken();
+
+			name_token = tokenizer->removeToken(next_token_index-1);
+		}
+
 		name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, name_token);
 		name_exp->ret_values = 1;
 		exp->list.add(name_exp);
@@ -9040,6 +9100,8 @@ OS::Core::Strings::Strings(OS * allocator)
 	// __destruct(allocator, OS_TEXT("__destruct")),
 	__get(allocator, OS_TEXT("__get")),
 	__set(allocator, OS_TEXT("__set")),
+	__getAt(allocator, OS_TEXT("__get@")),
+	__setAt(allocator, OS_TEXT("__set@")),
 	__del(allocator, OS_TEXT("__del")),
 	__getempty(allocator, OS_TEXT("__getempty")),
 	__setempty(allocator, OS_TEXT("__setempty")),
@@ -9085,6 +9147,8 @@ OS::Core::Strings::Strings(OS * allocator)
 	typeof_userdata(allocator, OS_TEXT("userdata")),
 	typeof_function(allocator, OS_TEXT("function")),
 
+	syntax_get(allocator, OS_TEXT("get")),
+	syntax_set(allocator, OS_TEXT("set")),
 	syntax_super(allocator, OS_TEXT("super")),
 	syntax_typeof(allocator, OS_TEXT("typeof")),
 	syntax_valueof(allocator, OS_TEXT("valueof")),
@@ -10701,18 +10765,15 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 		Value func;
 		// GCValue * self = table_value.v.value;
 		if(index.index.type == OS_VALUE_TYPE_STRING){
-			const void * buf1 = strings->__set.toChar();
-			int size1 = strings->__set.getDataSize();
-			const void * buf2 = OS_TEXT("@");
-			int size2 = sizeof(OS_CHAR);
-			const void * buf3 = index.index.v.string->toChar();
-			int size3 = index.index.v.string->getDataSize();
-			OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + size3 + sizeof(OS_CHAR));
+			const void * buf1 = strings->__setAt.toChar();
+			int size1 = strings->__setAt.getDataSize();
+			const void * buf2 = index.index.v.string->toChar();
+			int size2 = index.index.v.string->getDataSize();
+			OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + sizeof(OS_CHAR));
 			OS_MEMCPY(buf, buf1, size1);
 			OS_MEMCPY(buf+size1, buf2, size2);
-			OS_MEMCPY(buf+size1+size2, buf3, size3);
-			buf[size1+size2+size3] = (OS_CHAR)0;
-			GCStringValue * name = newStringValue(buf, (size1 + size2 + size3) / sizeof(OS_CHAR));
+			buf[size1+size2] = (OS_CHAR)0;
+			GCStringValue * name = newStringValue(buf, (size1 + size2) / sizeof(OS_CHAR));
 			if(getPropertyValue(func, table_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), true)){
 				pushValue(func);
 				pushValue(table_value);
@@ -12625,18 +12686,15 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 		}
 		if(getter_enabled){
 			if(index.index.type == OS_VALUE_TYPE_STRING){
-				const void * buf1 = strings->__get.toChar();
-				int size1 = strings->__get.getDataSize();
-				const void * buf2 = OS_TEXT("@");
-				int size2 = sizeof(OS_CHAR);
-				const void * buf3 = index.index.v.string->toChar();
-				int size3 = index.index.v.string->getDataSize();
-				OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + size3 + sizeof(OS_CHAR));
+				const void * buf1 = strings->__getAt.toChar();
+				int size1 = strings->__getAt.getDataSize();
+				const void * buf2 = index.index.v.string->toChar();
+				int size2 = index.index.v.string->getDataSize();
+				OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + sizeof(OS_CHAR));
 				OS_MEMCPY(buf, buf1, size1);
 				OS_MEMCPY(buf+size1, buf2, size2);
-				OS_MEMCPY(buf+size1+size2, buf3, size3);
-				buf[size1+size2+size3] = (OS_CHAR)0;
-				GCStringValue * getter_name = newStringValue(buf, (size1 + size2 + size3) / sizeof(OS_CHAR));
+				buf[size1+size2] = (OS_CHAR)0;
+				GCStringValue * getter_name = newStringValue(buf, (size1 + size2) / sizeof(OS_CHAR));
 				if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 					pushValue(value);
 					pushValue(self);
@@ -14771,6 +14829,7 @@ void OS::initPreScript()
 		// OS code here
 		Object.__get@length = function(){ return #this }
 
+		modules_loaded = {}
 		function require(filename){
 			filename = resolvePath(filename)
 			return modules_loaded[filename] 

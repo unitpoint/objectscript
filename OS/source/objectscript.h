@@ -794,6 +794,7 @@ namespace ObjectScript
 				String(OS*);
 				String(GCStringValue*);
 				String(const String&);
+				String(OS*, const String&, const String&);
 				String(OS*, const OS_CHAR*);
 				String(OS*, const OS_CHAR*, int len);
 				String(OS*, const OS_CHAR*, int len, const OS_CHAR*, int len2);
@@ -1710,6 +1711,7 @@ namespace ObjectScript
 					ERROR_EXPECT_TOKEN,
 					ERROR_EXPECT_VALUE,
 					ERROR_EXPECT_WRITEABLE,
+					ERROR_EXPECT_GET_OR_SET,
 					ERROR_EXPECT_EXPRESSION,
 					ERROR_EXPECT_FUNCTION_SCOPE,
 					ERROR_EXPECT_SWITCH_SCOPE,
@@ -2160,6 +2162,8 @@ namespace ObjectScript
 				// String __destruct;
 				String __get;
 				String __set;
+				String __getAt;
+				String __setAt;
 				String __del;
 				String __getempty;
 				String __setempty;
@@ -2206,6 +2210,8 @@ namespace ObjectScript
 				String typeof_userdata;
 				String typeof_function;
 
+				String syntax_get;
+				String syntax_set;
 				String syntax_super;
 				String syntax_typeof;
 				String syntax_valueof;

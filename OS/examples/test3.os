@@ -279,4 +279,12 @@ print("==============")
 print("Next: math namespace is not used\nbut eval executes code in global environment by default\nso eval(round(13.5))" eval("return round(13.5)"))
 print("run eval in space of the current environment (round(13.5))" eval("return round(13.5)", _E))
 
+var __planet = "Mars"
+function get planet(){ return __planet }
+function set planet(a){ __planet = a }
+
+print "Planet should be Mars: "..planet
+planet = "Mercury"
+print "Planet should be Mercury: "..planet
+
 print _G
