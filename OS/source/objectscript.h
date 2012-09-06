@@ -50,6 +50,9 @@
 // #define OS_NUMBER float	// could be a bit faster
 // #define OS_NUMBER int	// not recomended
 
+// does disable it due to security reason ???
+#define OS_GLOBAL_VAR_ENABLED
+
 #define OS_FLOAT double
 #define OS_INT16 short
 #define OS_BYTE unsigned char
@@ -130,8 +133,11 @@
 // #define DEBUG_BREAK __builtin_trap()
 #endif
 
-#define OS_GLOBALS_VAR_NAME OS_TEXT("_G")
 #define OS_ENV_VAR_NAME OS_TEXT("_E")
+
+#ifdef OS_GLOBAL_VAR_ENABLED
+#define OS_GLOBALS_VAR_NAME OS_TEXT("_G")
+#endif
 
 #define OS_AUTO_PRECISION 20
 
@@ -209,6 +215,7 @@ namespace ObjectScript
 	{
 		// binary operators
 
+		OP_COMPARE,			// return int
 		OP_LOGIC_PTR_EQ,	// ===
 		OP_LOGIC_PTR_NE,	// !==
 		OP_LOGIC_EQ,		// ==
@@ -1134,6 +1141,7 @@ namespace ObjectScript
 					Table * table;
 					Property * prop;
 					IteratorState * next;
+					bool ascending;
 
 					IteratorState();
 					~IteratorState();
@@ -1577,7 +1585,7 @@ namespace ObjectScript
 					bool isClear() const;
 					bool isWriteable() const;
 
-					Expression * add(Expression*);
+					Expression * add(Expression* OS_DBG_FILEPOS_DECL);
 					Expression * removeIndex(int i);
 					Expression * removeLast();
 
@@ -1613,9 +1621,9 @@ namespace ObjectScript
 					ExpressionType type;
 					
 					Expression(ExpressionType type, TokenData*);
-					Expression(ExpressionType type, TokenData*, Expression * e1);
-					Expression(ExpressionType type, TokenData*, Expression * e1, Expression * e2);
-					Expression(ExpressionType type, TokenData*, Expression * e1, Expression * e2, Expression * e3);
+					Expression(ExpressionType type, TokenData*, Expression * e1 OS_DBG_FILEPOS_DECL);
+					Expression(ExpressionType type, TokenData*, Expression * e1, Expression * e2 OS_DBG_FILEPOS_DECL);
+					Expression(ExpressionType type, TokenData*, Expression * e1, Expression * e2, Expression * e3 OS_DBG_FILEPOS_DECL);
 					virtual ~Expression();
 
 					OS * getAllocator(){ return list.allocator; }
@@ -1997,6 +2005,7 @@ namespace ObjectScript
 					OP_LOGIC_AND,
 					OP_LOGIC_OR,
 
+					OP_COMPARE,
 					OP_LOGIC_PTR_EQ,
 					OP_LOGIC_PTR_NE,
 					OP_LOGIC_EQ,
@@ -2087,7 +2096,9 @@ namespace ObjectScript
 
 			enum {
 				ENV_VAR_INDEX,
+#ifdef OS_GLOBAL_VAR_ENABLED
 				GLOBALS_VAR_INDEX,
+#endif
 			};
 
 			struct Upvalues
@@ -2249,7 +2260,9 @@ namespace ObjectScript
 				String syntax_debugger;
 				String syntax_debuglocals;
 
+#ifdef OS_GLOBAL_VAR_ENABLED
 				String var_globals;
+#endif
 				String var_env;
 
 				int __dummy__;
@@ -2482,12 +2495,22 @@ namespace ObjectScript
 			void clearTable(Table*);
 			void deleteTable(Table*);
 			void addTableProperty(Table * table, Property * prop);
+			Property * removeTableProperty(Table * table, const PropertyIndex& index);
+			void changePropertyIndex(Table * table, Property * prop, const PropertyIndex& new_index);
 			bool deleteTableProperty(Table * table, const PropertyIndex& index);
 			void deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
 			void deleteValueProperty(Value table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
 			void reorderTableNumericKeys(Table * table);
 			void reorderTableKeys(Table * table);
 			void initTableProperties(Table * dst, Table * src);
+
+			void sortTable(Table * table, int(*comp)(OS*, const void*, const void*), bool reorder_keys = false);
+
+			static int comparePropValues(OS*, const void*, const void*);
+			void sortTableByValues(Table * table, bool reorder_keys = false);
+
+			static int comparePropKeys(OS*, const void*, const void*);
+			void sortTableByKeys(Table * table, bool reorder_keys = false);
 
 			Property * setTableValue(Table * table, const PropertyIndex& index, Value val);
 			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool setter_enabled);
@@ -2527,6 +2550,8 @@ namespace ObjectScript
 
 		void * malloc(int size OS_DBG_FILEPOS_DECL);
 		void free(void * p);
+
+		void qsort(void *base, unsigned num, unsigned width, int (*comp)(OS*, const void *, const void *));
 
 		void initGlobalFunctions();
 		void initObjectClass();
@@ -2662,6 +2687,10 @@ namespace ObjectScript
 		String toString(int offs = -1, bool valueof_enabled = true);
 		void * toUserData(int offs, int crc);
 		void * toUserData(int crc);
+
+		OS_FLOAT popNumber(bool valueof_enabled = true);
+		int popInt(bool valueof_enabled = true);
+		String popString(bool valueof_enabled = true);
 
 		int getSetting(OS_ESettings);
 		int setSetting(OS_ESettings, int);
