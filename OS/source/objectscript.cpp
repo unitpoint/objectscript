@@ -4960,6 +4960,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 
 		name_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, name_token);
 		name_exp->ret_values = 1;
+		name_token->release();
 
 		allocator->deleteObj(exp);
 		// exp->list.add(name_exp OS_DBG_FILEPOS);
