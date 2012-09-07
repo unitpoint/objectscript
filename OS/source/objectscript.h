@@ -1246,6 +1246,8 @@ namespace ObjectScript
 			{
 			};
 
+			struct GCArrayValue;
+
 			struct GCStringValue: public GCValue
 			{
 #ifdef OS_DEBUG
@@ -1305,6 +1307,7 @@ namespace ObjectScript
 					int value_id;
 					GCValue * value;
 					GCObjectValue * object;
+					GCArrayValue * arr;
 					GCStringValue * string;
 					GCUserDataValue * userdata;
 					GCFunctionValue * func;
@@ -1351,6 +1354,11 @@ namespace ObjectScript
 
 				void retain();
 				void release();
+			};
+
+			struct GCArrayValue: public GCValue
+			{
+				Vector<Value> values;
 			};
 
 			class Program;
@@ -2417,7 +2425,7 @@ namespace ObjectScript
 			GCUserDataValue * newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
 			GCObjectValue * newObjectValue();
 			GCObjectValue * newObjectValue(GCValue * prototype);
-			GCObjectValue * newArrayValue();
+			GCArrayValue * newArrayValue();
 
 			template<class T> T * pushValue(T * val){ pushValue(Value(val)); return val; }
 
@@ -2442,13 +2450,13 @@ namespace ObjectScript
 			GCUserDataValue * pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
 			GCObjectValue * pushObjectValue();
 			GCObjectValue * pushObjectValue(GCValue * prototype);
-			GCObjectValue * pushArrayValue();
+			GCArrayValue * pushArrayValue();
 
 			void pushTypeOf(Value val);
 			bool pushNumberOf(Value val);
 			bool pushStringOf(Value val);
 			bool pushValueOf(Value val);
-			GCObjectValue * pushArrayOf(Value val);
+			GCArrayValue * pushArrayOf(Value val);
 			GCObjectValue * pushObjectOf(Value val);
 			GCUserDataValue * pushUserDataOf(Value val);
 			bool pushFunctionOf(Value val);
@@ -2500,17 +2508,24 @@ namespace ObjectScript
 			bool deleteTableProperty(Table * table, const PropertyIndex& index);
 			void deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
 			void deleteValueProperty(Value table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
-			void reorderTableNumericKeys(Table * table);
-			void reorderTableKeys(Table * table);
 			void initTableProperties(Table * dst, Table * src);
 
-			void sortTable(Table * table, int(*comp)(OS*, const void*, const void*), bool reorder_keys = false);
+			void sortTable(Table * table, int(*comp)(OS*, const void*, const void*, void*), void* = NULL, bool reorder_keys = false);
+			void sortArray(GCArrayValue * arr, int(*comp)(OS*, const void*, const void*, void*), void* = NULL);
 
-			static int comparePropValues(OS*, const void*, const void*);
-			void sortTableByValues(Table * table, bool reorder_keys = false);
+			static int comparePropValues(OS*, const void*, const void*, void*);
+			static int comparePropValuesReverse(OS*, const void*, const void*, void*);
+			static int compareUserPropValues(OS*, const void*, const void*, void*);
+			
+			static int comparePropKeys(OS*, const void*, const void*, void*);
+			static int comparePropKeysReverse(OS*, const void*, const void*, void*);
+			static int compareUserPropKeys(OS*, const void*, const void*, void*);
 
-			static int comparePropKeys(OS*, const void*, const void*);
-			void sortTableByKeys(Table * table, bool reorder_keys = false);
+			static int compareArrayValues(OS*, const void*, const void*, void*);
+			static int compareArrayValuesReverse(OS*, const void*, const void*, void*);
+			static int compareUserArrayValues(OS*, const void*, const void*, void*);
+
+			static int compareUserReverse(OS*, const void*, const void*, void*);
 
 			Property * setTableValue(Table * table, const PropertyIndex& index, Value val);
 			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool setter_enabled);
@@ -2520,6 +2535,7 @@ namespace ObjectScript
 			bool getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled);
 			bool getPropertyValue(Value& result, Value table_value, const PropertyIndex& index, bool prototype_enabled);
 
+			bool hasProperty(GCValue * table_value, const PropertyIndex& index);
 			void pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
 			void pushPropertyValue(Value table_value, const PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
 
@@ -2551,7 +2567,7 @@ namespace ObjectScript
 		void * malloc(int size OS_DBG_FILEPOS_DECL);
 		void free(void * p);
 
-		void qsort(void *base, unsigned num, unsigned width, int (*comp)(OS*, const void *, const void *));
+		void qsort(void *base, unsigned num, unsigned width, int (*comp)(OS*, const void *, const void *, void*), void*);
 
 		void initGlobalFunctions();
 		void initObjectClass();

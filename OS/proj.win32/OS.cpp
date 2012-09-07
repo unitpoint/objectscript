@@ -212,7 +212,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	OS * os = OS::create();
 
 	// debug
-	// os->setMemBreakpoint(8417);
+	// os->setMemBreakpointId(17216);
 
 	if(argc < 2){
 		printf("ObjctScript " OS_VERSION " Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)\n");
@@ -230,7 +230,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	os->setSetting(OS_SETTING_CREATE_DEBUG_OPCODES, true);
 	os->setSetting(OS_SETTING_RECOMPILE_SOURCECODE, true);
 
-	os->newArray();
+	os->newObject();
 	for(int i = 0; i < argc; i++){
 		os->pushStackValue(-1);
 		os->pushNumber(i-1);

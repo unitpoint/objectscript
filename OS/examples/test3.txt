@@ -3105,14 +3105,590 @@ so eval(round(13.5))"
   end call method ret values 0
 
 
-[290] print _G
+[290] print "Sorted array"
 
   begin call method
     get local var _E (0 0)
     begin params 2
       push const string "print"
       ,
-      get local var _G (1 0)
+      push const string "Sorted array"
+    end params ret values 2
+  end call method ret values 0
+
+
+[291] print([9 4 0 276 15 39 3].sort())
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin call method
+        begin array 7
+          begin set auto index
+            push const number 9
+          end set auto index
+          ,
+          begin set auto index
+            push const number 4
+          end set auto index
+          ,
+          begin set auto index
+            push const number 0
+          end set auto index
+          ,
+          begin set auto index
+            push const number 276
+          end set auto index
+          ,
+          begin set auto index
+            push const number 15
+          end set auto index
+          ,
+          begin set auto index
+            push const number 39
+          end set auto index
+          ,
+          begin set auto index
+            push const number 3
+          end set auto index
+        end array
+        begin params 1
+          push const string "sort"
+        end params ret values 1
+      end call method ret values 1
+    end params ret values 2
+  end call method ret values 0
+
+
+[293] print "User sorted array by keys"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "User sorted array by keys"
+    end params ret values 2
+  end call method ret values 0
+
+
+[294] print([0 1 2 3 4 5 6 7 8 9].ksort(function(a b){return (a%3) - (b%3)}))
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin call method
+        begin array 10
+          begin set auto index
+            push const number 0
+          end set auto index
+          ,
+          begin set auto index
+            push const number 1
+          end set auto index
+          ,
+          begin set auto index
+            push const number 2
+          end set auto index
+          ,
+          begin set auto index
+            push const number 3
+          end set auto index
+          ,
+          begin set auto index
+            push const number 4
+          end set auto index
+          ,
+          begin set auto index
+            push const number 5
+          end set auto index
+          ,
+          begin set auto index
+            push const number 6
+          end set auto index
+          ,
+          begin set auto index
+            push const number 7
+          end set auto index
+          ,
+          begin set auto index
+            push const number 8
+          end set auto index
+          ,
+          begin set auto index
+            push const number 9
+          end set auto index
+        end array
+        begin params 2
+          push const string "ksort"
+          ,
+          begin function
+            begin locals, total 4
+              0 a (param)
+              1 b (param)
+              2 _E
+              3 _G
+            end locals
+            begin return
+              begin operator -
+                begin operator %
+                  get local var a (0 0 param)
+                  push const number 3
+                end operator %
+                begin operator %
+                  get local var b (1 0 param)
+                  push const number 3
+                end operator %
+              end operator -
+            end return values 1
+          end function
+        end params ret values 2
+      end call method ret values 1
+    end params ret values 2
+  end call method ret values 0
+
+
+[296] print "Sorted array (reverse)"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "Sorted array (reverse)"
+    end params ret values 2
+  end call method ret values 0
+
+
+[297] print([9 4 0 276 15 39 3].rsort())
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin call method
+        begin array 7
+          begin set auto index
+            push const number 9
+          end set auto index
+          ,
+          begin set auto index
+            push const number 4
+          end set auto index
+          ,
+          begin set auto index
+            push const number 0
+          end set auto index
+          ,
+          begin set auto index
+            push const number 276
+          end set auto index
+          ,
+          begin set auto index
+            push const number 15
+          end set auto index
+          ,
+          begin set auto index
+            push const number 39
+          end set auto index
+          ,
+          begin set auto index
+            push const number 3
+          end set auto index
+        end array
+        begin params 1
+          push const string "rsort"
+        end params ret values 1
+      end call method ret values 1
+    end params ret values 2
+  end call method ret values 0
+
+
+[299] print "User sorted array"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "User sorted array"
+    end params ret values 2
+  end call method ret values 0
+
+
+[300] print([9 4 0 276 15 39 3].sort(function(a b){return (a % 10) - (b % 10)}))
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin call method
+        begin array 7
+          begin set auto index
+            push const number 9
+          end set auto index
+          ,
+          begin set auto index
+            push const number 4
+          end set auto index
+          ,
+          begin set auto index
+            push const number 0
+          end set auto index
+          ,
+          begin set auto index
+            push const number 276
+          end set auto index
+          ,
+          begin set auto index
+            push const number 15
+          end set auto index
+          ,
+          begin set auto index
+            push const number 39
+          end set auto index
+          ,
+          begin set auto index
+            push const number 3
+          end set auto index
+        end array
+        begin params 2
+          push const string "sort"
+          ,
+          begin function
+            begin locals, total 4
+              0 a (param)
+              1 b (param)
+              2 _E
+              3 _G
+            end locals
+            begin return
+              begin operator -
+                begin operator %
+                  get local var a (0 0 param)
+                  push const number 10
+                end operator %
+                begin operator %
+                  get local var b (1 0 param)
+                  push const number 10
+                end operator %
+              end operator -
+            end return values 1
+          end function
+        end params ret values 2
+      end call method ret values 1
+    end params ret values 2
+  end call method ret values 0
+
+
+[302] print "Sorted object by values"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "Sorted object by values"
+    end params ret values 2
+  end call method ret values 0
+
+
+[303] print {b=9 4 d=0 c=276 15 a=39 3}.sort()
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin call method
+        begin object 7
+          begin set by name
+            push const number 9
+          end set by name: [b]
+          ,
+          begin set auto index
+            push const number 4
+          end set auto index
+          ,
+          begin set by name
+            push const number 0
+          end set by name: [d]
+          ,
+          begin set by name
+            push const number 276
+          end set by name: [c]
+          ,
+          begin set auto index
+            push const number 15
+          end set auto index
+          ,
+          begin set by name
+            push const number 39
+          end set by name: [a]
+          ,
+          begin set auto index
+            push const number 3
+          end set auto index
+        end object
+        begin params 1
+          push const string "sort"
+        end params ret values 1
+      end call method ret values 1
+    end params ret values 2
+  end call method ret values 0
+
+
+[305] print "Sorted object by values (reverse)"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "Sorted object by values (reverse)"
+    end params ret values 2
+  end call method ret values 0
+
+
+[306] print {b=9 4 d=0 c=276 15 a=39 3}.rsort()
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin call method
+        begin object 7
+          begin set by name
+            push const number 9
+          end set by name: [b]
+          ,
+          begin set auto index
+            push const number 4
+          end set auto index
+          ,
+          begin set by name
+            push const number 0
+          end set by name: [d]
+          ,
+          begin set by name
+            push const number 276
+          end set by name: [c]
+          ,
+          begin set auto index
+            push const number 15
+          end set auto index
+          ,
+          begin set by name
+            push const number 39
+          end set by name: [a]
+          ,
+          begin set auto index
+            push const number 3
+          end set auto index
+        end object
+        begin params 1
+          push const string "rsort"
+        end params ret values 1
+      end call method ret values 1
+    end params ret values 2
+  end call method ret values 0
+
+
+[308] print "Sorted object by keys"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "Sorted object by keys"
+    end params ret values 2
+  end call method ret values 0
+
+
+[309] print {b=9 4 d=0 c=276 15 a=39 3}.ksort()
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin call method
+        begin object 7
+          begin set by name
+            push const number 9
+          end set by name: [b]
+          ,
+          begin set auto index
+            push const number 4
+          end set auto index
+          ,
+          begin set by name
+            push const number 0
+          end set by name: [d]
+          ,
+          begin set by name
+            push const number 276
+          end set by name: [c]
+          ,
+          begin set auto index
+            push const number 15
+          end set auto index
+          ,
+          begin set by name
+            push const number 39
+          end set by name: [a]
+          ,
+          begin set auto index
+            push const number 3
+          end set auto index
+        end object
+        begin params 1
+          push const string "ksort"
+        end params ret values 1
+      end call method ret values 1
+    end params ret values 2
+  end call method ret values 0
+
+
+[311] print "Sorted object by keys (reverse)"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "Sorted object by keys (reverse)"
+    end params ret values 2
+  end call method ret values 0
+
+
+[312] print {b=9 4 d=0 c=276 15 a=39 3}.krsort()
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin call method
+        begin object 7
+          begin set by name
+            push const number 9
+          end set by name: [b]
+          ,
+          begin set auto index
+            push const number 4
+          end set auto index
+          ,
+          begin set by name
+            push const number 0
+          end set by name: [d]
+          ,
+          begin set by name
+            push const number 276
+          end set by name: [c]
+          ,
+          begin set auto index
+            push const number 15
+          end set auto index
+          ,
+          begin set by name
+            push const number 39
+          end set by name: [a]
+          ,
+          begin set auto index
+            push const number 3
+          end set auto index
+        end object
+        begin params 1
+          push const string "krsort"
+        end params ret values 1
+      end call method ret values 1
+    end params ret values 2
+  end call method ret values 0
+
+
+[314] print "User sorted object by keys (reverse)"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "User sorted object by keys (reverse)"
+    end params ret values 2
+  end call method ret values 0
+
+
+[315] print {b=9 4 d=0 c=276 15 a=39 3}.krsort(function(a b){return (a % 10) - (b % 10)})
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin call method
+        begin object 7
+          begin set by name
+            push const number 9
+          end set by name: [b]
+          ,
+          begin set auto index
+            push const number 4
+          end set auto index
+          ,
+          begin set by name
+            push const number 0
+          end set by name: [d]
+          ,
+          begin set by name
+            push const number 276
+          end set by name: [c]
+          ,
+          begin set auto index
+            push const number 15
+          end set auto index
+          ,
+          begin set by name
+            push const number 39
+          end set by name: [a]
+          ,
+          begin set auto index
+            push const number 3
+          end set auto index
+        end object
+        begin params 2
+          push const string "krsort"
+          ,
+          begin function
+            begin locals, total 4
+              0 a (param)
+              1 b (param)
+              2 _E
+              3 _G
+            end locals
+            begin return
+              begin operator -
+                begin operator %
+                  get local var a (0 0 param)
+                  push const number 10
+                end operator %
+                begin operator %
+                  get local var b (1 0 param)
+                  push const number 10
+                end operator %
+              end operator -
+            end return values 1
+          end function
+        end params ret values 2
+      end call method ret values 1
     end params ret values 2
   end call method ret values 0
 
