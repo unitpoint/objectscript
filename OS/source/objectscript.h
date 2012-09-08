@@ -63,7 +63,7 @@
 
 #ifdef IW_SDK
 
-#define OS_INT int64
+#define OS_INT int
 #define OS_INT32 int32
 #define OS_INT64 int64
 #define OS_U32 uint32
@@ -71,7 +71,7 @@
 
 #else
 
-#define OS_INT __int64
+#define OS_INT int
 #define OS_INT32 __int32
 #define OS_INT64 __int64
 #define OS_U32 unsigned __int32
@@ -2187,6 +2187,8 @@ namespace ObjectScript
 
 			struct Strings
 			{
+				String special_prefix; // __
+				
 				String __construct;
 				// String __destruct;
 				String __object;
@@ -2722,6 +2724,8 @@ namespace ObjectScript
 
 		bool toBool(int offs = -1);
 		OS_FLOAT toNumber(int offs = -1, bool valueof_enabled = true);
+		float toFloat(int offs = -1, bool valueof_enabled = true);
+		double toDouble(int offs = -1, bool valueof_enabled = true);
 		int toInt(int offs = -1, bool valueof_enabled = true);
 		String toString(int offs = -1, bool valueof_enabled = true);
 		void * toUserData(int offs, int crc);

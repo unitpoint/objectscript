@@ -9412,6 +9412,7 @@ OS::Core::GCValue * OS::Core::Values::get(int value_id)
 
 OS::Core::Strings::Strings(OS * allocator)
 	:
+	special_prefix(allocator, OS_TEXT("__")),
 	__construct(allocator, OS_TEXT("__construct")),
 	// __destruct(allocator, OS_TEXT("__destruct")),
 	__object(allocator, OS_TEXT("__object")),
@@ -11164,17 +11165,21 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	if(setter_enabled){
 		Value func;
 		// GCValue * self = table_value.v.value;
-		if(index.index.type == OS_VALUE_TYPE_STRING && OS_STRNCMP(index.index.v.string->toChar(), strings->__setAt.toChar(), strings->__setAt.getLen()) != 0){
+		if(index.index.type == OS_VALUE_TYPE_STRING && OS_STRNCMP(index.index.v.string->toChar(), strings->special_prefix.toChar(), strings->special_prefix.getLen()) != 0){
 			const void * buf1 = strings->__setAt.toChar();
 			int size1 = strings->__setAt.getDataSize();
 			const void * buf2 = index.index.v.string->toChar();
 			int size2 = index.index.v.string->getDataSize();
+#if 1
+			GCStringValue * setter_name = newStringValue(buf1, size1, buf2, size2);
+#else
 			OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + sizeof(OS_CHAR));
 			OS_MEMCPY(buf, buf1, size1);
 			OS_MEMCPY(buf+size1, buf2, size2);
 			buf[size1+size2] = (OS_CHAR)0;
-			GCStringValue * name = newStringValue(buf, (size1 + size2) / sizeof(OS_CHAR));
-			if(getPropertyValue(func, table_value, PropertyIndex(name, PropertyIndex::KeepStringIndex()), true)){
+			GCStringValue * setter_name = newStringValue(buf, (size1 + size2) / sizeof(OS_CHAR));
+#endif
+			if(getPropertyValue(func, table_value, PropertyIndex(setter_name, PropertyIndex::KeepStringIndex()), true)){
 				pushValue(func);
 				pushValue(table_value);
 				pushValue(value);
@@ -12842,6 +12847,16 @@ OS_FLOAT OS::toNumber(int offs, bool valueof_enabled)
 	return core->valueToNumber(core->getStackValue(offs), valueof_enabled);
 }
 
+float OS::toFloat(int offs, bool valueof_enabled)
+{
+	return (float)toNumber(offs, valueof_enabled);
+}
+
+double OS::toDouble(int offs, bool valueof_enabled)
+{
+	return (double)toNumber(offs, valueof_enabled);
+}
+
 int OS::toInt(int offs, bool valueof_enabled)
 {
 	return (int)toNumber(offs, valueof_enabled);
@@ -13092,6 +13107,15 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Prop
 		result = table_value->prototype;
 		return true;
 	}
+	if(table_value->type == OS_VALUE_TYPE_ARRAY){
+		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
+		GCArrayValue * arr = (GCArrayValue*)table_value;
+		int i = (int)valueToInt(index.index);
+		if(i >= 0 && i < arr->values.count){
+			result = arr->values[i];
+			return true;
+		}
+	}
 	return false;
 }
 
@@ -13127,16 +13151,20 @@ bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index)
 	if(getPropertyValue(value, table_value, index, false)){
 		return true;
 	}
-	if(index.index.type == OS_VALUE_TYPE_STRING && OS_STRNCMP(index.index.v.string->toChar(), strings->__getAt.toChar(), strings->__getAt.getLen()) != 0){
+	if(index.index.type == OS_VALUE_TYPE_STRING && OS_STRNCMP(index.index.v.string->toChar(), strings->special_prefix.toChar(), strings->special_prefix.getLen()) != 0){
 		const void * buf1 = strings->__getAt.toChar();
 		int size1 = strings->__getAt.getDataSize();
 		const void * buf2 = index.index.v.string->toChar();
 		int size2 = index.index.v.string->getDataSize();
+#if 1
+		GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
+#else
 		OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + sizeof(OS_CHAR));
 		OS_MEMCPY(buf, buf1, size1);
 		OS_MEMCPY(buf+size1, buf2, size2);
 		buf[size1+size2] = (OS_CHAR)0;
 		GCStringValue * getter_name = newStringValue(buf, (size1 + size2) / sizeof(OS_CHAR));
+#endif
 		if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), false)){
 			return true;
 		}
@@ -13153,16 +13181,20 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 			return pushValue(value);
 		}
 		if(getter_enabled){
-			if(index.index.type == OS_VALUE_TYPE_STRING){
+			if(index.index.type == OS_VALUE_TYPE_STRING && OS_STRNCMP(index.index.v.string->toChar(), strings->special_prefix.toChar(), strings->special_prefix.getLen()) != 0){
 				const void * buf1 = strings->__getAt.toChar();
 				int size1 = strings->__getAt.getDataSize();
 				const void * buf2 = index.index.v.string->toChar();
 				int size2 = index.index.v.string->getDataSize();
+#if 1
+				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
+#else
 				OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + sizeof(OS_CHAR));
 				OS_MEMCPY(buf, buf1, size1);
 				OS_MEMCPY(buf+size1, buf2, size2);
 				buf[size1+size2] = (OS_CHAR)0;
 				GCStringValue * getter_name = newStringValue(buf, (size1 + size2) / sizeof(OS_CHAR));
+#endif
 				if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 					pushValue(value);
 					pushValue(self);
@@ -13843,6 +13875,7 @@ restart:
 				OS_ASSERT(call_stack_funcs.count > 0 && &call_stack_funcs[call_stack_funcs.count-1] == stack_func);
 				switch(func_value.type){
 				case OS_VALUE_TYPE_CFUNCTION:
+				case OS_VALUE_TYPE_OBJECT:
 					call(params, ret_values);
 					removeStackValues(-2-ret_values, 2);
 					break;
@@ -15599,12 +15632,12 @@ void OS::initPreScript()
 		modules_loaded = {}
 		function require(filename, required){
 			filename = resolvePath(filename)
-			return modules_loaded[filename] 
+			return filename && (modules_loaded.rawget(filename) 
 				|| function(){
 					modules_loaded[filename] = {} // block recursive require
 					modules_loaded[filename] = compileFile(filename, required)()
 					return modules_loaded[filename]
-				}()
+				}())
 		}
 	));
 }
