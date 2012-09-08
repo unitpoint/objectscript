@@ -36,6 +36,7 @@
 #include <malloc.h>
 #include <new.h>
 #include <stdlib.h>
+#include <float.h>
 
 #if defined _MSC_VER && !defined IW_SDK
 #include <vadefs.h>
@@ -48,7 +49,9 @@
 // select ObjectScript number type here
 #define OS_NUMBER double
 // #define OS_NUMBER float	// could be a bit faster
-// #define OS_NUMBER int	// not recomended
+// #define OS_NUMBER int	// not recomended, math.random returns float value [0..1]
+
+#define OS_MAX_NUMBER DBL_MAX
 
 // does disable it due to security reason ???
 #define OS_GLOBAL_VAR_ENABLED
@@ -1291,6 +1294,7 @@ namespace ObjectScript
 
 			struct GCCFunctionValue: public GCValue
 			{
+				GCStringValue * name;
 				OS_CFunction func;
 				void * user_param;
 				int num_closure_values;
@@ -1370,6 +1374,7 @@ namespace ObjectScript
 				FunctionDecl * func_decl;
 				Value env;
 				Upvalues * upvalues; // retained
+				GCStringValue * name;
 
 				GCFunctionValue();
 				~GCFunctionValue();
@@ -1875,6 +1880,7 @@ namespace ObjectScript
 				Expression * expectBracketExpression(Scope*, const Params& p);
 				Expression * finishValueExpression(Scope*, Expression*, const Params& p);
 				Expression * finishValueExpressionNoAutoCall(Scope*, Expression*, const Params& p);
+				Expression * finishValueExpressionNoCall(Scope*, Expression*, const Params& p);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, const Params& p, bool& is_finished); // bool allow_param, bool& is_finished);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
@@ -2079,12 +2085,12 @@ namespace ObjectScript
 
 				struct DebugInfoItem
 				{
-					int opcode_offs;
+					int opcode_pos;
 					int line;
 					int pos;
 					String token;
 
-					DebugInfoItem(int opcode_offs, int line, int pos, const String&);
+					DebugInfoItem(int opcode_pos, int line, int pos, const String&);
 				};
 				Vector<DebugInfoItem> debug_info;
 
@@ -2098,6 +2104,7 @@ namespace ObjectScript
 				static OpcodeType getOpcodeType(Compiler::ExpressionType);
 
 				bool loadFromStream(StreamReader * reader, StreamReader * debuginfo_reader);
+				DebugInfoItem * getDebugInfo(int opcode_pos);
 
 				void pushFunction();
 			};
@@ -2113,6 +2120,9 @@ namespace ObjectScript
 			{
 				int ref_count;
 				int gc_time;
+
+				Program * prog; // retained
+				FunctionDecl * func_decl;
 
 				Value * locals;
 				int num_locals;
@@ -2151,7 +2161,7 @@ namespace ObjectScript
 
 				int need_ret_values;
 
-				int opcodes_pos;
+				int opcode_offs;
 				
 				StackFunction();
 				~StackFunction();
@@ -2179,6 +2189,7 @@ namespace ObjectScript
 			{
 				String __construct;
 				// String __destruct;
+				String __object;
 				String __get;
 				String __set;
 				String __getAt;
@@ -2427,6 +2438,8 @@ namespace ObjectScript
 			GCObjectValue * newObjectValue(GCValue * prototype);
 			GCArrayValue * newArrayValue();
 
+			GCObjectValue * initObjectInstance(GCObjectValue*);
+
 			template<class T> T * pushValue(T * val){ pushValue(Value(val)); return val; }
 
 			void pushValue(Value val);
@@ -2508,22 +2521,27 @@ namespace ObjectScript
 			bool deleteTableProperty(Table * table, const PropertyIndex& index);
 			void deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
 			void deleteValueProperty(Value table_value, const PropertyIndex& index, bool prototype_enabled, bool del_method_enabled);
-			void initTableProperties(Table * dst, Table * src);
+			void copyTableProperties(Table * dst, Table * src);
 
 			void sortTable(Table * table, int(*comp)(OS*, const void*, const void*, void*), void* = NULL, bool reorder_keys = false);
 			void sortArray(GCArrayValue * arr, int(*comp)(OS*, const void*, const void*, void*), void* = NULL);
 
 			static int comparePropValues(OS*, const void*, const void*, void*);
 			static int comparePropValuesReverse(OS*, const void*, const void*, void*);
+			static int compareObjectProperties(OS*, const void*, const void*, void*);
+			static int compareObjectPropertiesReverse(OS*, const void*, const void*, void*);
 			static int compareUserPropValues(OS*, const void*, const void*, void*);
+			static int compareUserPropValuesReverse(OS*, const void*, const void*, void*);
 			
 			static int comparePropKeys(OS*, const void*, const void*, void*);
 			static int comparePropKeysReverse(OS*, const void*, const void*, void*);
 			static int compareUserPropKeys(OS*, const void*, const void*, void*);
+			static int compareUserPropKeysReverse(OS*, const void*, const void*, void*);
 
 			static int compareArrayValues(OS*, const void*, const void*, void*);
 			static int compareArrayValuesReverse(OS*, const void*, const void*, void*);
 			static int compareUserArrayValues(OS*, const void*, const void*, void*);
+			static int compareUserArrayValuesReverse(OS*, const void*, const void*, void*);
 
 			static int compareUserReverse(OS*, const void*, const void*, void*);
 
@@ -2541,6 +2559,11 @@ namespace ObjectScript
 
 			void setPrototype(Value val, Value proto);
 			void pushPrototype(Value val);
+
+			void pushBackTrace(int skip_funcs, int max_trace_funcs);
+			void pushArguments(StackFunction*);
+			void pushArgumentsWithNames(StackFunction*);
+			void pushRestArguments(StackFunction*);
 
 			void enterFunction(GCFunctionValue * func_value, GCValue * self, int params, int extra_remove_from_stack, int need_ret_values);
 			int leaveFunction();
@@ -2726,20 +2749,28 @@ namespace ObjectScript
 		int gc();
 		void gcFull();
 
-		struct Func {
+		struct FuncDef {
 			const OS_CHAR * name;
 			OS_CFunction func;
 		};
-		void setFuncs(const Func * list, int closure_values = 0, void * user_param = NULL); // null terminated list
-
-		struct Number {
+		
+		struct NumberDef {
 			const OS_CHAR * name;
 			OS_NUMBER value;
 		};
-		void setNumbers(const Number * list);
+		
+		struct StringDef {
+			const OS_CHAR * name;
+			const OS_CHAR * value;
+		};
+		
+		void setFuncs(const FuncDef * list, int closure_values = 0, void * user_param = NULL); // null terminated list
+		void setNumbers(const NumberDef * list);
+		void setStrings(const StringDef * list);
 
 		void getObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
 		void getGlobalObject(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
+		void getModule(const OS_CHAR * name, bool prototype_enabled = true, bool getter_enabled = true);
 
 		String changeFilenameExt(const String& filename, const String& ext);
 		String changeFilenameExt(const String& filename, const OS_CHAR * ext);
@@ -2747,6 +2778,10 @@ namespace ObjectScript
 		String getFilenameExt(const String& filename);
 		String getFilenameExt(const OS_CHAR * filename);
 		String getFilenameExt(const OS_CHAR * filename, int len);
+		
+		String getFilename(const String& filename);
+		String getFilename(const OS_CHAR * filename);
+		String getFilename(const OS_CHAR * filename, int len);
 		
 		String getFilenamePath(const String& filename);
 		String getFilenamePath(const OS_CHAR * filename);

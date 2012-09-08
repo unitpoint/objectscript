@@ -3,7 +3,7 @@
 [2] print(5 " differences")
 
 begin function
-  begin locals, total 50
+  begin locals, total 51
     0 _E
     1 _G
     35 Person
@@ -18,6 +18,7 @@ begin function
     47 transform
     48 core
     49 __planet
+    50 testFunc
   end locals
   begin call method
     get local var _E (0 0)
@@ -2311,7 +2312,7 @@ begin function
             push const string "print"
             ,
             begin debug locals
-              begin object 12
+              begin object 13
                 begin set by name
                   get local var Person (35 1)
                 end set by name: [Person]
@@ -2351,6 +2352,10 @@ begin function
                 begin set by name
                   get local var __planet (49 1)
                 end set by name: [__planet]
+                ,
+                begin set by name
+                  get local var testFunc (50 1)
+                end set by name: [testFunc]
                 ,
                 begin set by name
                   get local var a (0 0 param)
@@ -3691,6 +3696,276 @@ so eval(round(13.5))"
       end call method ret values 1
     end params ret values 2
   end call method ret values 0
+
+
+[317] function printBackTrace(skip_funcs){
+
+  begin set env var
+    begin function
+      begin locals, total 7
+        0 skip_funcs (param)
+        1 _E
+        2 _G
+      end locals
+
+[318] for(var i, t in debugBackTrace(skip_funcs + 1)){
+
+      begin scope
+        begin locals 4
+          3 i
+          4 t
+          5 #func
+          6 #valid
+        end locals
+        new local var i (3 0)
+
+        new local var t (4 0)
+
+        new local var #func (5 0 temp)
+
+        new local var #valid (6 0 temp)
+
+        begin code list
+          begin set local var
+            begin call method
+              begin call method
+                get local var _E (1 0)
+                begin params 2
+                  push const string "debugBackTrace"
+                  ,
+                  begin operator +
+                    get local var skip_funcs (0 0 param)
+                    push const number 1
+                  end operator +
+                end params ret values 2
+              end call method ret values 1
+              begin params 1
+                push const string "__iter"
+              end params ret values 1
+            end call method ret values 1
+          end set local var #func (5 0 temp)
+
+          begin loop
+            begin set local var
+              begin set local var
+                begin set local var
+                  begin call
+                    get local var #func (5 0 temp)
+                    begin params 0
+                    end params ret values 0
+                  end call ret values 3
+                end set local var t (4 0)
+              end set local var i (3 0)
+            end set local var #valid (6 0 temp)
+
+            begin if
+              begin bool exp
+                begin logic not
+                  get local var #valid (6 0 temp)
+                end logic not
+              end bool exp
+              begin then
+                break
+              end then
+            end if ret values 0
+
+
+[319] print concat("======= ["i"]")
+
+            begin scope
+              begin call method
+                get local var _E (1 0)
+                begin params 2
+                  push const string "print"
+                  ,
+                  begin call method
+                    get local var _E (1 0)
+                    begin params 4
+                      push const string "concat"
+                      ,
+                      push const string "======= ["
+                      ,
+                      get local var i (3 0)
+                      ,
+                      push const string "]"
+                    end params ret values 4
+                  end call method ret values 1
+                end params ret values 2
+              end call method ret values 0
+
+
+[320] print concat("  function: "t.name", arguments: "t.arguments)
+
+              begin call method
+                get local var _E (1 0)
+                begin params 2
+                  push const string "print"
+                  ,
+                  begin call method
+                    get local var _E (1 0)
+                    begin params 5
+                      push const string "concat"
+                      ,
+                      push const string "  function: "
+                      ,
+                      begin get property
+                        get local var t (4 0)
+                        push const string "name"
+                      end get property ret values 1
+                      ,
+                      push const string ", arguments: "
+                      ,
+                      begin get property
+                        get local var t (4 0)
+                        push const string "arguments"
+                      end get property ret values 1
+                    end params ret values 5
+                  end call method ret values 1
+                end params ret values 2
+              end call method ret values 0
+
+
+[321] print concat("  line: "t.line", pos: "t.pos", file: "t.file)
+
+              begin call method
+                get local var _E (1 0)
+                begin params 2
+                  push const string "print"
+                  ,
+                  begin call method
+                    get local var _E (1 0)
+                    begin params 7
+                      push const string "concat"
+                      ,
+                      push const string "  line: "
+                      ,
+                      begin get property
+                        get local var t (4 0)
+                        push const string "line"
+                      end get property ret values 1
+                      ,
+                      push const string ", pos: "
+                      ,
+                      begin get property
+                        get local var t (4 0)
+                        push const string "pos"
+                      end get property ret values 1
+                      ,
+                      push const string ", file: "
+                      ,
+                      begin get property
+                        get local var t (4 0)
+                        push const string "file"
+                      end get property ret values 1
+                    end params ret values 7
+                  end call method ret values 1
+                end params ret values 2
+              end call method ret values 0
+            end scope ret values 0
+          end loop ret values 0
+        end code list ret values 0
+      end scope ret values 0
+    end function
+  end set env var printBackTrace
+
+
+[325] var function testFunc(arg1, arg2){
+
+  begin set local var
+    begin function
+      begin locals, total 5
+        0 arg1 (param)
+        1 arg2 (param)
+        2 _E
+        3 _G
+        4 testFunc2
+      end locals
+
+[326] var function testFunc2(arg1, arg2, arg3){
+
+      begin set local var
+        begin function
+          begin locals, total 6
+            0 arg1 (param)
+            1 arg2 (param)
+            2 arg3 (param)
+            3 _E
+            4 _G
+            5 testFunc3
+          end locals
+
+[327] var function testFunc3(arg1){
+
+          begin set local var
+            begin function
+              begin locals, total 3
+                0 arg1 (param)
+                1 _E
+                2 _G
+              end locals
+
+[328] printBackTrace()
+
+              begin call method
+                get local var _E (1 0)
+                begin params 1
+                  push const string "printBackTrace"
+                end params ret values 1
+              end call method ret values 0
+            end function
+          end set local var testFunc3 (5 0)
+
+
+[330] testFunc3(1, 2)
+
+          begin call
+            get local var testFunc3 (5 0)
+            begin params 2
+              push const number 1
+              ,
+              push const number 2
+            end params ret values 2
+          end call ret values 0
+        end function
+      end set local var testFunc2 (4 0)
+
+
+[332] testFunc2(1, 2)
+
+      begin call
+        get local var testFunc2 (4 0)
+        begin params 2
+          push const number 1
+          ,
+          push const number 2
+        end params ret values 2
+      end call ret values 0
+    end function
+  end set local var testFunc (50 0)
+
+
+[334] print "Test back trace"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "Test back trace"
+    end params ret values 2
+  end call method ret values 0
+
+
+[335] testFunc(1, 2)
+
+  begin call
+    get local var testFunc (50 0)
+    begin params 2
+      push const number 1
+      ,
+      push const number 2
+    end params ret values 2
+  end call ret values 0
 
   begin code list
     begin return
