@@ -333,3 +333,6 @@ var function testFunc(arg1, arg2){
 }
 print "Test back trace"
 testFunc(1, 2)
+
+terminate()
+print "This is never printed"

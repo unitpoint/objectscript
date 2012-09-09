@@ -1836,6 +1836,7 @@ namespace ObjectScript
 					// bool allow_var;
 					bool allow_auto_call;
 					bool allow_call;
+					bool allow_nop_result;
 
 					Params();
 					Params(const Params&);
@@ -1846,10 +1847,11 @@ namespace ObjectScript
 					Params& setAllowParams(bool);
 					Params& setAllowAutoCall(bool);
 					Params& setAllowCall(bool);
+					Params& setAllowNopResult(bool);
 				};
 
 				Expression * expectSingleExpression(Scope*, const Params& p);
-				Expression * expectSingleExpression(Scope*);
+				Expression * expectSingleExpression(Scope*, bool allow_nop_result = false);
 
 				Expression * expectExpressionValues(Expression * exp, int ret_values);
 				Expression * newExpressionFromList(ExpressionList& list, int ret_values);
@@ -1880,7 +1882,7 @@ namespace ObjectScript
 				Expression * expectBracketExpression(Scope*, const Params& p);
 				Expression * finishValueExpression(Scope*, Expression*, const Params& p);
 				Expression * finishValueExpressionNoAutoCall(Scope*, Expression*, const Params& p);
-				Expression * finishValueExpressionNoCall(Scope*, Expression*, const Params& p);
+				Expression * finishValueExpressionNoNextCall(Scope*, Expression*, const Params& p);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, const Params& p, bool& is_finished); // bool allow_param, bool& is_finished);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
@@ -2365,6 +2367,9 @@ namespace ObjectScript
 			OS_U32 * rand_next;
 			int rand_left;
 
+			bool terminated;
+			int terminated_code;
+
 			void randInitialize(OS_U32 seed);
 			void randReload();
 			double getRand();
@@ -2589,9 +2594,6 @@ namespace ObjectScript
 		// bool init(ObjectScriptExtention * ext, MemoryManager * manager);
 		virtual void shutdown();
 
-		void * malloc(int size OS_DBG_FILEPOS_DECL);
-		void free(void * p);
-
 		void qsort(void *base, unsigned num, unsigned width, int (*comp)(OS*, const void *, const void *, void*), void*);
 
 		void initGlobalFunctions();
@@ -2650,11 +2652,19 @@ namespace ObjectScript
 		OS * retain();
 		void release();
 
+		void * malloc(int size OS_DBG_FILEPOS_DECL);
+		void free(void * p);
+
 		int getAllocatedBytes();
 		int getMaxAllocatedBytes();
 		int getCachedBytes();
 
 		void setMemBreakpointId(int id);
+
+		bool isTerminated();
+		int getTerminatedCode();
+		void setTerminated(bool, int);
+		void resetTerminated();
 
 		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
 		void getProperty(const OS_CHAR*, bool prototype_enabled = true, bool getter_enabled = true);
@@ -2687,7 +2697,9 @@ namespace ObjectScript
 		void pushCFunction(OS_CFunction func, void * user_param = NULL);
 		void pushCFunction(OS_CFunction func, int closure_values, void * user_param = NULL);
 		void * pushUserData(int crc, int data_size, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserData(int data_size, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
 		void * pushUserPointer(int crc, void * data, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserPointer(void * data, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
 		void newObject();
 		void newArray();
 
@@ -2695,6 +2707,8 @@ namespace ObjectScript
 		void pushGlobals();
 		void pushUserPool();
 		void pushValueById(int id);
+
+		// int pushArrayNumbers(int offs = -1);
 
 		int getStackSize();
 		int getAbsoluteOffs(int offs);
@@ -2732,6 +2746,8 @@ namespace ObjectScript
 		void * toUserData(int crc);
 
 		OS_FLOAT popNumber(bool valueof_enabled = true);
+		float popFloat(bool valueof_enabled = true);
+		double popDouble(bool valueof_enabled = true);
 		int popInt(bool valueof_enabled = true);
 		String popString(bool valueof_enabled = true);
 

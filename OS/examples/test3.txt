@@ -3967,6 +3967,28 @@ so eval(round(13.5))"
     end params ret values 2
   end call ret values 0
 
+
+[337] terminate()
+
+  begin call method
+    get local var _E (0 0)
+    begin params 1
+      push const string "terminate"
+    end params ret values 1
+  end call method ret values 0
+
+
+[338] print "This is never printed"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "This is never printed"
+    end params ret values 2
+  end call method ret values 0
+
   begin code list
     begin return
       get local var _E (0 0)
