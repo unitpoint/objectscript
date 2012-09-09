@@ -932,8 +932,8 @@ namespace ObjectScript
 
 					// NUM_INT,        // -?[0..9]+
 					NUMBER,      // -?[0..9][.]?[0..9]+(e[+-]?[0..9]+)?
-					// NUM_VECTOR_3,   // 'NUM_FLOAT NUM_FLOAT NUM_FLOAT'
-					// NUM_VECTOR_4,   // 'NUM_FLOAT NUM_FLOAT NUM_FLOAT NUM_FLOAT'
+					// NUM_VECTOR_3,   // 'NUMBER NUMBER NUMBER'
+					// NUM_VECTOR_4,   // 'NUMBER NUMBER NUMBER NUMBER'
 					// NULL,           // used in compiler
 
 					// [not real operators]
@@ -1452,6 +1452,7 @@ namespace ObjectScript
 					EXP_TYPE_DEBUG_LOCALS,
 					
 					EXP_TYPE_IF,
+					EXP_TYPE_QUESTION,
 
 					EXP_TYPE_ARRAY,
 
@@ -1884,6 +1885,7 @@ namespace ObjectScript
 				Expression * finishValueExpressionNoAutoCall(Scope*, Expression*, const Params& p);
 				Expression * finishValueExpressionNoNextCall(Scope*, Expression*, const Params& p);
 				Expression * finishBinaryOperator(Scope * scope, OpcodeLevel prev_level, Expression * exp, const Params& p, bool& is_finished); // bool allow_param, bool& is_finished);
+				Expression * finishQuestionOperator(Scope*, TokenData * token, Expression * left_exp, Expression * right_exp);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
 				bool findLocalVar(LocalVarDesc&, Scope * scope, const String& name, int active_locals, bool all_scopes);
@@ -2552,6 +2554,8 @@ namespace ObjectScript
 
 			static int compareUserReverse(OS*, const void*, const void*, void*);
 
+			bool hasSpecialPrefix(GCStringValue*);
+
 			Property * setTableValue(Table * table, const PropertyIndex& index, Value val);
 			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool setter_enabled);
 			void setPropertyValue(Value table_value, const PropertyIndex& index, Value val, bool setter_enabled);
@@ -2560,7 +2564,7 @@ namespace ObjectScript
 			bool getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled);
 			bool getPropertyValue(Value& result, Value table_value, const PropertyIndex& index, bool prototype_enabled);
 
-			bool hasProperty(GCValue * table_value, const PropertyIndex& index);
+			bool hasOwnProperty(GCValue * table_value, const PropertyIndex& index);
 			void pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
 			void pushPropertyValue(Value table_value, const PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
 

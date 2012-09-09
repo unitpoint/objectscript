@@ -1128,6 +1128,7 @@ bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 		switch(type)
 		{
 		case OS::Core::Tokenizer::PARAM_SEPARATOR:
+		case OS::Core::Tokenizer::OPERATOR_QUESTION:
 
 		case OS::Core::Tokenizer::OPERATOR_INDIRECT:  // .
 		case OS::Core::Tokenizer::OPERATOR_CONCAT: // ..
@@ -1915,6 +1916,21 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		out += String::format(allocator, OS_TEXT("%send if ret values %d\n"), spaces, ret_values);
 		break;
 
+	case EXP_TYPE_QUESTION:
+		OS_ASSERT(list.count == 3);
+		out += String::format(allocator, OS_TEXT("%sbegin question\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%s  begin bool exp\n"), spaces);
+		list[0]->debugPrint(out, compiler, depth+2);
+		out += String::format(allocator, OS_TEXT("%s  end bool exp\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%s  begin then value\n"), spaces);
+		list[1]->debugPrint(out, compiler, depth+2);
+		out += String::format(allocator, OS_TEXT("%s  end then value\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%s  begin else value\n"), spaces);
+		list[2]->debugPrint(out, compiler, depth+2);
+		out += String::format(allocator, OS_TEXT("%s  end else value\n"), spaces);
+		out += String::format(allocator, OS_TEXT("%send question ret values %d\n"), spaces, ret_values);
+		break;
+
 	case EXP_TYPE_CONST_NUMBER:
 	case EXP_TYPE_CONST_STRING:
 		{
@@ -2537,6 +2553,38 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				}
 				prog_opcodes->writeInt32AtPos(prog_opcodes->getPos() - jump_pos - sizeof(OS_INT32), jump_pos);
 			}
+			prog_opcodes->writeInt32AtPos(if_not_jump_to - if_not_jump_pos - sizeof(OS_INT32), if_not_jump_pos);
+			break;
+		}
+
+	case EXP_TYPE_QUESTION:
+		{
+			OS_ASSERT(exp->list.count == 3);
+			if(!writeOpcodes(scope, exp->list[0])){
+				return false;
+			}
+			writeDebugInfo(exp);
+			prog_opcodes->writeByte(Program::OP_IF_NOT_JUMP);
+
+			int if_not_jump_pos = prog_opcodes->getPos();
+			prog_opcodes->writeInt32(0);
+
+			if(!writeOpcodes(scope, exp->list[1])){
+				return false;
+			}
+
+			int if_not_jump_to = prog_opcodes->getPos();
+			prog_opcodes->writeByte(Program::OP_JUMP);
+
+			int jump_pos = prog_opcodes->getPos();
+			prog_opcodes->writeInt32(0);
+
+			if_not_jump_to = prog_opcodes->getPos();
+			if(!writeOpcodes(scope, exp->list[2])){
+				return false;
+			}
+			prog_opcodes->writeInt32AtPos(prog_opcodes->getPos() - jump_pos - sizeof(OS_INT32), jump_pos);
+
 			prog_opcodes->writeInt32AtPos(if_not_jump_to - if_not_jump_pos - sizeof(OS_INT32), if_not_jump_pos);
 			break;
 		}
@@ -3330,7 +3378,7 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::getExpressionType(TokenTy
 		// case Tokenizer::OPERATOR_INC: return EXP_TYPE_INC;
 		// case Tokenizer::OPERATOR_DEC: return EXP_TYPE_DEC;
 
-		// case Tokenizer::OPERATOR_QUESTION: return EXP_TYPE_QUESTION;
+	case Tokenizer::OPERATOR_QUESTION: return EXP_TYPE_QUESTION;
 		// case Tokenizer::OPERATOR_COLON: return ;
 
 	case Tokenizer::OPERATOR_BIT_AND: return EXP_TYPE_BIT_AND;
@@ -3385,8 +3433,8 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::getOpcodeLevel(ExpressionTyp
 	case EXP_TYPE_PARAMS:	// ,
 		return OP_LEVEL_1_1;
 
-		// case EXP_TYPE_QUESTION:    // ? :
-		// 	return OP_LEVEL_2;
+	case EXP_TYPE_QUESTION:    // ? :
+		return OP_LEVEL_2;
 
 	case EXP_TYPE_LOGIC_OR:  // ||
 		return OP_LEVEL_3;
@@ -4117,8 +4165,29 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass2(Scope * scope, Ex
 
 	case EXP_TYPE_SET_PROPERTY:
 		{
-			exp->type;
-			break;
+			OS_ASSERT(exp->list.count == 3);
+			exp->list[0] = stepPass2(scope, exp->list[0]);
+			exp->list[1] = stepPass2(scope, exp->list[1]);
+			exp->list[2] = stepPass2(scope, exp->list[2]);
+			for(Expression * get_exp = exp->list[1];;){
+				switch(get_exp->type){
+				case EXP_TYPE_GET_PROPERTY:
+					OS_ASSERT(get_exp->list.count == 2);
+					get_exp->type = EXP_TYPE_GET_PROPERTY_AUTO_CREATE;
+					get_exp = get_exp->list[0];
+					continue;
+
+				case EXP_TYPE_GET_LOCAL_VAR:
+					get_exp->type = EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE;
+					break;
+
+				case EXP_TYPE_GET_ENV_VAR:
+					get_exp->type = EXP_TYPE_GET_ENV_VAR_AUTO_CREATE;
+					break;
+				}
+				break;
+			}
+			return exp;
 		}
 
 	case EXP_TYPE_CALL_DIM:
@@ -4776,6 +4845,33 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExtendsExpression(Sco
 	exp->ret_values = 1;
 	return exp;
 }
+
+OS::Core::Compiler::Expression * OS::Core::Compiler::finishQuestionOperator(Scope * scope, TokenData * token, Expression * exp, Expression * exp2)
+{
+	// OS_ASSERT(recent_token && recent_token->type == Tokenizer::OPERATOR_COLON);
+	ungetToken();
+	if(!expectToken(Tokenizer::OPERATOR_COLON)){
+		allocator->deleteObj(exp);
+		allocator->deleteObj(exp2);
+		return NULL;
+	}
+	if(!expectToken()){
+		return NULL;
+	}
+	Expression * exp3 = expectSingleExpression(scope, Params().setAllowBinaryOperator(true));
+	if(!exp3){
+		allocator->deleteObj(exp);
+		allocator->deleteObj(exp2);
+		return NULL;
+	}
+	exp = expectExpressionValues(exp, 1);
+	exp2 = expectExpressionValues(exp2, 1);
+	exp3 = expectExpressionValues(exp3, 1);
+	exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_QUESTION, token, exp, exp2, exp3 OS_DBG_FILEPOS);
+	exp->ret_values = 1;
+	return exp;
+}
+
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectCloneExpression(Scope * scope)
 {
@@ -5712,6 +5808,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 		}
 	}
 	switch(exp_type){
+	case EXP_TYPE_QUESTION:
+		return finishQuestionOperator(scope, token, left_exp, right_exp);
+
 	case EXP_TYPE_ASSIGN:
 		{
 			if(left_exp->type != EXP_TYPE_PARAMS){
@@ -6012,8 +6111,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			// case Tokenizer::OPERATOR_INC:     // ++
 			// case Tokenizer::OPERATOR_DEC:     // --
 
-			// case Tokenizer::OPERATOR_QUESTION:  // ?
-			// case Tokenizer::OPERATOR_COLON:     // :
+		case Tokenizer::OPERATOR_QUESTION:  // ?
+		// case Tokenizer::OPERATOR_COLON:     // :
 
 		case Tokenizer::OPERATOR_BIT_AND: // &
 		case Tokenizer::OPERATOR_BIT_OR:  // |
@@ -11121,9 +11220,14 @@ OS::Core::Property * OS::Core::setTableValue(Table * table, const PropertyIndex&
 	return prop;
 }
 
+bool OS::Core::hasSpecialPrefix(GCStringValue * string)
+{
+	return OS_STRNCMP(string->toChar(), strings->special_prefix.toChar(), strings->special_prefix.getLen()) == 0;
+}
+
 void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value value, bool setter_enabled)
 {
-#ifdef OS_DEBUG
+#if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
 	if(table_value != check_recursion && index.index.type == OS_VALUE_TYPE_NULL){
 		error(OS_WARNING, OS_TEXT("object set null index"));
 	}
@@ -11204,21 +11308,12 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 
 	if(setter_enabled){
 		Value func;
-		// GCValue * self = table_value.v.value;
-		if(index.index.type == OS_VALUE_TYPE_STRING && OS_STRNCMP(index.index.v.string->toChar(), strings->special_prefix.toChar(), strings->special_prefix.getLen()) != 0){
+		if(index.index.type == OS_VALUE_TYPE_STRING && !hasSpecialPrefix(index.index.v.string)){
 			const void * buf1 = strings->__setAt.toChar();
 			int size1 = strings->__setAt.getDataSize();
 			const void * buf2 = index.index.v.string->toChar();
 			int size2 = index.index.v.string->getDataSize();
-#if 1
 			GCStringValue * setter_name = newStringValue(buf1, size1, buf2, size2);
-#else
-			OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + sizeof(OS_CHAR));
-			OS_MEMCPY(buf, buf1, size1);
-			OS_MEMCPY(buf+size1, buf2, size2);
-			buf[size1+size2] = (OS_CHAR)0;
-			GCStringValue * setter_name = newStringValue(buf, (size1 + size2) / sizeof(OS_CHAR));
-#endif
 			if(getPropertyValue(func, table_value, PropertyIndex(setter_name, PropertyIndex::KeepStringIndex()), true)){
 				pushValue(func);
 				pushValue(table_value);
@@ -13132,7 +13227,7 @@ int OS::getId(int offs)
 
 bool OS::Core::getPropertyValue(Value& result, Table * table, const PropertyIndex& index)
 {
-#ifdef OS_DEBUG
+#if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
 	if(table != check_recursion->table && index.index.type == OS_VALUE_TYPE_NULL){
 		error(OS_WARNING, OS_TEXT("object get null index"));
 	}
@@ -13149,7 +13244,7 @@ bool OS::Core::getPropertyValue(Value& result, Table * table, const PropertyInde
 
 bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled)
 {
-#ifdef OS_DEBUG
+#if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
 	if(table_value != check_recursion && index.index.type == OS_VALUE_TYPE_NULL){
 		error(OS_WARNING, OS_TEXT("object get null index"));
 	}
@@ -13217,26 +13312,18 @@ bool OS::Core::getPropertyValue(Value& result, Value table_value, const Property
 	return false;
 }
 
-bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index)
+bool OS::Core::hasOwnProperty(GCValue * table_value, const PropertyIndex& index)
 {
 	Value value;
 	if(getPropertyValue(value, table_value, index, false)){
 		return true;
 	}
-	if(index.index.type == OS_VALUE_TYPE_STRING && OS_STRNCMP(index.index.v.string->toChar(), strings->special_prefix.toChar(), strings->special_prefix.getLen()) != 0){
+	if(index.index.type == OS_VALUE_TYPE_STRING && !hasSpecialPrefix(index.index.v.string)){
 		const void * buf1 = strings->__getAt.toChar();
 		int size1 = strings->__getAt.getDataSize();
 		const void * buf2 = index.index.v.string->toChar();
 		int size2 = index.index.v.string->getDataSize();
-#if 1
 		GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-#else
-		OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + sizeof(OS_CHAR));
-		OS_MEMCPY(buf, buf1, size1);
-		OS_MEMCPY(buf+size1, buf2, size2);
-		buf[size1+size2] = (OS_CHAR)0;
-		GCStringValue * getter_name = newStringValue(buf, (size1 + size2) / sizeof(OS_CHAR));
-#endif
 		if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), false)){
 			return true;
 		}
@@ -13253,20 +13340,12 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 			return pushValue(value);
 		}
 		if(getter_enabled){
-			if(index.index.type == OS_VALUE_TYPE_STRING && OS_STRNCMP(index.index.v.string->toChar(), strings->special_prefix.toChar(), strings->special_prefix.getLen()) != 0){
+			if(index.index.type == OS_VALUE_TYPE_STRING && !hasSpecialPrefix(index.index.v.string)){
 				const void * buf1 = strings->__getAt.toChar();
 				int size1 = strings->__getAt.getDataSize();
 				const void * buf2 = index.index.v.string->toChar();
 				int size2 = index.index.v.string->getDataSize();
-#if 1
 				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-#else
-				OS_BYTE * buf = (OS_BYTE*)alloca(size1 + size2 + sizeof(OS_CHAR));
-				OS_MEMCPY(buf, buf1, size1);
-				OS_MEMCPY(buf+size1, buf2, size2);
-				buf[size1+size2] = (OS_CHAR)0;
-				GCStringValue * getter_name = newStringValue(buf, (size1 + size2) / sizeof(OS_CHAR));
-#endif
 				if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 					pushValue(value);
 					pushValue(self);
@@ -13283,7 +13362,12 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 				pushValue(value);
 				pushValue(self);
 				pushValue(index.index);
-				call(1, 1);
+				if(!auto_create){
+					call(1, 1);
+				}else{
+					pushNumber(1);
+					call(2, 1);
+				}
 				if(auto_create && stack_values.lastElement().type == OS_VALUE_TYPE_NULL){
 					pop();
 					setPropertyValue(self, index, Value(pushObjectValue()), false); 
@@ -15119,7 +15203,7 @@ void OS::initObjectClass()
 			Core::Value index = os->core->getStackValue(-params);
 			Core::GCValue * self = self_var.getGCValue();
 			if(self){
-				os->pushBool( os->core->hasProperty(self, index) );
+				os->pushBool( os->core->hasOwnProperty(self, index) );
 				return 1;
 			}
 			return 0;
