@@ -8538,7 +8538,7 @@ void OS::Core::deleteValueProperty(Value table_value, const PropertyIndex& index
 
 void OS::Core::copyTableProperties(Table * dst, Table * src)
 {
-	OS_ASSERT(dst->count == 0);
+	// OS_ASSERT(dst->count == 0);
 	for(Property * prop = src->first; prop; prop = prop->next){
 		setTableValue(dst, PropertyIndex(*prop), prop->value);
 	}
@@ -12027,21 +12027,24 @@ bool OS::Core::pushValueOf(Value val)
 
 OS::Core::GCArrayValue * OS::Core::pushArrayOf(Value val)
 {
-	GCArrayValue * arr;
+	// GCArrayValue * arr;
 	switch(val.type){
 		// case OS_VALUE_TYPE_NULL:
 		// 	return pushNull(); // pushArrayValue();
 
+	/*
 	case OS_VALUE_TYPE_BOOL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_STRING:
 		arr = pushArrayValue();
 		allocator->vectorAddItem(arr->values, val OS_DBG_FILEPOS);
 		return arr;
+	*/
 
 	case OS_VALUE_TYPE_ARRAY:
 		return pushValue(val.v.arr);
 
+	/*
 	case OS_VALUE_TYPE_OBJECT:
 		arr = pushArrayValue();
 		if(val.v.object->table && val.v.object->table->count > 0){
@@ -12051,6 +12054,7 @@ OS::Core::GCArrayValue * OS::Core::pushArrayOf(Value val)
 			}
 		}
 		return arr;
+	*/
 	}
 	pushNull();
 	return NULL;
@@ -12058,11 +12062,12 @@ OS::Core::GCArrayValue * OS::Core::pushArrayOf(Value val)
 
 OS::Core::GCObjectValue * OS::Core::pushObjectOf(Value val)
 {
-	GCObjectValue * object;
+	// GCObjectValue * object;
 	switch(val.type){
 		// case OS_VALUE_TYPE_NULL:
 		// 	return pushObjectValue();
 
+	/*
 	case OS_VALUE_TYPE_BOOL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_STRING:
@@ -12080,6 +12085,7 @@ OS::Core::GCObjectValue * OS::Core::pushObjectOf(Value val)
 			}
 			return object;
 		}
+	*/
 
 	case OS_VALUE_TYPE_OBJECT:
 		return pushValue(val.v.object);
@@ -12155,8 +12161,12 @@ void OS::Core::pushCloneValue(Value val)
 	}
 	OS_ASSERT(new_value->type != OS_VALUE_TYPE_NULL);
 	if(new_value != value && value->table && value->table->count > 0){
+#if 1
 		new_value->table = newTable(OS_DBG_FILEPOS_START);
 		copyTableProperties(new_value->table, value->table);
+#else
+		copyTableProperties(new_value, value, true);
+#endif
 	}
 	// removeStackValue(-2);
 
@@ -12877,7 +12887,12 @@ void OS::Core::removeStackValues(int offs, int count)
 		OS_ASSERT(end == stack_values.count);
 		stack_values.count = start;
 	}else{
-		OS_MEMMOVE(stack_values.buf + start, stack_values.buf + end, sizeof(Value) * (stack_values.count - end));
+		count = stack_values.count - end;
+		if(count == 1){
+			stack_values.buf[start] = stack_values.buf[end];
+		}else{
+			OS_MEMMOVE(stack_values.buf + start, stack_values.buf + end, sizeof(Value) * count);
+		}
 		stack_values.count -= end - start;
 	}
 	// gcStepIfNeeded();
