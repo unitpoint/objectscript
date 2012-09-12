@@ -334,5 +334,8 @@ var function testFunc(arg1, arg2){
 print "Test back trace"
 testFunc(1, 2)
 
+print "Test 5 < 10 ? 7 : 3 --> "..(5 < 10 ? 7 : 3)
+print "Test in operator (should be true) "..("name" in {x = 0 y = 0 name = 0 index = 0})
+
 terminate()
 print "This is never printed"

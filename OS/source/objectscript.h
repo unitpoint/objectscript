@@ -36,7 +36,6 @@
 #include <malloc.h>
 #include <new.h>
 #include <stdlib.h>
-#include <float.h>
 
 #if defined _MSC_VER && !defined IW_SDK
 #include <vadefs.h>
@@ -47,11 +46,11 @@
 #endif
 
 // select ObjectScript number type here
+#ifndef OS_NUMBER
 #define OS_NUMBER double
 // #define OS_NUMBER float	// could be a bit faster
 // #define OS_NUMBER int	// not recomended, math.random returns float value [0..1]
-
-#define OS_MAX_NUMBER DBL_MAX
+#endif // OS_NUMBER
 
 // does disable it due to security reason ???
 #define OS_GLOBAL_VAR_ENABLED
@@ -170,7 +169,7 @@ namespace ObjectScript
 
 	class OS;
 
-	typedef void (*OS_UserDataDtor)(OS*, void * data, void * user_param);
+	typedef void (*OS_UserdataDtor)(OS*, void * data, void * user_param);
 	typedef int (*OS_CFunction)(OS*, int params, int closure_values, int need_ret_values, void * user_param);
 
 	enum OS_ESettings
@@ -189,7 +188,7 @@ namespace ObjectScript
 		OS_VALUE_TYPE_ARRAY,
 		OS_VALUE_TYPE_OBJECT,
 		OS_VALUE_TYPE_USERDATA,
-		OS_VALUE_TYPE_USERPTR,
+		// OS_VALUE_TYPE_USERPTR,
 		OS_VALUE_TYPE_FUNCTION,
 		OS_VALUE_TYPE_CFUNCTION,
 		OS_VALUE_TYPE_WEAKREF,
@@ -241,7 +240,7 @@ namespace ObjectScript
 		OP_RSHIFT, // >>
 		OP_POW, // **
 
-		OP_CONCAT, // ..
+		OP_CONCAT,	// ..
 
 		// unary operators
 
@@ -861,7 +860,7 @@ namespace ObjectScript
 				int cmp(const OS_CHAR*) const;
 				int getHash() const;
 
-				OS_FLOAT toFloat() const;
+				OS_NUMBER toNumber() const;
 			};
 
 			class StringBuffer: public Vector<OS_CHAR>
@@ -924,9 +923,9 @@ namespace ObjectScript
 					COMMENT_MULTI_LINE,
 
 					NAME,           // [a..z_$][a..z0..9_$]*
-					DOT_NAME,       // used in compiler [NAME].[NAME]... - for types
-					IDENTIFER,      // used in compiler [NAME]
-					DOT_IDENTIFER,  // used in compiler [NAME].[NAME]... - for types
+					// DOT_NAME,       // used in compiler [NAME].[NAME]... - for types
+					// IDENTIFER,      // used in compiler [NAME]
+					// DOT_IDENTIFER,  // used in compiler [NAME].[NAME]... - for types
 
 					STRING,         // ["].*?["]
 
@@ -965,6 +964,7 @@ namespace ObjectScript
 					OPERATOR_QUESTION,  // ?
 					OPERATOR_COLON,     // :
 
+					OPERATOR_IN,		// in
 					OPERATOR_LENGTH,	// #
 
 					OPERATOR_BIT_AND, // &
@@ -1171,6 +1171,7 @@ namespace ObjectScript
 			enum EGCColor
 			{
 				GC_WHITE,
+				// GC_WHITE_WHITE,
 				GC_GREY,
 				GC_BLACK
 			};
@@ -1275,7 +1276,7 @@ namespace ObjectScript
 				static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b OS_DBG_FILEPOS_DECL);
 				// static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b, GCStringValue * c);
 
-				bool isFloat(OS_FLOAT*) const;
+				bool isNumber(OS_NUMBER*) const;
 				// bool isNumber(OS_FLOAT*) const;
 
 				int cmp(GCStringValue*) const;
@@ -1284,11 +1285,11 @@ namespace ObjectScript
 				void calcHash();
 			};
 
-			struct GCUserDataValue: public GCValue
+			struct GCUserdataValue: public GCValue
 			{
 				int crc;
 				void * ptr;
-				OS_UserDataDtor dtor;
+				OS_UserdataDtor dtor;
 				void * user_param;
 			};
 
@@ -1313,7 +1314,7 @@ namespace ObjectScript
 					GCObjectValue * object;
 					GCArrayValue * arr;
 					GCStringValue * string;
-					GCUserDataValue * userdata;
+					GCUserdataValue * userdata;
 					GCFunctionValue * func;
 					GCCFunctionValue * cfunc;
 				} v;
@@ -1336,7 +1337,7 @@ namespace ObjectScript
 				GCValue * getGCValue() const;
 
 				bool isFunction() const;
-				bool isUserData() const;
+				bool isUserdata() const;
 			};
 
 			struct ValueRetained: public Value
@@ -1521,10 +1522,11 @@ namespace ObjectScript
 
 					EXP_TYPE_LOGIC_BOOL,    // !!
 					EXP_TYPE_LOGIC_NOT,     // !
-					EXP_TYPE_BIT_NOT, // ~
-					EXP_TYPE_PLUS,    // +
-					EXP_TYPE_NEG,     // -
-					EXP_TYPE_LENGTH,  // #
+					EXP_TYPE_BIT_NOT,		// ~
+					EXP_TYPE_PLUS,			// +
+					EXP_TYPE_NEG,			// -
+					EXP_TYPE_LENGTH,		// #
+					EXP_TYPE_IN,			// in
 
 					// EXP_TYPE_PARAM_SEPARTOR, // ,
 
@@ -1642,7 +1644,7 @@ namespace ObjectScript
 
 					OS * getAllocator(){ return list.allocator; }
 
-					OS_FLOAT toNumber();
+					OS_NUMBER toNumber();
 					OS_INT toInt();
 					String toString();
 
@@ -1757,7 +1759,7 @@ namespace ObjectScript
 					OP_LEVEL_10, // << >> >>>
 					OP_LEVEL_11, // + -
 					OP_LEVEL_12, // * / %
-					OP_LEVEL_13, // ** as is
+					OP_LEVEL_13, // ** in as is
 					OP_LEVEL_14, // ++ --
 					OP_LEVEL_15, // unary ! ~ + #
 					OP_LEVEL_16, // .
@@ -1830,6 +1832,7 @@ namespace ObjectScript
 				{
 					bool allow_root_blocks;
 					bool allow_binary_operator;
+					bool allow_in_operator;
 					bool allow_assing;
 					// bool allow_left_side_params;
 					// bool allow_right_side_params;
@@ -1844,6 +1847,7 @@ namespace ObjectScript
 
 					Params& setAllowRootBlocks(bool);
 					Params& setAllowBinaryOperator(bool);
+					Params& setAllowInOperator(bool);
 					Params& setAllowAssign(bool);
 					Params& setAllowParams(bool);
 					Params& setAllowAutoCall(bool);
@@ -2046,7 +2050,7 @@ namespace ObjectScript
 					OP_RSHIFT, // >>
 					OP_POW, // **
 
-					OP_CONCAT, // ..
+					OP_CONCAT,	// ..
 
 					OP_BIT_NOT,
 					OP_PLUS,
@@ -2056,6 +2060,7 @@ namespace ObjectScript
 					OP_LOGIC_BOOL,
 					OP_LOGIC_NOT,
 
+					OP_IN,
 					OP_SUPER,
 
 					OP_TYPE_OF,
@@ -2346,7 +2351,13 @@ namespace ObjectScript
 			GCValue * gc_grey_list_first;
 			bool gc_grey_root_initialized;
 			int gc_values_head_index;
+			int gc_start_allocated_bytes;
+			int gc_max_allocated_bytes;
+			int gc_keep_heap_count;
+			int gc_continuous_count;
+			bool gc_continuous;
 			int gc_time;
+			bool gc_in_process;
 			int gc_grey_added_count;
 			
 			float gc_start_values_mult;
@@ -2441,8 +2452,8 @@ namespace ObjectScript
 
 			GCCFunctionValue * newCFunctionValue(OS_CFunction func, void * user_param);
 			GCCFunctionValue * newCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
-			GCUserDataValue * newUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
-			GCUserDataValue * newUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
+			GCUserdataValue * newUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param);
+			GCUserdataValue * newUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param);
 			GCObjectValue * newObjectValue();
 			GCObjectValue * newObjectValue(GCValue * prototype);
 			GCArrayValue * newArrayValue();
@@ -2468,8 +2479,8 @@ namespace ObjectScript
 			GCStringValue * pushStringValue(const OS_CHAR*);
 			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
 			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
-			GCUserDataValue * pushUserDataValue(int crc, int data_size, OS_UserDataDtor dtor, void * user_param);
-			GCUserDataValue * pushUserPointerValue(int crc, void * data, OS_UserDataDtor dtor, void * user_param);
+			GCUserdataValue * pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param);
+			GCUserdataValue * pushUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param);
 			GCObjectValue * pushObjectValue();
 			GCObjectValue * pushObjectValue(GCValue * prototype);
 			GCArrayValue * pushArrayValue();
@@ -2480,7 +2491,7 @@ namespace ObjectScript
 			bool pushValueOf(Value val);
 			GCArrayValue * pushArrayOf(Value val);
 			GCObjectValue * pushObjectOf(Value val);
-			GCUserDataValue * pushUserDataOf(Value val);
+			GCUserdataValue * pushUserdataOf(Value val);
 			bool pushFunctionOf(Value val);
 
 			void pushCloneValue(Value val);
@@ -2512,10 +2523,10 @@ namespace ObjectScript
 
 			bool valueToBool(Value val);
 			OS_INT valueToInt(Value val, bool valueof_enabled = false);
-			OS_FLOAT valueToNumber(Value val, bool valueof_enabled = false);
+			OS_NUMBER valueToNumber(Value val, bool valueof_enabled = false);
 			String valueToString(Value val, bool valueof_enabled = false);
 
-			bool isValueNumber(Value val, OS_FLOAT * out = NULL);
+			bool isValueNumber(Value val, OS_NUMBER * out = NULL);
 			bool isValueString(Value val, String * out = NULL);
 			bool isValueString(Value val, OS::String * out = NULL);
 			bool isValueInstanceOf(GCValue * val, GCValue * prototype_val);
@@ -2564,11 +2575,11 @@ namespace ObjectScript
 			bool getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled);
 			bool getPropertyValue(Value& result, Value table_value, const PropertyIndex& index, bool prototype_enabled);
 
-			bool hasOwnProperty(GCValue * table_value, const PropertyIndex& index);
+			bool hasProperty(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool getter_enabled);
 			void pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
 			void pushPropertyValue(Value table_value, const PropertyIndex& index, bool prototype_enabled, bool getter_enabled, bool auto_create);
 
-			void setPrototype(Value val, Value proto);
+			void setPrototype(Value val, Value proto, int userdata_crc);
 			void pushPrototype(Value val);
 
 			void pushBackTrace(int skip_funcs, int max_trace_funcs);
@@ -2605,7 +2616,8 @@ namespace ObjectScript
 		void initArrayClass();
 		void initFunctionClass();
 		void initStringClass();
-		void initMathLibrary();
+		void initMathModule();
+		void initLangTokenizerModule();
 		void initPreScript();
 		void initPostScript();
 
@@ -2646,7 +2658,13 @@ namespace ObjectScript
 		};
 
 		static OS * create(MemoryManager* = NULL);
-		static OS * create(OS *, MemoryManager* = NULL);
+
+		template <class T>
+		static T * create(T * os, MemoryManager * manager = NULL)
+		{
+			OS_ASSERT(dynamic_cast<OS*>(os));
+			return (T*)os->start(manager);
+		}
 
 		OS();
 
@@ -2673,6 +2691,8 @@ namespace ObjectScript
 		void getProperty(bool prototype_enabled = true, bool getter_enabled = true);
 		void getProperty(const OS_CHAR*, bool prototype_enabled = true, bool getter_enabled = true);
 		void getProperty(const Core::String&, bool prototype_enabled = true, bool getter_enabled = true);
+		void getProperty(int offs, const OS_CHAR*, bool prototype_enabled = true, bool getter_enabled = true);
+		void getProperty(int offs, const Core::String&, bool prototype_enabled = true, bool getter_enabled = true);
 		
 		void setProperty(bool setter_enabled = true);
 		void setProperty(const OS_CHAR*, bool setter_enabled = true);
@@ -2687,8 +2707,9 @@ namespace ObjectScript
 
 		void getPrototype();
 		void setPrototype();
+		void setPrototype(int userdata_crc);
 
-		int getId(int offs = -1);
+		int getValueId(int offs = -1);
 		
 		void pushNull();
 		void pushNumber(OS_INT32);
@@ -2700,10 +2721,10 @@ namespace ObjectScript
 		void pushString(const Core::String&);
 		void pushCFunction(OS_CFunction func, void * user_param = NULL);
 		void pushCFunction(OS_CFunction func, int closure_values, void * user_param = NULL);
-		void * pushUserData(int crc, int data_size, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
-		void * pushUserData(int data_size, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
-		void * pushUserPointer(int crc, void * data, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
-		void * pushUserPointer(void * data, OS_UserDataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserdata(int crc, int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserdata(int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserPointer(int crc, void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserPointer(void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
 		void newObject();
 		void newArray();
 
@@ -2730,26 +2751,27 @@ namespace ObjectScript
 
 		OS_EValueType getType(int offs = -1);
 		OS_EValueType getTypeById(int id);
-		bool isNumber(int offs = -1, OS_FLOAT * out = NULL);
+		bool isNumber(int offs = -1, OS_NUMBER * out = NULL);
 		bool isString(int offs = -1, String * out = NULL);
 		bool isType(OS_EValueType, int offs = -1);
 		bool isNull(int offs = -1);
 		bool isObject(int offs = -1);
 		bool isArray(int offs = -1);
 		bool isFunction(int offs = -1);
-		bool isUserData(int offs = -1);
+		bool isUserdata(int offs = -1);
 		bool isInstanceOf(int value_offs = -2, int prototype_offs = -1);
 
 		bool toBool(int offs = -1);
-		OS_FLOAT toNumber(int offs = -1, bool valueof_enabled = true);
+		OS_NUMBER toNumber(int offs = -1, bool valueof_enabled = true);
 		float toFloat(int offs = -1, bool valueof_enabled = true);
 		double toDouble(int offs = -1, bool valueof_enabled = true);
 		int toInt(int offs = -1, bool valueof_enabled = true);
 		String toString(int offs = -1, bool valueof_enabled = true);
-		void * toUserData(int offs, int crc);
-		void * toUserData(int crc);
+		void * toUserdata(int offs, int crc);
+		void * toUserdata(int crc);
 
-		OS_FLOAT popNumber(bool valueof_enabled = true);
+		bool popBool();
+		OS_NUMBER popNumber(bool valueof_enabled = true);
 		float popFloat(bool valueof_enabled = true);
 		double popDouble(bool valueof_enabled = true);
 		int popInt(bool valueof_enabled = true);
