@@ -1,6 +1,6 @@
 
 [FILE] core.os
-[1] _E = _G
+[1] function __get(name){
 
 begin function
   begin locals, total 4
@@ -9,12 +9,582 @@ begin function
     2 events
     3 timers
   end locals
-  begin set local var
-    get local var _G (1 0)
-  end set local var _E (0 0)
+  begin set env var
+    begin function
+      begin locals, total 3
+        0 name (param)
+        1 _E
+        2 _G
+      end locals
+
+[2] echo("global property \""name"\" is not declared\n")
+
+      begin call method
+        get local var _E (1 0)
+        begin params 4
+          push const string "echo"
+          ,
+          push const string "global property ""
+          ,
+          get local var name (0 0 param)
+          ,
+          push const string "" is not declared
+"
+        end params ret values 4
+      end call method ret values 0
 
 
-[3] function eval(str, env){
+[3] echo "back trace\n"
+
+      begin call method
+        get local var _E (1 0)
+        begin params 2
+          push const string "echo"
+          ,
+          push const string "back trace
+"
+        end params ret values 2
+      end call method ret values 0
+
+
+[4] printBackTrace(1)
+
+      begin call method
+        get local var _E (1 0)
+        begin params 2
+          push const string "printBackTrace"
+          ,
+          push const number 1
+        end params ret values 2
+      end call method ret values 0
+
+
+[5] echo "\n"
+
+      begin call method
+        get local var _E (1 0)
+        begin params 2
+          push const string "echo"
+          ,
+          push const string "
+"
+        end params ret values 2
+      end call method ret values 0
+    end function
+  end set env var __get
+
+
+[8] function Object.__get(name, autoCreate){
+
+  begin set property
+    begin function
+      begin locals, total 4
+        0 name (param)
+        1 autoCreate (param)
+        2 _E
+        3 _G
+      end locals
+
+[9] if(autoCreate) return;
+
+      begin if
+        begin bool exp
+          get local var autoCreate (1 0 param)
+        end bool exp
+        begin then
+          return
+        end then
+      end if ret values 0
+
+
+[10] echo("object property \""name"\" is not declared\n")
+
+      begin call method
+        get local var _E (2 0)
+        begin params 4
+          push const string "echo"
+          ,
+          push const string "object property ""
+          ,
+          get local var name (0 0 param)
+          ,
+          push const string "" is not declared
+"
+        end params ret values 4
+      end call method ret values 0
+
+
+[11] echo "back trace\n"
+
+      begin call method
+        get local var _E (2 0)
+        begin params 2
+          push const string "echo"
+          ,
+          push const string "back trace
+"
+        end params ret values 2
+      end call method ret values 0
+
+
+[12] printBackTrace(1) // skip current function
+
+      begin call method
+        get local var _E (2 0)
+        begin params 2
+          push const string "printBackTrace"
+          ,
+          push const number 1
+        end params ret values 2
+      end call method ret values 0
+
+
+[13] echo("=======\ntarget "this"\n\n")
+
+      begin call method
+        get local var _E (2 0)
+        begin params 4
+          push const string "echo"
+          ,
+          push const string "=======
+target "
+          ,
+          push this
+          ,
+          push const string "
+
+"
+        end params ret values 4
+      end call method ret values 0
+    end function
+
+[8] function Object.__get(name, autoCreate){
+
+    get env var auto create Object
+    push const string "__get"
+  end set property ret values 0
+
+
+[16] function Userdata.__set(name, value){
+
+  begin set property
+    begin function
+      begin locals, total 4
+        0 name (param)
+        1 value (param)
+        2 _E
+        3 _G
+      end locals
+
+[17] echo("userdata property \""name"\" is not declared, set value "value"\n")
+
+      begin call method
+        get local var _E (2 0)
+        begin params 6
+          push const string "echo"
+          ,
+          push const string "userdata property ""
+          ,
+          get local var name (0 0 param)
+          ,
+          push const string "" is not declared, set value "
+          ,
+          get local var value (1 0 param)
+          ,
+          push const string "
+"
+        end params ret values 6
+      end call method ret values 0
+
+
+[18] echo "back trace\n"
+
+      begin call method
+        get local var _E (2 0)
+        begin params 2
+          push const string "echo"
+          ,
+          push const string "back trace
+"
+        end params ret values 2
+      end call method ret values 0
+
+
+[19] printBackTrace(1) // skip current function
+
+      begin call method
+        get local var _E (2 0)
+        begin params 2
+          push const string "printBackTrace"
+          ,
+          push const number 1
+        end params ret values 2
+      end call method ret values 0
+
+
+[20] echo("=======\ntarget "this"\n\n")
+
+      begin call method
+        get local var _E (2 0)
+        begin params 4
+          push const string "echo"
+          ,
+          push const string "=======
+target "
+          ,
+          push this
+          ,
+          push const string "
+
+"
+        end params ret values 4
+      end call method ret values 0
+    end function
+
+[16] function Userdata.__set(name, value){
+
+    get env var auto create Userdata
+    push const string "__set"
+  end set property ret values 0
+
+
+[23] function assert(a, message){
+
+  begin set env var
+    begin function
+      begin locals, total 4
+        0 a (param)
+        1 message (param)
+        2 _E
+        3 _G
+      end locals
+
+[24] if(!a){
+
+      begin if
+        begin bool exp
+          begin logic not
+            get local var a (0 0 param)
+          end logic not
+        end bool exp
+        begin then
+
+[25] print(message || "assert failed")
+
+          begin scope
+            begin call method
+              get local var _E (2 0)
+              begin params 2
+                push const string "print"
+                ,
+                begin logic ||
+                  get local var message (1 0 param)
+                  push const string "assert failed"
+                end logic ||
+              end params ret values 2
+            end call method ret values 0
+
+
+[26] printBackTrace(1)
+
+            begin call method
+              get local var _E (2 0)
+              begin params 2
+                push const string "printBackTrace"
+                ,
+                push const number 1
+              end params ret values 2
+            end call method ret values 0
+
+
+[27] terminate()
+
+            begin call method
+              get local var _E (2 0)
+              begin params 1
+                push const string "terminate"
+              end params ret values 1
+            end call method ret values 0
+          end scope ret values 0
+        end then
+      end if ret values 0
+    end function
+  end set env var assert
+
+
+[31] setErrorHandler(function(code message file line){
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "setErrorHandler"
+      ,
+      begin function
+        begin locals, total 7
+          0 code (param)
+          1 message (param)
+          2 file (param)
+          3 line (param)
+          4 _E
+          5 _G
+          6 type
+        end locals
+
+[32] var type = "ERROR"
+
+        begin set local var
+          push const string "ERROR"
+        end set local var type (6 0)
+
+
+[33] if(code == E_WARNING)
+
+        begin if
+          begin bool exp
+            begin logic ==
+              get local var code (0 0 param)
+              get env var E_WARNING
+            end logic ==
+          end bool exp
+          begin then
+
+[34] type = "WARNING"
+
+            begin set local var
+              push const string "WARNING"
+            end set local var type (6 0)
+          end then
+          begin else
+
+[35] else if(code == E_NOTICE)
+
+            begin if
+              begin bool exp
+                begin logic ==
+                  get local var code (0 0 param)
+                  get env var E_NOTICE
+                end logic ==
+              end bool exp
+              begin then
+
+[36] type = "NOTICE"
+
+                begin set local var
+                  push const string "NOTICE"
+                end set local var type (6 0)
+              end then
+            end if ret values 0
+          end else
+        end if ret values 0
+
+
+[37] echo("["type"] "message"\n")
+
+        begin call method
+          get local var _E (4 0)
+          begin params 6
+            push const string "echo"
+            ,
+            push const string "["
+            ,
+            get local var type (6 0)
+            ,
+            push const string "] "
+            ,
+            get local var message (1 0 param)
+            ,
+            push const string "
+"
+          end params ret values 6
+        end call method ret values 0
+
+
+[38] echo "back trace\n"
+
+        begin call method
+          get local var _E (4 0)
+          begin params 2
+            push const string "echo"
+            ,
+            push const string "back trace
+"
+          end params ret values 2
+        end call method ret values 0
+
+
+[39] printBackTrace(1) // skip current function
+
+        begin call method
+          get local var _E (4 0)
+          begin params 2
+            push const string "printBackTrace"
+            ,
+            push const number 1
+          end params ret values 2
+        end call method ret values 0
+      end function
+    end params ret values 2
+  end call method ret values 0
+
+
+[42] function printBackTrace(skipNumFuncs){
+
+  begin set env var
+    begin function
+      begin locals, total 7
+        0 skipNumFuncs (param)
+        1 _E
+        2 _G
+      end locals
+
+[43] for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
+
+      begin scope
+        begin locals 4
+          3 i
+          4 t
+          5 #func
+          6 #valid
+        end locals
+        new local var i (3 0)
+
+        new local var t (4 0)
+
+        new local var #func (5 0 temp)
+
+        new local var #valid (6 0 temp)
+
+        begin code list
+          begin set local var
+            begin call method
+              begin call method
+                get local var _E (1 0)
+                begin params 2
+                  push const string "debugBackTrace"
+                  ,
+                  begin operator +
+                    get local var skipNumFuncs (0 0 param)
+                    push const number 1
+                  end operator +
+                end params ret values 2
+              end call method ret values 1
+              begin params 1
+                push const string "__iter"
+              end params ret values 1
+            end call method ret values 1
+          end set local var #func (5 0 temp)
+
+          begin loop
+            begin set local var
+              begin set local var
+                begin set local var
+                  begin call
+                    get local var #func (5 0 temp)
+                    begin params 0
+                    end params ret values 0
+                  end call ret values 3
+                end set local var t (4 0)
+              end set local var i (3 0)
+            end set local var #valid (6 0 temp)
+
+            begin if
+              begin bool exp
+                begin logic not
+                  get local var #valid (6 0 temp)
+                end logic not
+              end bool exp
+              begin then
+                break
+              end then
+            end if ret values 0
+
+
+[44] echo("======= ["i"]\n")
+
+            begin scope
+              begin call method
+                get local var _E (1 0)
+                begin params 4
+                  push const string "echo"
+                  ,
+                  push const string "======= ["
+                  ,
+                  get local var i (3 0)
+                  ,
+                  push const string "]
+"
+                end params ret values 4
+              end call method ret values 0
+
+
+[46] echo("  line: "t.line", pos: "t.pos", file: "t.file"\n")
+
+              begin call method
+                get local var _E (1 0)
+                begin params 8
+                  push const string "echo"
+                  ,
+                  push const string "  line: "
+                  ,
+                  begin get property
+                    get local var t (4 0)
+                    push const string "line"
+                  end get property ret values 1
+                  ,
+                  push const string ", pos: "
+                  ,
+                  begin get property
+                    get local var t (4 0)
+                    push const string "pos"
+                  end get property ret values 1
+                  ,
+                  push const string ", file: "
+                  ,
+                  begin get property
+                    get local var t (4 0)
+                    push const string "file"
+                  end get property ret values 1
+                  ,
+                  push const string "
+"
+                end params ret values 8
+              end call method ret values 0
+
+
+[47] echo("  function: "t.name", arguments: "t.arguments"\n")
+
+              begin call method
+                get local var _E (1 0)
+                begin params 6
+                  push const string "echo"
+                  ,
+                  push const string "  function: "
+                  ,
+                  begin get property
+                    get local var t (4 0)
+                    push const string "name"
+                  end get property ret values 1
+                  ,
+                  push const string ", arguments: "
+                  ,
+                  begin get property
+                    get local var t (4 0)
+                    push const string "arguments"
+                  end get property ret values 1
+                  ,
+                  push const string "
+"
+                end params ret values 6
+              end call method ret values 0
+            end scope ret values 0
+          end loop ret values 0
+        end code list ret values 0
+      end scope ret values 0
+    end function
+  end set env var printBackTrace
+
+
+[52] function eval(str, env){
 
   begin set env var
     begin function
@@ -25,7 +595,7 @@ begin function
         3 _G
       end locals
 
-[4] return compileText(str).applyEnv(env || _G, null, ...)
+[53] return compileText(str).applyEnv(env || _G, null, ...)
 
       begin tail call method
         begin call method
@@ -53,7 +623,7 @@ begin function
   end set env var eval
 
 
-[7] var events = {}
+[56] var events = {}
 
   begin set local var
     begin object 0
@@ -61,55 +631,174 @@ begin function
   end set local var events (2 0)
 
 
-[9] function addEventListener(event_name, func, user_params){
+[58] function addEventListener(eventName, func, zOrder){
 
   begin set env var
     begin function
       begin locals, total 5
-        0 event_name (param)
+        0 eventName (param)
         1 func (param)
-        2 user_params (param)
+        2 zOrder (param)
         3 _E
         4 _G
       end locals
 
-[10] events[event_name][func] = user_params
+[59] functionof func || return;
+
+      begin pop
+        begin logic ||
+          begin functionof
+            get local var func (1 0 param)
+          end functionof
+          begin code list
+            return
+          end code list ret values 1
+        end logic ||
+      end pop ret values 0
+
+
+[60] events[eventName][func] = zOrder || 0
 
       begin set property
-        get local var user_params (2 0 param)
+        begin logic ||
+          get local var zOrder (2 0 param)
+          push const number 0
+        end logic ||
         begin get property auto create
           get local var auto create events (2 1)
-          get local var event_name (0 0 param)
+          get local var eventName (0 0 param)
         end get property auto create ret values 1
         get local var func (1 0 param)
       end set property ret values 0
+
+
+[61] events[eventName].rsort()
+
+      begin call method
+        begin get property
+          get local var events (2 1)
+          get local var eventName (0 0 param)
+        end get property ret values 1
+        begin params 1
+          push const string "rsort"
+        end params ret values 1
+      end call method ret values 0
+
+
+[62] return [eventName func]
+
+      begin code list
+        begin return
+          begin array 2
+            begin set auto index
+              get local var eventName (0 0 param)
+            end set auto index
+            ,
+            begin set auto index
+              get local var func (1 0 param)
+            end set auto index
+          end array
+        end return values 1
+      end code list ret values 0
     end function
   end set env var addEventListener
 
 
-[13] function triggerEvent(event_name, params){
+[65] function removeEventListener(eventName, func){
+
+  begin set env var
+    begin function
+      begin locals, total 4
+        0 eventName (param)
+        1 func (param)
+        2 _E
+        3 _G
+      end locals
+
+[66] if(arrayof eventName){
+
+      begin if
+        begin bool exp
+          begin arrayof
+            get local var eventName (0 0 param)
+          end arrayof
+        end bool exp
+        begin then
+
+[67] eventName, func = eventName[0], eventName[1]
+
+          begin scope
+            begin set local var
+              begin set local var
+                begin params 2
+                  begin get property
+                    get local var eventName (0 0 param)
+                    push const number 0
+                  end get property ret values 1
+                  ,
+                  begin get property
+                    get local var eventName (0 0 param)
+                    push const number 1
+                  end get property ret values 1
+                end params ret values 2
+              end set local var func (1 0 param)
+            end set local var eventName (0 0 param)
+          end scope ret values 0
+        end then
+      end if ret values 0
+
+
+[69] if(eventName in events){
+
+      begin if
+        begin bool exp
+          begin in
+            get local var eventName (0 0 param)
+            get local var events (2 1)
+          end in
+        end bool exp
+        begin then
+
+[70] delete events[eventName][func]
+
+          begin scope
+            begin delete
+              begin get property
+                get local var events (2 1)
+                get local var eventName (0 0 param)
+              end get property ret values 1
+              get local var func (1 0 param)
+            end delete
+          end scope ret values 0
+        end then
+      end if ret values 0
+    end function
+  end set env var removeEventListener
+
+
+[74] function triggerEvent(eventName, params){
 
   begin set env var
     begin function
       begin locals, total 8
-        0 event_name (param)
+        0 eventName (param)
         1 params (param)
         2 _E
         3 _G
       end locals
 
-[14] for(var func, user_params in events[event_name]){
+[76] for(var func, zOrder in events[eventName]){
 
       begin scope
         begin locals 4
           4 func
-          5 user_params
+          5 zOrder
           6 #func
           7 #valid
         end locals
         new local var func (4 0)
 
-        new local var user_params (5 0)
+        new local var zOrder (5 0)
 
         new local var #func (6 0 temp)
 
@@ -120,7 +809,7 @@ begin function
             begin call method
               begin get property
                 get local var events (2 1)
-                get local var event_name (0 0 param)
+                get local var eventName (0 0 param)
               end get property ret values 1
               begin params 1
                 push const string "__iter"
@@ -137,7 +826,7 @@ begin function
                     begin params 0
                     end params ret values 0
                   end call ret values 3
-                end set local var user_params (5 0)
+                end set local var zOrder (5 0)
               end set local var func (4 0)
             end set local var #valid (7 0 temp)
 
@@ -153,16 +842,14 @@ begin function
             end if ret values 0
 
 
-[15] func(params user_params)
+[77] func(params)
 
             begin scope
               begin call
                 get local var func (4 0)
-                begin params 2
+                begin params 1
                   get local var params (1 0 param)
-                  ,
-                  get local var user_params (5 0)
-                end params ret values 2
+                end params ret values 1
               end call ret values 0
             end scope ret values 0
           end loop ret values 0
@@ -172,7 +859,7 @@ begin function
   end set env var triggerEvent
 
 
-[19] var timers = {}
+[81] var timers = {}
 
   begin set local var
     begin object 0
@@ -180,20 +867,58 @@ begin function
   end set local var timers (3 0)
 
 
-[21] function setTimeout(delay_ms, func, count){
+[83] function isCallable(f){ return typeof f === "function" || typeof f === "object" || typeof f === "userdata" }
 
   begin set env var
     begin function
-      begin locals, total 6
-        0 delay_ms (param)
-        1 func (param)
+      begin locals, total 3
+        0 f (param)
+        1 _E
+        2 _G
+      end locals
+      begin return
+        begin logic ||
+          begin logic ||
+            begin logic ===
+              begin typeof
+                get local var f (0 0 param)
+              end typeof
+              push const string "function"
+            end logic ===
+            begin logic ===
+              begin typeof
+                get local var f (0 0 param)
+              end typeof
+              push const string "object"
+            end logic ===
+          end logic ||
+          begin logic ===
+            begin typeof
+              get local var f (0 0 param)
+            end typeof
+            push const string "userdata"
+          end logic ===
+        end logic ||
+      end return values 1
+    end function
+  end set env var isCallable
+
+
+[85] function setTimeout(func, delay, count, priority){
+
+  begin set env var
+    begin function
+      begin locals, total 7
+        0 func (param)
+        1 delay (param)
         2 count (param)
-        3 _E
-        4 _G
-        5 i
+        3 priority (param)
+        4 _E
+        5 _G
+        6 i
       end locals
 
-[22] count = count || 1
+[86] count = count || 1
 
       begin set local var
         begin logic ||
@@ -203,7 +928,7 @@ begin function
       end set local var count (2 0 param)
 
 
-[23] count > 0 && func || return;
+[87] count > 0 && functionof func || return;
 
       begin pop
         begin logic ||
@@ -212,7 +937,9 @@ begin function
               get local var count (2 0 param)
               push const number 0
             end logic >
-            get local var func (1 0 param)
+            begin functionof
+              get local var func (0 0 param)
+            end functionof
           end logic &&
           begin code list
             return
@@ -221,75 +948,93 @@ begin function
       end pop ret values 0
 
 
-[24] var i = #timers
+[88] var i = func // #timers
 
       begin set local var
-        begin length
-          get local var timers (3 1)
-        end length
-      end set local var i (5 0)
+        get local var func (0 0 param)
+      end set local var i (6 0)
 
 
-[25] timers[i] = {
+[89] timers[i] = {
 
       begin set property
-        begin object 4
+        begin object 5
 
-[26] next_time_ms = app.getTimeMS() + delay_ms
+[90] nextTime = app.timeSec + delay
 
           begin set by name
             begin operator +
-              begin call method
+              begin get property
                 get env var app
-                begin params 1
-                  push const string "getTimeMS"
-                end params ret values 1
-              end call method ret values 1
-              get local var delay_ms (0 0 param)
+                push const string "timeSec"
+              end get property ret values 1
+              get local var delay (1 0 param)
             end operator +
-          end set by name: [next_time_ms]
+          end set by name: [nextTime]
           ,
 
-[27] delay_ms = delay_ms
+[91] delay = delay
 
           begin set by name
-            get local var delay_ms (0 0 param)
-          end set by name: [delay_ms]
+            get local var delay (1 0 param)
+          end set by name: [delay]
           ,
 
-[28] func = func
+[92] func = func
 
           begin set by name
-            get local var func (1 0 param)
+            get local var func (0 0 param)
           end set by name: [func]
           ,
 
-[29] count = count
+[93] count = count
 
           begin set by name
             get local var count (2 0 param)
           end set by name: [count]
+          ,
+
+[94] priority = priority || 0
+
+          begin set by name
+            begin logic ||
+              get local var priority (3 0 param)
+              push const number 0
+            end logic ||
+          end set by name: [priority]
         end object
 
-[25] timers[i] = {
+[89] timers[i] = {
 
         get local var auto create timers (3 1)
-        get local var i (5 0)
+        get local var i (6 0)
       end set property ret values 0
 
 
-[31] return i
+[97] timers.rsort "priority"
+
+      begin call method
+        get local var timers (3 1)
+        begin params 2
+          push const string "rsort"
+          ,
+          push const string "priority"
+        end params ret values 2
+      end call method ret values 0
+
+
+[98] return i
 
       begin code list
         begin return
-          get local var i (5 0)
+          get local var i (6 0)
         end return values 1
       end code list ret values 0
     end function
   end set env var setTimeout
 
 
-[34] function clearTimeout(t){
+[101] function clearTimeout(t){
 
   begin set env var
     begin function
@@ -299,7 +1044,7 @@ begin function
         2 _G
       end locals
 
-[35] delete timers[t]
+[102] delete timers[t]
 
       begin delete
         get local var timers (3 1)
@@ -309,11 +1054,18 @@ begin function
   end set env var clearTimeout
 
 
-[38] addEventListener("enterFrame", function(){
+[105] HIGH_PRIORITY = 999999
+
+  begin set env var
+    push const number 999999
+  end set env var HIGH_PRIORITY
+
+
+[107] addEventListener("enterFrame" function(){
 
   begin call method
     get local var _E (0 0)
-    begin params 3
+    begin params 4
       push const string "addEventListener"
       ,
       push const string "enterFrame"
@@ -322,22 +1074,20 @@ begin function
         begin locals, total 7
           0 _E
           1 _G
-          2 time_ms
+          2 time
         end locals
 
-[39] var time_ms = app.getTimeMS()
+[108] var time = app.timeSec
 
         begin set local var
-          begin call method
+          begin get property
             get env var app
-            begin params 1
-              push const string "getTimeMS"
-            end params ret values 1
-          end call method ret values 1
-        end set local var time_ms (2 0)
+            push const string "timeSec"
+          end get property ret values 1
+        end set local var time (2 0)
 
 
-[40] for(var i, t in timers){
+[109] for(var i, t in timers){
 
         begin scope
           begin locals 4
@@ -389,91 +1139,130 @@ begin function
               end if ret values 0
 
 
-[41] if(t.next_time_ms >= time_ms){
+[110] if(t.nextTime <= time){
 
               begin scope
                 begin if
                   begin bool exp
-                    begin logic >=
+                    begin logic <=
                       begin get property
                         get local var t (4 0)
-                        push const string "next_time_ms"
+                        push const string "nextTime"
                       end get property ret values 1
-                      get local var time_ms (2 0)
-                    end logic >=
+                      get local var time (2 0)
+                    end logic <=
                   end bool exp
                   begin then
 
-[42] t.func()
+[111] t.nextTime = time + t.delay
 
                     begin scope
-                      begin call method
-                        get local var t (4 0)
-                        begin params 1
-                          push const string "func"
-                        end params ret values 1
-                      end call method ret values 0
+                      begin set property
+                        begin operator +
+                          get local var time (2 0)
+                          begin get property
+                            get local var t (4 0)
+                            push const string "delay"
+                          end get property ret values 1
+                        end operator +
+                        get local var auto create t (4 0)
+                        push const string "nextTime"
+                      end set property ret values 0
 
 
-[43] if(t.count <= 1){
+[112] if(t.count === true){
 
                       begin if
                         begin bool exp
-                          begin logic <=
+                          begin logic ===
                             begin get property
                               get local var t (4 0)
                               push const string "count"
                             end get property ret values 1
-                            push const number 1
-                          end logic <=
+                            const true
+                          end logic ===
                         end bool exp
                         begin then
 
-[44] delete timers[i]
+[113] t.func.call(null)
 
                           begin scope
-                            begin delete
-                              get local var timers (3 1)
-                              get local var i (3 0)
-                            end delete
-
-
-[45] continue
-
-                            continue
+                            begin call method
+                              begin get property
+                                get local var t (4 0)
+                                push const string "func"
+                              end get property ret values 1
+                              begin params 2
+                                push const string "call"
+                                ,
+                                const null
+                              end params ret values 2
+                            end call method ret values 0
                           end scope ret values 0
                         end then
+                        begin else
+
+[115] if(t.count <= 1){
+
+                          begin scope
+                            begin if
+                              begin bool exp
+                                begin logic <=
+                                  begin get property
+                                    get local var t (4 0)
+                                    push const string "count"
+                                  end get property ret values 1
+                                  push const number 1
+                                end logic <=
+                              end bool exp
+                              begin then
+
+[116] delete timers[i]
+
+                                begin scope
+                                  begin delete
+                                    get local var timers (3 1)
+                                    get local var i (3 0)
+                                  end delete
+                                end scope ret values 0
+                              end then
+                              begin else
+
+[118] t.count = t.count - 1
+
+                                begin scope
+                                  begin set property
+                                    begin operator -
+                                      begin get property
+                                        get local var t (4 0)
+                                        push const string "count"
+                                      end get property ret values 1
+                                      push const number 1
+                                    end operator -
+                                    get local var auto create t (4 0)
+                                    push const string "count"
+                                  end set property ret values 0
+                                end scope ret values 0
+                              end else
+                            end if ret values 0
+
+
+[120] t.func.call(null)
+
+                            begin call method
+                              begin get property
+                                get local var t (4 0)
+                                push const string "func"
+                              end get property ret values 1
+                              begin params 2
+                                push const string "call"
+                                ,
+                                const null
+                              end params ret values 2
+                            end call method ret values 0
+                          end scope ret values 0
+                        end else
                       end if ret values 0
-
-
-[47] t.count = t.count - 1
-
-                      begin set property
-                        begin operator -
-                          begin get property
-                            get local var t (4 0)
-                            push const string "count"
-                          end get property ret values 1
-                          push const number 1
-                        end operator -
-                        get local var auto create t (4 0)
-                        push const string "count"
-                      end set property ret values 0
-
-
-[48] t.next_time_ms = time_ms + t.delay_ms
-
-                      begin set property
-                        begin operator +
-                          get local var time_ms (2 0)
-                          begin get property
-                            get local var t (4 0)
-                            push const string "delay_ms"
-                          end get property ret values 1
-                        end operator +
-                        get local var auto create t (4 0)
-                        push const string "next_time_ms"
-                      end set property ret values 0
                     end scope ret values 0
                   end then
                 end if ret values 0
@@ -482,11 +1271,561 @@ begin function
           end code list ret values 0
         end scope ret values 0
       end function
-    end params ret values 3
+      ,
+
+[124] } HIGH_PRIORITY+1)
+
+      begin operator +
+        get env var HIGH_PRIORITY
+        push const number 1
+      end operator +
+    end params ret values 4
   end call method ret values 0
 
 
-[51] })
+[126] function toNumber(a){
+
+  begin set env var
+    begin function
+      begin locals, total 3
+        0 a (param)
+        1 _E
+        2 _G
+      end locals
+
+[127] return numberof valueof a
+
+      begin return
+        begin numberof
+          begin valueof
+            get local var a (0 0 param)
+          end valueof
+        end numberof
+      end return values 1
+    end function
+  end set env var toNumber
+
+
+[130] function toString(a){
+
+  begin set env var
+    begin function
+      begin locals, total 3
+        0 a (param)
+        1 _E
+        2 _G
+      end locals
+
+[131] return stringof valueof a
+
+      begin return
+        begin stringof
+          begin valueof
+            get local var a (0 0 param)
+          end valueof
+        end stringof
+      end return values 1
+    end function
+  end set env var toString
+
+
+[134] function toArray(a){
+
+  begin set env var
+    begin function
+      begin locals, total 9
+        0 a (param)
+        1 _E
+        2 _G
+        3 arr
+        4 type
+      end locals
+
+[135] var arr = arrayof a
+
+      begin set local var
+        begin arrayof
+          get local var a (0 0 param)
+        end arrayof
+      end set local var arr (3 0)
+
+
+[136] arr && return arr;
+
+      begin pop
+        begin logic &&
+          get local var arr (3 0)
+          begin return
+            get local var arr (3 0)
+          end return values 1
+        end logic &&
+      end pop ret values 0
+
+
+[137] var type = typeof a
+
+      begin set local var
+        begin typeof
+          get local var a (0 0 param)
+        end typeof
+      end set local var type (4 0)
+
+
+[138] if(type == "number" || type == "string" || type == "boolean" || type == "userdata"){
+
+      begin if
+        begin bool exp
+          begin logic ||
+            begin logic ||
+              begin logic ||
+                begin logic ==
+                  get local var type (4 0)
+                  push const string "number"
+                end logic ==
+                begin logic ==
+                  get local var type (4 0)
+                  push const string "string"
+                end logic ==
+              end logic ||
+              begin logic ==
+                get local var type (4 0)
+                push const string "boolean"
+              end logic ==
+            end logic ||
+            begin logic ==
+              get local var type (4 0)
+              push const string "userdata"
+            end logic ==
+          end logic ||
+        end bool exp
+        begin then
+
+[139] return [a]
+
+          begin scope
+            begin return
+              begin array 1
+                begin set auto index
+                  get local var a (0 0 param)
+                end set auto index
+              end array
+            end return values 1
+          end scope ret values 0
+        end then
+      end if ret values 0
+
+
+[141] if(type == "object"){
+
+      begin if
+        begin bool exp
+          begin logic ==
+            get local var type (4 0)
+            push const string "object"
+          end logic ==
+        end bool exp
+        begin then
+
+[142] arr = []
+
+          begin scope
+            begin set local var
+              begin array 0
+              end array
+            end set local var arr (3 0)
+
+
+[143] for(var i, v in a){
+
+            begin scope
+              begin locals 4
+                5 i
+                6 v
+                7 #func
+                8 #valid
+              end locals
+              new local var i (5 0)
+
+              new local var v (6 0)
+
+              new local var #func (7 0 temp)
+
+              new local var #valid (8 0 temp)
+
+              begin code list
+                begin set local var
+                  begin call method
+                    get local var a (0 0 param)
+                    begin params 1
+                      push const string "__iter"
+                    end params ret values 1
+                  end call method ret values 1
+                end set local var #func (7 0 temp)
+
+                begin loop
+                  begin set local var
+                    begin set local var
+                      begin set local var
+                        begin call
+                          get local var #func (7 0 temp)
+                          begin params 0
+                          end params ret values 0
+                        end call ret values 3
+                      end set local var v (6 0)
+                    end set local var i (5 0)
+                  end set local var #valid (8 0 temp)
+
+                  begin if
+                    begin bool exp
+                      begin logic not
+                        get local var #valid (8 0 temp)
+                      end logic not
+                    end bool exp
+                    begin then
+                      break
+                    end then
+                  end if ret values 0
+
+
+[144] arr.push(v)
+
+                  begin scope
+                    begin call method
+                      get local var arr (3 0)
+                      begin params 2
+                        push const string "push"
+                        ,
+                        get local var v (6 0)
+                      end params ret values 2
+                    end call method ret values 0
+                  end scope ret values 0
+                end loop ret values 0
+              end code list ret values 0
+            end scope ret values 0
+
+
+[146] return arr
+
+            begin code list
+              begin return
+                get local var arr (3 0)
+              end return values 1
+            end code list ret values 0
+          end scope ret values 0
+        end then
+      end if ret values 0
+
+
+[148] return null
+
+      begin code list
+        begin return
+          const null
+        end return values 1
+      end code list ret values 0
+    end function
+  end set env var toArray
+
+
+[151] function toObject(a){
+
+  begin set env var
+    begin function
+      begin locals, total 9
+        0 a (param)
+        1 _E
+        2 _G
+        3 object
+        4 type
+      end locals
+
+[152] var object = objectof a
+
+      begin set local var
+        begin objectof
+          get local var a (0 0 param)
+        end objectof
+      end set local var object (3 0)
+
+
+[153] object && return object;
+
+      begin pop
+        begin logic &&
+          get local var object (3 0)
+          begin return
+            get local var object (3 0)
+          end return values 1
+        end logic &&
+      end pop ret values 0
+
+
+[154] var type = typeof a
+
+      begin set local var
+        begin typeof
+          get local var a (0 0 param)
+        end typeof
+      end set local var type (4 0)
+
+
+[155] if(type == "number" || type == "string" || type == "boolean" || type == "userdata"){
+
+      begin if
+        begin bool exp
+          begin logic ||
+            begin logic ||
+              begin logic ||
+                begin logic ==
+                  get local var type (4 0)
+                  push const string "number"
+                end logic ==
+                begin logic ==
+                  get local var type (4 0)
+                  push const string "string"
+                end logic ==
+              end logic ||
+              begin logic ==
+                get local var type (4 0)
+                push const string "boolean"
+              end logic ==
+            end logic ||
+            begin logic ==
+              get local var type (4 0)
+              push const string "userdata"
+            end logic ==
+          end logic ||
+        end bool exp
+        begin then
+
+[156] return {a}
+
+          begin scope
+            begin return
+              begin object 1
+                begin set auto index
+                  get local var a (0 0 param)
+                end set auto index
+              end object
+            end return values 1
+          end scope ret values 0
+        end then
+      end if ret values 0
+
+
+[158] if(type == "array"){
+
+      begin if
+        begin bool exp
+          begin logic ==
+            get local var type (4 0)
+            push const string "array"
+          end logic ==
+        end bool exp
+        begin then
+
+[159] object = {}
+
+          begin scope
+            begin set local var
+              begin object 0
+              end object
+            end set local var object (3 0)
+
+
+[160] for(var i, v in a){
+
+            begin scope
+              begin locals 4
+                5 i
+                6 v
+                7 #func
+                8 #valid
+              end locals
+              new local var i (5 0)
+
+              new local var v (6 0)
+
+              new local var #func (7 0 temp)
+
+              new local var #valid (8 0 temp)
+
+              begin code list
+                begin set local var
+                  begin call method
+                    get local var a (0 0 param)
+                    begin params 1
+                      push const string "__iter"
+                    end params ret values 1
+                  end call method ret values 1
+                end set local var #func (7 0 temp)
+
+                begin loop
+                  begin set local var
+                    begin set local var
+                      begin set local var
+                        begin call
+                          get local var #func (7 0 temp)
+                          begin params 0
+                          end params ret values 0
+                        end call ret values 3
+                      end set local var v (6 0)
+                    end set local var i (5 0)
+                  end set local var #valid (8 0 temp)
+
+                  begin if
+                    begin bool exp
+                      begin logic not
+                        get local var #valid (8 0 temp)
+                      end logic not
+                    end bool exp
+                    begin then
+                      break
+                    end then
+                  end if ret values 0
+
+
+[161] object.push(v)
+
+                  begin scope
+                    begin call method
+                      get local var object (3 0)
+                      begin params 2
+                        push const string "push"
+                        ,
+                        get local var v (6 0)
+                      end params ret values 2
+                    end call method ret values 0
+                  end scope ret values 0
+                end loop ret values 0
+              end code list ret values 0
+            end scope ret values 0
+
+
+[163] return object
+
+            begin code list
+              begin return
+                get local var object (3 0)
+              end return values 1
+            end code list ret values 0
+          end scope ret values 0
+        end then
+      end if ret values 0
+
+
+[165] return null
+
+      begin code list
+        begin return
+          const null
+        end return values 1
+      end code list ret values 0
+    end function
+  end set env var toObject
+
+
+[168] function deepClone(p){
+
+  begin set env var
+    begin function
+      begin locals, total 7
+        0 p (param)
+        1 _E
+        2 _G
+      end locals
+
+[169] p = clone p
+
+      begin set local var
+        begin clone
+          get local var p (0 0 param)
+        end clone
+      end set local var p (0 0 param)
+
+
+[170] for(var k, v in p){
+
+      begin scope
+        begin locals 4
+          3 k
+          4 v
+          5 #func
+          6 #valid
+        end locals
+        new local var k (3 0)
+
+        new local var v (4 0)
+
+        new local var #func (5 0 temp)
+
+        new local var #valid (6 0 temp)
+
+        begin code list
+          begin set local var
+            begin call method
+              get local var p (0 0 param)
+              begin params 1
+                push const string "__iter"
+              end params ret values 1
+            end call method ret values 1
+          end set local var #func (5 0 temp)
+
+          begin loop
+            begin set local var
+              begin set local var
+                begin set local var
+                  begin call
+                    get local var #func (5 0 temp)
+                    begin params 0
+                    end params ret values 0
+                  end call ret values 3
+                end set local var v (4 0)
+              end set local var k (3 0)
+            end set local var #valid (6 0 temp)
+
+            begin if
+              begin bool exp
+                begin logic not
+                  get local var #valid (6 0 temp)
+                end logic not
+              end bool exp
+              begin then
+                break
+              end then
+            end if ret values 0
+
+
+[171] p[k] = deepClone(v)
+
+            begin scope
+              begin set property
+                begin call method
+                  get local var _E (1 0)
+                  begin params 2
+                    push const string "deepClone"
+                    ,
+                    get local var v (4 0)
+                  end params ret values 2
+                end call method ret values 1
+                get local var auto create p (0 0 param)
+                get local var k (3 0)
+              end set property ret values 0
+            end scope ret values 0
+          end loop ret values 0
+        end code list ret values 0
+      end scope ret values 0
+
+
+[173] return p
+
+      begin code list
+        begin return
+          get local var p (0 0 param)
+        end return values 1
+      end code list ret values 0
+    end function
+  end set env var deepClone
 
   begin code list
     begin return

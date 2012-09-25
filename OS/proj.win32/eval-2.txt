@@ -1,0 +1,33 @@
+
+[FILE] 
+[1] Object.__setempty = Object.push Object.__getempty = Object.pop
+
+begin function
+  begin locals, total 2
+    0 _E
+    1 _G
+  end locals
+  begin set property
+    begin get property
+      get env var Object
+      push const string "push"
+    end get property ret values 1
+    get env var auto create Object
+    push const string "__setempty"
+  end set property ret values 0
+
+  begin set property
+    begin get property
+      get env var Object
+      push const string "pop"
+    end get property ret values 1
+    get env var auto create Object
+    push const string "__getempty"
+  end set property ret values 0
+
+  begin code list
+    begin return
+      get local var _E (0 0)
+    end return values 1
+  end code list ret values 0
+end function

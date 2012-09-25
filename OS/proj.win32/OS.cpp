@@ -228,7 +228,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	os->setSetting(OS_SETTING_CREATE_DEBUG_INFO, true);
 	os->setSetting(OS_SETTING_CREATE_DEBUG_OPCODES, true);
-	os->setSetting(OS_SETTING_RECOMPILE_SOURCECODE, true);
 
 	os->newObject();
 	for(int i = 0; i < argc; i++){

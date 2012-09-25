@@ -97,7 +97,7 @@ print "7 || 9 = "..(7 || 9)
 
 // ========================================================
 
-{
+;{
 	var v1 = {x=1 y=2}
 	var a = {[v1]="vv1" v2="vv2"}
 	print( a[v1] a.v2 )
@@ -313,14 +313,6 @@ print {b=9 4 d=0 c=276 15 a=39 3}.krsort()
 
 print "User sorted object by keys (reverse)"
 print {b=9 4 d=0 c=276 15 a=39 3}.krsort(function(a b){return (a % 10) - (b % 10)})
-
-function printBackTrace(skip_funcs){
-	for(var i, t in debugBackTrace(skip_funcs + 1)){
-		print concat("======= ["i"]")
-		print concat("  function: "t.name", arguments: "t.arguments)
-		print concat("  line: "t.line", pos: "t.pos", file: "t.file)
-	}
-}
 
 var function testFunc(arg1, arg2){
 	var function testFunc2(arg1, arg2, arg3){

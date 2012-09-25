@@ -639,7 +639,7 @@ begin function
         22 #func
         23 #valid
       end locals
-      get env var k
+      nop
 
       new local var #func (22 0 temp)
 
@@ -826,9 +826,9 @@ begin function
         24 #func
         25 #valid
       end locals
-      get env var k
+      nop
 
-      get env var v
+      nop
 
       new local var #func (24 0 temp)
 

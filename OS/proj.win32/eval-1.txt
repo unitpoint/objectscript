@@ -1,0 +1,119 @@
+
+[FILE] 
+[1] Object.__get@length = function(){ return #this } modules_loaded = {} function require(filename, required){ filename = resolvePath(filename) return filename && (modules_loaded.rawget(filename) || function(){ modules_loaded[filename] = {} modules_loaded[filename] = compileFile(filename, required)() return modules_loaded[filename] }()) }
+
+begin function
+  begin locals, total 2
+    0 _E
+    1 _G
+  end locals
+  begin set property
+    begin function
+      begin locals, total 2
+        0 _E
+        1 _G
+      end locals
+      begin return
+        begin length
+          push this
+        end length
+      end return values 1
+    end function
+    get env var auto create Object
+    push const string "__get@length"
+  end set property ret values 0
+
+  begin set env var
+    begin object 0
+    end object
+  end set env var modules_loaded
+
+  begin set env var
+    begin function
+      begin locals, total 4
+        0 filename (param)
+        1 required (param)
+        2 _E
+        3 _G
+      end locals
+      begin set local var
+        begin call method
+          get local var _E (2 0)
+          begin params 2
+            push const string "resolvePath"
+            ,
+            get local var filename (0 0 param)
+          end params ret values 2
+        end call method ret values 1
+      end set local var filename (0 0 param)
+
+      begin code list
+        begin return
+          begin logic &&
+            get local var filename (0 0 param)
+            begin logic ||
+              begin call method
+                get env var modules_loaded
+                begin params 2
+                  push const string "rawget"
+                  ,
+                  get local var filename (0 0 param)
+                end params ret values 2
+              end call method ret values 1
+              begin call
+                begin function
+                  begin locals, total 2
+                    0 _E
+                    1 _G
+                  end locals
+                  begin set property
+                    begin object 0
+                    end object
+                    get env var auto create modules_loaded
+                    get local var filename (0 1 param)
+                  end set property ret values 0
+
+                  begin set property
+                    begin call
+                      begin call method
+                        get local var _E (0 0)
+                        begin params 3
+                          push const string "compileFile"
+                          ,
+                          get local var filename (0 1 param)
+                          ,
+                          get local var required (1 1 param)
+                        end params ret values 3
+                      end call method ret values 1
+                      begin params 0
+                      end params ret values 0
+                    end call ret values 1
+                    get env var auto create modules_loaded
+                    get local var filename (0 1 param)
+                  end set property ret values 0
+
+                  begin code list
+                    begin return
+                      begin get property
+                        get env var modules_loaded
+                        get local var filename (0 1 param)
+                      end get property ret values 1
+                    end return values 1
+                  end code list ret values 0
+                end function
+                begin params 0
+                end params ret values 0
+              end call ret values 1
+            end logic ||
+          end logic &&
+        end return values 1
+      end code list ret values 0
+    end function
+  end set env var require
+
+  begin code list
+    begin return
+      get local var _E (0 0)
+    end return values 1
+  end code list ret values 0
+end function
