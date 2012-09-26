@@ -6084,6 +6084,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 	Params p = Params(_p)
 		.setAllowAssign(false)
 		.setAllowBinaryOperator(false)
+		.setAllowInOperator(_p.allow_in_operator)
 		// .setAllowParams(false)
 		.setAllowAutoCall(false) // binary_operator->type == Tokenizer::OPERATOR_ASSIGN)
 		.setAllowRootBlocks(false);
