@@ -118,7 +118,7 @@
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("0.93-vm2")
+#define OS_VERSION OS_TEXT("0.94-vm2")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_SOURCECODE_EXT OS_TEXT(".os")
@@ -2584,6 +2584,7 @@ namespace ObjectScript
 			void registerValue(GCValue * val);
 			GCValue * unregisterValue(int value_id);
 			void deleteValues(bool del_ref_counted_also);
+			static int compareGCValues(const void * a, const void * b);
 
 			bool valueToBool(Value val);
 			OS_INT valueToInt(Value val, bool valueof_enabled = false);

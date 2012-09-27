@@ -9879,12 +9879,12 @@ void OS::Core::deleteValues(bool del_ref_counted_also)
 				break;
 			}
 		}
-		if(values.count == 0){
-			free(values.heads);
-			values.heads = NULL;
-			values.head_mask = 0;
-			values.next_id = 1;
-		}
+	}
+	if(values.heads && values.count == 0){
+		free(values.heads);
+		values.heads = NULL;
+		values.head_mask = 0;
+		values.next_id = 1;
 	}
 }
 
@@ -10740,6 +10740,7 @@ bool OS::Core::init()
 	for(int i = 0; i < PROTOTYPE_COUNT; i++){
 		prototypes[i] = newObjectValue(NULL);
 		prototypes[i]->type = OS_VALUE_TYPE_OBJECT;
+		prototypes[i]->external_ref_count++;
 	}
 	check_recursion = newObjectValue();
 	global_vars = newObjectValue();
@@ -10766,15 +10767,14 @@ bool OS::Core::init()
 	return true;
 }
 
+int OS::Core::compareGCValues(const void * a, const void * b)
+{
+	return (*(GCValue**)a)->value_id - (*(GCValue**)b)->value_id;
+}
+
 void OS::Core::shutdown()
 {
-	// freeAutoreleaseValues();
-	// vectorClear(autorelease_values);
-	free(stack_values.buf);
-	stack_values.buf = NULL;
-	stack_values.capacity = 0;
 	stack_values.count = 0;
-
 	while(call_stack_funcs.count > 0){
 		StackFunction * stack_func = &call_stack_funcs[--call_stack_funcs.count];
 		clearStackFunction(stack_func);
@@ -10782,49 +10782,45 @@ void OS::Core::shutdown()
 	allocator->vectorClear(call_stack_funcs);
 	// vectorClear(cache_values);
 
+	// gcFull();
 	gcResetGreyList();
+
+	allocator->deleteObj(strings);
+
+	int i;
+	// try to finalize the values accurately
+	Vector<GCValue*> collectedValues;
+	allocator->vectorReserveCapacity(collectedValues, values.count OS_DBG_FILEPOS);
+	for(int i = 0; i <= values.head_mask; i++){
+		for(GCValue * value = values.heads[i]; value; value = value->hash_next){
+			allocator->vectorAddItem(collectedValues, value OS_DBG_FILEPOS);
+		}
+	}
+	::qsort(collectedValues.buf, collectedValues.count, sizeof(GCValue*), compareGCValues);
+	for(i = collectedValues.count-1; i >= 0; i--){
+		deleteValue(collectedValues[i]);
+	}
+	allocator->vectorClear(collectedValues);
+	deleteValues(true); // just clear values.heads
 
 	check_recursion = NULL;
 	global_vars = NULL;
 	user_pool = NULL;
 
-	int i;
 	for(i = 0; i < OS_ERROR_LEVELS; i++){
 		error_handlers[i] = NULL;
 	}
-
-	deleteValues(false);
 	for(i = 0; i < PROTOTYPE_COUNT; i++){
-		// releaseValue(prototypes[i]);
 		prototypes[i] = NULL;
 	}
-	// vectorClear(stack_values); // !!!
-
-	allocator->deleteObj(strings);
-	deleteValues(false);
-
-	// deleteTable(string_values_table);
-	// string_values_table = NULL;
-
-#ifdef OS_DEBUG
-	deleteValues(false);
-	if(values.count > 0){
-		for(int i = 0; i <= values.head_mask; i++){
-			for(GCValue * value = values.heads[i]; value; value = value->hash_next){
-				GCValue * leak_value = value;
-			}
-		}
-	}
-#endif
-	deleteValues(true);
 	deleteStringRefs();
-
-	if(stack_values.buf){
+	if(stack_values.buf){ // it makes sense because of someone could use stack while the finalizing in process
 		free(stack_values.buf);
 		stack_values.buf = NULL;
 		stack_values.capacity = 0;
 		stack_values.count = 0;
 	}
+	OS_ASSERT(!call_stack_funcs.count);
 }
 
 OS::String OS::changeFilenameExt(const String& filename, const String& ext)
@@ -13830,7 +13826,7 @@ void OS::clearUserdata(int crc, int offs)
 	switch(val.type){
 	case OS_VALUE_TYPE_USERDATA:
 		// case OS_VALUE_TYPE_USERPTR:
-		if(val.v.userdata->crc == crc && val.v.userdata->ptr){
+		if(val.v.userdata->crc == crc){ // && val.v.userdata->ptr){
 			core->clearValue(val.v.value);
 			// val.v.userdata->ptr = NULL;
 		}
@@ -16880,13 +16876,12 @@ void OS::initFunctionClass()
 			os->pushStackValue(offs); // first param - new this
 
 			Core::Value array_var = os->core->getStackValue(offs+1);
-			Core::GCValue * array_value = array_var.getGCValue();
-			if(array_value && array_value->table){
-				Core::Property * prop = array_value->table->first;
-				for(; prop; prop = prop->next){
-					os->core->pushValue(prop->value);	
+			if(array_var.type == OS_VALUE_TYPE_ARRAY){
+				int count = array_var.v.arr->values.count;
+				for(int i = 0; i < count; i++){
+					os->core->pushValue(array_var.v.arr->values[i]);
 				}
-				return os->call(array_value->table->count, need_ret_values);
+				return os->call(count, need_ret_values);
 			}
 			return os->call(0, need_ret_values);
 		}
