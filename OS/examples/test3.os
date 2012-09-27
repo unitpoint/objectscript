@@ -125,13 +125,27 @@ print p
 // inherit class
 var IvanPerson = extends Person {
     __construct: function(){
-        super.__construct.call(this, "Ivan", "Petrov")
+        super("Ivan", "Petrov")
     }
+	walk = function(){
+		echo "Soneone named "
+		super()
+	}
 }
 // create new instance of IvanPerson class
 var p = IvanPerson()
 p.walk()
 print p
+
+print "Person.walk.call"
+Person.walk.call(p)
+
+// ========================================================
+
+function foo(a, b){ return a + b }
+function bar(){ return foo.apply(null, arguments) }
+print "should be 5: "..bar(2 3)
+print "should be 9: "..bar(4 5)
 
 // ========================================================
 // new vector type class
