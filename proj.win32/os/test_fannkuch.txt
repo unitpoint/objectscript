@@ -1,0 +1,786 @@
+
+[FILE] test_fannkuch.os
+[1] print arg
+
+begin function
+  begin locals, total 7
+    0 _E
+    1 _G
+    2 fannkuch
+    3 n
+    4 start_time
+    5 sum
+    6 flips
+  end locals
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      get env var arg
+    end params ret values 2
+  end call method ret values 0
+
+
+[2] var fannkuch = function(n)
+
+  begin set local var
+    begin function
+      begin locals, total 19
+        0 n (param)
+        1 _E
+        2 _G
+        3 p
+        4 q
+        5 s
+        6 sign
+        7 maxflips
+        8 sum
+        9 i
+      end locals
+
+[4] var p, q, s, sign, maxflips, sum = {}, {}, {}, 1, 0, 0
+
+      begin set local var
+        begin set local var
+          begin set local var
+            begin set local var
+              begin set local var
+                begin set local var
+                  begin params 6
+                    begin object 0
+                    end object
+                    ,
+                    begin object 0
+                    end object
+                    ,
+                    begin object 0
+                    end object
+                    ,
+                    push const number 1
+                    ,
+                    push const number 0
+                    ,
+                    push const number 0
+                  end params ret values 6
+                end set local var sum (8 0)
+              end set local var maxflips (7 0)
+            end set local var sign (6 0)
+          end set local var s (5 0)
+        end set local var q (4 0)
+      end set local var p (3 0)
+
+
+[5] var i
+
+      begin params 1
+        new local var i (9 0)
+      end params ret values 0
+
+
+[6] for(i=1; i<=n; i++) p[i], q[i], s[i] = i, i, i
+
+      begin scope
+        begin set local var
+          push const number 1
+        end set local var i (9 0)
+
+        begin loop
+          begin if
+            begin bool exp
+              begin logic not
+                begin logic <=
+                  get local var i (9 0)
+                  get local var n (0 0 param)
+                end logic <=
+              end logic not
+            end bool exp
+            begin then
+              break
+            end then
+          end if ret values 0
+
+          begin set property
+            begin set property
+              begin set property
+                begin params 3
+                  get local var i (9 0)
+                  ,
+                  get local var i (9 0)
+                  ,
+                  get local var i (9 0)
+                end params ret values 3
+                get local var auto create s (5 0)
+                get local var i (9 0)
+              end set property ret values 2
+              get local var auto create q (4 0)
+              get local var i (9 0)
+            end set property ret values 1
+            get local var auto create p (3 0)
+            get local var i (9 0)
+          end set property ret values 0
+
+          begin code list
+            begin set local var
+              begin operator +
+                get local var i (9 0)
+                push const number 1
+              end operator +
+            end set local var i (9 0)
+          end code list ret values 0
+        end loop ret values 0
+      end scope ret values 0
+
+
+[7] for(;;){
+
+      begin scope
+        nop
+
+        begin loop
+
+[9] var q1 = p[1]				// Cache 1st element.
+
+          begin scope
+            begin locals 1
+              10 q1
+            end locals
+            begin set local var
+              begin get property
+                get local var p (3 0)
+                push const number 1
+              end get property ret values 1
+            end set local var q1 (10 0)
+
+
+[10] if(q1 != 1){
+
+            begin if
+              begin bool exp
+                begin logic !=
+                  get local var q1 (10 0)
+                  push const number 1
+                end logic !=
+              end bool exp
+              begin then
+
+[11] for(i=2; i<=n; i++) q[i] = p[i]		// Work on a copy.
+
+                begin scope
+                  begin locals 1
+                    11 flips
+                  end locals
+                  begin scope
+                    begin set local var
+                      push const number 2
+                    end set local var i (9 0)
+
+                    begin loop
+                      begin if
+                        begin bool exp
+                          begin logic not
+                            begin logic <=
+                              get local var i (9 0)
+                              get local var n (0 0 param)
+                            end logic <=
+                          end logic not
+                        end bool exp
+                        begin then
+                          break
+                        end then
+                      end if ret values 0
+
+                      begin set property
+                        begin get property
+                          get local var p (3 0)
+                          get local var i (9 0)
+                        end get property ret values 1
+                        get local var auto create q (4 0)
+                        get local var i (9 0)
+                      end set property ret values 0
+
+                      begin code list
+                        begin set local var
+                          begin operator +
+                            get local var i (9 0)
+                            push const number 1
+                          end operator +
+                        end set local var i (9 0)
+                      end code list ret values 0
+                    end loop ret values 0
+                  end scope ret values 0
+
+
+[12] var flips = 1
+
+                  begin set local var
+                    push const number 1
+                  end set local var flips (11 0)
+
+
+[13] for(;;){
+
+                  begin scope
+                    nop
+
+                    begin loop
+
+[14] var qq = q[q1]
+
+                      begin scope
+                        begin locals 2
+                          12 qq
+                          18 #temp
+                        end locals
+                        begin pop
+                          begin code list
+                            begin set local var
+                              begin get property
+                                get local var q (4 0)
+                                get local var q1 (10 0)
+                              end get property ret values 1
+                            end set local var qq (12 0)
+
+
+[15] if(qq == 1){				// ... until 1st element is 1.
+
+                            begin if
+                              begin bool exp
+                                begin logic ==
+                                  get local var qq (12 0)
+                                  push const number 1
+                                end logic ==
+                              end bool exp
+                              begin then
+
+[16] sum = sum + sign*flips
+
+                                begin scope
+                                  begin set local var
+                                    begin operator +
+                                      get local var sum (8 0)
+                                      begin operator *
+                                        get local var sign (6 0)
+                                        get local var flips (11 0)
+                                      end operator *
+                                    end operator +
+                                  end set local var sum (8 0)
+
+
+[17] if(flips > maxflips){
+
+                                  begin if
+                                    begin bool exp
+                                      begin logic >
+                                        get local var flips (11 0)
+                                        get local var maxflips (7 0)
+                                      end logic >
+                                    end bool exp
+                                    begin then
+
+[18] maxflips = flips
+
+                                      begin scope
+                                        begin set local var
+                                          get local var flips (11 0)
+                                        end set local var maxflips (7 0)
+                                      end scope ret values 0
+                                    end then
+                                  end if ret values 0
+
+
+[20] break
+
+                                  break
+                                end scope ret values 0
+                              end then
+                            end if ret values 0
+
+
+[22] q[q1] = q1
+
+                            begin set property
+                              get local var q1 (10 0)
+                              get local var auto create q (4 0)
+                              get local var q1 (10 0)
+                            end set property ret values 0
+
+
+[23] if(q1 >= 4){
+
+                            begin if
+                              begin bool exp
+                                begin logic >=
+                                  get local var q1 (10 0)
+                                  push const number 4
+                                end logic >=
+                              end bool exp
+                              begin then
+
+[24] var i, j = 2, q1 - 1
+
+                                begin scope
+                                  begin locals 2
+                                    13 i
+                                    14 j
+                                  end locals
+                                  begin set local var
+                                    begin set local var
+                                      begin params 2
+                                        push const number 2
+                                        ,
+                                        begin operator -
+                                          get local var q1 (10 0)
+                                          push const number 1
+                                        end operator -
+                                      end params ret values 2
+                                    end set local var j (14 0)
+                                  end set local var i (13 0)
+
+
+[25] for(;;){ q[i], q[j] = q[j], q[i]; if(++i >= --j) break }
+
+                                  begin scope
+                                    nop
+
+                                    begin loop
+                                      begin scope
+                                        begin set property
+                                          begin set property
+                                            begin params 2
+                                              begin get property
+                                                get local var q (4 0)
+                                                get local var j (14 0)
+                                              end get property ret values 1
+                                              ,
+                                              begin get property
+                                                get local var q (4 0)
+                                                get local var i (13 0)
+                                              end get property ret values 1
+                                            end params ret values 2
+                                            get local var auto create q (4 0)
+                                            get local var j (14 0)
+                                          end set property ret values 1
+                                          get local var auto create q (4 0)
+                                          get local var i (13 0)
+                                        end set property ret values 0
+
+                                        begin if
+                                          begin bool exp
+                                            begin logic >=
+                                              begin code list
+                                                begin set local var
+                                                  begin operator +
+                                                    get local var i (13 0)
+                                                    push const number 1
+                                                  end operator +
+                                                end set local var i (13 0)
+
+                                                get local var i (13 0)
+                                              end code list ret values 1
+                                              begin code list
+                                                begin set local var
+                                                  begin operator -
+                                                    get local var j (14 0)
+                                                    push const number 1
+                                                  end operator -
+                                                end set local var j (14 0)
+
+                                                get local var j (14 0)
+                                              end code list ret values 1
+                                            end logic >=
+                                          end bool exp
+                                          begin then
+                                            break
+                                          end then
+                                        end if ret values 0
+                                      end scope ret values 0
+
+                                      nop
+                                    end loop ret values 0
+                                  end scope ret values 0
+                                end scope ret values 0
+                              end then
+                            end if ret values 0
+
+
+[27] q1 = qq; flips++
+
+                            begin set local var
+                              get local var qq (12 0)
+                            end set local var q1 (10 0)
+
+                            begin code list
+                              begin set local var
+                                get local var flips (11 0)
+                              end set local var #temp (18 0)
+
+                              begin set local var
+                                begin operator +
+                                  get local var flips (11 0)
+                                  push const number 1
+                                end operator +
+                              end set local var flips (11 0)
+
+                              get local var #temp (18 0)
+                            end code list ret values 1
+                          end code list ret values 1
+                        end pop ret values 0
+                      end scope ret values 0
+
+
+[13] for(;;){
+
+                      nop
+                    end loop ret values 0
+                  end scope ret values 0
+                end scope ret values 0
+              end then
+            end if ret values 0
+
+
+[31] if(sign == 1){
+
+            begin if
+              begin bool exp
+                begin logic ==
+                  get local var sign (6 0)
+                  push const number 1
+                end logic ==
+              end bool exp
+              begin then
+
+[32] p[2], p[1] = p[1], p[2] sign = -1	// Rotate 1<-2.
+
+                begin scope
+                  begin set property
+                    begin set property
+                      begin params 2
+                        begin get property
+                          get local var p (3 0)
+                          push const number 1
+                        end get property ret values 1
+                        ,
+                        begin get property
+                          get local var p (3 0)
+                          push const number 2
+                        end get property ret values 1
+                      end params ret values 2
+                      get local var auto create p (3 0)
+                      push const number 1
+                    end set property ret values 1
+                    get local var auto create p (3 0)
+                    push const number 2
+                  end set property ret values 0
+
+                  begin set local var
+                    begin neg
+                      push const number 1
+                    end neg
+                  end set local var sign (6 0)
+                end scope ret values 0
+              end then
+              begin else
+
+[34] p[2], p[3] = p[3], p[2] sign = 1	// Rotate 1<-2 and 1<-2<-3.
+
+                begin scope
+                  begin set property
+                    begin set property
+                      begin params 2
+                        begin get property
+                          get local var p (3 0)
+                          push const number 3
+                        end get property ret values 1
+                        ,
+                        begin get property
+                          get local var p (3 0)
+                          push const number 2
+                        end get property ret values 1
+                      end params ret values 2
+                      get local var auto create p (3 0)
+                      push const number 3
+                    end set property ret values 1
+                    get local var auto create p (3 0)
+                    push const number 2
+                  end set property ret values 0
+
+                  begin set local var
+                    push const number 1
+                  end set local var sign (6 0)
+
+
+[35] for(i = 3;; i++){
+
+                  begin scope
+                    begin set local var
+                      push const number 3
+                    end set local var i (9 0)
+
+                    begin loop
+
+[37] var sx = s[i]
+
+                      begin scope
+                        begin locals 2
+                          15 sx
+                          16 t
+                        end locals
+                        begin set local var
+                          begin get property
+                            get local var s (5 0)
+                            get local var i (9 0)
+                          end get property ret values 1
+                        end set local var sx (15 0)
+
+
+[38] if(sx != 1){ s[i] = sx-1 break }
+
+                        begin if
+                          begin bool exp
+                            begin logic !=
+                              get local var sx (15 0)
+                              push const number 1
+                            end logic !=
+                          end bool exp
+                          begin then
+                            begin scope
+                              begin set property
+                                begin operator -
+                                  get local var sx (15 0)
+                                  push const number 1
+                                end operator -
+                                get local var auto create s (5 0)
+                                get local var i (9 0)
+                              end set property ret values 0
+
+                              break
+                            end scope ret values 0
+                          end then
+                        end if ret values 0
+
+
+[39] if(i == n) return sum, maxflips;	// Out of permutations.
+
+                        begin if
+                          begin bool exp
+                            begin logic ==
+                              get local var i (9 0)
+                              get local var n (0 0 param)
+                            end logic ==
+                          end bool exp
+                          begin then
+                            begin code list
+                              begin return
+                                get local var sum (8 0)
+                                ,
+                                get local var maxflips (7 0)
+                              end return values 2
+                            end code list ret values 0
+                          end then
+                        end if ret values 0
+
+
+[40] s[i] = i
+
+                        begin set property
+                          get local var i (9 0)
+                          get local var auto create s (5 0)
+                          get local var i (9 0)
+                        end set property ret values 0
+
+
+[42] var t = p[1] for(var j = 1; j <= i; j++){ p[j] = p[j+1] } p[i+1] = t
+
+                        begin set local var
+                          begin get property
+                            get local var p (3 0)
+                            push const number 1
+                          end get property ret values 1
+                        end set local var t (16 0)
+
+                        begin scope
+                          begin locals 1
+                            17 j
+                          end locals
+                          begin set local var
+                            push const number 1
+                          end set local var j (17 0)
+
+                          begin loop
+                            begin if
+                              begin bool exp
+                                begin logic not
+                                  begin logic <=
+                                    get local var j (17 0)
+                                    get local var i (9 0)
+                                  end logic <=
+                                end logic not
+                              end bool exp
+                              begin then
+                                break
+                              end then
+                            end if ret values 0
+
+                            begin scope
+                              begin set property
+                                begin get property
+                                  get local var p (3 0)
+                                  begin operator +
+                                    get local var j (17 0)
+                                    push const number 1
+                                  end operator +
+                                end get property ret values 1
+                                get local var auto create p (3 0)
+                                get local var j (17 0)
+                              end set property ret values 0
+                            end scope ret values 0
+
+                            begin code list
+                              begin set local var
+                                begin operator +
+                                  get local var j (17 0)
+                                  push const number 1
+                                end operator +
+                              end set local var j (17 0)
+                            end code list ret values 0
+                          end loop ret values 0
+                        end scope ret values 0
+
+                        begin set property
+                          get local var t (16 0)
+                          get local var auto create p (3 0)
+                          begin operator +
+                            get local var i (9 0)
+                            push const number 1
+                          end operator +
+                        end set property ret values 0
+                      end scope ret values 0
+
+
+[35] for(i = 3;; i++){
+
+                      begin code list
+                        begin set local var
+                          begin operator +
+                            get local var i (9 0)
+                            push const number 1
+                          end operator +
+                        end set local var i (9 0)
+                      end code list ret values 0
+                    end loop ret values 0
+                  end scope ret values 0
+                end scope ret values 0
+              end else
+            end if ret values 0
+          end scope ret values 0
+
+
+[7] for(;;){
+
+          nop
+        end loop ret values 0
+      end scope ret values 0
+    end function
+  end set local var fannkuch (2 0)
+
+
+[47] var n = numberof(arg && arg[1]) || 5
+
+  begin set local var
+    begin logic ||
+      begin numberof
+        begin logic &&
+          get env var arg
+          begin get property
+            get env var arg
+            push const number 1
+          end get property ret values 1
+        end logic &&
+      end numberof
+      push const number 5
+    end logic ||
+  end set local var n (3 0)
+
+
+[48] var start_time = getTimeSec()
+
+  begin set local var
+    begin call method
+      get local var _E (0 0)
+      begin params 1
+        push const string "getTimeSec"
+      end params ret values 1
+    end call method ret values 1
+  end set local var start_time (4 0)
+
+
+[49] var sum, flips = fannkuch(n)
+
+  begin set local var
+    begin set local var
+      begin call
+        get local var fannkuch (2 0)
+        begin params 1
+          get local var n (3 0)
+        end params ret values 1
+      end call ret values 2
+    end set local var flips (6 0)
+  end set local var sum (5 0)
+
+
+[50] echo(
+
+  begin call method
+    get local var _E (0 0)
+    begin params 11
+      push const string "echo"
+      ,
+
+[51] sum"\n"
+
+      get local var sum (5 0)
+      ,
+      push const string "
+"
+      ,
+
+[52] "Pfannkuchen("n") = "flips"\n"
+
+      push const string "Pfannkuchen("
+      ,
+      get local var n (3 0)
+      ,
+      push const string ") = "
+      ,
+      get local var flips (6 0)
+      ,
+      push const string "
+"
+      ,
+
+[53] "time = ", (getTimeSec() - start_time)"\n"
+
+      push const string "time = "
+      ,
+      begin operator -
+        begin call method
+          get local var _E (0 0)
+          begin params 1
+            push const string "getTimeSec"
+          end params ret values 1
+        end call method ret values 1
+        get local var start_time (4 0)
+      end operator -
+      ,
+      push const string "
+"
+    end params ret values 11
+  end call method ret values 0
+
+  begin code list
+    begin return
+      get local var _E (0 0)
+    end return values 1
+  end code list ret values 0
+end function

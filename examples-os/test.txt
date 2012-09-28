@@ -1,5 +1,5 @@
 
-[FILE] test3.os
+[FILE] test.os
 [2] print(5 " differences")
 
 begin function
@@ -1444,7 +1444,7 @@ begin function
   end call method ret values 0
 
 
-[143] function foo(a, b){ return a + b }
+[145] function foo(a, b){ return a + b }
 
   begin set env var
     begin function
@@ -1464,7 +1464,7 @@ begin function
   end set env var foo
 
 
-[144] function bar(){ return foo.apply(null, arguments) }
+[146] function bar(){ return foo.apply(null, arguments) }
 
   begin set env var
     begin function
@@ -1486,7 +1486,7 @@ begin function
   end set env var bar
 
 
-[145] print "should be 5: "..bar(2 3)
+[147] print "should be 5: "..bar(2 3)
 
   begin call method
     get local var _E (0 0)
@@ -1510,7 +1510,7 @@ begin function
   end call method ret values 0
 
 
-[146] print "should be 9: "..bar(4 5)
+[148] print "should be 9: "..bar(4 5)
 
   begin call method
     get local var _E (0 0)
@@ -1531,16 +1531,6 @@ begin function
         end call method ret values 1
       end operator ..
     end params ret values 2
-  end call method ret values 0
-
-
-[148] terminate()
-
-  begin call method
-    get local var _E (0 0)
-    begin params 1
-      push const string "terminate"
-    end params ret values 1
   end call method ret values 0
 
 

@@ -11,10 +11,8 @@ local function fannkuch(n)
 		local qq = q[q1]
 		if qq == 1 then				-- ... until 1st element is 1.
 		  sum = sum + sign*flips
-		  -- print("sum = ", sum)
 		  if flips > maxflips then 
 			maxflips = flips 
-			-- print("maxflips = ", maxflips)
 		  end -- New maximum?
 		  break
 		end

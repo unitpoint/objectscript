@@ -1,1 +1,0 @@
-..\bin\os.exe test3.os
