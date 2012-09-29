@@ -13,7 +13,6 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		print("10 * (3+2) = ", 10 * (3+2))
 	*/
-
 	// prepare function call
 	os->getGlobal("print");	// #1 - stack values, it's print function from standart library
 	os->pushNull();			// #2 - null, it's function this, each call of function must have this
@@ -50,18 +49,16 @@ int _tmain(int argc, _TCHAR* argv[])
 	os->pushString("James");	// #4 - property value
 	os->setProperty();			// #1 - setProperty uses 3 stack values and pop them
 	
-	os->pushStackValue(-1);		// #2
-	os->pushString("lastname");	// #3 - property key
-	os->pushString("Bond");		// #4 - property value
-	os->setProperty();			// #1
+	// second way of same functionality
+	os->pushString("Bond");		// #2 - property value
+	os->setProperty(-2, "lastname"); // #1
 
 	os->setGlobal("bar");		// #0 - assign object value to global bar variable, pop value
 
 	// let's do bar.profession = "actor"
-	os->getGlobal("bar");			// #1 - our global a variable
-	os->pushString("profession");	// #2 - property key
-	os->pushString("Bond");		// #4 - property value
-	os->setProperty();			// #0
+	os->getGlobal("bar");		// #1 - our global a variable
+	os->pushString("actor");	// #2 - property value
+	os->setProperty(-2, "profession"); // #0
 
 	// let's do print bar
 	os->getGlobal("print");		// #1
