@@ -58,7 +58,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	// let's do bar.profession = "actor"
 	os->getGlobal("bar");		// #1 - our global a variable
 	os->pushString("actor");	// #2 - property value
-	os->setProperty(-2, "profession"); // #0
+	os->setProperty(-2, "profession"); // #1
+	os->pop();					// #0
 
 	// let's do print bar
 	os->getGlobal("print");		// #1
