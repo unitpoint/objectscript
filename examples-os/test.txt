@@ -1,5 +1,5 @@
 
-[FILE] test.os
+[FILE] ../../examples-os/test.os
 [2] print(5 " differences")
 
 begin function

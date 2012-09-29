@@ -1,6 +1,6 @@
 
 [FILE] ../../examples-os/add_user_module.os
-[1] for(var i, s in ["123", "12w", 1234, "", " df", "    "]){
+[1] for(var i, s in ["123", "12w", 1234, " df", "    "]){
 
 begin function
   begin locals, total 6
@@ -25,7 +25,7 @@ begin function
     begin code list
       begin set local var
         begin call method
-          begin array 6
+          begin array 5
             begin set auto index
               push const string "123"
             end set auto index
@@ -36,10 +36,6 @@ begin function
             ,
             begin set auto index
               push const number 1234
-            end set auto index
-            ,
-            begin set auto index
-              push const string ""
             end set auto index
             ,
             begin set auto index
@@ -81,7 +77,7 @@ begin function
         end if ret values 0
 
 
-[2] print("ctype.isdigit("..s..") = "ctype.isdigit(s)" ctype.isspace("..s..") = "ctype.isspace(s))
+[2] print("my.isdigit("..s..") = "my.isdigit(s)" my.hash("..s..") = "my.hash(s))
 
         begin scope
           begin call method
@@ -91,14 +87,14 @@ begin function
               ,
               begin operator ..
                 begin operator ..
-                  push const string "ctype.isdigit("
+                  push const string "my.isdigit("
                   get local var s (3 0)
                 end operator ..
                 push const string ") = "
               end operator ..
               ,
               begin call method
-                get env var ctype
+                get env var my
                 begin params 2
                   push const string "isdigit"
                   ,
@@ -108,16 +104,16 @@ begin function
               ,
               begin operator ..
                 begin operator ..
-                  push const string " ctype.isspace("
+                  push const string " my.hash("
                   get local var s (3 0)
                 end operator ..
                 push const string ") = "
               end operator ..
               ,
               begin call method
-                get env var ctype
+                get env var my
                 begin params 2
-                  push const string "isspace"
+                  push const string "hash"
                   ,
                   get local var s (3 0)
                 end params ret values 2

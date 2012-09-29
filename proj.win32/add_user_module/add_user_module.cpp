@@ -5,7 +5,7 @@ using namespace ObjectScript;
 
 #include <ctype.h>
 
-static int ctype_digit(OS * os, int params, int, int, void*)
+static int my_isdigit(OS * os, int params, int, int, void*)
 {
 	OS::String str = os->toString(-params);
 	int len = str.getLen();
@@ -23,32 +23,31 @@ static int ctype_digit(OS * os, int params, int, int, void*)
 	return 1;
 }
 
-static int ctype_space(OS * os, int params, int, int, void*)
+static int my_hash(OS * os, int params, int, int, void*)
 {
 	OS::String str = os->toString(-params); \
-	int len = str.getLen();
-	if(len == 0){
-		os->pushBool(false);
-		return 1;
+	int i, len = str.getLen(), hash = 5381;
+	for(i = 0; i < len; i++){
+		hash = ((hash << 5) + hash) + str[i];
 	}
-	for(int i = 0; i < len; i++){
-		if(!isspace(str[i])){
-			os->pushBool(false);
-			return 1;
-		}
+	hash &= 0x7fffffff;
+	char buf[16];
+	for(i = 0; hash > 0; hash >>= 4){
+		buf[i++] = "0123456789abcdef"[hash & 0xf];
 	}
-	os->pushBool(true);
+	buf[i] = 0;
+	os->pushString(buf);
 	return 1;
 }
 
 void initCtypeModule(OS * os)
 {
 	OS::FuncDef funcs[] = {
-		{"isdigit", ctype_digit},
-		{"isspace", ctype_space},
+		{"isdigit", my_isdigit},
+		{"hash", my_hash},
 		{}
 	};
-	os->getModule(OS_TEXT("ctype"));
+	os->getModule(OS_TEXT("my"));
 	os->setFuncs(funcs);
 	os->pop();
 }

@@ -1,3 +1,3 @@
-for(var i, s in ["123", "12w", 1234, "", " df", "    "]){
-	print("ctype.isdigit("..s..") = "ctype.isdigit(s)" ctype.isspace("..s..") = "ctype.isspace(s))
+for(var i, s in ["123", "12w", 1234, " df", "    "]){
+	print("my.isdigit("..s..") = "my.isdigit(s)" my.hash("..s..") = "my.hash(s))
 }
