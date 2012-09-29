@@ -40,7 +40,7 @@ static int my_hash(OS * os, int params, int, int, void*)
 	return 1;
 }
 
-void initCtypeModule(OS * os)
+void initMyModule(OS * os)
 {
 	OS::FuncDef funcs[] = {
 		{"isdigit", my_isdigit},
@@ -58,7 +58,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	OS * os = OS::create();
 
 	// init ctype module
-	initCtypeModule(os);
+	initMyModule(os);
 
 	// run program
 	os->require("../../examples-os/add_user_module.os");
