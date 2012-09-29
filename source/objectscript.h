@@ -2830,6 +2830,8 @@ namespace ObjectScript
 		void setProperty(bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
 		void setProperty(const OS_CHAR*, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
 		void setProperty(const Core::String&, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+		void setProperty(int offs, const OS_CHAR*, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+		void setProperty(int offs, const Core::String&, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
 		void addProperty();
 
 		void deleteProperty(bool anonymous_del_enabled = true, bool named_del_enabled = true);

@@ -13904,9 +13904,33 @@ void OS::setProperty(const OS_CHAR * name, bool anonymous_setter_enabled, bool n
 
 void OS::setProperty(const Core::String& name, bool anonymous_setter_enabled, bool named_setter_enabled)
 {
-	pushString(name);
-	move(-1, -2);
-	setProperty(anonymous_setter_enabled, named_setter_enabled);
+	if(core->stack_values.count >= 2){
+		Core::Value object = core->stack_values[core->stack_values.count - 2];
+		Core::Value value = core->stack_values[core->stack_values.count - 1];
+		core->setPropertyValue(object, Core::PropertyIndex(name), value, anonymous_setter_enabled, named_setter_enabled);
+		pop(2);
+	}else{
+		// error
+		pop(2);
+	}
+}
+
+void OS::setProperty(int offs, const OS_CHAR * name, bool anonymous_setter_enabled, bool named_setter_enabled)
+{
+	setProperty(offs, Core::String(this, name), anonymous_setter_enabled, named_setter_enabled);
+}
+
+void OS::setProperty(int offs, const Core::String& name, bool anonymous_setter_enabled, bool named_setter_enabled)
+{
+	if(core->stack_values.count >= 1){
+		Core::Value object = core->getStackValue(offs);
+		Core::Value value = core->stack_values[core->stack_values.count - 1];
+		core->setPropertyValue(object, Core::PropertyIndex(name), value, anonymous_setter_enabled, named_setter_enabled);
+		pop();
+	}else{
+		// error
+		pop();
+	}
 }
 
 void OS::addProperty()
