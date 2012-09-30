@@ -34,8 +34,14 @@
 #include <math.h>
 #include <string.h>
 #include <malloc.h>
-#include <new.h>
 #include <stdlib.h>
+
+#if !defined __GNUC__ || defined IW_SDK
+#include <new.h>
+#else
+inline void *operator new(size_t, void * p){ return p; }
+inline void operator delete(void *, void *){}
+#endif
 
 #if defined _MSC_VER && !defined IW_SDK
 #include <vadefs.h>
@@ -71,7 +77,16 @@
 #define OS_BYTE unsigned char
 #define OS_U16 unsigned short
 
-#ifdef IW_SDK
+#if defined __GNUC__ 
+#include <inttypes.h>
+
+#define OS_INT int
+#define OS_INT32 int32_t
+#define OS_INT64 int64_t
+#define OS_U32 uint32_t
+#define OS_U64 uint64_t
+
+#elif defined IW_SDK
 
 #define OS_INT int
 #define OS_INT32 int32
@@ -158,10 +173,12 @@
 
 #if defined _MSC_VER // && !defined IW_SDK
 #define DEBUG_BREAK __debugbreak()
-#else
+#elif !defined __GNUC__
 #include <signal.h>
 #define DEBUG_BREAK raise(SIGTRAP)
 // #define DEBUG_BREAK __builtin_trap()
+#else
+#define DEBUG_BREAK 
 #endif
 
 namespace ObjectScript

@@ -7,7 +7,7 @@ using namespace ObjectScript;
 // =====================================================================
 // =====================================================================
 
-#ifdef IW_SDK
+#if defined __GNUC__ || defined IW_SDK
 
 int OS_VSNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, va_list va)
 {
@@ -17026,8 +17026,8 @@ It's port from PHP framework.
 #if defined _MSC_VER && !defined IW_SDK
 #include <windows.h>
 #define OS_RAND_GENERATE_SEED() (((long) (time(0) * GetCurrentProcessId())) ^ ((long) (1000000.0)))
-#elif !defined IW_SDK
-#define OS_RAND_GENERATE_SEED() (((long) (time(0) * getpid())) ^ ((long) (1000000.0)))
+// #elif !defined IW_SDK
+// #define OS_RAND_GENERATE_SEED() (((long) (time(0) * getpid())) ^ ((long) (1000000.0)))
 #else
 #define OS_RAND_GENERATE_SEED() (((long) (time(0))) ^ ((long) (1000000.0)))
 #endif 
