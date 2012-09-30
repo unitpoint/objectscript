@@ -2921,7 +2921,7 @@ namespace ObjectScript
 		bool isArray(int offs = -1);
 		bool isFunction(int offs = -1);
 		bool isUserdata(int crc, int offs);
-		bool isInstanceOf(int value_offs = -2, int prototype_offs = -1);
+		bool isPrototypeOf(int value_offs = -2, int prototype_offs = -1);
 		bool is(int value_offs = -2, int prototype_offs = -1);
 
 		bool		toBool(int offs = -1);

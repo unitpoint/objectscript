@@ -13873,12 +13873,12 @@ bool OS::Core::isValueInstanceOf(Value val, Value prototype_val)
 	return object && proto && isValueInstanceOf(object, proto);
 }
 
-bool OS::is(int value_offs, int prototype_offs)
+bool OS::isPrototypeOf(int value_offs, int prototype_offs)
 {
 	return core->isValuePrototypeOf(core->getStackValue(value_offs), core->getStackValue(prototype_offs));
 }
 
-bool OS::isInstanceOf(int value_offs, int prototype_offs)
+bool OS::is(int value_offs, int prototype_offs)
 {
 	return core->isValueInstanceOf(core->getStackValue(value_offs), core->getStackValue(prototype_offs));
 }
