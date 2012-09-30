@@ -4600,15 +4600,18 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 	return scope;
 }
 
-OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scope * scope, const Params& org_p)
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scope * scope, const Params& org_p, bool allow_finish_exp)
 {
 	OS_ASSERT(recent_token && recent_token->type == Tokenizer::BEGIN_CODE_BLOCK);
 	struct Lib {
 		Compiler * compiler;
 		Expression * obj_exp;
 
-		Expression * finishValue(Scope * scope, const Params& p)
+		Expression * finishValue(Scope * scope, const Params& p, bool allow_finish_exp)
 		{
+			if(!allow_finish_exp){
+				return obj_exp;
+			}
 			return compiler->finishValueExpression(scope, obj_exp, Params(p).setAllowAssign(false).setAllowAutoCall(false));
 		}
 
@@ -4654,7 +4657,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 		}
 		if(recent_token->type == Tokenizer::END_CODE_BLOCK){
 			readToken();
-			return lib.finishValue(scope, org_p);
+			return lib.finishValue(scope, org_p, allow_finish_exp);
 		}
 		TokenData * name_token = recent_token;
 		if(name_token->type == Tokenizer::BEGIN_ARRAY_BLOCK){
@@ -4722,7 +4725,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectExpression(Scop
 		lib.obj_exp->list.add(exp OS_DBG_FILEPOS);
 		if(recent_token && recent_token->type == Tokenizer::END_CODE_BLOCK){
 			readToken();
-			return lib.finishValue(scope, org_p);
+			return lib.finishValue(scope, org_p, allow_finish_exp);
 		}
 #if 11
 		if(!recent_token){
@@ -6304,7 +6307,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			/* if(!p.allow_auto_call){
 			return exp;
 			} */
-			exp2 = expectObjectExpression(scope, p);
+			exp2 = expectObjectExpression(scope, p, false);
 			if(!exp2){
 				allocator->deleteObj(exp);
 				return NULL;
@@ -17613,7 +17616,7 @@ OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
 					Property * prop = object_props->table->first;
 					for(; prop; prop = prop->next){
 						core->pushCloneValue(prop->value);
-						core->setPropertyValue(object, *prop, core->stack_values.lastElement(), false, false);
+						core->setPropertyValue(object, *prop, core->stack_values.lastElement(), true, true);
 						core->pop();
 					}
 				}

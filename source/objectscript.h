@@ -1917,7 +1917,7 @@ namespace ObjectScript
 				Expression * expectDeleteExpression(Scope*);
 				Expression * expectValueOfExpression(Scope*, ExpressionType exp_type);
 				Expression * expectVarExpression(Scope*);
-				Expression * expectObjectExpression(Scope*, const Params& p);
+				Expression * expectObjectExpression(Scope*, const Params& p, bool allow_finish_exp = true);
 				Expression * expectArrayExpression(Scope*, const Params& p);
 				Expression * expectParamsExpression(Scope*);
 				Expression * expectReturnExpression(Scope*);

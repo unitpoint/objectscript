@@ -56,7 +56,7 @@ template <class T> const char * getCtypeName();
 // =====================================================================
 
 #define OS_DECL_CTYPE(type) OS_DECL_CTYPE_NAME(type, #type)
-#define OS_DECL_CTYPE_NAME(type, name) template <> const char * ObjectScript::getCtypeName<type>(){ return name; }
+#define OS_DECL_CTYPE_NAME(type, name) template <> const char * getCtypeName<type>(){ return name; }
 
 // =====================================================================
 
