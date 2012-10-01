@@ -8345,7 +8345,7 @@ int OS::Core::PropertyIndex::getHash() const
 		return index.v.string->hash;
 	}
 	// all other values share same area with index.v.value so just use it as hash
-	return (int)index.v.value;
+	return (ptrdiff_t) index.v.value;
 }
 
 // =====================================================================
@@ -15995,8 +15995,8 @@ void OS::initGlobalFunctions()
 
 void OS::initObjectClass()
 {
-	static int iterator_crc = (int)&iterator_crc;
-	static int array_iter_num_crc = (int)&array_iter_num_crc;
+	static intptr_t iterator_crc = (intptr_t)&iterator_crc;
+	static intptr_t array_iter_num_crc = (intptr_t)&array_iter_num_crc;
 
 	struct Object
 	{
