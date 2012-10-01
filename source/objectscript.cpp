@@ -5252,7 +5252,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 		*/
 		if(recent_token && recent_token->type == Tokenizer::OPERATOR_ASSIGN){
 			bool is_finished;
-			exp = finishBinaryOperator(scope, getOpcodeLevel(exp->type), exp, Params().setAllowParams(true), is_finished);
+			exp = finishBinaryOperator(scope, getOpcodeLevel(exp->type), exp, Params().setAllowParams(true).setAllowInOperator(true), is_finished);
 			OS_ASSERT(is_finished);
 		}
 	}
@@ -10772,7 +10772,12 @@ bool OS::Core::init()
 
 int OS::Core::compareGCValues(const void * a, const void * b)
 {
-	return (*(GCValue**)a)->value_id - (*(GCValue**)b)->value_id;
+	GCValue * v1 = *(GCValue**)a;
+	GCValue * v2 = *(GCValue**)b;
+	if(v1->external_ref_count != v2->external_ref_count){
+		return v2->external_ref_count - v1->external_ref_count;
+	}
+	return v1->value_id - v2->value_id;
 }
 
 void OS::Core::shutdown()
@@ -11152,9 +11157,7 @@ void OS::Core::gcMarkStackFunction(StackFunction * stack_func)
 	OS_ASSERT(stack_func->func && stack_func->func->type == OS_VALUE_TYPE_FUNCTION);
 
 	gcAddToGreyList(stack_func->func);
-	if(stack_func->self){
-		gcAddToGreyList(stack_func->self);
-	}
+	gcAddToGreyList(stack_func->self);
 	if(stack_func->self_for_proto){
 		gcAddToGreyList(stack_func->self_for_proto);
 	}
@@ -11623,7 +11626,7 @@ bool OS::Core::isValueUsed(GCValue * val)
 			if(findAt(stack_func->func)){
 				return true;
 			}
-			if(stack_func->self && findAt(stack_func->self)){
+			if(findAt(stack_func->self)){
 				return true;
 			}
 			if(stack_func->self_for_proto && findAt(stack_func->self_for_proto)){
@@ -14320,7 +14323,7 @@ void OS::Core::clearStackFunction(StackFunction * stack_func)
 	// free(stack_func);
 }
 
-void OS::Core::enterFunction(GCFunctionValue * func_value, GCValue * self, GCValue * self_for_proto, int params, int extra_remove_from_stack, int need_ret_values)
+void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue * self_for_proto, int params, int extra_remove_from_stack, int need_ret_values)
 {
 	OS_ASSERT(call_stack_funcs.count < OS_CALL_STACK_MAX_SIZE);
 	OS_ASSERT(func_value->type == OS_VALUE_TYPE_FUNCTION);
@@ -14351,7 +14354,18 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, GCValue * self, GCVal
 	StackFunction * stack_func = (StackFunction*)(call_stack_funcs.buf + call_stack_funcs.count++);
 	stack_func->func = func_value;
 	stack_func->self = self;
-	stack_func->self_for_proto = self_for_proto ? self_for_proto : self;
+	stack_func->self_for_proto = self_for_proto ? self_for_proto : self.getGCValue();
+	if(!stack_func->self_for_proto){
+		switch(self.type){
+		case OS_VALUE_TYPE_BOOL:
+			stack_func->self_for_proto = prototypes[PROTOTYPE_BOOL];
+			break;
+
+		case OS_VALUE_TYPE_NUMBER:
+			stack_func->self_for_proto = prototypes[PROTOTYPE_NUMBER];
+			break;
+		}
+	}
 
 	stack_func->caller_stack_pos = stack_values.count - params - extra_remove_from_stack;
 	stack_func->locals_stack_pos = stack_func->caller_stack_pos + extra_remove_from_stack;
@@ -14794,7 +14808,7 @@ void OS::Core::opSuperCall(int& break_with_ret_values)
 						break_with_ret_values = ret_values;
 						return;
 					}
-					if(new_self != stack_func->self){
+					if(new_self != stack_func->self.getGCValue()){
 						stack_func->self = new_self;
 						stack_func->self_for_proto = new_self;
 					}
@@ -14886,7 +14900,7 @@ void OS::Core::opTailCallMethod(int& out_ret_values)
 	Value table_value = stack_values[stack_values.count-2-params];
 	pushPropertyValue(table_value, Core::PropertyIndex(stack_values[stack_values.count-1-params]), true, true, true, false);
 	Value func_value = stack_values.lastElement();
-	GCValue * self = stack_func->self;
+	GCValue * self = stack_func->self.getGCValue();
 	GCValue * self_for_proto = stack_func->self_for_proto;
 	GCValue * call_self = table_value.getGCValue();
 	if(call_self && (!self || self->prototype != call_self)){
@@ -17752,7 +17766,7 @@ int OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool al
 		case OS_VALUE_TYPE_FUNCTION:
 			{
 				Value self = stack_values[stack_values.count-1-params];
-				enterFunction(func_value.v.func, self.getGCValue(), self_for_proto, params, 2, ret_values);
+				enterFunction(func_value.v.func, self, self_for_proto, params, 2, ret_values);
 				if(allow_only_enter_func){
 					return 0;
 				}

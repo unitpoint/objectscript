@@ -2198,7 +2198,7 @@ namespace ObjectScript
 			struct StackFunction
 			{
 				GCFunctionValue * func;
-				GCValue * self;
+				Value self; // allow primitive type for self 
 				GCValue * self_for_proto;
 
 				Upvalues * locals;
@@ -2673,7 +2673,7 @@ namespace ObjectScript
 			void pushArgumentsWithNames(StackFunction*);
 			void pushRestArguments(StackFunction*);
 
-			void enterFunction(GCFunctionValue * func_value, GCValue * self, GCValue * self_for_proto, int params, int extra_remove_from_stack, int need_ret_values);
+			void enterFunction(GCFunctionValue * func_value, Value self, GCValue * self_for_proto, int params, int extra_remove_from_stack, int need_ret_values);
 			int execute();
 			void reloadStackFunctionCache();
 
