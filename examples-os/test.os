@@ -314,19 +314,19 @@ print "User sorted array"
 print([9 4 0 276 15 39 3].sort(function(a b){return (a % 10) - (b % 10)}))
 
 print "Sorted object by values"
-print {b=9 4 d=0 c=276 15 a=39 3}.sort()
+print({b=9 4 d=0 c=276 15 a=39 3}.sort())
 
 print "Sorted object by values (reverse)"
-print {b=9 4 d=0 c=276 15 a=39 3}.rsort()
+print({b=9 4 d=0 c=276 15 a=39 3}.rsort())
 
 print "Sorted object by keys"
-print {b=9 4 d=0 c=276 15 a=39 3}.ksort()
+print({b=9 4 d=0 c=276 15 a=39 3}.ksort())
 
 print "Sorted object by keys (reverse)"
-print {b=9 4 d=0 c=276 15 a=39 3}.krsort()
+print({b=9 4 d=0 c=276 15 a=39 3}.krsort())
 
 print "User sorted object by keys (reverse)"
-print {b=9 4 d=0 c=276 15 a=39 3}.krsort(function(a b){return (a % 10) - (b % 10)})
+print({b=9 4 d=0 c=276 15 a=39 3}.krsort(function(a b){return (a % 10) - (b % 10)}))
 
 var function testFunc(arg1, arg2){
 	var function testFunc2(arg1, arg2, arg3){
