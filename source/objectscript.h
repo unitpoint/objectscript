@@ -2032,6 +2032,7 @@ namespace ObjectScript
 					OP_PUSH_REST_ARGUMENTS,
 
 					OP_PUSH_LOCAL_VAR,
+					OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX,
 					OP_PUSH_LOCAL_VAR_AUTO_CREATE,
 					OP_SET_LOCAL_VAR,
 
@@ -2266,8 +2267,6 @@ namespace ObjectScript
 
 			struct Strings
 			{
-				String special_prefix; // __
-				
 				String __construct;
 				// String __destruct;
 				String __object;
@@ -2425,6 +2424,11 @@ namespace ObjectScript
 
 			Vector<StackFunction> call_stack_funcs;
 			StackFunction * stack_func;
+			Value * stack_func_locals;
+			int num_stack_func_locals;
+			int stack_func_env_index;
+			OS_NUMBER * stack_func_prog_numbers;
+			GCStringValue ** stack_func_prog_strings;
 
 			GCValue * gc_grey_list_first;
 			bool gc_grey_root_initialized;
@@ -2543,7 +2547,7 @@ namespace ObjectScript
 
 			template<class T> T * pushValue(T * val){ pushValue(Value(val)); return val; }
 
-			void pushValue(Value val);
+			void pushValue(const Value& val);
 			void pushStackValue(int offs);
 			void copyValue(int raw_from, int raw_to);
 			void insertValue(Value val, int offs);

@@ -2773,8 +2773,13 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list.count == 0);
 		if(!exp->local_var.up_count){
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR);
-			prog_opcodes->writeUVariable(exp->local_var.index);
+			if(exp->local_var.index <= 255){
+				prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR);
+				prog_opcodes->writeByte(exp->local_var.index);
+			}else{
+				prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX);
+				prog_opcodes->writeUVariable(exp->local_var.index);
+			}
 		}else{
 			writeDebugInfo(exp);
 			prog_opcodes->writeByte(Program::OP_PUSH_UP_LOCAL_VAR);
@@ -9919,7 +9924,6 @@ OS::Core::GCValue * OS::Core::Values::get(int value_id)
 
 OS::Core::Strings::Strings(OS * allocator)
 	:
-special_prefix(allocator, OS_TEXT("__")),
 	__construct(allocator, OS_TEXT("__construct")),
 	// __destruct(allocator, OS_TEXT("__destruct")),
 	__object(allocator, OS_TEXT("__object")),
@@ -10655,6 +10659,13 @@ OS::Core::Core(OS * p_allocator)
 
 	num_created_values = 0;
 	num_destroyed_values = 0;
+
+	stack_func = NULL;
+	stack_func_locals = NULL;
+	num_stack_func_locals = 0;
+	stack_func_env_index = 0;
+	stack_func_prog_numbers = NULL;
+	stack_func_prog_strings = NULL;
 
 	settings.create_compiled_file = true;
 	settings.create_debug_info = true;
@@ -11822,7 +11833,11 @@ OS::Core::Property * OS::Core::setTableValue(Table * table, const PropertyIndex&
 
 bool OS::Core::hasSpecialPrefix(GCStringValue * string)
 {
-	return OS_STRNCMP(string->toChar(), strings->special_prefix.toChar(), strings->special_prefix.getLen()) == 0;
+	if(string->getLen() >= 2){
+		const OS_CHAR * s = string->toChar();
+		return s[0] == OS_TEXT('_') && s[1] == OS_TEXT('_');
+	}
+	return false;
 }
 
 void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value value, bool anonymous_setter_enabled, bool named_setter_enabled)
@@ -12273,10 +12288,16 @@ OS::Core::GCArrayValue * OS::Core::newArrayValue(int initial_capacity)
 	return res;
 }
 
-void OS::Core::pushValue(Value val)
+void OS::Core::pushValue(const Value& p_val)
 {
-	reserveStackValues(stack_values.count+1);
-	stack_values.buf[stack_values.count++] = val;
+	StackValues& stack_values = this->stack_values;
+	if(stack_values.capacity < stack_values.count+1){
+		Value val = p_val;
+		reserveStackValues(stack_values.count+1);
+		stack_values.buf[stack_values.count++] = val;
+	}else{
+		stack_values.buf[stack_values.count++] = p_val;
+	}
 }
 
 void OS::Core::pushNull()
@@ -13341,6 +13362,10 @@ void OS::Core::reserveStackValues(int new_capacity)
 			OS_ASSERT(stack_func->locals_stack_pos >= 0);
 			OS_ASSERT(stack_func->locals && stack_func->locals->is_stack_locals);
 			stack_func->locals->locals = stack_values.buf + stack_func->locals_stack_pos;
+		}
+
+		if(stack_func){
+			stack_func_locals = stack_func->locals->locals;
 		}
 	}
 }
@@ -14435,7 +14460,7 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue *
 
 int OS::Core::opBreakFunction()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= stack_func->stack_pos);
 	int cur_ret_values = 0;
 	int ret_values = stack_func->need_ret_values;
@@ -14453,13 +14478,13 @@ int OS::Core::opBreakFunction()
 
 void OS::Core::opDebugger()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int line = stack_func->opcodes.readUVariable();
 	int pos = stack_func->opcodes.readUVariable();
 	int saved_lines = stack_func->opcodes.readUVariable();
 	const OS_CHAR * lines[OS_DEBUGGER_SAVE_NUM_LINES];
 	OS_MEMSET(lines, 0, sizeof(lines));
-	GCStringValue ** prog_strings = stack_func->func->prog->const_strings;
+	GCStringValue ** prog_strings = stack_func_prog_strings; // stack_func->func->prog->const_strings;
 	int prog_num_strings = stack_func->func->prog->num_strings;
 	for(int i = 0; i < saved_lines; i++){
 		int offs = stack_func->opcodes.readUVariable();
@@ -14474,30 +14499,30 @@ void OS::Core::opDebugger()
 
 void OS::Core::opPushNumber()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	// StackFunction * stack_func = this->stack_func;
 	int i = stack_func->opcodes.readUVariable();
 	OS_ASSERT(i >= 0 && i < stack_func->func->prog->num_numbers);
-	pushNumber(stack_func->func->prog->const_numbers[i]);
+	pushNumber(stack_func_prog_numbers[i]);
 }
 
 void OS::Core::opPushString()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int i = stack_func->opcodes.readUVariable();
 	OS_ASSERT(i >= 0 && i < stack_func->func->prog->num_strings);
-	OS_ASSERT(stack_func->func->prog->const_strings[i]->type == OS_VALUE_TYPE_STRING);
-	pushValue(stack_func->func->prog->const_strings[i]);
+	OS_ASSERT(stack_func_prog_strings[i]->type == OS_VALUE_TYPE_STRING);
+	pushValue(stack_func_prog_strings[i]);
 }
 
 void OS::Core::opPushFunction()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int prog_func_index = stack_func->opcodes.readUVariable();
 	Program * prog = stack_func->func->prog;
 	OS_ASSERT(prog_func_index > 0 && prog_func_index < prog->num_functions);
 	FunctionDecl * func_decl = prog->functions + prog_func_index;
-	int env_index = stack_func->func->func_decl->num_params + ENV_VAR_INDEX;
-	pushValue(newFunctionValue(stack_func, prog, func_decl, stack_func->locals->locals[env_index]));
+	// int env_index = stack_func->func->func_decl->num_params + ENV_VAR_INDEX;
+	pushValue(newFunctionValue(stack_func, prog, func_decl, stack_func_locals[stack_func_env_index]));
 	stack_func->opcodes.movePos(func_decl->opcodes_size);
 }
 
@@ -14545,7 +14570,7 @@ void OS::Core::opObjectSetByExp()
 
 void OS::Core::opObjectSetByIndex()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= 2);
 	int i = stack_func->opcodes.readUVariable();
 	OS_ASSERT(i >= 0 && i < stack_func->func->prog->num_numbers);
@@ -14557,11 +14582,11 @@ void OS::Core::opObjectSetByIndex()
 
 void OS::Core::opObjectSetByName()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= 2);
 	int i = stack_func->opcodes.readUVariable();
 	OS_ASSERT(i >= 0 && i < stack_func->func->prog->num_strings);
-	GCStringValue * name = stack_func->func->prog->const_strings[i];
+	GCStringValue * name = stack_func_prog_strings[i];
 	OS_ASSERT(name->type == OS_VALUE_TYPE_STRING);
 	setPropertyValue(stack_values[stack_values.count-2], 
 		PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
@@ -14571,27 +14596,27 @@ void OS::Core::opObjectSetByName()
 
 void OS::Core::opPushEnvVar(bool auto_create)
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int i = stack_func->opcodes.readUVariable();
 	OS_ASSERT(i >= 0 && i < stack_func->func->prog->num_strings);
-	GCStringValue * name = stack_func->func->prog->const_strings[i];
+	GCStringValue * name = stack_func_prog_strings[i];
 	OS_ASSERT(name->type == OS_VALUE_TYPE_STRING);
-	int env_index = stack_func->func->func_decl->num_params + ENV_VAR_INDEX;
-	pushPropertyValue(stack_func->locals->locals[env_index], 
+	// int env_index = stack_func->func->func_decl->num_params + ENV_VAR_INDEX;
+	pushPropertyValue(stack_func_locals[stack_func_env_index], 
 		PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
 		true, true, true, auto_create); 
 }
 
 void OS::Core::opSetEnvVar()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= 1);
 	int i = stack_func->opcodes.readUVariable();
 	OS_ASSERT(i >= 0 && i < stack_func->func->prog->num_strings);
-	GCStringValue * name = stack_func->func->prog->const_strings[i];
+	GCStringValue * name = stack_func_prog_strings[i];
 	OS_ASSERT(name->type == OS_VALUE_TYPE_STRING);
-	int env_index = stack_func->func->func_decl->num_params + ENV_VAR_INDEX;
-	setPropertyValue(stack_func->locals->locals[env_index], 
+	// int env_index = stack_func->func->func_decl->num_params + ENV_VAR_INDEX;
+	setPropertyValue(stack_func_locals[stack_func_env_index], 
 		PropertyIndex(name, PropertyIndex::KeepStringIndex()), 
 		stack_values.lastElement(), true, true);
 	pop();
@@ -14599,155 +14624,126 @@ void OS::Core::opSetEnvVar()
 
 void OS::Core::opPushThis()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	pushValue(stack_func->self);
 }
 
 void OS::Core::opPushArguments()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	pushArguments(stack_func);
 }
 
 void OS::Core::opPushRestArguments()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	pushRestArguments(stack_func);
 }
 
 void OS::Core::opPushLocalVar()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
 	int i = stack_func->opcodes.readUVariable();
-	Upvalues * func_upvalues = stack_func->locals;
-	if(i < func_upvalues->num_locals){
-		pushValue(func_upvalues->locals[i]);
-	}else{
-		OS_ASSERT(false);
-		pushNull();
-	}
+	OS_ASSERT(i < num_stack_func_locals);
+	pushValue(stack_func_locals[i]);
 }
 
 void OS::Core::opPushLocalVarAutoCreate()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	// StackFunction * stack_func = this->stack_func;
 	int i = stack_func->opcodes.readUVariable();
-	Upvalues * func_upvalues = stack_func->locals;
-	if(i < func_upvalues->num_locals){
-		if(func_upvalues->locals[i].type == OS_VALUE_TYPE_NULL){
-			func_upvalues->locals[i] = newObjectValue();
-		}
-		pushValue(func_upvalues->locals[i]);
-	}else{
-		OS_ASSERT(false);
-		pushNull();
+	OS_ASSERT(i < num_stack_func_locals);
+	if(stack_func_locals[i].type == OS_VALUE_TYPE_NULL){
+		stack_func_locals[i] = newObjectValue();
 	}
+	pushValue(stack_func_locals[i]);
 }
 
 void OS::Core::opSetLocalVar()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= 1);
 	int i = stack_func->opcodes.readUVariable();
-	Upvalues * func_upvalues = stack_func->locals;
-	if(i < func_upvalues->num_locals){
-		switch((func_upvalues->locals[i] = stack_values.lastElement()).type){
-		case OS_VALUE_TYPE_FUNCTION:
-			OS_ASSERT(dynamic_cast<GCFunctionValue*>(func_upvalues->locals[i].v.func));
-			if(!func_upvalues->locals[i].v.func->name){
-				func_upvalues->locals[i].v.func->name = stack_func->func->func_decl->locals[i].name.string;
-			}
-			break;
-
-		case OS_VALUE_TYPE_CFUNCTION:
-			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(func_upvalues->locals[i].v.cfunc));
-			if(!func_upvalues->locals[i].v.cfunc->name){
-				func_upvalues->locals[i].v.cfunc->name = stack_func->func->func_decl->locals[i].name.string;
-			}
-			break;
+	// Upvalues * func_upvalues = stack_func->locals;
+	OS_ASSERT(i < num_stack_func_locals);
+	switch((stack_func_locals[i] = stack_values.lastElement()).type){
+	case OS_VALUE_TYPE_FUNCTION:
+		OS_ASSERT(dynamic_cast<GCFunctionValue*>(stack_func_locals[i].v.func));
+		if(!stack_func_locals[i].v.func->name){
+			stack_func_locals[i].v.func->name = stack_func->func->func_decl->locals[i].name.string;
 		}
-	}else{
-		OS_ASSERT(false);
+		break;
+
+	case OS_VALUE_TYPE_CFUNCTION:
+		OS_ASSERT(dynamic_cast<GCCFunctionValue*>(stack_func_locals[i].v.cfunc));
+		if(!stack_func_locals[i].v.cfunc->name){
+			stack_func_locals[i].v.cfunc->name = stack_func->func->func_decl->locals[i].name.string;
+		}
+		break;
 	}
 	pop();
 }
 
 void OS::Core::opPushUpvalue()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int i = stack_func->opcodes.readUVariable();
 	int up_count = stack_func->opcodes.readByte();
-	if(up_count <= stack_func->func->func_decl->max_up_count){
-		Upvalues * func_upvalues = stack_func->locals;
-		OS_ASSERT(up_count <= func_upvalues->num_parents);
-		Upvalues * scope = func_upvalues->getParent(up_count-1);
-		if(i < scope->num_locals){
-			pushValue(scope->locals[i]);
-			return;
-		}
-	}
-	OS_ASSERT(false);
-	pushNull();
+	OS_ASSERT(up_count <= stack_func->func->func_decl->max_up_count);
+	Upvalues * func_upvalues = stack_func->locals;
+	OS_ASSERT(up_count <= func_upvalues->num_parents);
+	Upvalues * scope = func_upvalues->getParent(up_count-1);
+	OS_ASSERT(i < scope->num_locals);
+	pushValue(scope->locals[i]);
 }
 
 void OS::Core::opPushUpvalueAutoCreate()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int i = stack_func->opcodes.readUVariable();
 	int up_count = stack_func->opcodes.readByte();
-	if(up_count <= stack_func->func->func_decl->max_up_count){
-		Upvalues * func_upvalues = stack_func->locals;
-		OS_ASSERT(up_count <= func_upvalues->num_parents);
-		Upvalues * scope = func_upvalues->getParent(up_count-1);
-		if(i < scope->num_locals){
-			if(scope->locals[i].type == OS_VALUE_TYPE_NULL){
-				scope->locals[i] = newObjectValue();
-			}
-			pushValue(scope->locals[i]);
-			return;
-		}
+	OS_ASSERT(up_count <= stack_func->func->func_decl->max_up_count);
+	Upvalues * func_upvalues = stack_func->locals;
+	OS_ASSERT(up_count <= func_upvalues->num_parents);
+	Upvalues * scope = func_upvalues->getParent(up_count-1);
+	OS_ASSERT(i < scope->num_locals);
+	if(scope->locals[i].type == OS_VALUE_TYPE_NULL){
+		scope->locals[i] = newObjectValue();
 	}
-	OS_ASSERT(false);
-	pushNull();
+	pushValue(scope->locals[i]);
 }
 
 void OS::Core::opSetUpvalue()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= 1);
 	int i = stack_func->opcodes.readUVariable();
 	int up_count = stack_func->opcodes.readByte();
-	if(up_count <= stack_func->func->func_decl->max_up_count){
-		Upvalues * func_upvalues = stack_func->locals;
-		OS_ASSERT(up_count <= func_upvalues->num_parents);
-		Upvalues * scope = func_upvalues->getParent(up_count-1);
-		if(i < scope->num_locals){
-			switch((scope->locals[i] = stack_values.lastElement()).type){
-			case OS_VALUE_TYPE_FUNCTION:
-				OS_ASSERT(dynamic_cast<GCFunctionValue*>(scope->locals[i].v.func));
-				if(!scope->locals[i].v.func->name){
-					scope->locals[i].v.func->name = scope->func_decl->locals[i].name.string;
-				}
-				break;
-
-			case OS_VALUE_TYPE_CFUNCTION:
-				OS_ASSERT(dynamic_cast<GCCFunctionValue*>(scope->locals[i].v.cfunc));
-				if(!scope->locals[i].v.cfunc->name){
-					scope->locals[i].v.cfunc->name = scope->func_decl->locals[i].name.string;
-				}
-				break;
-			}
-			pop();
-			return;
+	OS_ASSERT(up_count <= stack_func->func->func_decl->max_up_count);
+	Upvalues * func_upvalues = stack_func->locals;
+	OS_ASSERT(up_count <= func_upvalues->num_parents);
+	Upvalues * scope = func_upvalues->getParent(up_count-1);
+	OS_ASSERT(i < scope->num_locals);
+	switch((scope->locals[i] = stack_values.lastElement()).type){
+	case OS_VALUE_TYPE_FUNCTION:
+		OS_ASSERT(dynamic_cast<GCFunctionValue*>(scope->locals[i].v.func));
+		if(!scope->locals[i].v.func->name){
+			scope->locals[i].v.func->name = scope->func_decl->locals[i].name.string;
 		}
+		break;
+
+	case OS_VALUE_TYPE_CFUNCTION:
+		OS_ASSERT(dynamic_cast<GCCFunctionValue*>(scope->locals[i].v.cfunc));
+		if(!scope->locals[i].v.cfunc->name){
+			scope->locals[i].v.cfunc->name = scope->func_decl->locals[i].name.string;
+		}
+		break;
 	}
-	OS_ASSERT(false);
 	pop();
 }
 
 void OS::Core::opIfNotJump()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= 1);
 	// Value value = stack_values.lastElement();
 	int offs = stack_func->opcodes.readInt32();
@@ -14759,14 +14755,14 @@ void OS::Core::opIfNotJump()
 
 void OS::Core::opJump()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int offs = stack_func->opcodes.readInt32();
 	stack_func->opcodes.movePos(offs);
 }
 
 void OS::Core::opCall()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->opcodes.readByte();
 
@@ -14777,7 +14773,7 @@ void OS::Core::opCall()
 
 void OS::Core::opSuperCall(int& break_with_ret_values)
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->opcodes.readByte();
 
@@ -14835,7 +14831,7 @@ void OS::Core::opSuperCall(int& break_with_ret_values)
 
 void OS::Core::opTailCall(int& out_ret_values)
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->need_ret_values;
 
@@ -14879,7 +14875,7 @@ void OS::Core::opTailCall(int& out_ret_values)
 
 void OS::Core::opCallMethod()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->opcodes.readByte();
 
@@ -14903,7 +14899,7 @@ void OS::Core::opCallMethod()
 
 void OS::Core::opTailCallMethod(int& out_ret_values)
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->need_ret_values;
 
@@ -14957,7 +14953,7 @@ void OS::Core::opTailCallMethod(int& out_ret_values)
 
 int OS::Core::opReturn()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int cur_ret_values = stack_func->opcodes.readByte();
 	int ret_values = stack_func->need_ret_values;
 	ret_values = syncRetValues(ret_values, cur_ret_values);
@@ -14974,7 +14970,7 @@ int OS::Core::opReturn()
 
 int OS::Core::opReturnAuto()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int cur_ret_values = 0;
 	int ret_values = stack_func->need_ret_values;
 	GCFunctionValue * func_value = stack_func->func;
@@ -14996,7 +14992,7 @@ int OS::Core::opReturnAuto()
 
 void OS::Core::opGetProperty(bool auto_create)
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int ret_values = stack_func->opcodes.readByte();
 	OS_ASSERT(stack_values.count >= 2);
 	pushPropertyValue(stack_values.buf[stack_values.count - 2], 
@@ -15016,7 +15012,7 @@ void OS::Core::opSetProperty()
 
 void OS::Core::opSetDim()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	int params = stack_func->opcodes.readByte();
 
 	OS_ASSERT(stack_values.count >= 2 + params);
@@ -15090,7 +15086,7 @@ void OS::Core::opDeleteProperty()
 
 void OS::Core::opLogicAnd()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= 1);
 	int offs = stack_func->opcodes.readInt32();
 	if(!valueToBool(stack_values.lastElement())){
@@ -15102,7 +15098,7 @@ void OS::Core::opLogicAnd()
 
 void OS::Core::opLogicOr()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= 1);
 	int offs = stack_func->opcodes.readInt32();
 	if(valueToBool(stack_values.lastElement())){
@@ -15114,7 +15110,7 @@ void OS::Core::opLogicOr()
 
 void OS::Core::opSuper()
 {
-	StackFunction * stack_func = this->stack_func; // &call_stack_funcs.lastElement();
+	StackFunction * stack_func = this->stack_func;
 	if(stack_func->self_for_proto){
 		GCValue * proto = stack_func->self_for_proto->prototype;
 		if(stack_func->self_for_proto->is_object_instance){
@@ -15250,8 +15246,18 @@ void OS::Core::reloadStackFunctionCache()
 {
 	if(call_stack_funcs.count > 0){
 		stack_func = &call_stack_funcs.lastElement();
+		stack_func_locals = stack_func->locals->locals;
+		num_stack_func_locals = stack_func->locals->num_locals;
+		stack_func_env_index = stack_func->func->func_decl->num_params + ENV_VAR_INDEX;
+		stack_func_prog_numbers = stack_func->func->prog->const_numbers;
+		stack_func_prog_strings = stack_func->func->prog->const_strings;
 	}else{
 		stack_func = NULL;
+		stack_func_locals = NULL;
+		num_stack_func_locals = 0;
+		stack_func_env_index = 0;
+		stack_func_prog_numbers = NULL;
+		stack_func_prog_strings = NULL;
 	}
 }
 
@@ -15260,7 +15266,7 @@ int OS::Core::execute()
 #ifdef OS_DEBUG
 	allocator->checkNativeStackUsage(OS_TEXT("OS::Core::execute"));
 #endif
-	int ret_values, ret_stack_funcs = call_stack_funcs.count-1;
+	int i, ret_values, ret_stack_funcs = call_stack_funcs.count-1;
 #ifdef OS_INFINITE_LOOP_OPCODES
 	for(int opcodes_executed = 0;; opcodes_executed++){
 #else
@@ -15359,6 +15365,12 @@ int OS::Core::execute()
 			break;
 
 		case Program::OP_PUSH_LOCAL_VAR:
+			i = stack_func->opcodes.readByte();
+			OS_ASSERT(i < num_stack_func_locals);
+			pushValue(stack_func_locals[i]);
+			break;
+
+		case Program::OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX:
 			opPushLocalVar();
 			break;
 

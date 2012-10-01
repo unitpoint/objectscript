@@ -1,5 +1,5 @@
 
-[FILE] test_fannkuch.os
+[FILE] ..\os\test_fannkuch.os
 [1] print arg
 
 begin function
@@ -777,6 +777,9 @@ begin function
 "
     end params ret values 11
   end call method ret values 0
+
+
+[54] )
 
   begin code list
     begin return

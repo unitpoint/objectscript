@@ -3546,11 +3546,11 @@ so eval(round(13.5))"
 [317] print {b=9 4 d=0 c=276 15 a=39 3}.sort()
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin call method
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin object 7
           begin set by name
             push const number 9
@@ -3580,11 +3580,11 @@ so eval(round(13.5))"
             push const number 3
           end set auto index
         end object
-        begin params 1
-          push const string "sort"
-        end params ret values 1
-      end call method ret values 1
-    end params ret values 2
+      end params ret values 2
+    end call method ret values 1
+    begin params 1
+      push const string "sort"
+    end params ret values 1
   end call method ret values 0
 
 
@@ -3603,11 +3603,11 @@ so eval(round(13.5))"
 [320] print {b=9 4 d=0 c=276 15 a=39 3}.rsort()
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin call method
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin object 7
           begin set by name
             push const number 9
@@ -3637,11 +3637,11 @@ so eval(round(13.5))"
             push const number 3
           end set auto index
         end object
-        begin params 1
-          push const string "rsort"
-        end params ret values 1
-      end call method ret values 1
-    end params ret values 2
+      end params ret values 2
+    end call method ret values 1
+    begin params 1
+      push const string "rsort"
+    end params ret values 1
   end call method ret values 0
 
 
@@ -3660,11 +3660,11 @@ so eval(round(13.5))"
 [323] print {b=9 4 d=0 c=276 15 a=39 3}.ksort()
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin call method
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin object 7
           begin set by name
             push const number 9
@@ -3694,11 +3694,11 @@ so eval(round(13.5))"
             push const number 3
           end set auto index
         end object
-        begin params 1
-          push const string "ksort"
-        end params ret values 1
-      end call method ret values 1
-    end params ret values 2
+      end params ret values 2
+    end call method ret values 1
+    begin params 1
+      push const string "ksort"
+    end params ret values 1
   end call method ret values 0
 
 
@@ -3717,11 +3717,11 @@ so eval(round(13.5))"
 [326] print {b=9 4 d=0 c=276 15 a=39 3}.krsort()
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin call method
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin object 7
           begin set by name
             push const number 9
@@ -3751,11 +3751,11 @@ so eval(round(13.5))"
             push const number 3
           end set auto index
         end object
-        begin params 1
-          push const string "krsort"
-        end params ret values 1
-      end call method ret values 1
-    end params ret values 2
+      end params ret values 2
+    end call method ret values 1
+    begin params 1
+      push const string "krsort"
+    end params ret values 1
   end call method ret values 0
 
 
@@ -3774,11 +3774,11 @@ so eval(round(13.5))"
 [329] print {b=9 4 d=0 c=276 15 a=39 3}.krsort(function(a b){return (a % 10) - (b % 10)})
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin call method
+    begin call method
+      get local var _E (0 0)
+      begin params 2
+        push const string "print"
+        ,
         begin object 7
           begin set by name
             push const number 9
@@ -3808,31 +3808,31 @@ so eval(round(13.5))"
             push const number 3
           end set auto index
         end object
-        begin params 2
-          push const string "krsort"
-          ,
-          begin function
-            begin locals, total 4
-              0 a (param)
-              1 b (param)
-              2 _E
-              3 _G
-            end locals
-            begin return
-              begin operator -
-                begin operator %
-                  get local var a (0 0 param)
-                  push const number 10
-                end operator %
-                begin operator %
-                  get local var b (1 0 param)
-                  push const number 10
-                end operator %
-              end operator -
-            end return values 1
-          end function
-        end params ret values 2
-      end call method ret values 1
+      end params ret values 2
+    end call method ret values 1
+    begin params 2
+      push const string "krsort"
+      ,
+      begin function
+        begin locals, total 4
+          0 a (param)
+          1 b (param)
+          2 _E
+          3 _G
+        end locals
+        begin return
+          begin operator -
+            begin operator %
+              get local var a (0 0 param)
+              push const number 10
+            end operator %
+            begin operator %
+              get local var b (1 0 param)
+              push const number 10
+            end operator %
+          end operator -
+        end return values 1
+      end function
     end params ret values 2
   end call method ret values 0
 
