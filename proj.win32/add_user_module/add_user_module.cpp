@@ -9,23 +9,19 @@ static int my_isdigit(OS * os, int params, int, int, void*)
 {
 	OS::String str = os->toString(-params);
 	int len = str.getLen();
-	if(len == 0){
-		os->pushBool(false);
-		return 1;
-	}
 	for(int i = 0; i < len; i++){
 		if(!isdigit(str[i])){
 			os->pushBool(false);
 			return 1;
 		}
 	}
-	os->pushBool(true);
+	os->pushBool(len > 0);
 	return 1;
 }
 
 static int my_hash(OS * os, int params, int, int, void*)
 {
-	OS::String str = os->toString(-params); \
+	OS::String str = os->toString(-params);
 	int i, len = str.getLen(), hash = 5381;
 	for(i = 0; i < len; i++){
 		hash = ((hash << 5) + hash) + str[i];
@@ -47,7 +43,7 @@ void initMyModule(OS * os)
 		{"hash", my_hash},
 		{}
 	};
-	os->getModule(OS_TEXT("my"));
+	os->getModule("my");
 	os->setFuncs(funcs);
 	os->pop();
 }

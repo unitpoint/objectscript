@@ -15996,7 +15996,7 @@ void OS::initGlobalFunctions()
 void OS::initObjectClass()
 {
 	static intptr_t iterator_crc = (intptr_t)&iterator_crc;
-	static intptr_t array_iter_num_crc = (intptr_t)&array_iter_num_crc;
+	static intptr_t array_iterator_crc = (intptr_t)&array_iterator_crc;
 
 	struct Object
 	{
@@ -16094,7 +16094,7 @@ void OS::initObjectClass()
 		{
 			OS_ASSERT(closure_values == 2);
 			Core::Value self_var = os->core->getStackValue(-closure_values + 0);
-			int * pi = (int*)os->toUserdata(array_iter_num_crc, -closure_values + 1);
+			int * pi = (int*)os->toUserdata(array_iterator_crc, -closure_values + 1);
 			OS_ASSERT(self_var.type == OS_VALUE_TYPE_ARRAY && pi && pi[1]);
 			if(pi[0] >= 0 && pi[0] < self_var.v.arr->values.count){
 				os->pushBool(true);
@@ -16113,7 +16113,7 @@ void OS::initObjectClass()
 				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self_var.v.arr));
 				os->core->pushValue(self_var);
 
-				int * pi = (int*)os->pushUserdata(array_iter_num_crc, sizeof(int)*2);
+				int * pi = (int*)os->pushUserdata(array_iterator_crc, sizeof(int)*2);
 				OS_ASSERT(pi);
 				pi[0] = ascending ? 0 : self_var.v.arr->values.count-1;
 				pi[1] = ascending ? 1 : -1;
