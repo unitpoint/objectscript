@@ -5,3 +5,4 @@
 *.vcxproj.user
 *.osd
 *.osc
+*.o
