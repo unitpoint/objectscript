@@ -1,0 +1,66 @@
+{-1:"..\\Release\\profile_benchmark.exe","..\\os\\test_fannkuch.os","8"}
+1616
+Pfannkuchen(8) = 22
+time = 1.04102
+OS script full time: 1.049239 secs
+            gc time: 0.000379 secs (0.04%)
+
+=== [19] OP_PUSH_LOCAL_VAR, executed count: 5623123
+sum time: 0.207726 secs (19.80%), avg time of 100000 times: 0.003694
+
+=== [29] OP_GET_PROPERTY, executed count: 945062
+sum time: 0.092513 secs (8.82%), avg time of 100000 times: 0.009789
+
+=== [ 1] OP_PUSH_NUMBER, executed count: 1797484
+sum time: 0.073756 secs (7.03%), avg time of 100000 times: 0.004103
+
+=== [21] OP_SET_LOCAL_VAR, executed count: 1677937
+sum time: 0.068029 secs (6.48%), avg time of 100000 times: 0.004054
+
+=== [31] OP_SET_PROPERTY, executed count: 869486
+sum time: 0.065268 secs (6.22%), avg time of 100000 times: 0.007507
+
+=== [33] OP_IF_NOT_JUMP, executed count: 964005
+sum time: 0.049032 secs (4.67%), avg time of 100000 times: 0.005086
+
+=== [55] OP_ADD, executed count: 667815
+sum time: 0.038416 secs (3.66%), avg time of 100000 times: 0.005752
+
+=== [20] OP_PUSH_LOCAL_VAR_AUTO_CREATE, executed count: 869481
+sum time: 0.034947 secs (3.33%), avg time of 100000 times: 0.004019
+
+=== [34] OP_JUMP, executed count: 754782
+sum time: 0.031839 secs (3.03%), avg time of 100000 times: 0.004218
+
+=== [49] OP_LOGIC_LE, executed count: 320001
+sum time: 0.019436 secs (1.85%), avg time of 100000 times: 0.006074
+
+=== [48] OP_LOGIC_GE, executed count: 310063
+sum time: 0.019399 secs (1.85%), avg time of 100000 times: 0.006256
+
+=== [56] OP_SUB, executed count: 282554
+sum time: 0.015749 secs (1.50%), avg time of 100000 times: 0.005574
+
+=== [46] OP_LOGIC_EQ, executed count: 229381
+sum time: 0.014495 secs (1.38%), avg time of 100000 times: 0.006319
+
+=== [69] OP_LOGIC_NOT, executed count: 320001
+sum time: 0.012043 secs (1.15%), avg time of 100000 times: 0.003763
+
+=== [40] OP_POP, executed count: 144980
+sum time: 0.005875 secs (0.56%), avg time of 100000 times: 0.004052
+
+=== [47] OP_LOGIC_NE, executed count: 69280
+sum time: 0.004487 secs (0.43%), avg time of 100000 times: 0.006477
+
+=== [57] OP_MUL, executed count: 35280
+sum time: 0.002097 secs (0.20%), avg time of 100000 times: 0.005945
+
+=== [50] OP_LOGIC_GREATER, executed count: 35280
+sum time: 0.002067 secs (0.20%), avg time of 100000 times: 0.005859
+
+=== [66] OP_NEG, executed count: 20160
+sum time: 0.001342 secs (0.13%), avg time of 100000 times: 0.006656
+
+=== [ 6] OP_PUSH_FUNCTION, executed count: 4
+sum time: 0.000008 secs (0.00%), avg time of 100000 times: 0.192432

@@ -6,3 +6,6 @@
 *.osd
 *.osc
 *.o
+*.sdf
+*.suo
+*.opensdf

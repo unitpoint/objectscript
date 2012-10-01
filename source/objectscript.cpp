@@ -3624,13 +3624,24 @@ OS::Core::Tokenizer::TokenData * OS::Core::Compiler::putNextTokenType(TokenType 
 	if(token_type == Tokenizer::CODE_SEPARATOR && recent_token && recent_token->type == token_type){
 		return ungetToken();
 	}
-
-	if(readToken() && recent_token->type == token_type){
-		return ungetToken();
+	TokenData * token = recent_token;
+	if(readToken()){
+		if(recent_token->type == token_type){
+			return ungetToken();
+		}
+		ungetToken();
+		token = recent_token;
 	}
-	ungetToken();
-
-	TokenData * token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(recent_token->text_data, String(allocator), token_type, recent_token->line, recent_token->pos);
+	if(!token){
+		if(next_token_index > 0){
+			token = tokenizer->getToken(next_token_index-1);
+		}
+	}
+	if(token){
+		token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(token->text_data, String(allocator), token_type, token->line, token->pos);
+	}else{
+		token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), String(allocator), token_type, 0, 0);
+	}
 	tokenizer->insertToken(next_token_index, token OS_DBG_FILEPOS);
 	return token;
 }
@@ -15267,6 +15278,7 @@ int OS::Core::execute()
 			break;
 		}
 		Program::OpcodeType opcode = (Program::OpcodeType)stack_func->opcodes.readByte();
+		OS_PROFILE_BEGIN_OPCODE(opcode);
 		switch(opcode){
 		default:
 			error(OS_E_ERROR, "Unknown opcode, program is corrupted!!!");
@@ -15383,37 +15395,42 @@ int OS::Core::execute()
 			break;
 
 		case Program::OP_SUPER_CALL:
+			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 			opSuperCall(ret_values);
 			if(ret_stack_funcs >= call_stack_funcs.count){
 				OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
 				return ret_values;
 			}
-			break;
+			continue;
 
 		case Program::OP_TAIL_CALL:
+			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 			opTailCall(ret_values);
 			if(ret_stack_funcs >= call_stack_funcs.count){
 				OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
 				return ret_values;
 			}
-			break;
+			continue;
 
 		case Program::OP_CALL_METHOD:
+			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 			opCallMethod();
-			break;
+			continue;
 
 		case Program::OP_TAIL_CALL_METHOD:
+			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 			opTailCallMethod(ret_values);
 			if(ret_stack_funcs >= call_stack_funcs.count){
 				OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
 				return ret_values;
 			}
-			break;
+			continue;
 
 		case Program::OP_RETURN:
 			ret_values = opReturn();
 			if(ret_stack_funcs >= call_stack_funcs.count){
 				OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
+				OS_PROFILE_END_OPCODE(opcode);
 				return ret_values;
 			}
 			break;
@@ -15422,6 +15439,7 @@ int OS::Core::execute()
 			ret_values = opReturnAuto();
 			if(ret_stack_funcs >= call_stack_funcs.count){
 				OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
+				OS_PROFILE_END_OPCODE(opcode);
 				return ret_values;
 			}
 			break;
@@ -15549,6 +15567,7 @@ int OS::Core::execute()
 			opBinaryOperator(opcode);
 			break;
 		}
+		OS_PROFILE_END_OPCODE(opcode);
 	}
 	for(;;){
 		ret_values = opBreakFunction();

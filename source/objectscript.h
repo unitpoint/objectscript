@@ -181,6 +181,11 @@ inline void operator delete(void *, void *){}
 #define DEBUG_BREAK 
 #endif
 
+#ifndef OS_PROFILE_BEGIN_OPCODE
+#define OS_PROFILE_BEGIN_OPCODE
+#define OS_PROFILE_END_OPCODE
+#endif
+
 namespace ObjectScript
 {
 
