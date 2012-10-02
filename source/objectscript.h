@@ -117,9 +117,9 @@ inline void operator delete(void *, void *){}
 #define OS_VPRINTF ::vprintf
 #define OS_PRINTF ::printf
 
-#define OS_IS_SPACE ::isspace
+#define OS_IS_SPACE(c) ((c) > OS_TEXT('\0') && (c) <= OS_TEXT(' '))
 #define OS_IS_ALPHA ::isalpha
-#define OS_IS_ALNUM ::isalnum // ((c) >= OS_TEXT('0') && (c) <= OS_TEXT('9'))
+#define OS_IS_ALNUM(c) ((c) >= OS_TEXT('0') && (c) <= OS_TEXT('9'))
 #define OS_IS_SLASH(c) ((c) == OS_TEXT('/') || (c) == OS_TEXT('\\'))
 
 #define OS_AUTO_PRECISION 20
@@ -2685,7 +2685,7 @@ namespace ObjectScript
 
 			static int compareUserReverse(OS*, const void*, const void*, void*);
 
-			bool hasSpecialPrefix(GCStringValue*);
+			bool hasSpecialPrefix(const Value&);
 
 			Property * setTableValue(Table * table, const PropertyIndex& index, Value val);
 			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool anonymous_setter_enabled, bool named_setter_enabled);

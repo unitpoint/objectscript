@@ -8972,9 +8972,9 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 		}
 		return;
 	}
-	if((anonymous_del_enabled || named_del_enabled) && index.index.type == OS_VALUE_TYPE_STRING && !hasSpecialPrefix(index.index.v.string)){
+	if((anonymous_del_enabled || named_del_enabled) && !hasSpecialPrefix(index.index)){
 		Value value;
-		if(named_del_enabled){
+		if(index.index.type == OS_VALUE_TYPE_STRING && named_del_enabled){
 			const void * buf1 = strings->__delAt.toChar();
 			int size1 = strings->__delAt.getDataSize();
 			const void * buf2 = index.index.v.string->toChar();
@@ -9020,10 +9020,10 @@ void OS::Core::deleteValueProperty(Value table_value, const PropertyIndex& index
 		return;
 
 	case OS_VALUE_TYPE_STRING:
-		if(prototype_enabled){
+		/* if(prototype_enabled){
 			return deleteValueProperty(prototypes[PROTOTYPE_STRING], index, anonymous_del_enabled, named_del_enabled, prototype_enabled);
 		}
-		return;
+		return; */
 
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
@@ -12106,8 +12106,13 @@ OS::Core::Property * OS::Core::setTableValue(Table * table, const PropertyIndex&
 	return prop;
 }
 
-bool OS::Core::hasSpecialPrefix(GCStringValue * string)
+bool OS::Core::hasSpecialPrefix(const Value& value)
 {
+	if(value.type != OS_VALUE_TYPE_STRING){
+		return false;
+	}
+	OS_ASSERT(dynamic_cast<GCStringValue*>(value.v.string));
+	GCStringValue * string = value.v.string;
 	if(string->getLen() >= 2){
 		const OS_CHAR * s = string->toChar();
 		return s[0] == OS_TEXT('_') && s[1] == OS_TEXT('_');
@@ -12196,9 +12201,9 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 		return;
 	}
 
-	if((anonymous_setter_enabled || named_setter_enabled) && index.index.type == OS_VALUE_TYPE_STRING && !hasSpecialPrefix(index.index.v.string)){
+	if((anonymous_setter_enabled || named_setter_enabled) && !hasSpecialPrefix(index.index)){
 		Value func;
-		if(named_setter_enabled){
+		if(index.index.type == OS_VALUE_TYPE_STRING && named_setter_enabled){
 			const void * buf1 = strings->__setAt.toChar();
 			int size1 = strings->__setAt.getDataSize();
 			const void * buf2 = index.index.v.string->toChar();
@@ -12221,7 +12226,10 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 			return;
 		}
 	}
-
+	if(table_value->type == OS_VALUE_TYPE_STRING){
+		// TODO: trigger error???
+		return;
+	}
 	if(!table){
 		table_value->table = table = newTable(OS_DBG_FILEPOS_START);
 	}
@@ -12247,7 +12255,7 @@ void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, V
 
 	case OS_VALUE_TYPE_STRING:
 		// return setPropertyValue(prototypes[PROTOTYPE_STRING], index, value, setter_enabled);
-		return;
+		// return;
 
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
@@ -14416,7 +14424,7 @@ bool OS::Core::getPropertyValue(Value& result, Value table_value, const Property
 		return prototype_enabled && getPropertyValue(result, prototypes[PROTOTYPE_NUMBER], index, prototype_enabled);
 
 	case OS_VALUE_TYPE_STRING:
-		return prototype_enabled && getPropertyValue(result, prototypes[PROTOTYPE_STRING], index, prototype_enabled);
+		// return prototype_enabled && getPropertyValue(result, prototypes[PROTOTYPE_STRING], index, prototype_enabled);
 
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
@@ -14438,10 +14446,10 @@ bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index, bo
 	if(!anonymous_getter_enabled && !named_getter_enabled){
 		return false;
 	}
-	if(index.index.type != OS_VALUE_TYPE_STRING || hasSpecialPrefix(index.index.v.string)){
+	if(hasSpecialPrefix(index.index)){
 		return false;
 	}
-	if(named_getter_enabled){
+	if(index.index.type == OS_VALUE_TYPE_STRING && named_getter_enabled){
 		const void * buf1 = strings->__getAt.toChar();
 		int size1 = strings->__getAt.getDataSize();
 		const void * buf2 = index.index.v.string->toChar();
@@ -14465,8 +14473,8 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 		if(getPropertyValue(value, table_value, index, prototype_enabled)){
 			return pushValue(value);
 		}
-		if((anonymous_getter_enabled || named_getter_enabled) && index.index.type == OS_VALUE_TYPE_STRING && !hasSpecialPrefix(index.index.v.string)){
-			if(named_getter_enabled){
+		if((anonymous_getter_enabled || named_getter_enabled) && !hasSpecialPrefix(index.index)){
+			if(index.index.type == OS_VALUE_TYPE_STRING && named_getter_enabled){
 				const void * buf1 = strings->__getAt.toChar();
 				int size1 = strings->__getAt.getDataSize();
 				const void * buf2 = index.index.v.string->toChar();
@@ -14491,7 +14499,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 				if(!auto_create){
 					call(1, 1);
 				}else{
-					pushNumber(1);
+					pushBool(true);
 					call(2, 1);
 				}
 				if(auto_create && stack_values.lastElement().type == OS_VALUE_TYPE_NULL){
@@ -14529,10 +14537,10 @@ void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, 
 		break;
 
 	case OS_VALUE_TYPE_STRING:
-		if(prototype_enabled){
+		/* if(prototype_enabled){
 			return pushPropertyValue(prototypes[PROTOTYPE_STRING], index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
 		}
-		break;
+		break; */
 
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
