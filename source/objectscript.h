@@ -2311,6 +2311,7 @@ namespace ObjectScript
 				String __iter;
 				// String __tostring;
 				String __valueof;
+				/*
 				String __booleanof;
 				String __numberof;
 				String __stringof;
@@ -2318,6 +2319,7 @@ namespace ObjectScript
 				String __objectof;
 				String __userdataof;
 				String __functionof;
+				*/
 				String __clone;
 				// String __tobool;
 				String __concat;

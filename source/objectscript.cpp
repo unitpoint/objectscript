@@ -10218,6 +10218,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	__iter(allocator, OS_TEXT("__iter")),
 	// __tostring(allocator, OS_TEXT("__tostring")),
 	__valueof(allocator, OS_TEXT("__valueof")),
+	/*
 	__booleanof(allocator, OS_TEXT("__booleanof")),
 	__numberof(allocator, OS_TEXT("__numberof")),
 	__stringof(allocator, OS_TEXT("__stringof")),
@@ -10225,6 +10226,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	__objectof(allocator, OS_TEXT("__objectof")),
 	__userdataof(allocator, OS_TEXT("__userdataof")),
 	__functionof(allocator, OS_TEXT("__functionof")),
+	*/
 	__clone(allocator, OS_TEXT("__clone")),
 	__concat(allocator, OS_TEXT("__concat")),
 	__bitand(allocator, OS_TEXT("__bitand")),
@@ -15281,8 +15283,8 @@ void OS::Core::opGetProperty(bool auto_create)
 	pushPropertyValue(stack_values.buf[stack_values.count - 2], 
 		PropertyIndex(stack_values.buf[stack_values.count - 1]), true, true, true, auto_create);
 	removeStackValues(-3, 2);
-	OS_ASSERT(ret_values == 1);
-	// syncRetValues(ret_values, 1);
+	// OS_ASSERT(ret_values == 1);
+	syncRetValues(ret_values, 1);
 }
 
 void OS::Core::opGetPropertyByLocals(bool auto_create)
@@ -15294,8 +15296,8 @@ void OS::Core::opGetPropertyByLocals(bool auto_create)
 	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
 	pushPropertyValue(stack_func_locals[local_1], 
 		PropertyIndex(stack_func_locals[local_2]), true, true, true, auto_create);
-	OS_ASSERT(ret_values == 1);
-	// syncRetValues(ret_values, 1);
+	// OS_ASSERT(ret_values == 1);
+	syncRetValues(ret_values, 1);
 }
 
 void OS::Core::opGetPropertyByLocalAndNumber(bool auto_create)
@@ -15308,8 +15310,8 @@ void OS::Core::opGetPropertyByLocalAndNumber(bool auto_create)
 	OS_ASSERT(number_index >= 0 && number_index < stack_func->func->prog->num_numbers);
 	pushPropertyValue(stack_func_locals[local_1], 
 		PropertyIndex(stack_func_prog_numbers[number_index]), true, true, true, auto_create);
-	OS_ASSERT(ret_values == 1);
-	// syncRetValues(ret_values, 1);
+	// OS_ASSERT(ret_values == 1);
+	syncRetValues(ret_values, 1);
 }
 
 void OS::Core::opSetProperty()
