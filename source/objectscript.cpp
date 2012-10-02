@@ -14520,6 +14520,74 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 	return pushNull();
 }
 
+void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create)
+{
+	GCValue * proto;
+	switch(self.type){
+	case OS_VALUE_TYPE_NUMBER:
+		proto = prototypes[PROTOTYPE_NUMBER];
+		break;
+
+	case OS_VALUE_TYPE_BOOL:
+		proto = prototypes[PROTOTYPE_BOOL];
+		break;
+
+	default:
+		pushNull();
+		return;
+	}
+	// GCValue * self = table_value;
+	for(;;){
+		OS_ASSERT(proto);
+		Value value;
+		if(prototype_enabled && getPropertyValue(value, proto, index, prototype_enabled)){
+			return pushValue(value);
+		}
+		if((anonymous_getter_enabled || named_getter_enabled) && !hasSpecialPrefix(index.index)){
+			if(index.index.type == OS_VALUE_TYPE_STRING && named_getter_enabled){
+				const void * buf1 = strings->__getAt.toChar();
+				int size1 = strings->__getAt.getDataSize();
+				const void * buf2 = index.index.v.string->toChar();
+				int size2 = index.index.v.string->getDataSize();
+				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
+				if(getPropertyValue(value, proto, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+					pushValue(value);
+					pushValue(self);
+					call(0, 1);
+					return;
+				}
+			}
+			if(anonymous_getter_enabled && getPropertyValue(value, proto, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+				// auto_create = false;
+				if(value.type == OS_VALUE_TYPE_OBJECT){
+					proto = value.v.value;
+					continue;
+				}
+				pushValue(value);
+				pushValue(self);
+				pushValue(index.index);
+				if(!auto_create){
+					call(1, 1);
+				}else{
+					pushBool(true);
+					call(2, 1);
+				}
+				if(auto_create && stack_values.lastElement().type == OS_VALUE_TYPE_NULL){
+					pop();
+					setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
+				}
+				return;
+			}
+		}
+		if(auto_create){
+			setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
+			return;
+		}
+		break;
+	}
+	return pushNull();
+}
+
 void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create)
 {
 	switch(table_value.type){
@@ -14527,16 +14595,17 @@ void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, 
 		break;
 
 	case OS_VALUE_TYPE_BOOL:
-		if(prototype_enabled){
+		/* if(prototype_enabled){
 			return pushPropertyValue(prototypes[PROTOTYPE_BOOL], index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
 		}
-		break;
+		break; */
 
 	case OS_VALUE_TYPE_NUMBER:
-		if(prototype_enabled){
+		/* if(prototype_enabled){
 			return pushPropertyValue(prototypes[PROTOTYPE_NUMBER], index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
 		}
-		break;
+		break; */
+		return pushPropertyValueForPrimitive(table_value, index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
 
 	case OS_VALUE_TYPE_STRING:
 		/* if(prototype_enabled){
