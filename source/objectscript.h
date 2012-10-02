@@ -775,7 +775,8 @@ namespace ObjectScript
 
 				OS_BYTE * buffer;
 				int size;
-				int pos;
+				// int pos;
+				OS_BYTE * cur;
 
 				// if allocator is NULL then buffer will not be freed
 				MemStreamReader(OS*, int buf_size);
@@ -1369,6 +1370,11 @@ namespace ObjectScript
 				Value(int, const WeakRef&);
 
 				Value& operator=(GCValue*);
+				Value& operator=(bool);
+				Value& operator=(OS_INT32);
+				Value& operator=(OS_INT64);
+				Value& operator=(float);
+				Value& operator=(double);
 				
 				void clear();
 
@@ -2579,8 +2585,8 @@ namespace ObjectScript
 			void copyValue(int raw_from, int raw_to);
 			void insertValue(Value val, int offs);
 			void pushNull();
-			void pushTrue();
-			void pushFalse();
+			// void pushTrue();
+			// void pushFalse();
 			void pushBool(bool);
 			void pushNumber(OS_INT32);
 			void pushNumber(OS_INT64);

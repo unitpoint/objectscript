@@ -7871,7 +7871,7 @@ void OS::Core::Program::pushStartFunction()
 
 	allocator->core->gcMarkProgram(this);
 
-	OS_ASSERT(func_decl->opcodes_pos == opcodes->pos);
+	OS_ASSERT(func_decl->opcodes_pos == opcodes->getPos());
 	opcodes->movePos(func_decl->opcodes_size);
 }
 
@@ -8335,16 +8335,14 @@ double OS::Core::StreamReader::readDoubleAtPos(int pos)
 
 OS::Core::MemStreamReader::MemStreamReader(OS * allocator, int buf_size): StreamReader(allocator)
 {
-	buffer = (OS_BYTE*)allocator->malloc(buf_size OS_DBG_FILEPOS);
+	cur = buffer = (OS_BYTE*)allocator->malloc(buf_size OS_DBG_FILEPOS);
 	size = buf_size;
-	pos = 0;
 }
 
 OS::Core::MemStreamReader::MemStreamReader(OS * allocator, OS_BYTE * buf, int buf_size): StreamReader(allocator)
 {
-	buffer = buf;
+	cur = buffer = buf;
 	size = buf_size;
-	pos = 0;
 }
 
 OS::Core::MemStreamReader::~MemStreamReader()
@@ -8356,13 +8354,13 @@ OS::Core::MemStreamReader::~MemStreamReader()
 
 int OS::Core::MemStreamReader::getPos() const
 {
-	return pos;
+	return cur - buffer;
 }
 
 void OS::Core::MemStreamReader::setPos(int new_pos)
 {
 	OS_ASSERT(new_pos >= 0 && new_pos <= size);
-	pos = new_pos;
+	cur = buffer + new_pos;
 }
 
 int OS::Core::MemStreamReader::getSize() const
@@ -8372,37 +8370,37 @@ int OS::Core::MemStreamReader::getSize() const
 
 void OS::Core::MemStreamReader::movePos(int len)
 {
-	OS_ASSERT(pos+len >= 0 && pos+len <= size);
-	pos += len;
+	OS_ASSERT(getPos()+len >= 0 && getPos()+len <= size);
+	cur += len;
 }
 
 bool OS::Core::MemStreamReader::checkBytes(const void * src, int len)
 {
-	OS_ASSERT(pos >= 0 && pos+len <= size);
-	bool r = OS_MEMCMP(buffer+pos, src, len) == 0;
-	pos += len;
+	OS_ASSERT(getPos() >= 0 && getPos()+len <= size);
+	bool r = OS_MEMCMP(cur, src, len) == 0;
+	cur += len;
 	return r;
 }
 
 void * OS::Core::MemStreamReader::readBytes(void * dst, int len)
 {
-	OS_ASSERT(pos >= 0 && pos+len <= size);
-	OS_MEMCPY(dst, buffer+pos, len);
-	pos += len;
+	OS_ASSERT(getPos() >= 0 && getPos()+len <= size);
+	OS_MEMCPY(dst, cur, len);
+	cur += len;
 	return dst;
 }
 
 void * OS::Core::MemStreamReader::readBytesAtPos(void * dst, int len, int pos)
 {
 	OS_ASSERT(pos >= 0 && pos+len <= size);
-	OS_MEMCPY(dst, buffer+pos, len);
+	OS_MEMCPY(dst, buffer + pos, len);
 	return dst;
 }
 
 OS_BYTE OS::Core::MemStreamReader::readByte()
 {
-	OS_ASSERT(pos >= 0 && pos+(int)sizeof(OS_BYTE) <= size);
-	return buffer[pos++];
+	OS_ASSERT(getPos() >= 0 && getPos()+(int)sizeof(OS_BYTE) <= size);
+	return *cur++;
 }
 
 OS_BYTE OS::Core::MemStreamReader::readByteAtPos(int pos)
@@ -8413,9 +8411,9 @@ OS_BYTE OS::Core::MemStreamReader::readByteAtPos(int pos)
 
 OS_INT32 OS::Core::MemStreamReader::readInt32()
 {
-	OS_ASSERT(pos >= 0 && pos+(int)sizeof(OS_INT32) <= size);
-	OS_BYTE * buf = buffer + pos;
-	pos += sizeof(OS_INT32);
+	OS_ASSERT(getPos() >= 0 && getPos()+(int)sizeof(OS_INT32) <= size);
+	OS_BYTE * buf = cur;
+	cur += sizeof(OS_INT32);
 	OS_INT32 value = buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 	return value;
 }
@@ -8609,6 +8607,24 @@ bool OS::Core::PropertyIndex::isEqual(int hash, const void * buf1, int size1, co
 	return false;
 }
 
+template <class T> int getNumberHash(T val)
+{
+	return (int)val;
+}
+template <> int getNumberHash<double>(double val)
+{
+	float t = (float)val;
+	return *(int*)&t;
+}
+template <> int getNumberHash<float>(float t)
+{
+	return *(int*)&t;
+}
+template <> int getNumberHash<int>(int t)
+{
+	return t;
+}
+
 int OS::Core::PropertyIndex::getHash() const
 {
 	switch(index.type){
@@ -8621,6 +8637,17 @@ int OS::Core::PropertyIndex::getHash() const
 		*/
 
 	case OS_VALUE_TYPE_NUMBER:
+#if 1
+		// return getNumberHash(index.v.number);
+		{
+			union { 
+				double d; 
+				OS_INT32 p[2];
+			} u;
+			u.d = (double)index.v.number; // + 1.0f;
+			return u.p[0] + u.p[1];
+		}
+#else
 		/* if(sizeof(index.v.number) > sizeof(float)){
 			float t = (float)index.v.number;
 			return *(int*)&t;
@@ -8628,9 +8655,14 @@ int OS::Core::PropertyIndex::getHash() const
 		// return (int)index.v.number;
 		OS_ASSERT(sizeof(int) <= sizeof(index.v.number));
 		if(IS_LITTLE_ENDIAN){
-			return ((int*)((OS_BYTE*)&index.v.number + sizeof(index.v.number)))[-1];
+			OS_U32 t = ((OS_U32*)((OS_BYTE*)&index.v.number + sizeof(index.v.number)))[-1];
+			return (t>>24) | (t<<8);
+			// return ((int*)((OS_BYTE*)&index.v.number + sizeof(index.v.number)))[-1];
+		}else{
+			OS_U32 t = *(OS_U32*)&index.v.number;
+			return (t>>24) | (t<<8);
 		}
-		break;
+#endif
 
 	case OS_VALUE_TYPE_STRING:
 		return index.v.string->hash;
@@ -9274,7 +9306,7 @@ void OS::Core::clearFunctionValue(GCFunctionValue * func_value)
 
 	// value could be already destroyed by gc or will be destroyed soon
 	// releaseValue(func_data->env);
-	func_value->env = NULL;
+	func_value->env = (GCValue*)NULL;
 
 	// releaseValue(func_data->self);
 	// func_data->self = NULL;
@@ -9428,6 +9460,41 @@ OS::Core::Value& OS::Core::Value::operator=(GCValue * val)
 		v.value = NULL;
 		type = OS_VALUE_TYPE_NULL;
 	}
+	return *this;
+}
+
+OS::Core::Value& OS::Core::Value::operator=(bool val)
+{
+	v.boolean = val;
+	type = OS_VALUE_TYPE_BOOL;
+	return *this;
+}
+
+OS::Core::Value& OS::Core::Value::operator=(OS_INT32 val)
+{
+	v.number = (OS_NUMBER)val;
+	type = OS_VALUE_TYPE_NUMBER;
+	return *this;
+}
+
+OS::Core::Value& OS::Core::Value::operator=(OS_INT64 val)
+{
+	v.number = (OS_NUMBER)val;
+	type = OS_VALUE_TYPE_NUMBER;
+	return *this;
+}
+
+OS::Core::Value& OS::Core::Value::operator=(float val)
+{
+	v.number = (OS_NUMBER)val;
+	type = OS_VALUE_TYPE_NUMBER;
+	return *this;
+}
+
+OS::Core::Value& OS::Core::Value::operator=(double val)
+{
+	v.number = (OS_NUMBER)val;
+	type = OS_VALUE_TYPE_NUMBER;
 	return *this;
 }
 
@@ -11111,8 +11178,8 @@ void OS::Core::shutdown()
 	deleteValues(true); // just clear values.heads
 
 	check_recursion = NULL;
-	global_vars = NULL;
-	user_pool = NULL;
+	global_vars = (GCValue*)NULL;
+	user_pool = (GCValue*)NULL;
 
 	for(i = 0; i < OS_ERROR_LEVELS; i++){
 		error_handlers[i] = NULL;
@@ -11313,7 +11380,7 @@ void OS::Core::error(int code, const String& message)
 		Core::StackFunction * stack_func = call_stack_funcs.buf + i;
 		prog = stack_func->func->prog;
 		if(prog->filename.getLen() > 0){
-			int opcode_pos = stack_func->opcodes.pos + stack_func->func->func_decl->opcodes_pos;
+			int opcode_pos = stack_func->opcodes.getPos() + stack_func->func->func_decl->opcodes_pos;
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
 	}
@@ -12600,40 +12667,80 @@ void OS::Core::copyValue(int raw_from, int raw_to)
 	reserveStackValues(raw_to+1);
 	stack_values.buf[raw_to] = stack_values.buf[raw_from];
 }
-
+/*
 void OS::Core::pushTrue()
 {
-	pushValue(Value(true));
+	pushValue(true);
 }
 
 void OS::Core::pushFalse()
 {
-	pushValue(Value(false));
+	pushValue(false);
 }
-
+*/
 void OS::Core::pushBool(bool val)
 {
-	pushValue(Value(val));
+#if 1
+	StackValues& stack_values = this->stack_values;
+	if(stack_values.capacity < stack_values.count+1){
+		reserveStackValues(stack_values.count+1);
+	}
+	stack_values.buf[stack_values.count++] = val;
+#else
+	pushValue(val);
+#endif
 }
 
 void OS::Core::pushNumber(OS_INT32 val)
 {
+#if 1
+	StackValues& stack_values = this->stack_values;
+	if(stack_values.capacity < stack_values.count+1){
+		reserveStackValues(stack_values.count+1);
+	}
+	stack_values.buf[stack_values.count++] = val;
+#else
 	pushValue(val);
+#endif
 }
 
 void OS::Core::pushNumber(OS_INT64 val)
 {
+#if 1
+	StackValues& stack_values = this->stack_values;
+	if(stack_values.capacity < stack_values.count+1){
+		reserveStackValues(stack_values.count+1);
+	}
+	stack_values.buf[stack_values.count++] = val;
+#else
 	pushValue(val);
+#endif
 }
 
 void OS::Core::pushNumber(float val)
 {
+#if 1
+	StackValues& stack_values = this->stack_values;
+	if(stack_values.capacity < stack_values.count+1){
+		reserveStackValues(stack_values.count+1);
+	}
+	stack_values.buf[stack_values.count++] = val;
+#else
 	pushValue(val);
+#endif
 }
 
 void OS::Core::pushNumber(double val)
 {
+#if 1
+	StackValues& stack_values = this->stack_values;
+	if(stack_values.capacity < stack_values.count+1){
+		reserveStackValues(stack_values.count+1);
+	}
+	stack_values.buf[stack_values.count++] = val;
+#else
 	pushValue(val);
+#endif
 }
 
 OS::Core::GCStringValue * OS::Core::pushStringValue(const String& val)
@@ -15117,9 +15224,16 @@ void OS::Core::opJump()
 void OS::Core::opCall()
 {
 	StackFunction * stack_func = this->stack_func;
+#if 1
+	OS_ASSERT(stack_func->opcodes.getPos() + 2 <= stack_func->opcodes.size);
+	OS_BYTE * buf = stack_func->opcodes.cur;
+	stack_func->opcodes.cur += 2;
+	int params = buf[0];
+	int ret_values = buf[1];
+#else
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->opcodes.readByte();
-
+#endif
 	OS_ASSERT(stack_values.count >= 2 + params);
 	// insertValue(Value(), -params);
 	call(params, ret_values, NULL, true);
@@ -15128,9 +15242,16 @@ void OS::Core::opCall()
 void OS::Core::opSuperCall(int& break_with_ret_values)
 {
 	StackFunction * stack_func = this->stack_func;
+#if 1
+	OS_ASSERT(stack_func->opcodes.getPos() + 2 <= stack_func->opcodes.size);
+	OS_BYTE * buf = stack_func->opcodes.cur;
+	stack_func->opcodes.cur += 2;
+	int params = buf[0];
+	int ret_values = buf[1];
+#else
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->opcodes.readByte();
-
+#endif
 	OS_ASSERT(stack_values.count >= 2+params);
 	OS_ASSERT(stack_values.buf[stack_values.count-2-params].type == OS_VALUE_TYPE_NULL);
 	OS_ASSERT(stack_values.buf[stack_values.count-1-params].type == OS_VALUE_TYPE_NULL);
@@ -15188,7 +15309,6 @@ void OS::Core::opTailCall(int& out_ret_values)
 	StackFunction * stack_func = this->stack_func;
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->need_ret_values;
-
 	OS_ASSERT(stack_values.count >= 1 + params);
 	Value func_value = stack_values[stack_values.count-1-params];
 	OS_ASSERT(call_stack_funcs.count > 0 && &call_stack_funcs[call_stack_funcs.count-1] == stack_func);
@@ -15230,9 +15350,16 @@ void OS::Core::opTailCall(int& out_ret_values)
 void OS::Core::opCallMethod()
 {
 	StackFunction * stack_func = this->stack_func;
+#if 1
+	OS_ASSERT(stack_func->opcodes.getPos() + 2 <= stack_func->opcodes.size);
+	OS_BYTE * buf = stack_func->opcodes.cur;
+	stack_func->opcodes.cur += 2;
+	int params = buf[0];
+	int ret_values = buf[1];
+#else
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->opcodes.readByte();
-
+#endif
 	OS_ASSERT(stack_values.count >= 2 + params);
 	Value table_value = stack_values[stack_values.count-2-params];
 	pushPropertyValue(table_value, PropertyIndex(stack_values[stack_values.count-1-params]), true, true, true, false);
@@ -15256,7 +15383,6 @@ void OS::Core::opTailCallMethod(int& out_ret_values)
 	StackFunction * stack_func = this->stack_func;
 	int params = stack_func->opcodes.readByte();
 	int ret_values = stack_func->need_ret_values;
-
 	OS_ASSERT(stack_values.count >= 2 + params);
 	Value table_value = stack_values[stack_values.count-2-params];
 	pushPropertyValue(table_value, Core::PropertyIndex(stack_values[stack_values.count-1-params]), true, true, true, false);
@@ -15359,9 +15485,18 @@ void OS::Core::opGetProperty(bool auto_create)
 void OS::Core::opGetPropertyByLocals(bool auto_create)
 {
 	StackFunction * stack_func = this->stack_func;
+#if 1
+	OS_ASSERT(stack_func->opcodes.getPos() + 3 <= stack_func->opcodes.size);
+	OS_BYTE * buf = stack_func->opcodes.cur;
+	stack_func->opcodes.cur += 3;
+	int ret_values = buf[0];
+	int local_1 = buf[1];
+	int local_2 = buf[2];
+#else
 	int ret_values = stack_func->opcodes.readByte();
 	int local_1 = stack_func->opcodes.readByte();
 	int local_2 = stack_func->opcodes.readByte();
+#endif
 	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
 	pushPropertyValue(stack_func_locals[local_1], 
 		PropertyIndex(stack_func_locals[local_2]), true, true, true, auto_create);
@@ -15372,8 +15507,16 @@ void OS::Core::opGetPropertyByLocals(bool auto_create)
 void OS::Core::opGetPropertyByLocalAndNumber(bool auto_create)
 {
 	StackFunction * stack_func = this->stack_func;
+#if 1
+	OS_ASSERT(stack_func->opcodes.getPos() + 2 <= stack_func->opcodes.size);
+	OS_BYTE * buf = stack_func->opcodes.cur;
+	stack_func->opcodes.cur += 2;
+	int ret_values = buf[0];
+	int local_1 = buf[1];
+#else
 	int ret_values = stack_func->opcodes.readByte();
 	int local_1 = stack_func->opcodes.readByte();
+#endif
 	OS_ASSERT(local_1 < num_stack_func_locals);
 	int number_index = stack_func->opcodes.readUVariable();
 	OS_ASSERT(number_index >= 0 && number_index < stack_func->func->prog->num_numbers);
@@ -15395,8 +15538,16 @@ void OS::Core::opSetProperty()
 void OS::Core::opSetPropertyByLocals(bool auto_create)
 {
 	OS_ASSERT(stack_values.count >= 1);
+#if 1
+	OS_ASSERT(stack_func->opcodes.getPos() + 2 <= stack_func->opcodes.size);
+	OS_BYTE * buf = stack_func->opcodes.cur;
+	stack_func->opcodes.cur += 2;
+	int local_1 = buf[0];
+	int local_2 = buf[1];
+#else
 	int local_1 = stack_func->opcodes.readByte();
 	int local_2 = stack_func->opcodes.readByte();
+#endif
 	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
 	if(auto_create && stack_func_locals[local_1].type == OS_VALUE_TYPE_NULL){
 		stack_func_locals[local_1] = newObjectValue();
@@ -15410,13 +15561,26 @@ void OS::Core::opSetPropertyByLocals(bool auto_create)
 void OS::Core::opGetSetPropertyByLocals(bool auto_create)
 {
 	OS_ASSERT(stack_values.count >= 1);
+#if 1
+	OS_ASSERT(stack_func->opcodes.getPos() + 4 <= stack_func->opcodes.size);
+	OS_BYTE * buf = stack_func->opcodes.cur;
+	stack_func->opcodes.cur += 4;
+	int local_1 = buf[0];
+	int local_2 = buf[1];
+#else
 	int local_1 = stack_func->opcodes.readByte();
 	int local_2 = stack_func->opcodes.readByte();
+#endif
 	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
 	pushPropertyValue(stack_func_locals[local_1], 
 		PropertyIndex(stack_func_locals[local_2]), true, true, true, auto_create);
+#if 1
+	local_1 = buf[2];
+	local_2 = buf[3];
+#else
 	local_1 = stack_func->opcodes.readByte();
 	local_2 = stack_func->opcodes.readByte();
+#endif
 	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
 	if(auto_create && stack_func_locals[local_1].type == OS_VALUE_TYPE_NULL){
 		stack_func_locals[local_1] = newObjectValue();
@@ -15662,18 +15826,36 @@ void OS::Core::opBinaryOperator(int opcode)
 void OS::Core::opBinaryOperatorByLocals()
 {
 	StackFunction * stack_func = this->stack_func;
+#if 1
+	OS_ASSERT(stack_func->opcodes.getPos() + 3 <= stack_func->opcodes.size);
+	OS_BYTE * buf = stack_func->opcodes.cur;
+	stack_func->opcodes.cur += 3;
+	int opcode = buf[0];
+	int local_1 = buf[1];
+	int local_2 = buf[2];
+#else
 	int opcode = stack_func->opcodes.readByte();
 	int local_1 = stack_func->opcodes.readByte();
 	int local_2 = stack_func->opcodes.readByte();
+#endif
 	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
+	Value * stack_func_locals = this->stack_func_locals;
 	pushOpResultValue(opcode, stack_func_locals[local_1], stack_func_locals[local_2]);
 }
 
 void OS::Core::opBinaryOperatorByLocalAndNumber()
 {
 	StackFunction * stack_func = this->stack_func;
+#if 1
+	OS_ASSERT(stack_func->opcodes.getPos() + 2 <= stack_func->opcodes.size);
+	OS_BYTE * buf = stack_func->opcodes.cur;
+	stack_func->opcodes.cur += 2;
+	int opcode = buf[0];
+	int local_1 = buf[1];
+#else
 	int opcode = stack_func->opcodes.readByte();
 	int local_1 = stack_func->opcodes.readByte();
+#endif
 	OS_ASSERT(local_1 < num_stack_func_locals);
 	int number_index = stack_func->opcodes.readUVariable();
 	OS_ASSERT(number_index >= 0 && number_index < stack_func->func->prog->num_numbers);
@@ -15746,11 +15928,11 @@ int OS::Core::execute()
 			break;
 
 		case Program::OP_PUSH_TRUE:
-			pushTrue();
+			pushBool(true);
 			break;
 
 		case Program::OP_PUSH_FALSE:
-			pushFalse();
+			pushBool(false);
 			break;
 
 		case Program::OP_PUSH_FUNCTION:
@@ -18244,7 +18426,7 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 
 		Program::DebugInfoItem * debug_info = NULL;
 		if(prog->filename.getDataSize() && prog->debug_info.count > 0){
-			int opcode_pos = stack_func->opcodes.pos + stack_func->func->func_decl->opcodes_pos;
+			int opcode_pos = stack_func->opcodes.getPos() + stack_func->func->func_decl->opcodes_pos;
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
 		setPropertyValue(obj, PropertyIndex(line_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->line : Value(), false, false);
