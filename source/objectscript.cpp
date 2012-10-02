@@ -3,6 +3,8 @@
 
 using namespace ObjectScript;
 
+#define HASH_GROW_SHIFT 0
+
 // =====================================================================
 // =====================================================================
 // =====================================================================
@@ -2183,6 +2185,8 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		// case EXP_TYPE_GET_DIM:
 	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_GET_PROPERTY:
+	case EXP_TYPE_GET_PROPERTY_BY_LOCALS:
+	case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 		// case EXP_TYPE_GET_PROPERTY_DIM:
 		// case EXP_TYPE_SET_ENV_VAR_DIM:
@@ -2306,6 +2310,17 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			break;
 		}
 
+	case EXP_TYPE_BIN_OPERATOR_BY_LOCALS:
+	case EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER:
+		{
+			OS_ASSERT(list.count == 1);
+			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
+			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			list[0]->debugPrint(out, compiler, depth+1);
+			out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
+			break;
+		}
+
 	case EXP_TYPE_NEW_LOCAL_VAR:
 		{
 			OS_ASSERT(list.count == 0);
@@ -2348,6 +2363,8 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		}
 
 	case EXP_TYPE_SET_LOCAL_VAR:
+	case EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS:
+	case EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER:
 		{
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
@@ -2371,6 +2388,8 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		}
 
 	case EXP_TYPE_SET_PROPERTY:
+	case EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
+	case EXP_TYPE_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
 		// case EXP_TYPE_SET_PROPERTY_DIM:
 	case EXP_TYPE_SET_DIM:
 		{
@@ -2569,11 +2588,20 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_IF:
 		{
 			OS_ASSERT(exp->list.count == 2 || exp->list.count == 3);
-			if(!writeOpcodes(scope, exp->list[0])){
-				return false;
+			if(exp->list[0]->type == EXP_TYPE_LOGIC_NOT){
+				OS_ASSERT(exp->list[0]->list.count == 1);
+				if(!writeOpcodes(scope, exp->list[0]->list)){
+					return false;
+				}
+				writeDebugInfo(exp);
+				prog_opcodes->writeByte(Program::OP_IF_JUMP);
+			}else{
+				if(!writeOpcodes(scope, exp->list[0])){
+					return false;
+				}
+				writeDebugInfo(exp);
+				prog_opcodes->writeByte(Program::OP_IF_NOT_JUMP);
 			}
-			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_IF_NOT_JUMP);
 
 			int if_not_jump_pos = prog_opcodes->getPos();
 			prog_opcodes->writeInt32(0);
@@ -2602,11 +2630,20 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_QUESTION:
 		{
 			OS_ASSERT(exp->list.count == 3);
-			if(!writeOpcodes(scope, exp->list[0])){
-				return false;
+			if(exp->list[0]->type == EXP_TYPE_LOGIC_NOT){
+				OS_ASSERT(exp->list[0]->list.count == 1);
+				if(!writeOpcodes(scope, exp->list[0]->list)){
+					return false;
+				}
+				writeDebugInfo(exp);
+				prog_opcodes->writeByte(Program::OP_IF_JUMP);
+			}else{
+				if(!writeOpcodes(scope, exp->list[0])){
+					return false;
+				}
+				writeDebugInfo(exp);
+				prog_opcodes->writeByte(Program::OP_IF_NOT_JUMP);
 			}
-			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_IF_NOT_JUMP);
 
 			int if_not_jump_pos = prog_opcodes->getPos();
 			prog_opcodes->writeInt32(0);
@@ -2819,6 +2856,40 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		}
 		break;
 
+	case EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS:
+		{
+			OS_ASSERT(exp->list.count == 1);
+			OS_ASSERT(!exp->local_var.up_count);
+			OS_ASSERT(exp->list[0]->type == EXP_TYPE_BIN_OPERATOR_BY_LOCALS);
+			writeDebugInfo(exp);
+			prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS);
+			Expression * exp_binary = exp->list[0]->list[0];
+			Expression * exp1 = exp_binary->list[0];
+			Expression * exp2 = exp_binary->list[1];
+			prog_opcodes->writeByte(Program::getOpcodeType(exp_binary->type));
+			prog_opcodes->writeByte(exp1->local_var.index);
+			prog_opcodes->writeByte(exp2->local_var.index);
+			prog_opcodes->writeUVariable(exp->local_var.index);
+			break;
+		}
+
+	case EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER:
+		{
+			OS_ASSERT(exp->list.count == 1);
+			OS_ASSERT(!exp->local_var.up_count);
+			OS_ASSERT(exp->list[0]->type == EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER);
+			writeDebugInfo(exp);
+			prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER);
+			Expression * exp_binary = exp->list[0]->list[0];
+			Expression * exp1 = exp_binary->list[0];
+			Expression * exp2 = exp_binary->list[1];
+			prog_opcodes->writeByte(Program::getOpcodeType(exp_binary->type));
+			prog_opcodes->writeByte(exp1->local_var.index);
+			prog_opcodes->writeUVariable(cacheNumber((OS_NUMBER)exp2->token->getFloat()));
+			prog_opcodes->writeUVariable(exp->local_var.index);
+			break;
+		}
+
 	case EXP_TYPE_CALL:
 	case EXP_TYPE_CALL_AUTO_PARAM:
 		{
@@ -2888,6 +2959,28 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		prog_opcodes->writeByte(exp->ret_values);
 		break;
 
+	case EXP_TYPE_GET_PROPERTY_BY_LOCALS:
+		OS_ASSERT(exp->list.count == 2);
+		OS_ASSERT(exp->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->local_var.up_count);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[1]->local_var.up_count);
+		writeDebugInfo(exp);
+		prog_opcodes->writeByte(Program::OP_GET_PROPERTY_BY_LOCALS);
+		prog_opcodes->writeByte(exp->ret_values);
+		prog_opcodes->writeByte(exp->list[0]->local_var.index);
+		prog_opcodes->writeByte(exp->list[1]->local_var.index);
+		break;
+
+	case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
+		OS_ASSERT(exp->list.count == 2);
+		OS_ASSERT(exp->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->local_var.up_count);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_CONST_NUMBER);
+		writeDebugInfo(exp);
+		prog_opcodes->writeByte(Program::OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER);
+		prog_opcodes->writeByte(exp->ret_values);
+		prog_opcodes->writeByte(exp->list[0]->local_var.index);
+		prog_opcodes->writeUVariable(cacheNumber((OS_NUMBER)exp->list[1]->token->getFloat()));
+		break;
+
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 		OS_ASSERT(exp->list.count == 2);
 		if(!writeOpcodes(scope, exp->list)){
@@ -2905,6 +2998,32 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		}
 		writeDebugInfo(exp);
 		prog_opcodes->writeByte(Program::OP_SET_PROPERTY);
+		break;
+
+	case EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
+		OS_ASSERT(exp->list.count == 3);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE && !exp->list[1]->local_var.up_count);
+		OS_ASSERT(exp->list[2]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[2]->local_var.up_count);
+		writeOpcodes(scope, exp->list[0]);
+		writeDebugInfo(exp);
+		prog_opcodes->writeByte(Program::OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
+		prog_opcodes->writeByte(exp->list[1]->local_var.index);
+		prog_opcodes->writeByte(exp->list[2]->local_var.index);
+		break;
+
+	case EXP_TYPE_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
+		OS_ASSERT(exp->list.count == 3);
+		OS_ASSERT(exp->list[0]->type == EXP_TYPE_GET_PROPERTY_BY_LOCALS && exp->list[0]->list.count == 2);
+		OS_ASSERT(exp->list[0]->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[0]->local_var.up_count);
+		OS_ASSERT(exp->list[0]->list[1]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[1]->local_var.up_count);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE && !exp->list[1]->local_var.up_count);
+		OS_ASSERT(exp->list[2]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[2]->local_var.up_count);
+		writeDebugInfo(exp);
+		prog_opcodes->writeByte(Program::OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
+		prog_opcodes->writeByte(exp->list[0]->list[0]->local_var.index);
+		prog_opcodes->writeByte(exp->list[0]->list[1]->local_var.index);
+		prog_opcodes->writeByte(exp->list[1]->local_var.index);
+		prog_opcodes->writeByte(exp->list[2]->local_var.index);
 		break;
 
 	case EXP_TYPE_SET_DIM:
@@ -3045,6 +3164,40 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		writeDebugInfo(exp);
 		prog_opcodes->writeByte(Program::getOpcodeType(exp->type));
 		break;
+
+	case EXP_TYPE_BIN_OPERATOR_BY_LOCALS:
+		{
+			OS_ASSERT(exp->list.count == 1);
+			OS_ASSERT(exp->list[0]->isBinaryOperator());
+			OS_ASSERT(exp->list[0]->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[0]->local_var.up_count);
+			OS_ASSERT(exp->list[0]->list[1]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[1]->local_var.up_count);
+			writeDebugInfo(exp);
+			prog_opcodes->writeByte(Program::OP_BIN_OPERATOR_BY_LOCALS);
+			Expression * exp_binary = exp->list[0];
+			Expression * exp1 = exp_binary->list[0];
+			Expression * exp2 = exp_binary->list[1];
+			prog_opcodes->writeByte(Program::getOpcodeType(exp_binary->type));
+			prog_opcodes->writeByte(exp1->local_var.index);
+			prog_opcodes->writeByte(exp2->local_var.index);
+			break;
+		}
+
+	case EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER:
+		{
+			OS_ASSERT(exp->list.count == 1);
+			OS_ASSERT(exp->list[0]->isBinaryOperator());
+			OS_ASSERT(exp->list[0]->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[0]->local_var.up_count);
+			OS_ASSERT(exp->list[0]->list[1]->type == EXP_TYPE_CONST_NUMBER);
+			writeDebugInfo(exp);
+			prog_opcodes->writeByte(Program::OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER);
+			Expression * exp_binary = exp->list[0];
+			Expression * exp1 = exp_binary->list[0];
+			Expression * exp2 = exp_binary->list[1];
+			prog_opcodes->writeByte(Program::getOpcodeType(exp_binary->type));
+			prog_opcodes->writeByte(exp1->local_var.index);
+			prog_opcodes->writeUVariable(cacheNumber((OS_NUMBER)exp2->token->getFloat()));
+			break;
+		}
 	}
 	return true;
 }
@@ -3742,6 +3895,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 		// case EXP_TYPE_GET_DIM:
 	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_GET_PROPERTY:
+	case EXP_TYPE_GET_PROPERTY_BY_LOCALS:
+	case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 		// case EXP_TYPE_GET_PROPERTY_DIM:
 	case EXP_TYPE_INDIRECT:
@@ -3761,6 +3916,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 				// case EXP_TYPE_GET_DIM:
 			case EXP_TYPE_CALL_METHOD:
 			case EXP_TYPE_GET_PROPERTY:
+			case EXP_TYPE_GET_PROPERTY_BY_LOCALS:
+			case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
 			case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 				// case EXP_TYPE_GET_PROPERTY_DIM:
 			case EXP_TYPE_INDIRECT:
@@ -3809,6 +3966,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 					// case EXP_TYPE_GET_DIM:
 				case EXP_TYPE_CALL_METHOD:
 				case EXP_TYPE_GET_PROPERTY:
+				case EXP_TYPE_GET_PROPERTY_BY_LOCALS:
+				case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
 				case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 					// case EXP_TYPE_GET_PROPERTY_DIM:
 					// case EXP_TYPE_GET_ENV_VAR_DIM:
@@ -3868,6 +4027,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newSingleValueExpression(Ex
 		// case EXP_TYPE_GET_DIM:
 	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_GET_PROPERTY:
+	case EXP_TYPE_GET_PROPERTY_BY_LOCALS:
+	case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 		// case EXP_TYPE_GET_PROPERTY_DIM:
 		// case EXP_TYPE_GET_ENV_VAR_DIM:
@@ -4348,26 +4509,29 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass2(Scope * scope, Ex
 OS::Core::Compiler::Expression * OS::Core::Compiler::postProcessExpression(Scope * scope, Expression * exp)
 {
 	exp = stepPass2(scope, exp);
-#if 1
+#if 0
 	return exp;
 #else
 	OS_ASSERT(scope->type == EXP_TYPE_FUNCTION);
-	prog_stack_size = 0;
+	// prog_stack_size = 0;
 	return stepPass3(scope, exp);
 #endif
 }
 
-#if 0
+#if 1
 OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass3(Scope * scope, Expression * exp)
 {
-	for(int i = 0; i < exp->list.count; i++){
-		exp->list[i] = stepPass3(scope, exp->list[i]);
-	}
+	struct Lib {
+		static Expression * processExpList(Compiler * compiler, Scope * scope, Expression * exp)
+		{
+			for(int i = 0; i < exp->list.count; i++){
+				exp->list[i] = compiler->stepPass3(scope, exp->list[i]);
+			}
+			return exp;
+		}
+	};
+	Expression * exp1, * exp2;
 	switch(exp->type){
-	default:
-		OS_ASSERT(false);
-		break;
-
 	case EXP_TYPE_FUNCTION:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
@@ -4385,11 +4549,98 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass3(Scope * scope, Ex
 			break;
 		}
 
-	case EXP_TYPE_DEBUG_LOCALS:
-		break;
+	case EXP_TYPE_GET_PROPERTY:
+		{
+			OS_ASSERT(exp->list.count == 2);
+			exp = Lib::processExpList(this, scope, exp);
+			exp1 = exp->list[0];
+			exp2 = exp->list[1];
+			if(exp1->type == EXP_TYPE_GET_LOCAL_VAR && exp2->type == EXP_TYPE_GET_LOCAL_VAR
+				&& !exp1->local_var.up_count && exp1->local_var.index <= 255
+				&& !exp2->local_var.up_count && exp2->local_var.index <= 255)
+			{
+				exp->type = EXP_TYPE_GET_PROPERTY_BY_LOCALS;
+			}else if(exp1->type == EXP_TYPE_GET_LOCAL_VAR && exp2->type == EXP_TYPE_CONST_NUMBER
+				&& !exp1->local_var.up_count && exp1->local_var.index <= 255)
+			{
+				exp->type = EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER;
+			}
+			return exp;
+		}
 
-	case EXP_TYPE_PARAMS:
-		break;
+	case EXP_TYPE_SET_PROPERTY:
+		{
+			OS_ASSERT(exp->list.count == 3);
+			exp = Lib::processExpList(this, scope, exp);
+			exp1 = exp->list[1];
+			exp2 = exp->list[2];
+			if(exp1->type == EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE && exp2->type == EXP_TYPE_GET_LOCAL_VAR
+				&& !exp1->local_var.up_count && exp1->local_var.index <= 255
+				&& !exp2->local_var.up_count && exp2->local_var.index <= 255)
+			{
+				if(exp->list[0]->type == EXP_TYPE_GET_PROPERTY_BY_LOCALS){
+					exp->type = EXP_TYPE_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE;
+				}else{
+					exp->type = EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE;
+				}
+			}
+			return exp;
+		}
+
+	case EXP_TYPE_CONCAT:
+	case EXP_TYPE_LOGIC_PTR_EQ:
+	case EXP_TYPE_LOGIC_PTR_NE:
+	case EXP_TYPE_LOGIC_EQ:
+	case EXP_TYPE_LOGIC_NE:
+	case EXP_TYPE_LOGIC_GE:
+	case EXP_TYPE_LOGIC_LE:
+	case EXP_TYPE_LOGIC_GREATER:
+	case EXP_TYPE_LOGIC_LESS:
+	case EXP_TYPE_BIT_AND:
+	case EXP_TYPE_BIT_OR:
+	case EXP_TYPE_BIT_XOR:
+	case EXP_TYPE_ADD: // +
+	case EXP_TYPE_SUB: // -
+	case EXP_TYPE_MUL: // *
+	case EXP_TYPE_DIV: // /
+	case EXP_TYPE_MOD: // %
+	case EXP_TYPE_LSHIFT: // <<
+	case EXP_TYPE_RSHIFT: // >>
+	case EXP_TYPE_POW: // **
+		{
+			OS_ASSERT(exp->list.count == 2);
+			exp = Lib::processExpList(this, scope, exp);
+			exp1 = exp->list[0];
+			exp2 = exp->list[1];
+			if(exp1->type == EXP_TYPE_GET_LOCAL_VAR && exp2->type == EXP_TYPE_GET_LOCAL_VAR
+				&& !exp1->local_var.up_count && exp1->local_var.index <= 255
+				&& !exp2->local_var.up_count && exp2->local_var.index <= 255)
+			{
+				exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_BIN_OPERATOR_BY_LOCALS, exp->token, exp OS_DBG_FILEPOS);
+				exp->ret_values = exp->list[0]->ret_values;
+			}else if(exp1->type == EXP_TYPE_GET_LOCAL_VAR && exp2->type == EXP_TYPE_CONST_NUMBER
+				&& !exp1->local_var.up_count && exp1->local_var.index <= 255)
+			{
+				exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER, exp->token, exp OS_DBG_FILEPOS);
+				exp->ret_values = exp->list[0]->ret_values;
+			}
+			return exp;
+		}
+
+	case EXP_TYPE_SET_LOCAL_VAR:
+		{
+			OS_ASSERT(exp->list.count == 1);
+			exp = Lib::processExpList(this, scope, exp);
+			if(!exp->local_var.up_count && exp->local_var.index <= 255){
+				exp1 = exp->list[0];
+				if(exp1->type == EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER){
+					exp->type = EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER;
+				}else if(exp1->type == EXP_TYPE_BIN_OPERATOR_BY_LOCALS){
+					exp->type = EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS;
+				}
+			}
+			return exp;
+		}
 
 	case EXP_TYPE_POST_INC:
 	case EXP_TYPE_POST_DEC:
@@ -4402,19 +4653,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass3(Scope * scope, Ex
 		OS_ASSERT(false);
 		break;
 
-	case EXP_TYPE_RETURN:
-		break;
-
-	case EXP_TYPE_CALL:
-	case EXP_TYPE_CALL_AUTO_PARAM:
-		break;
-
-	case EXP_TYPE_SET_DIM:
-		break;
-
-	case EXP_TYPE_SET_PROPERTY:
-		break;
-
 	case EXP_TYPE_CALL_DIM:
 		OS_ASSERT(false);
 		break;
@@ -4423,7 +4661,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::stepPass3(Scope * scope, Ex
 		OS_ASSERT(false);
 		break;
 	}
-	return exp;
+	return Lib::processExpList(this, scope, exp);
 }
 #endif
 
@@ -6983,8 +7221,20 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_SET_PROPERTY:
 		return OS_TEXT("set property");
 
+	case EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
+		return OS_TEXT("set property by locals auto create");
+
+	case EXP_TYPE_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
+		return OS_TEXT("get & set property by locals auto create");
+
 	case EXP_TYPE_GET_PROPERTY:
 		return OS_TEXT("get property");
+
+	case EXP_TYPE_GET_PROPERTY_BY_LOCALS:
+		return OS_TEXT("get property by locals");
+
+	case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
+		return OS_TEXT("get property by local & number");
 
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 		return OS_TEXT("get property auto create");
@@ -7062,8 +7312,20 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_SET_LOCAL_VAR:
 		return OS_TEXT("set local var");
 
+	case EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS:
+		return OS_TEXT("set local var by bin operator locals");
+
+	case EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER:
+		return OS_TEXT("set local var by bin operator local & number");
+
 	case EXP_TYPE_SET_ENV_VAR:
 		return OS_TEXT("set env var");
+
+	case EXP_TYPE_BIN_OPERATOR_BY_LOCALS:
+		return OS_TEXT("binary operator by locals");
+
+	case EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER:
+		return OS_TEXT("binary operator by local & number");
 
 	case EXP_TYPE_ASSIGN:
 		return OS_TEXT("operator =");
@@ -8149,6 +8411,15 @@ OS_BYTE OS::Core::MemStreamReader::readByteAtPos(int pos)
 	return buffer[pos];
 }
 
+OS_INT32 OS::Core::MemStreamReader::readInt32()
+{
+	OS_ASSERT(pos >= 0 && pos+(int)sizeof(OS_INT32) <= size);
+	OS_BYTE * buf = buffer + pos;
+	pos += sizeof(OS_INT32);
+	OS_INT32 value = buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
+	return value;
+}
+
 // =====================================================================
 
 OS::Core::FileStreamReader::FileStreamReader(OS * allocator, const OS_CHAR * filename): StreamReader(allocator)
@@ -8350,6 +8621,10 @@ int OS::Core::PropertyIndex::getHash() const
 		*/
 
 	case OS_VALUE_TYPE_NUMBER:
+		/* if(sizeof(index.v.number) > sizeof(float)){
+			float t = (float)index.v.number;
+			return *(int*)&t;
+		} */
 		// return (int)index.v.number;
 		OS_ASSERT(sizeof(int) <= sizeof(index.v.number));
 		if(IS_LITTLE_ENDIAN){
@@ -8528,7 +8803,7 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 	OS_ASSERT(prop->next == NULL);
 	OS_ASSERT(!table->get(*prop));
 
-	if((table->count >> 1) >= table->head_mask){
+	if((table->count>>HASH_GROW_SHIFT) >= table->head_mask){
 		int new_size = table->heads ? (table->head_mask+1) * 2 : 4;
 		int alloc_size = sizeof(Property*)*new_size;
 		Property ** new_heads = (Property**)malloc(alloc_size OS_DBG_FILEPOS);
@@ -9715,7 +9990,7 @@ OS::Core::StringRefs::~StringRefs()
 
 void OS::Core::registerStringRef(StringRef * str_ref)
 {
-	if((string_refs.count>>1) >= string_refs.head_mask){
+	if((string_refs.count>>HASH_GROW_SHIFT) >= string_refs.head_mask){
 		int new_size = string_refs.heads ? (string_refs.head_mask+1) * 2 : 32;
 		int alloc_size = sizeof(StringRef*) * new_size;
 		StringRef ** new_heads = (StringRef**)malloc(alloc_size OS_DBG_FILEPOS);
@@ -9808,7 +10083,7 @@ void OS::Core::registerValue(GCValue * value)
 {
 	value->value_id = values.next_id++;
 
-	if((values.count>>1) >= values.head_mask){
+	if((values.count>>HASH_GROW_SHIFT) >= values.head_mask){
 		int new_size = values.heads ? (values.head_mask+1) * 2 : 32;
 		int alloc_size = sizeof(GCValue*) * new_size;
 		GCValue ** new_heads = (GCValue**)malloc(alloc_size OS_DBG_FILEPOS); // new Value*[new_size];
@@ -14741,13 +15016,13 @@ void OS::Core::opSetUpvalue()
 	pop();
 }
 
-void OS::Core::opIfNotJump()
+void OS::Core::opIfJump(bool boolean)
 {
 	StackFunction * stack_func = this->stack_func;
 	OS_ASSERT(stack_values.count >= 1);
 	// Value value = stack_values.lastElement();
 	int offs = stack_func->opcodes.readInt32();
-	if(!valueToBool(stack_values.lastElement())){
+	if(valueToBool(stack_values.lastElement()) == boolean){
 		stack_func->opcodes.movePos(offs);
 	}
 	pop();
@@ -14998,7 +15273,35 @@ void OS::Core::opGetProperty(bool auto_create)
 	pushPropertyValue(stack_values.buf[stack_values.count - 2], 
 		PropertyIndex(stack_values.buf[stack_values.count - 1]), true, true, true, auto_create);
 	removeStackValues(-3, 2);
-	syncRetValues(ret_values, 1);
+	OS_ASSERT(ret_values == 1);
+	// syncRetValues(ret_values, 1);
+}
+
+void OS::Core::opGetPropertyByLocals(bool auto_create)
+{
+	StackFunction * stack_func = this->stack_func;
+	int ret_values = stack_func->opcodes.readByte();
+	int local_1 = stack_func->opcodes.readByte();
+	int local_2 = stack_func->opcodes.readByte();
+	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
+	pushPropertyValue(stack_func_locals[local_1], 
+		PropertyIndex(stack_func_locals[local_2]), true, true, true, auto_create);
+	OS_ASSERT(ret_values == 1);
+	// syncRetValues(ret_values, 1);
+}
+
+void OS::Core::opGetPropertyByLocalAndNumber(bool auto_create)
+{
+	StackFunction * stack_func = this->stack_func;
+	int ret_values = stack_func->opcodes.readByte();
+	int local_1 = stack_func->opcodes.readByte();
+	OS_ASSERT(local_1 < num_stack_func_locals);
+	int number_index = stack_func->opcodes.readUVariable();
+	OS_ASSERT(number_index >= 0 && number_index < stack_func->func->prog->num_numbers);
+	pushPropertyValue(stack_func_locals[local_1], 
+		PropertyIndex(stack_func_prog_numbers[number_index]), true, true, true, auto_create);
+	OS_ASSERT(ret_values == 1);
+	// syncRetValues(ret_values, 1);
 }
 
 void OS::Core::opSetProperty()
@@ -15008,6 +15311,41 @@ void OS::Core::opSetProperty()
 		PropertyIndex(stack_values.buf[stack_values.count - 1]), 
 		stack_values.buf[stack_values.count - 3], true, true);
 	pop(3);
+}
+
+void OS::Core::opSetPropertyByLocals(bool auto_create)
+{
+	OS_ASSERT(stack_values.count >= 1);
+	int local_1 = stack_func->opcodes.readByte();
+	int local_2 = stack_func->opcodes.readByte();
+	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
+	if(auto_create && stack_func_locals[local_1].type == OS_VALUE_TYPE_NULL){
+		stack_func_locals[local_1] = newObjectValue();
+	}
+	setPropertyValue(stack_func_locals[local_1], 
+		PropertyIndex(stack_func_locals[local_2]), 
+		stack_values.lastElement(), true, true);
+	pop();
+}
+
+void OS::Core::opGetSetPropertyByLocals(bool auto_create)
+{
+	OS_ASSERT(stack_values.count >= 1);
+	int local_1 = stack_func->opcodes.readByte();
+	int local_2 = stack_func->opcodes.readByte();
+	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
+	pushPropertyValue(stack_func_locals[local_1], 
+		PropertyIndex(stack_func_locals[local_2]), true, true, true, auto_create);
+	local_1 = stack_func->opcodes.readByte();
+	local_2 = stack_func->opcodes.readByte();
+	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
+	if(auto_create && stack_func_locals[local_1].type == OS_VALUE_TYPE_NULL){
+		stack_func_locals[local_1] = newObjectValue();
+	}
+	setPropertyValue(stack_func_locals[local_1], 
+		PropertyIndex(stack_func_locals[local_2]), 
+		stack_values.lastElement(), true, true);
+	pop();
 }
 
 void OS::Core::opSetDim()
@@ -15242,6 +15580,27 @@ void OS::Core::opBinaryOperator(int opcode)
 	removeStackValues(-3, 2);
 }
 
+void OS::Core::opBinaryOperatorByLocals()
+{
+	StackFunction * stack_func = this->stack_func;
+	int opcode = stack_func->opcodes.readByte();
+	int local_1 = stack_func->opcodes.readByte();
+	int local_2 = stack_func->opcodes.readByte();
+	OS_ASSERT(local_1 < num_stack_func_locals && local_2 < num_stack_func_locals);
+	pushOpResultValue(opcode, stack_func_locals[local_1], stack_func_locals[local_2]);
+}
+
+void OS::Core::opBinaryOperatorByLocalAndNumber()
+{
+	StackFunction * stack_func = this->stack_func;
+	int opcode = stack_func->opcodes.readByte();
+	int local_1 = stack_func->opcodes.readByte();
+	OS_ASSERT(local_1 < num_stack_func_locals);
+	int number_index = stack_func->opcodes.readUVariable();
+	OS_ASSERT(number_index >= 0 && number_index < stack_func->func->prog->num_numbers);
+	pushOpResultValue(opcode, stack_func_locals[local_1], stack_func_prog_numbers[number_index]);
+}
+
 void OS::Core::reloadStackFunctionCache()
 {
 	if(call_stack_funcs.count > 0){
@@ -15382,6 +15741,16 @@ int OS::Core::execute()
 			opSetLocalVar();
 			break;
 
+		case Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS:
+			opBinaryOperatorByLocals();
+			opSetLocalVar();
+			break;
+
+		case Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER:
+			opBinaryOperatorByLocalAndNumber();
+			opSetLocalVar();
+			break;
+
 		case Program::OP_PUSH_UP_LOCAL_VAR:
 			opPushUpvalue();
 			break;
@@ -15395,7 +15764,11 @@ int OS::Core::execute()
 			break;
 
 		case Program::OP_IF_NOT_JUMP:
-			opIfNotJump();
+			opIfJump(false);
+			break;
+
+		case Program::OP_IF_JUMP:
+			opIfJump(true);
 			break;
 
 		case Program::OP_JUMP:
@@ -15457,12 +15830,31 @@ int OS::Core::execute()
 			break;
 
 		case Program::OP_GET_PROPERTY:
+			opGetProperty(false);
+			break;
+
 		case Program::OP_GET_PROPERTY_AUTO_CREATE:
-			opGetProperty(opcode == Program::OP_GET_PROPERTY_AUTO_CREATE);
+			opGetProperty(true);
+			break;
+
+		case Program::OP_GET_PROPERTY_BY_LOCALS:
+			opGetPropertyByLocals(false);
+			break;
+
+		case Program::OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
+			opGetPropertyByLocalAndNumber(false);
 			break;
 
 		case Program::OP_SET_PROPERTY:
 			opSetProperty();
+			break;
+
+		case Program::OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
+			opSetPropertyByLocals(true);
+			break;
+
+		case Program::OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
+			opGetSetPropertyByLocals(true);
 			break;
 
 		case Program::OP_SET_DIM:
@@ -15554,6 +15946,14 @@ int OS::Core::execute()
 		case Program::OP_PLUS:
 		case Program::OP_NEG:
 			opUnaryOperator(opcode);
+			break;
+
+		case Program::OP_BIN_OPERATOR_BY_LOCALS:
+			opBinaryOperatorByLocals();
+			break;
+
+		case Program::OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER:
+			opBinaryOperatorByLocalAndNumber();
 			break;
 
 		case Program::OP_CONCAT:

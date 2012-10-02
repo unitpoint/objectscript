@@ -133,7 +133,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("0.94-vm2")
+#define OS_VERSION OS_TEXT("0.95-vm2")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_SOURCECODE_EXT OS_TEXT(".os")
@@ -795,6 +795,8 @@ namespace ObjectScript
 
 				OS_BYTE readByte();
 				OS_BYTE readByteAtPos(int pos);
+
+				OS_INT32 readInt32();
 			};
 
 			class FileStreamReader: public StreamReader
@@ -1518,6 +1520,9 @@ namespace ObjectScript
 					EXP_TYPE_GET_LOCAL_VAR,
 					EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE,
 					EXP_TYPE_SET_LOCAL_VAR,
+					
+					EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS,
+					EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
 
 					EXP_TYPE_GET_ENV_VAR,
 					EXP_TYPE_GET_ENV_VAR_AUTO_CREATE,
@@ -1529,6 +1534,12 @@ namespace ObjectScript
 					EXP_TYPE_GET_PROPERTY_AUTO_CREATE,
 					EXP_TYPE_SET_PROPERTY,
 
+					EXP_TYPE_GET_PROPERTY_BY_LOCALS,
+					EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER,
+					EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
+
+					EXP_TYPE_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
+					
 					// EXP_TYPE_GET_PROPERTY_DIM,
 					// EXP_TYPE_SET_PROPERTY_DIM,
 
@@ -1569,6 +1580,9 @@ namespace ObjectScript
 
 					// EXP_TYPE_PARAM_SEPARTOR, // ,
 
+					EXP_TYPE_BIN_OPERATOR_BY_LOCALS,
+					EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER,
+
 					EXP_TYPE_CONCAT, // ..
 
 					EXP_TYPE_LOGIC_AND, // &&
@@ -1593,7 +1607,6 @@ namespace ObjectScript
 					EXP_TYPE_POST_DEC,    // --
 
 					// EXP_TYPE_QUESTION,
-
 					EXP_TYPE_BIT_AND, // &
 					EXP_TYPE_BIT_OR,  // |
 					EXP_TYPE_BIT_XOR, // ^
@@ -1836,7 +1849,7 @@ namespace ObjectScript
 				int prog_num_debug_infos;
 				int prog_max_up_count;
 
-				int prog_stack_size;
+				// int prog_stack_size;
 
 				bool isError();
 				void resetError();
@@ -2035,6 +2048,8 @@ namespace ObjectScript
 					OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX,
 					OP_PUSH_LOCAL_VAR_AUTO_CREATE,
 					OP_SET_LOCAL_VAR,
+					OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS,
+					OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
 
 					OP_PUSH_UP_LOCAL_VAR,
 					OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE,
@@ -2056,12 +2071,19 @@ namespace ObjectScript
 					OP_TAIL_CALL_METHOD,
 
 					OP_GET_PROPERTY,
+					OP_GET_PROPERTY_BY_LOCALS,
+					OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER,
 					OP_GET_PROPERTY_AUTO_CREATE,
+					
 					OP_SET_PROPERTY,
+					OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
+
+					OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
 
 					OP_SET_DIM,
 
 					OP_IF_NOT_JUMP,
+					OP_IF_JUMP,
 					OP_JUMP,
 					OP_DEBUGGER,
 
@@ -2070,6 +2092,9 @@ namespace ObjectScript
 					OP_RETURN,
 					OP_RETURN_AUTO,
 					OP_POP,
+
+					OP_BIN_OPERATOR_BY_LOCALS,
+					OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER,
 
 					OP_LOGIC_AND,
 					OP_LOGIC_OR,
@@ -2708,7 +2733,7 @@ namespace ObjectScript
 			void opPushUpvalue();
 			void opPushUpvalueAutoCreate();
 			void opSetUpvalue();
-			void opIfNotJump();
+			void opIfJump(bool boolean);
 			void opJump();
 			void opCall();
 			void opSuperCall(int& ret_values);
@@ -2718,7 +2743,11 @@ namespace ObjectScript
 			int opReturn();
 			int opReturnAuto();
 			void opGetProperty(bool auto_create);
+			void opGetPropertyByLocals(bool auto_create);
+			void opGetPropertyByLocalAndNumber(bool auto_create);
 			void opSetProperty();
+			void opSetPropertyByLocals(bool auto_create);
+			void opGetSetPropertyByLocals(bool auto_create);
 			void opSetDim();
 			void opExtends();
 			void opClone();
@@ -2741,6 +2770,8 @@ namespace ObjectScript
 			void opLength();
 			void opUnaryOperator(int opcode);
 			void opBinaryOperator(int opcode);
+			void opBinaryOperatorByLocals();
+			void opBinaryOperatorByLocalAndNumber();
 
 			int call(int params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
 
