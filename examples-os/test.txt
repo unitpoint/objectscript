@@ -171,10 +171,10 @@ begin function
       begin params 2
         push const string "print"
         ,
-        begin get property
+        begin get property by local & number
           get local var a (6 0)
           push const number 1
-        end get property ret values 1
+        end get property by local & number ret values 1
       end params ret values 2
     end call method ret values 0
 
@@ -214,10 +214,10 @@ begin function
       begin params 2
         push const string "print"
         ,
-        begin get property
+        begin get property by local & number
           get local var a (6 0)
           push const number 5
-        end get property ret values 1
+        end get property by local & number ret values 1
       end params ret values 2
     end call method ret values 0
 
@@ -272,10 +272,10 @@ begin function
       begin params 2
         push const string "print"
         ,
-        begin get property
+        begin get property by locals
           get local var b (7 0)
           get local var a (6 0)
-        end get property ret values 1
+        end get property by locals ret values 1
       end params ret values 2
     end call method ret values 0
 
@@ -1172,10 +1172,10 @@ begin function
       begin params 3
         push const string "print"
         ,
-        begin get property
+        begin get property by locals
           get local var a (31 0)
           get local var v1 (30 0)
-        end get property ret values 1
+        end get property by locals ret values 1
         ,
         begin get property
           get local var a (31 0)
@@ -1455,10 +1455,12 @@ begin function
         3 _G
       end locals
       begin return
-        begin operator +
-          get local var a (0 0 param)
-          get local var b (1 0 param)
-        end operator +
+        begin binary operator by locals
+          begin operator +
+            get local var a (0 0 param)
+            get local var b (1 0 param)
+          end operator +
+        end binary operator by locals
       end return values 1
     end function
   end set env var foo
@@ -1727,10 +1729,12 @@ begin function
   begin set local var
     begin operator +
       get local var v1 (37 0)
-      begin operator *
-        get local var v2 (38 0)
-        get local var v2 (38 0)
-      end operator *
+      begin binary operator by locals
+        begin operator *
+          get local var v2 (38 0)
+          get local var v2 (38 0)
+        end operator *
+      end binary operator by locals
     end operator +
   end set local var v3 (39 0)
 
@@ -2114,10 +2118,12 @@ begin function
                   push const string "_matrix"
                 end get property ret values 1
                 begin operator +
-                  begin operator *
-                    get local var y (1 0 param)
-                    push const number 4
-                  end operator *
+                  begin binary operator by local & number
+                    begin operator *
+                      get local var y (1 0 param)
+                      push const number 4
+                    end operator *
+                  end binary operator by local & number
                   get local var x (0 0 param)
                 end operator +
               end get property ret values 1
@@ -2147,10 +2153,12 @@ begin function
                 push const string "_matrix"
               end get property auto create ret values 1
               begin operator +
-                begin operator *
-                  get local var y (2 0 param)
-                  push const number 4
-                end operator *
+                begin binary operator by local & number
+                  begin operator *
+                    get local var y (2 0 param)
+                    push const number 4
+                  end operator *
+                end binary operator by local & number
                 get local var x (1 0 param)
               end operator +
             end set property ret values 0
@@ -2177,10 +2185,12 @@ begin function
                 push const string "_matrix"
               end get property ret values 1
               begin operator +
-                begin operator *
-                  get local var y (1 0 param)
-                  push const number 4
-                end operator *
+                begin binary operator by local & number
+                  begin operator *
+                    get local var y (1 0 param)
+                    push const number 4
+                  end operator *
+                end binary operator by local & number
                 get local var x (0 0 param)
               end operator +
             end delete
@@ -2300,10 +2310,12 @@ begin function
               begin return
                 begin operator +
                   get local var a (0 0 param)
-                  begin operator *
-                    get local var b (1 0 param)
-                    get local var c (2 0 param)
-                  end operator *
+                  begin binary operator by locals
+                    begin operator *
+                      get local var b (1 0 param)
+                      get local var c (2 0 param)
+                    end operator *
+                  end binary operator by locals
                 end operator +
               end return values 1
             end function
@@ -2358,12 +2370,14 @@ begin function
 [242] i++
 
       begin code list
-        begin set local var
-          begin operator +
-            get local var i (42 0)
-            push const number 1
-          end operator +
-        end set local var i (42 0)
+        begin set local var by bin operator local & number
+          begin binary operator by local & number
+            begin operator +
+              get local var i (42 0)
+              push const number 1
+            end operator +
+          end binary operator by local & number
+        end set local var by bin operator local & number i (42 0)
       end code list ret values 0
 
 
@@ -2421,12 +2435,14 @@ begin function
 
 [250] var c = a * 2;
 
-      begin set local var
-        begin operator *
-          get local var a (0 0 param)
-          push const number 2
-        end operator *
-      end set local var c (3 0)
+      begin set local var by bin operator local & number
+        begin binary operator by local & number
+          begin operator *
+            get local var a (0 0 param)
+            push const number 2
+          end operator *
+        end binary operator by local & number
+      end set local var by bin operator local & number c (3 0)
 
 
 [252] var c = a - 1
@@ -2435,12 +2451,14 @@ begin function
         begin locals 1
           4 c
         end locals
-        begin set local var
-          begin operator -
-            get local var a (0 0 param)
-            push const number 1
-          end operator -
-        end set local var c (4 0)
+        begin set local var by bin operator local & number
+          begin binary operator by local & number
+            begin operator -
+              get local var a (0 0 param)
+              push const number 1
+            end operator -
+          end binary operator by local & number
+        end set local var by bin operator local & number c (4 0)
 
 
 [253] print debuglocals
@@ -2724,7 +2742,7 @@ begin function
 [270] r[i] = f(v)
 
             begin scope
-              begin set property
+              begin set property by locals auto create
                 begin call
                   get local var f (1 0 param)
                   begin params 1
@@ -2733,7 +2751,7 @@ begin function
                 end call ret values 1
                 get local var auto create r (4 0)
                 get local var i (5 0)
-              end set property ret values 0
+              end set property by locals auto create ret values 0
             end scope ret values 0
           end loop ret values 0
         end code list ret values 0
@@ -2766,10 +2784,12 @@ begin function
             2 _G
           end locals
           begin return
-            begin operator *
-              get local var a (0 0 param)
-              push const number 100
-            end operator *
+            begin binary operator by local & number
+              begin operator *
+                get local var a (0 0 param)
+                push const number 100
+              end operator *
+            end binary operator by local & number
           end return values 1
         end function
       end params ret values 2
@@ -3379,14 +3399,18 @@ so eval(round(13.5))"
             end locals
             begin return
               begin operator -
-                begin operator %
-                  get local var a (0 0 param)
-                  push const number 3
-                end operator %
-                begin operator %
-                  get local var b (1 0 param)
-                  push const number 3
-                end operator %
+                begin binary operator by local & number
+                  begin operator %
+                    get local var a (0 0 param)
+                    push const number 3
+                  end operator %
+                end binary operator by local & number
+                begin binary operator by local & number
+                  begin operator %
+                    get local var b (1 0 param)
+                    push const number 3
+                  end operator %
+                end binary operator by local & number
               end operator -
             end return values 1
           end function
@@ -3514,14 +3538,18 @@ so eval(round(13.5))"
             end locals
             begin return
               begin operator -
-                begin operator %
-                  get local var a (0 0 param)
-                  push const number 10
-                end operator %
-                begin operator %
-                  get local var b (1 0 param)
-                  push const number 10
-                end operator %
+                begin binary operator by local & number
+                  begin operator %
+                    get local var a (0 0 param)
+                    push const number 10
+                  end operator %
+                end binary operator by local & number
+                begin binary operator by local & number
+                  begin operator %
+                    get local var b (1 0 param)
+                    push const number 10
+                  end operator %
+                end binary operator by local & number
               end operator -
             end return values 1
           end function
@@ -3820,14 +3848,18 @@ so eval(round(13.5))"
             end locals
             begin return
               begin operator -
-                begin operator %
-                  get local var a (0 0 param)
-                  push const number 10
-                end operator %
-                begin operator %
-                  get local var b (1 0 param)
-                  push const number 10
-                end operator %
+                begin binary operator by local & number
+                  begin operator %
+                    get local var a (0 0 param)
+                    push const number 10
+                  end operator %
+                end binary operator by local & number
+                begin binary operator by local & number
+                  begin operator %
+                    get local var b (1 0 param)
+                    push const number 10
+                  end operator %
+                end binary operator by local & number
               end operator -
             end return values 1
           end function

@@ -1,0 +1,69 @@
+{-1:"..\\Release\\profile_benchmark.exe","scripts\\test_fannkuch.os","9"}
+8629
+Pfannkuchen(9) = 30
+time = 4.72459
+OS script full time: 4.728915 secs
+            gc time: 0.000147 secs (0.00%)
+
+=== PUSH_LOCAL_VAR_1, executed count: 11364021
+sum time: 0.396639 secs (8.39%), avg time of 100000 times: 0.003490
+
+=== SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER, executed count: 8775837
+sum time: 0.353570 secs (7.48%), avg time of 100000 times: 0.004029
+
+=== SET_LOCAL_VAR_1, executed count: 9641559
+sum time: 0.350969 secs (7.42%), avg time of 100000 times: 0.003640
+
+=== SET_PROPERTY_BY_LOCALS_AUTO_CREATE, executed count: 6376814
+sum time: 0.329934 secs (6.98%), avg time of 100000 times: 0.005174
+
+=== BIN_OPERATOR_BY_LOCAL_AND_NUMBER, executed count: 6137238
+sum time: 0.298594 secs (6.31%), avg time of 100000 times: 0.004865
+
+=== GET_PROPERTY_BY_LOCALS, executed count: 6438708
+sum time: 0.296132 secs (6.26%), avg time of 100000 times: 0.004599
+
+=== JUMP_1, executed count: 7548329
+sum time: 0.264091 secs (5.58%), avg time of 100000 times: 0.003499
+
+=== IF_NOT_JUMP_1, executed count: 6659026
+sum time: 0.226945 secs (4.80%), avg time of 100000 times: 0.003408
+
+=== GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE, executed count: 2580480
+sum time: 0.215184 secs (4.55%), avg time of 100000 times: 0.008339
+
+=== BIN_OPERATOR_BY_LOCALS, executed count: 3967229
+sum time: 0.180049 secs (3.81%), avg time of 100000 times: 0.004538
+
+=== IF_JUMP_1, executed count: 3242899
+sum time: 0.118655 secs (2.51%), avg time of 100000 times: 0.003659
+
+=== LOGIC_GE, executed count: 2133277
+sum time: 0.085114 secs (1.80%), avg time of 100000 times: 0.003990
+
+=== GET_PROPERTY_BY_LOCAL_AND_NUMBER, executed count: 1167849
+sum time: 0.081994 secs (1.73%), avg time of 100000 times: 0.007021
+
+=== PUSH_NUMBER_1, executed count: 2177413
+sum time: 0.075415 secs (1.59%), avg time of 100000 times: 0.003464
+
+=== POP, executed count: 1588945
+sum time: 0.056568 secs (1.20%), avg time of 100000 times: 0.003560
+
+=== SET_PROPERTY, executed count: 804974
+sum time: 0.037370 secs (0.79%), avg time of 100000 times: 0.004642
+
+=== PUSH_ONE, executed count: 946092
+sum time: 0.033256 secs (0.70%), avg time of 100000 times: 0.003515
+
+=== PUSH_LOCAL_VAR_AUTO_CREATE, executed count: 804969
+sum time: 0.029096 secs (0.62%), avg time of 100000 times: 0.003615
+
+=== GET_PROPERTY, executed count: 260644
+sum time: 0.017850 secs (0.38%), avg time of 100000 times: 0.006848
+
+=== JUMP_2, executed count: 544319
+sum time: 0.016493 secs (0.35%), avg time of 100000 times: 0.003030
+
+=== ALL OPCODES, executed count: 84027573
+sum time: 3.498956 secs (73.99%), avg time of 100000 times: 0.004164

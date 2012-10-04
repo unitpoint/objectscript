@@ -1,5 +1,5 @@
 
-[FILE] ..\os\test_fannkuch.os
+[FILE] scripts\test_fannkuch.os
 [1] print arg
 
 begin function

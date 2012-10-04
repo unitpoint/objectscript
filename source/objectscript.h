@@ -58,7 +58,7 @@ inline void operator delete(void *, void *){}
 // #define OS_NUMBER int	// not recomended, math.random returns float value [0..1]
 #endif // OS_NUMBER
 
-#define OS_MATH_POW_OPERATOR(a, b) (OS_NUMBER)::pow((a), (b))
+#define OS_MATH_POW_OPERATOR(a, b) (OS_NUMBER)::pow((double)(a), (double)(b))
 #define OS_MATH_MOD_OPERATOR(a, b) (OS_NUMBER)((OS_INT)(a) % (OS_INT)(b))
 
 #define OS_CHAR char
@@ -73,8 +73,9 @@ inline void operator delete(void *, void *){}
 #define OS_GLOBALS_VAR_NAME OS_TEXT("_G")
 
 #define OS_FLOAT double
-#define OS_INT16 short
+#define OS_INT8 signed char
 #define OS_BYTE unsigned char
+#define OS_INT16 short
 #define OS_U16 unsigned short
 
 #if defined __GNUC__ 
@@ -133,7 +134,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("0.95-vm2")
+#define OS_VERSION OS_TEXT("0.97-vm2")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_SOURCECODE_EXT OS_TEXT(".os")
@@ -669,6 +670,9 @@ namespace ObjectScript
 				virtual void writeU16(int);
 				virtual void writeU16AtPos(int value, int pos);
 
+				virtual void writeInt8(int);
+				virtual void writeInt8AtPos(int value, int pos);
+
 				virtual void writeInt16(int);
 				virtual void writeInt16AtPos(int value, int pos);
 
@@ -753,6 +757,9 @@ namespace ObjectScript
 				virtual OS_U16 readU16();
 				virtual OS_U16 readU16AtPos(int pos);
 
+				virtual OS_INT8 readInt8();
+				virtual OS_INT8 readInt8AtPos(int pos);
+
 				virtual OS_INT16 readInt16();
 				virtual OS_INT16 readInt16AtPos(int pos);
 
@@ -797,6 +804,8 @@ namespace ObjectScript
 				OS_BYTE readByte();
 				OS_BYTE readByteAtPos(int pos);
 
+				OS_INT8 readInt8();
+				OS_INT16 readInt16();
 				OS_INT32 readInt32();
 			};
 
@@ -1540,6 +1549,8 @@ namespace ObjectScript
 					EXP_TYPE_GET_PROPERTY_AUTO_CREATE,
 					EXP_TYPE_SET_PROPERTY,
 
+					EXP_TYPE_GET_THIS_PROPERTY_BY_STRING,
+
 					EXP_TYPE_GET_PROPERTY_BY_LOCALS,
 					EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER,
 					EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
@@ -1774,7 +1785,7 @@ namespace ObjectScript
 					virtual ~Scope();
 
 					bool addLoopBreak(int pos, ELoopBreakType);
-					void fixLoopBreaks(int scope_start_pos, int scope_end_pos, StreamWriter*);
+					void fixLoopBreaks(Compiler*, int scope_start_pos, int scope_end_pos, StreamWriter*);
 
 					void addStdVars();
 					void addLocalVar(const String& name);
@@ -1966,6 +1977,10 @@ namespace ObjectScript
 				int cacheDebugString(const String& str);
 				int cacheNumber(OS_NUMBER);
 
+				void writeJumpOpcode(int offs);
+				void fixJumpOpcode(StreamWriter * writer, int offs, int pos);
+				void fixJumpOpcode(StreamWriter * writer, int offs, int pos, int opcode);
+
 				bool writeOpcodes(Scope*, Expression*);
 				bool writeOpcodes(Scope*, ExpressionList&);
 				void writeDebugInfo(Expression*);
@@ -2027,8 +2042,11 @@ namespace ObjectScript
 				enum OpcodeType
 				{
 					OP_UNKNOWN,
-					OP_PUSH_NUMBER,
-					OP_PUSH_STRING,
+					OP_PUSH_ONE,
+					OP_PUSH_NUMBER_1,
+					OP_PUSH_NUMBER_BY_AUTO_INDEX,
+					OP_PUSH_STRING_1,
+					OP_PUSH_STRING_BY_AUTO_INDEX,
 					OP_PUSH_NULL,
 					OP_PUSH_TRUE,
 					OP_PUSH_FALSE,
@@ -2050,12 +2068,14 @@ namespace ObjectScript
 					OP_PUSH_ARGUMENTS,
 					OP_PUSH_REST_ARGUMENTS,
 
-					OP_PUSH_LOCAL_VAR,
+					OP_PUSH_LOCAL_VAR_1,
 					OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX,
 					OP_PUSH_LOCAL_VAR_AUTO_CREATE,
 					OP_SET_LOCAL_VAR,
+					OP_SET_LOCAL_VAR_1,
 					OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS,
 					OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
+					OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
 
 					OP_PUSH_UP_LOCAL_VAR,
 					OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE,
@@ -2077,6 +2097,7 @@ namespace ObjectScript
 					OP_TAIL_CALL_METHOD,
 
 					OP_GET_PROPERTY,
+					OP_GET_THIS_PROPERTY_BY_STRING,
 					OP_GET_PROPERTY_BY_LOCALS,
 					OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER,
 					OP_GET_PROPERTY_AUTO_CREATE,
@@ -2088,9 +2109,18 @@ namespace ObjectScript
 
 					OP_SET_DIM,
 
-					OP_IF_NOT_JUMP,
-					OP_IF_JUMP,
-					OP_JUMP,
+					OP_IF_JUMP_1,
+					OP_IF_JUMP_2,
+					OP_IF_JUMP_4,
+					
+					OP_IF_NOT_JUMP_1,
+					OP_IF_NOT_JUMP_2,
+					OP_IF_NOT_JUMP_4,
+					
+					OP_JUMP_1,
+					OP_JUMP_2,
+					OP_JUMP_4,
+					
 					OP_DEBUGGER,
 
 					OP_EXTENDS,
@@ -2102,8 +2132,13 @@ namespace ObjectScript
 					OP_BIN_OPERATOR_BY_LOCALS,
 					OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER,
 
-					OP_LOGIC_AND,
-					OP_LOGIC_OR,
+					OP_LOGIC_AND_1,
+					OP_LOGIC_AND_2,
+					OP_LOGIC_AND_4,
+					
+					OP_LOGIC_OR_1,
+					OP_LOGIC_OR_2,
+					OP_LOGIC_OR_4,
 
 					OP_COMPARE,
 					OP_LOGIC_PTR_EQ,
@@ -2645,9 +2680,9 @@ namespace ObjectScript
 			void deleteValues(bool del_ref_counted_also);
 			static int compareGCValues(const void * a, const void * b);
 
-			bool valueToBool(Value val);
-			OS_INT valueToInt(Value val, bool valueof_enabled = false);
-			OS_NUMBER valueToNumber(Value val, bool valueof_enabled = false);
+			bool valueToBool(const Value& val);
+			OS_INT valueToInt(const Value& val, bool valueof_enabled = false);
+			OS_NUMBER valueToNumber(const Value& val, bool valueof_enabled = false);
 			String valueToString(Value val, bool valueof_enabled = false);
 
 			bool isValueNumber(Value val, OS_NUMBER * out = NULL);
@@ -2722,7 +2757,7 @@ namespace ObjectScript
 
 			int opBreakFunction();
 			void opDebugger();
-			void opPushNumber();
+			// void opPushNumber();
 			void opPushString();
 			void opPushFunction();
 			void opPushArray();
@@ -2742,8 +2777,10 @@ namespace ObjectScript
 			void opPushUpvalue();
 			void opPushUpvalueAutoCreate();
 			void opSetUpvalue();
-			void opIfJump(bool boolean);
-			void opJump();
+			void opIfJump1(bool boolean);
+			void opIfJump2(bool boolean);
+			void opIfJump4(bool boolean);
+			void opJump4();
 			void opCall();
 			void opSuperCall(int& ret_values);
 			void opTailCall(int& ret_values);
@@ -2752,6 +2789,7 @@ namespace ObjectScript
 			int opReturn();
 			int opReturnAuto();
 			void opGetProperty(bool auto_create);
+			void opGetThisPropertyByString();
 			void opGetPropertyByLocals(bool auto_create);
 			void opGetPropertyByLocalAndNumber(bool auto_create);
 			void opSetProperty();
@@ -2761,7 +2799,9 @@ namespace ObjectScript
 			void opExtends();
 			void opClone();
 			void opDeleteProperty();
-			void opLogicAnd();
+			void opLogicAndOr1(bool is_and);
+			void opLogicAndOr2(bool is_and);
+			void opLogicAndOr4(bool is_and);
 			void opLogicOr();
 			void opSuper();
 			void opTypeOf();
@@ -2778,7 +2818,7 @@ namespace ObjectScript
 			void opIs();
 			void opLength();
 			void opUnaryOperator(int opcode);
-			void opBinaryOperator(int opcode);
+			// void opBinaryOperator(int opcode);
 			void opBinaryOperatorByLocals();
 			void opBinaryOperatorByLocalAndNumber();
 

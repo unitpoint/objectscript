@@ -1,0 +1,39 @@
+{-1:"..\\Release\\profile_benchmark.exe","..\\os\\test_fannkuch.os","9"}
+8629
+Pfannkuchen(9) = 30
+time = 5.23708
+OS script full time: 5.240714 secs
+            gc time: 0.000146 secs (0.00%)
+
+=== SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER, executed count: 8775837
+sum time: 0.492124 secs (9.39%), avg time of 100000 times: 0.005608
+
+=== PUSH_LOCAL_VAR, executed count: 11364021
+sum time: 0.414626 secs (7.91%), avg time of 100000 times: 0.003649
+
+=== SET_PROPERTY_BY_LOCALS_AUTO_CREATE, executed count: 6376814
+sum time: 0.362978 secs (6.93%), avg time of 100000 times: 0.005692
+
+=== SET_LOCAL_VAR, executed count: 9641559
+sum time: 0.355257 secs (6.78%), avg time of 100000 times: 0.003685
+
+=== BIN_OPERATOR_BY_LOCAL_AND_NUMBER, executed count: 6137238
+sum time: 0.313828 secs (5.99%), avg time of 100000 times: 0.005114
+
+=== GET_PROPERTY_BY_LOCALS, executed count: 6438708
+sum time: 0.297487 secs (5.68%), avg time of 100000 times: 0.004620
+
+=== JUMP, executed count: 8092648
+sum time: 0.289448 secs (5.52%), avg time of 100000 times: 0.003577
+
+=== IF_NOT_JUMP, executed count: 7021906
+sum time: 0.275139 secs (5.25%), avg time of 100000 times: 0.003918
+
+=== GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE, executed count: 2580480
+sum time: 0.229835 secs (4.39%), avg time of 100000 times: 0.008907
+
+=== BIN_OPERATOR_BY_LOCALS, executed count: 3967229
+sum time: 0.188030 secs (3.59%), avg time of 100000 times: 0.004740
+
+=== ALL OPCODES, executed count: 84027573
+sum time: 3.854397 secs (73.55%), avg time of 100000 times: 0.004587

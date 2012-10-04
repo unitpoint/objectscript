@@ -1,5 +1,5 @@
 
-[FILE] core.os
+[FILE] ../../examples-os/core.os
 [1] function __get(name){
 
 begin function
@@ -462,10 +462,12 @@ target "
                 begin params 2
                   push const string "debugBackTrace"
                   ,
-                  begin operator +
-                    get local var skipNumFuncs (0 0 param)
-                    push const number 1
-                  end operator +
+                  begin binary operator by local & number
+                    begin operator +
+                      get local var skipNumFuncs (0 0 param)
+                      push const number 1
+                    end operator +
+                  end binary operator by local & number
                 end params ret values 2
               end call method ret values 1
               begin params 1
@@ -731,15 +733,15 @@ target "
             begin set local var
               begin set local var
                 begin params 2
-                  begin get property
+                  begin get property by local & number
                     get local var eventName (0 0 param)
                     push const number 0
-                  end get property ret values 1
+                  end get property by local & number ret values 1
                   ,
-                  begin get property
+                  begin get property by local & number
                     get local var eventName (0 0 param)
                     push const number 1
-                  end get property ret values 1
+                  end get property by local & number ret values 1
                 end params ret values 2
               end set local var func (1 0 param)
             end set local var eventName (0 0 param)
@@ -933,10 +935,12 @@ target "
       begin pop
         begin logic ||
           begin logic &&
-            begin logic >
-              get local var count (2 0 param)
-              push const number 0
-            end logic >
+            begin binary operator by local & number
+              begin logic >
+                get local var count (2 0 param)
+                push const number 0
+              end logic >
+            end binary operator by local & number
             begin functionof
               get local var func (0 0 param)
             end functionof
@@ -1799,7 +1803,7 @@ target "
 [171] p[k] = deepClone(v)
 
             begin scope
-              begin set property
+              begin set property by locals auto create
                 begin call method
                   get local var _E (1 0)
                   begin params 2
@@ -1810,7 +1814,7 @@ target "
                 end call method ret values 1
                 get local var auto create p (0 0 param)
                 get local var k (3 0)
-              end set property ret values 0
+              end set property by locals auto create ret values 0
             end scope ret values 0
           end loop ret values 0
         end code list ret values 0
@@ -1826,6 +1830,9 @@ target "
       end code list ret values 0
     end function
   end set env var deepClone
+
+
+[174] }
 
   begin code list
     begin return
