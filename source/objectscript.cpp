@@ -1,4 +1,5 @@
 #include "objectscript.h"
+#include "os-binder.h"
 #include <time.h>
 
 using namespace ObjectScript;
@@ -9232,7 +9233,7 @@ void OS::Core::deleteValueProperty(Value table_value, const PropertyIndex& index
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		return deleteValueProperty(table_value.v.value, index, anonymous_del_enabled, named_del_enabled, prototype_enabled);
@@ -9685,7 +9686,7 @@ OS::Core::GCValue * OS::Core::Value::getGCValue() const
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		OS_ASSERT(v.value);
 		return v.value;
 	}
@@ -9711,7 +9712,7 @@ bool OS::Core::Value::isUserdata() const
 {
 	switch(type){
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		return true;
 	}
 	return false;
@@ -9785,7 +9786,7 @@ void OS::Core::ValueRetained::retain()
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		OS_ASSERT(v.value);
 		v.value->external_ref_count++;
 		break;
@@ -9801,7 +9802,7 @@ void OS::Core::ValueRetained::release()
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		OS_ASSERT(v.value && v.value->external_ref_count > 0);
 		v.value->external_ref_count--;
 		if(v.value->gc_color == GC_WHITE){
@@ -10283,7 +10284,7 @@ void OS::Core::unregisterStringRef(StringRef * str_ref)
 
 void OS::Core::deleteStringRefs()
 {
-	if(!string_refs.count){
+	if(!string_refs.heads){
 		return;
 	}
 	for(int i = 0; i <= string_refs.head_mask; i++){
@@ -10297,6 +10298,117 @@ void OS::Core::deleteStringRefs()
 	string_refs.heads = NULL;
 	string_refs.head_mask = 0;
 	string_refs.count = 0;
+}
+
+// =====================================================================
+// =====================================================================
+// =====================================================================
+
+OS::Core::UserptrRefs::UserptrRefs()
+{
+	head_mask = 0;
+	heads = NULL;
+	count = 0;
+}
+OS::Core::UserptrRefs::~UserptrRefs()
+{
+	OS_ASSERT(count == 0);
+	OS_ASSERT(!heads);
+}
+
+void OS::Core::registerUserptrRef(UserptrRef * user_pointer_ref)
+{
+	if((userptr_refs.count>>HASH_GROW_SHIFT) >= userptr_refs.head_mask){
+		int new_size = userptr_refs.heads ? (userptr_refs.head_mask+1) * 2 : 32;
+		int alloc_size = sizeof(UserptrRef*) * new_size;
+		UserptrRef ** new_heads = (UserptrRef**)malloc(alloc_size OS_DBG_FILEPOS);
+		OS_ASSERT(new_heads);
+		OS_MEMSET(new_heads, 0, alloc_size);
+
+		UserptrRef ** old_heads = userptr_refs.heads;
+		int old_mask = userptr_refs.head_mask;
+
+		userptr_refs.heads = new_heads;
+		userptr_refs.head_mask = new_size-1;
+
+		if(old_heads){
+			for(int i = 0; i <= old_mask; i++){
+				for(UserptrRef * user_pointer_ref = old_heads[i], * next; user_pointer_ref; user_pointer_ref = next){
+					next = user_pointer_ref->hash_next;
+					int slot = user_pointer_ref->userptr_hash & userptr_refs.head_mask;
+					user_pointer_ref->hash_next = userptr_refs.heads[slot];
+					userptr_refs.heads[slot] = user_pointer_ref;
+				}
+			}
+			free(old_heads);
+		}
+	}
+
+	int slot = user_pointer_ref->userptr_hash & userptr_refs.head_mask;
+	user_pointer_ref->hash_next = userptr_refs.heads[slot];
+	userptr_refs.heads[slot] = user_pointer_ref;
+	userptr_refs.count++;
+}
+
+void OS::Core::unregisterUserptrRef(UserptrRef * userptr_ref)
+{
+	int slot = userptr_ref->userptr_hash & userptr_refs.head_mask;
+	UserptrRef * cur = userptr_refs.heads[slot], * prev = NULL;
+	for(; cur; prev = cur, cur = cur->hash_next){
+		if(cur == userptr_ref){
+			if(prev){
+				prev->hash_next = cur->hash_next;
+			}else{
+				userptr_refs.heads[slot] = cur->hash_next;
+			}
+			OS_ASSERT(userptr_refs.count > 0);
+			userptr_refs.count--;
+			cur->hash_next = NULL;
+			return;
+		}
+	}
+	OS_ASSERT(false);
+}
+
+void OS::Core::unregisterUserptrRef(void * ptr, int value_id)
+{
+	if(userptr_refs.count > 0){
+		OS_ASSERT(userptr_refs.heads && userptr_refs.head_mask);
+		int hash = (int)(intptr_t)ptr;
+		int slot = hash & userptr_refs.head_mask;
+		UserptrRef * userptr_ref = userptr_refs.heads[slot];
+		for(UserptrRef * prev = NULL, * next; userptr_ref; userptr_ref = next){
+			next = userptr_ref->hash_next;
+			if(userptr_ref->userptr_value_id == value_id){
+				if(!prev){
+					userptr_refs.heads[slot] = next;
+				}else{
+					prev->hash_next = next;					
+				}
+				free(userptr_ref);
+				userptr_refs.count--;
+				return;
+			}
+		}
+	}
+}
+
+void OS::Core::deleteUserptrRefs()
+{
+	if(!userptr_refs.heads){
+		return;
+	}
+	for(int i = 0; i <= userptr_refs.head_mask; i++){
+		while(userptr_refs.heads[i]){
+			UserptrRef * cur = userptr_refs.heads[i];
+			userptr_refs.heads[i] = cur->hash_next;
+			free(cur);
+		}
+	}
+	free(userptr_refs.heads);
+	userptr_refs.heads = NULL;
+	userptr_refs.head_mask = 0;
+	userptr_refs.count = 0;
 }
 
 // =====================================================================
@@ -11360,6 +11472,7 @@ void OS::Core::shutdown()
 		prototypes[i] = NULL;
 	}
 	deleteStringRefs();
+	deleteUserptrRefs();
 	if(stack_values.buf){ // it makes sense because of someone could use stack while the finalizing in process
 		free(stack_values.buf);
 		stack_values.buf = NULL;
@@ -11719,7 +11832,7 @@ void OS::Core::gcAddToGreyList(Value val)
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		gcAddToGreyList(val.v.value);
@@ -11818,7 +11931,7 @@ void OS::Core::gcMarkValue(GCValue * value)
 		}
 
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		OS_ASSERT(dynamic_cast<GCUserdataValue*>(value));
 		break;
 	}
@@ -12057,7 +12170,7 @@ void OS::Core::clearValue(GCValue * val)
 		}
 
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		{
 			OS_ASSERT(dynamic_cast<GCUserdataValue*>(val));
 			GCUserdataValue * userdata = (GCUserdataValue*)val;
@@ -12070,6 +12183,9 @@ void OS::Core::clearValue(GCValue * val)
 			userdata->crc = 0;
 			userdata->dtor = NULL;
 
+			if(val->type == OS_VALUE_TYPE_USERPTR){
+				unregisterUserptrRef(ptr, userdata->value_id);
+			}
 			if(dtor){
 				dtor(allocator, ptr, userdata->user_param);
 			}
@@ -12239,7 +12355,7 @@ bool OS::Core::isValueUsed(GCValue * val)
 				break;
 
 			case OS_VALUE_TYPE_USERDATA:
-				// case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_USERPTR:
 				OS_ASSERT(dynamic_cast<GCUserdataValue*>(cur));
 				break;
 
@@ -12422,7 +12538,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 			break;
 
 		case OS_VALUE_TYPE_USERDATA:
-			// case OS_VALUE_TYPE_USERPTR:
+		case OS_VALUE_TYPE_USERPTR:
 		case OS_VALUE_TYPE_CFUNCTION:
 			// TODO: warning???
 			break;
@@ -12504,7 +12620,7 @@ void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, V
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		return setPropertyValue(table_value.v.value, index, value, anonymous_setter_enabled, named_setter_enabled);
@@ -12530,7 +12646,7 @@ void OS::Core::pushPrototype(Value val)
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		pushValue(val.v.value);
@@ -12547,7 +12663,7 @@ void OS::Core::setPrototype(Value val, Value proto, int userdata_crc)
 		return;
 
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		if(val.v.userdata->crc != userdata_crc){
 			return;
 		}
@@ -12776,16 +12892,60 @@ OS::Core::GCUserdataValue * OS::Core::newUserdataValue(int crc, int data_size, O
 	return res;
 }
 
-OS::Core::GCUserdataValue * OS::Core::newUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param)
+OS::Core::GCUserdataValue * OS::Core::newUserPointerValue(int crc, void * ptr, OS_UserdataDtor dtor, void * user_param)
 {
+	int hash = (int)(intptr_t)ptr;
+	if(userptr_refs.count > 0){
+		OS_ASSERT(userptr_refs.heads && userptr_refs.head_mask);
+		int slot = hash & userptr_refs.head_mask;
+		UserptrRef * userptr_ref = userptr_refs.heads[slot];
+		for(UserptrRef * prev = NULL, * next; userptr_ref; userptr_ref = next){
+			next = userptr_ref->hash_next;
+			GCUserdataValue * userptr_value = (GCUserdataValue*)values.get(userptr_ref->userptr_value_id);
+			if(!userptr_value){
+				if(!prev){
+					userptr_refs.heads[slot] = next;
+				}else{
+					prev->hash_next = next;					
+				}
+				free(userptr_ref);
+				userptr_refs.count--;
+				continue;
+			}
+			OS_ASSERT(userptr_value->type == OS_VALUE_TYPE_USERPTR);
+			OS_ASSERT(dynamic_cast<GCUserdataValue*>(userptr_value));
+			if(userptr_value->ptr == ptr){ // && userptr_value->crc == crc){
+				OS_ASSERT(userptr_value->crc == crc);
+				if(userptr_value->crc != crc){
+					if(!prev){
+						userptr_refs.heads[slot] = next;
+					}else{
+						prev->hash_next = next;					
+					}
+					free(userptr_ref);
+					userptr_refs.count--;
+					continue;
+				}
+				return userptr_value;
+			}
+			prev = userptr_ref;
+		}
+	}
 	GCUserdataValue * res = new (malloc(sizeof(GCUserdataValue) OS_DBG_FILEPOS)) GCUserdataValue();
 	res->prototype = prototypes[PROTOTYPE_USERDATA];
 	res->crc = crc;
 	res->dtor = dtor;
 	res->user_param = user_param;
-	res->ptr = data;
-	res->type = OS_VALUE_TYPE_USERDATA; // PTR;
+	res->ptr = ptr;
+	res->type = OS_VALUE_TYPE_USERPTR;
 	registerValue(res);
+
+	UserptrRef * userptr_ref = (UserptrRef*)malloc(sizeof(UserptrRef) OS_DBG_FILEPOS);
+	userptr_ref->userptr_hash = hash;
+	userptr_ref->userptr_value_id = res->value_id;
+	userptr_ref->hash_next = NULL;
+	registerUserptrRef(userptr_ref);
+
 	return res;
 }
 
@@ -12993,7 +13153,7 @@ void OS::Core::pushTypeOf(Value val)
 		return;
 
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		pushStringValue(strings->typeof_userdata);
 		return;
 
@@ -13159,7 +13319,7 @@ OS::Core::GCUserdataValue * OS::Core::pushUserdataOf(Value val)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		return pushValue(val.v.userdata);
 	}
 	pushNull();
@@ -13211,7 +13371,7 @@ void OS::Core::pushCloneValue(Value val)
 
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_CFUNCTION:
 		value = val.v.value;
 		new_value = pushValue(value);
@@ -13232,7 +13392,7 @@ void OS::Core::pushCloneValue(Value val)
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		{
 			bool prototype_enabled = true;
 			Value func;
@@ -13324,7 +13484,7 @@ void OS::Core::pushOpResultValue(int opcode, Value value)
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_USERDATA:
-				// case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_USERPTR:
 				return pushObjectOpcodeValue(opcode, value);
 			}
 			return core->pushNull();
@@ -13358,7 +13518,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
 				case OS_VALUE_TYPE_USERDATA:
-					// case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
 					return left_value.v.value == right_value.v.value;
@@ -13407,7 +13567,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_USERDATA:
-				// case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_USERPTR:
 				switch(right_value.type){
 				case OS_VALUE_TYPE_NULL:
 					return 1;
@@ -13418,7 +13578,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
 				case OS_VALUE_TYPE_USERDATA:
-					// case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_USERPTR:
 					{
 						bool prototype_enabled = true;
 						Value func;
@@ -13445,7 +13605,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 								case OS_VALUE_TYPE_ARRAY:
 								case OS_VALUE_TYPE_OBJECT:
 								case OS_VALUE_TYPE_USERDATA:
-									// case OS_VALUE_TYPE_USERPTR:
+								case OS_VALUE_TYPE_USERPTR:
 									if(core->getPropertyValue(func, right, 
 										PropertyIndex(core->strings->__cmp, PropertyIndex::KeepStringIndex()), prototype_enabled)
 										&& func.isFunction())
@@ -13608,7 +13768,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_USERDATA:
-				// case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_USERPTR:
 				{
 					GCValue * other = other_value.v.value;
 					if(object->prototype == other->prototype){
@@ -13699,7 +13859,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
 				case OS_VALUE_TYPE_USERDATA:
-					// case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_USERPTR:
 					return pushObjectOpcodeValue(opcode, left_value, right_value, right_value.v.value, false);
 				}
 				break;
@@ -13707,7 +13867,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_USERDATA:
-				// case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_USERPTR:
 				switch(right_value.type){
 				case OS_VALUE_TYPE_NULL:
 				case OS_VALUE_TYPE_NUMBER:
@@ -13718,7 +13878,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
 				case OS_VALUE_TYPE_USERDATA:
-					// case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_USERPTR:
 					return pushObjectOpcodeValue(opcode, left_value, right_value, left_value.v.value, true);
 				}
 			}
@@ -14441,7 +14601,7 @@ bool OS::isUserdata(int crc, int offs)
 	Core::Value val = core->getStackValue(offs);
 	switch(val.type){
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		return val.v.userdata->crc == crc;
 	}
 	return false;
@@ -14452,7 +14612,7 @@ void * OS::toUserdata(int crc, int offs)
 	Core::Value val = core->getStackValue(offs);
 	switch(val.type){
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		if(val.v.userdata->crc == crc){
 			return val.v.userdata->ptr;
 		}
@@ -14465,7 +14625,7 @@ void OS::clearUserdata(int crc, int offs)
 	Core::Value val = core->getStackValue(offs);
 	switch(val.type){
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 		if(val.v.userdata->crc == crc){ // && val.v.userdata->ptr){
 			core->clearValue(val.v.value);
 			// val.v.userdata->ptr = NULL;
@@ -14637,7 +14797,7 @@ int OS::getValueId(int offs)
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		return val.v.value->value_id;
@@ -14738,7 +14898,7 @@ bool OS::Core::getPropertyValue(Value& result, Value table_value, const Property
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		return getPropertyValue(result, table_value.v.value, index, prototype_enabled);
@@ -14923,7 +15083,7 @@ void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, 
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		return pushPropertyValue(table_value.v.value, index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
@@ -15212,7 +15372,7 @@ void OS::Core::opObjectSetByAutoIndex()
 
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		num_index = object.v.object->table ? object.v.object->table->next_index : 0;
@@ -15662,6 +15822,7 @@ void OS::Core::opTailCallMethod(int& out_ret_values)
 	case OS_VALUE_TYPE_CFUNCTION:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
 		call(params, ret_values);
 		removeStackValues(-2-ret_values, 2);
 		break;
@@ -15792,7 +15953,7 @@ void OS::Core::opGetPropertyByLocals(bool auto_create)
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		for(GCValue * self = table_value.v.value;;){
@@ -16055,7 +16216,7 @@ void OS::Core::opExtends()
 		break;
 
 	case OS_VALUE_TYPE_USERDATA:
-		// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_CFUNCTION:
 		// TODO: warning???
 		break;
@@ -17073,7 +17234,7 @@ int OS::Core::execute()
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
 				case OS_VALUE_TYPE_USERDATA:
-					// case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
 					setPropertyValue(table_value.v.value, index, value, true, true);
@@ -17536,6 +17697,12 @@ void OS::setErrorHandler(int code)
 	remove(-2);
 }
 
+void OS::setFunc(const FuncDef& def, bool anonymous_setter_enabled, bool named_setter_enabled, int closure_values, void * user_param)
+{
+	const FuncDef list[] = {def, {}};
+	setFuncs(list, anonymous_setter_enabled, named_setter_enabled, closure_values, user_param);
+}
+
 void OS::setFuncs(const FuncDef * list, bool anonymous_setter_enabled, bool named_setter_enabled, int closure_values, void * user_param)
 {
 	for(; list->func; list++){
@@ -17545,9 +17712,15 @@ void OS::setFuncs(const FuncDef * list, bool anonymous_setter_enabled, bool name
 		for(int i = 0; i < closure_values; i++){
 			pushStackValue(-2-closure_values);
 		}
-		pushCFunction(list->func, closure_values, user_param);
+		pushCFunction(list->func, closure_values, list->user_param ? list->user_param : user_param);
 		setProperty(anonymous_setter_enabled, named_setter_enabled);
 	}
+}
+
+void OS::setNumber(const NumberDef& def, bool anonymous_setter_enabled, bool named_setter_enabled)
+{
+	const NumberDef list[] = {def, {}};
+	setNumbers(list, anonymous_setter_enabled, named_setter_enabled);
 }
 
 void OS::setNumbers(const NumberDef * list, bool anonymous_setter_enabled, bool named_setter_enabled)
@@ -17560,6 +17733,12 @@ void OS::setNumbers(const NumberDef * list, bool anonymous_setter_enabled, bool 
 	}
 }
 
+void OS::setString(const StringDef& def, bool anonymous_setter_enabled, bool named_setter_enabled)
+{
+	const StringDef list[] = {def, {}};
+	setStrings(list, anonymous_setter_enabled, named_setter_enabled);
+}
+
 void OS::setStrings(const StringDef * list, bool anonymous_setter_enabled, bool named_setter_enabled)
 {
 	for(; list->name; list++){
@@ -17568,6 +17747,12 @@ void OS::setStrings(const StringDef * list, bool anonymous_setter_enabled, bool 
 		pushString(list->value);
 		setProperty(anonymous_setter_enabled, named_setter_enabled);
 	}
+}
+
+void OS::setNull(const NullDef& def, bool anonymous_setter_enabled, bool named_setter_enabled)
+{
+	const NullDef list[] = {def, {}};
+	setNulls(list, anonymous_setter_enabled, named_setter_enabled);
 }
 
 void OS::setNulls(const NullDef * list, bool anonymous_setter_enabled, bool named_setter_enabled)
@@ -17640,6 +17825,12 @@ void OS::setGlobal(const Core::String& name, bool anonymous_setter_enabled, bool
 	}
 }
 
+void OS::setGlobal(const FuncDef& func, bool anonymous_setter_enabled, bool named_setter_enabled)
+{
+	pushCFunction(func.func, func.user_param);
+	setGlobal(func.name, anonymous_setter_enabled, named_setter_enabled);
+}
+
 void OS::initGlobalFunctions()
 {
 	struct Lib
@@ -17698,7 +17889,7 @@ void OS::initGlobalFunctions()
 			if(params < 1){
 				return 0;
 			}
-			bool required = os->toBool(-params+1);
+			bool required = params > 1 ? os->toBool(-params+1) : false;
 			os->compileFile(os->toString(-params), required);
 			return 1;
 		}
@@ -18141,7 +18332,7 @@ void OS::initObjectClass()
 			}
 			switch(self->type){
 			case OS_VALUE_TYPE_USERDATA:
-				// case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_USERPTR:
 				{
 					Core::StringBuffer str(os);
 					str += OS_TEXT("<");
@@ -18273,7 +18464,7 @@ void OS::initObjectClass()
 
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_USERDATA:
-				// case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_USERPTR:
 			case OS_VALUE_TYPE_FUNCTION:
 			case OS_VALUE_TYPE_CFUNCTION:
 				num_index = self_var.v.object->table ? self_var.v.object->table->next_index : 0;
@@ -18303,7 +18494,7 @@ void OS::initObjectClass()
 
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_USERDATA:
-				// case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_USERPTR:
 			case OS_VALUE_TYPE_FUNCTION:
 			case OS_VALUE_TYPE_CFUNCTION:
 				if(self_var.v.object->table && self_var.v.object->table->count > 0){
@@ -18948,137 +19139,119 @@ void OS::initMathModule()
 			return minmax(os, params, OP_LOGIC_GE);
 		}
 
-		static int abs(OS * os, int params, int, int, void*)
+		/*
+		static double abs(double p)
 		{
-			os->pushNumber(::fabs(os->toNumber(-params)));
-			return 1;
+			return ::fabs(p);
 		}
 
-		static int ceil(OS * os, int params, int, int, void*)
+		static double ceil(double p)
 		{
-			os->pushNumber(::ceil(os->toNumber(-params)));
-			return 1;
+			return ::ceil(p);
 		}
 
-		static int floor(OS * os, int params, int, int, void*)
+		static double floor(double p)
 		{
-			os->pushNumber(::floor(os->toNumber(-params)));
-			return 1;
+			return ::floor(p);
 		}
+		*/
 
-		static int round(OS * os, int params, int, int, void*)
+		static double round(double a, int precision)
 		{
-			double a = (double)os->toNumber(-params);
-			if(params >= 2){
-				int precision = (int)os->toNumber(-params+1);
-				if(precision <= 0){
-					if(precision < 0){
-						double p = 10.0f;
-						for(int i = -precision-1; i > 0; i--){
-							p *= 10.0f;
-						}
-						os->pushNumber(::floor(a / p + 0.5f) * p);
-						return 1;
+			if(precision <= 0){
+				if(precision < 0){
+					double p = 10.0f;
+					for(int i = -precision-1; i > 0; i--){
+						p *= 10.0f;
 					}
-					os->pushNumber(::floor(a + 0.5f));
-					return 1;
+					return ::floor(a / p + 0.5f) * p;
 				}
-				double p = 10.0f;
-				for(int i = precision-1; i > 0; i--){
-					p *= 10.0f;
-				}
-				os->pushNumber(::floor(a * p + 0.5f) / p);
-				return 1;
+				return ::floor(a + 0.5f);
 			}
-			os->pushNumber(::floor(a + 0.5f));
-			return 1;
+			double p = 10.0f;
+			for(int i = precision-1; i > 0; i--){
+				p *= 10.0f;
+			}
+			return ::floor(a * p + 0.5f) / p;
 		}
 
-		static int sin(OS * os, int params, int, int, void*)
+		/*
+		static double sin(double p)
 		{
-			os->pushNumber(::sin(os->toNumber(-params)));
-			return 1;
+			return ::sin(p);
 		}
 
-		static int sinh(OS * os, int params, int, int, void*)
+		static double sinh(double p)
 		{
-			os->pushNumber(::sinh(os->toNumber(-params)));
-			return 1;
+			return ::sinh(p);
 		}
 
-		static int cos(OS * os, int params, int, int, void*)
+		static double cos(double p)
 		{
-			os->pushNumber(::cos(os->toNumber(-params)));
-			return 1;
+			return ::cos(p);
 		}
 
-		static int cosh(OS * os, int params, int, int, void*)
+		static double cosh(double p)
 		{
-			os->pushNumber(::cosh(os->toNumber(-params)));
-			return 1;
+			return ::cosh(p);
 		}
 
-		static int tan(OS * os, int params, int, int, void*)
+		static double tan(double p)
 		{
-			os->pushNumber(::tan(os->toNumber(-params)));
-			return 1;
+			return ::tan(p);
 		}
 
-		static int tanh(OS * os, int params, int, int, void*)
+		static double tanh(double p)
 		{
-			os->pushNumber(::tanh(os->toNumber(-params)));
-			return 1;
+			return ::tanh(p);
 		}
 
-		static int acos(OS * os, int params, int, int, void*)
+		static double acos(double p)
 		{
-			os->pushNumber(::acos(os->toNumber(-params)));
-			return 1;
+			return ::acos(p);
 		}
 
-		static int asin(OS * os, int params, int, int, void*)
+		static double asin(double p)
 		{
-			os->pushNumber(::asin(os->toNumber(-params)));
-			return 1;
+			return ::asin(p);
 		}
 
-		static int atan(OS * os, int params, int, int, void*)
+		static double atan(double p)
 		{
-			os->pushNumber(::atan(os->toNumber(-params)));
-			return 1;
+			return ::atan(p);
 		}
 
-		static int atan2(OS * os, int params, int, int, void*)
+		static double atan2(double y, double x)
 		{
-			os->pushNumber(::atan2(os->toNumber(-params), os->toNumber(-params+1)));
-			return 1;
+			return ::atan2(y, x);
 		}
 
-		static int exp(OS * os, int params, int, int, void*)
+		static double exp(double p)
 		{
-			os->pushNumber(::exp(os->toNumber(-params)));
-			return 1;
+			return ::exp(p);
 		}
+		*/
 
 		static int frexp(OS * os, int params, int, int, void*)
 		{
+			if(!params) return 0;
 			int e;
 			os->pushNumber(::frexp(os->toNumber(-params), &e));
 			os->pushNumber(e);
 			return 2;
 		}
 
-		static int ldexp(OS * os, int params, int, int, void*)
+		/*
+		static double ldexp(double x, int y)
 		{
-			os->pushNumber(::ldexp(os->toNumber(-params), (int)os->toNumber(-params+1)));
-			return 1;
+			return ::ldexp(x, y);
 		}
 
-		static int pow(OS * os, int params, int, int, void*)
+		static double pow(double x, double y)
 		{
-			os->pushNumber(::pow(os->toNumber(-params), os->toNumber(-params+1)));
-			return 1;
+			return ::pow(x, y);
 		}
+		*/
 
 		static int random(OS * os, int params, int, int, void*)
 		{
@@ -19093,6 +19266,7 @@ void OS::initMathModule()
 				return 1;
 
 			case 2:
+			default:
 				os->pushNumber(core->getRand(os->toNumber(-params), os->toNumber(-params+1)));
 				return 1;
 			}
@@ -19107,18 +19281,21 @@ void OS::initMathModule()
 
 		static int setrandseed(OS * os, int params, int, int, void*)
 		{
+			if(!params) return 0;
 			os->core->rand_seed = (OS_U32)os->toNumber(-params);
 			return 0;
 		}
 
-		static int fmod(OS * os, int params, int, int, void*)
+		/*
+		static double fmod(double x, double y)
 		{
-			os->pushNumber(::fmod(os->toNumber(-params), os->toNumber(-params+1)));
-			return 1;
+			return ::fmod(x, y);
 		}
+		*/
 
 		static int modf(OS * os, int params, int, int, void*)
 		{
+			if(!params) return 0;
 			double ip;
 			double fp = ::modf(os->toNumber(-params), &ip);
 			os->pushNumber(ip);
@@ -19126,17 +19303,19 @@ void OS::initMathModule()
 			return 2;
 		}
 
-		static int sqrt(OS * os, int params, int, int, void*)
+		/*
+		static double sqrt(double p)
 		{
-			os->pushNumber(::sqrt(os->toNumber(-params)));
-			return 1;
+			return ::sqrt(p);
 		}
+		*/
 
 		static int log(OS * os, int params, int, int, void*)
 		{
+			if(!params) return 0;
 			double x = os->toNumber(-params);
 			OS_NUMBER base;
-			if(os->isNumber(-params+1, &base)){
+			if(params > 1 && os->isNumber(-params+1, &base)){
 				if(base == 10){
 					os->pushNumber(::log10(x));
 				}else{
@@ -19148,47 +19327,46 @@ void OS::initMathModule()
 			return 1;
 		}
 
-		static int deg(OS * os, int params, int, int, void*)
+		static double deg(double p)
 		{
-			os->pushNumber(os->toNumber(-params)/OS_RADIANS_PER_DEGREE);
-			return 1;
+			return p / OS_RADIANS_PER_DEGREE;
 		}
-
-		static int rad(OS * os, int params, int, int, void*)
+		
+		static double rad(double p)
 		{
-			os->pushNumber(os->toNumber(-params)*OS_RADIANS_PER_DEGREE);
-			return 1;
+			return p * OS_RADIANS_PER_DEGREE;
 		}
 	};
 	FuncDef list[] = {
 		{OS_TEXT("min"), Math::min_func},
 		{OS_TEXT("max"), Math::max_func},
-		{OS_TEXT("abs"), Math::abs},
-		{OS_TEXT("ceil"), Math::ceil},
-		{OS_TEXT("floor"), Math::floor},
-		{OS_TEXT("round"), Math::round},
-		{OS_TEXT("sin"), Math::sin},
-		{OS_TEXT("sinh"), Math::sinh},
-		{OS_TEXT("cos"), Math::cos},
-		{OS_TEXT("cosh"), Math::cosh},
-		{OS_TEXT("tan"), Math::tan},
-		{OS_TEXT("tanh"), Math::tanh},
-		{OS_TEXT("acos"), Math::acos},
-		{OS_TEXT("asin"), Math::asin},
-		{OS_TEXT("atan"), Math::atan},
-		{OS_TEXT("atan2"), Math::atan2},
-		{OS_TEXT("exp"), Math::exp},
+		def(OS_TEXT("abs"), (double(__cdecl*)(double))::fabs), // Math::abs),
+		def(OS_TEXT("ceil"), (double(__cdecl*)(double))::ceil), // Math::ceil),
+		def(OS_TEXT("floor"), (double(__cdecl*)(double))::floor), // Math::floor),
+		def(OS_TEXT("round"), Math::round),
+		def(OS_TEXT("sin"), (double(__cdecl*)(double))::sin), // Math::sin),
+		def(OS_TEXT("sinh"), (double(__cdecl*)(double))::sinh), // Math::sinh),
+		def(OS_TEXT("cos"), (double(__cdecl*)(double))::cos), // Math::cos),
+		def(OS_TEXT("cosh"), (double(__cdecl*)(double))::cosh), // Math::cosh),
+		def(OS_TEXT("tan"), (double(__cdecl*)(double))::tan), // Math::tan),
+		def(OS_TEXT("tanh"), (double(__cdecl*)(double))::tanh), // Math::tanh),
+		def(OS_TEXT("acos"), (double(__cdecl*)(double))::acos), // Math::acos),
+		def(OS_TEXT("asin"), (double(__cdecl*)(double))::asin), // Math::asin),
+		def(OS_TEXT("atan"), (double(__cdecl*)(double))::atan), // Math::atan),
+		def(OS_TEXT("atan2"), (double(__cdecl*)(double, double))::atan2), // Math::atan2),
+		def(OS_TEXT("exp"), (double(__cdecl*)(double))::exp), // Math::exp),
 		{OS_TEXT("frexp"), Math::frexp},
-		{OS_TEXT("ldexp"), Math::ldexp},
+		def(OS_TEXT("ldexp"), (double(__cdecl*)(double, int))::ldexp), // Math::ldexp),
+		def(OS_TEXT("pow"), (double(__cdecl*)(double, double))::pow), // Math::pow),
 		{OS_TEXT("random"), Math::random},
 		{OS_TEXT("__get@randseed"), Math::getrandseed},
 		{OS_TEXT("__set@randseed"), Math::setrandseed},
-		{OS_TEXT("fmod"), Math::fmod},
+		def(OS_TEXT("fmod"), (double(__cdecl*)(double, double))::fmod), // Math::fmod),
 		{OS_TEXT("modf"), Math::modf},
-		{OS_TEXT("sqrt"), Math::sqrt},
+		def(OS_TEXT("sqrt"), (double(__cdecl*)(double))::sqrt), // Math::sqrt),
 		{OS_TEXT("log"), Math::log},
-		{OS_TEXT("deg"), Math::deg},
-		{OS_TEXT("rad"), Math::rad},
+		def(OS_TEXT("deg"), Math::deg),
+		def(OS_TEXT("rad"), Math::rad),
 		{}
 	};
 	NumberDef numbers[] = {
@@ -19624,6 +19802,7 @@ int OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool al
 			}
 
 		case OS_VALUE_TYPE_USERDATA:
+		case OS_VALUE_TYPE_USERPTR:
 			{
 				bool prototype_enabled = true;
 				Value func;

@@ -212,7 +212,7 @@ namespace ObjectScript
 		OS_VALUE_TYPE_ARRAY,
 		OS_VALUE_TYPE_OBJECT,
 		OS_VALUE_TYPE_USERDATA,
-		// OS_VALUE_TYPE_USERPTR,
+		OS_VALUE_TYPE_USERPTR,
 		OS_VALUE_TYPE_FUNCTION,
 		OS_VALUE_TYPE_CFUNCTION,
 
@@ -2313,6 +2313,23 @@ namespace ObjectScript
 				~StringRefs();
 			};
 
+			struct UserptrRef
+			{
+				int userptr_hash;
+				int userptr_value_id;
+				UserptrRef * hash_next;
+			};
+
+			struct UserptrRefs
+			{
+				UserptrRef ** heads;
+				int head_mask;
+				int count;
+
+				UserptrRefs();
+				~UserptrRefs();
+			};
+
 			struct Values
 			{
 				GCValue ** heads;
@@ -2445,6 +2462,7 @@ namespace ObjectScript
 			int num_destroyed_values;
 
 			StringRefs string_refs;
+			UserptrRefs userptr_refs;
 
 			// Table * string_values_table;
 			GCObjectValue * check_recursion;
@@ -2674,6 +2692,11 @@ namespace ObjectScript
 			void registerStringRef(StringRef*);
 			void unregisterStringRef(StringRef*);
 			void deleteStringRefs();
+
+			void registerUserptrRef(UserptrRef*);
+			void unregisterUserptrRef(UserptrRef*);
+			void unregisterUserptrRef(void*, int);
+			void deleteUserptrRefs();
 
 			void registerValue(GCValue * val);
 			GCValue * unregisterValue(int value_id);
@@ -2950,12 +2973,16 @@ namespace ObjectScript
 		void setGlobal(const OS_CHAR*, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
 		void setGlobal(const Core::String&, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
 
+		struct FuncDef;
+		
+		void setGlobal(const FuncDef& func, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+
 		void getPrototype();
 		void setPrototype();
 		void setPrototype(int userdata_crc);
 
 		int getValueId(int offs = -1);
-		
+
 		void pushNull();
 		void pushNumber(OS_INT32);
 		void pushNumber(OS_INT64);
@@ -3068,6 +3095,7 @@ namespace ObjectScript
 		struct FuncDef {
 			const OS_CHAR * name;
 			OS_CFunction func;
+			void * user_param;
 		};
 		
 		struct NumberDef {
@@ -3085,9 +3113,13 @@ namespace ObjectScript
 		};
 		
 		void setFuncs(const FuncDef * list, bool anonymous_setter_enabled = true, bool named_setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
+		void setFunc(const FuncDef& def, bool anonymous_setter_enabled = true, bool named_setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
 		void setNumbers(const NumberDef * list, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+		void setNumber(const NumberDef& def, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
 		void setStrings(const StringDef * list, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+		void setString(const StringDef& def, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
 		void setNulls(const NullDef * list, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+		void setNull(const NullDef& def, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
 
 		void getObject(const OS_CHAR * name, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
 		void getGlobalObject(const OS_CHAR * name, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
@@ -3138,6 +3170,6 @@ namespace ObjectScript
 		virtual void onExitGC();
 	};
 
-} // namespace OS
+} // namespace ObjectScript
 
 #endif // __OBJECT_SCRIPT_H__

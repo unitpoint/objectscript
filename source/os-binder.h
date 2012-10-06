@@ -1,5 +1,5 @@
-#ifndef __OS_API_HELPER_H__
-#define __OS_API_HELPER_H__
+#ifndef __OS_BINDER_H__
+#define __OS_BINDER_H__
 
 /******************************************************************************
 * Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -27,9 +27,9 @@
 ******************************************************************************/
 
 #include "objectscript.h"
+#include <string>
 
-namespace ObjectScript
-{
+// namespace ObjectScript {
 
 // =====================================================================
 
@@ -51,12 +51,12 @@ template <class T> struct PlainType { typedef typename RemovePtr<typename Remove
 template <class T> int getCtypeId(){ static int id = (int)&id; return id; }
 template <class T> int getInstanceId(){ static int id = (int)&id; return id; }
 
-template <class T> const char * getCtypeName();
+template <class T> const OS_CHAR * getCtypeName();
 
 // =====================================================================
 
 #define OS_DECL_CTYPE(type) OS_DECL_CTYPE_NAME(type, #type)
-#define OS_DECL_CTYPE_NAME(type, name) template <> const char * getCtypeName<type>(){ return name; }
+#define OS_DECL_CTYPE_NAME(type, name) template <> inline const OS_CHAR * getCtypeName<type>(){ return name; }
 
 // =====================================================================
 
@@ -67,22 +67,26 @@ struct CtypeValue
 
 // =====================================================================
 
+// }
+
 OS_DECL_CTYPE(bool);
+
+// namespace ObjectScript {
 
 template <>
 struct CtypeValue<bool>
 {
 	typedef bool type;
 
-	static bool isValid(bool){ return true; }
+	static bool isValid(type){ return true; }
 
-	static type to(bool val){ return (type)val; }
-	static bool to(OS * os, int offs)
+	static type def(ObjectScript::OS*){ return type(); }
+	static type getArg(ObjectScript::OS * os, int offs)
 	{
 		return os->toBool(offs);
 	}
 
-	static void push(OS * os, bool val)
+	static void push(ObjectScript::OS * os, bool val)
 	{
 		os->pushBool(val);
 	}
@@ -93,6 +97,95 @@ struct CtypeValue<bool>
 
 // =====================================================================
 
+OS_DECL_CTYPE(std::string);
+
+template <>
+struct CtypeValue<std::string>
+{
+	typedef std::string type;
+
+	static bool isValid(const type&){ return true; }
+
+	static type def(ObjectScript::OS*){ return type(); }
+	static type getArg(ObjectScript::OS * os, int offs)
+	{
+		return os->toString(offs).toChar();
+	}
+
+	static void push(ObjectScript::OS * os, const type& val)
+	{
+		os->pushString(val.c_str());
+	}
+};
+
+// =====================================================================
+
+OS_DECL_CTYPE(ObjectScript::OS::String);
+
+template <>
+struct CtypeValue<ObjectScript::OS::String>
+{
+	typedef ObjectScript::OS::String type;
+
+	static bool isValid(const type&){ return true; }
+
+	static type def(ObjectScript::OS * os){ return type(os); }
+	static type getArg(ObjectScript::OS * os, int offs)
+	{
+		return os->toString(offs);
+	}
+
+	static void push(ObjectScript::OS * os, const type& val)
+	{
+		os->pushString(val);
+	}
+};
+
+// =====================================================================
+
+OS_DECL_CTYPE_NAME(OS_CHAR*, "char_ptr");
+OS_DECL_CTYPE(OS_CHAR);
+
+template <>
+struct CtypeValue<OS_CHAR*>
+{
+	typedef const OS_CHAR * type;
+
+	static bool isValid(const OS_CHAR *){ return true; }
+
+	static type def(ObjectScript::OS*){ return ""; }
+	static type getArg(ObjectScript::OS * os, int offs)
+	{
+		return os->toString(offs).toChar();
+	}
+
+	static void push(ObjectScript::OS * os, const OS_CHAR * val)
+	{
+		os->pushString(val);
+	}
+};
+
+// =====================================================================
+
+OS_DECL_CTYPE(ObjectScript::OS);
+
+template <>
+struct CtypeValue<ObjectScript::OS*>
+{
+	typedef const ObjectScript::OS * type;
+
+	static bool isValid(const ObjectScript::OS * p){ return p != NULL; }
+
+	static type def(ObjectScript::OS * os){ return os; }
+	static type getArg(ObjectScript::OS * os, int& offs)
+	{
+		offs--;
+		return os;
+	}
+};
+
+// =====================================================================
+
 template <class T>
 struct CtypeNumber
 {
@@ -100,13 +193,13 @@ struct CtypeNumber
 
 	static bool isValid(type){ return true; }
 
-	static type to(const type& val){ return (type)val; }
-	static type to(OS * os, int offs)
+	static type def(ObjectScript::OS*){ return type(); }
+	static type getArg(ObjectScript::OS * os, int offs)
 	{
 		return (type)os->toNumber(offs);
 	}
 
-	static void push(OS * os, const type& val)
+	static void push(ObjectScript::OS * os, const type& val)
 	{
 		os->pushNumber((OS_NUMBER)val);
 	}
@@ -115,13 +208,15 @@ struct CtypeNumber
 #define OS_DECL_CTYPE_NUMBER(type) \
 	OS_DECL_CTYPE(type); \
 	template <> struct CtypeValue<type>: public CtypeNumber<type> {}
-	// template <> struct CtypeValue<const type>: public CtypeNumber<type> {}; \
-	// template <> struct CtypeValue<const type&>: public CtypeNumber<type> {}
+
+// };
 
 OS_DECL_CTYPE_NUMBER(float);
+OS_DECL_CTYPE_NUMBER(double);
+OS_DECL_CTYPE_NUMBER(long double);
 OS_DECL_CTYPE_NUMBER(int);
 OS_DECL_CTYPE_NUMBER(unsigned int);
-OS_DECL_CTYPE_NUMBER(char);
+OS_DECL_CTYPE_NUMBER(signed char);
 OS_DECL_CTYPE_NUMBER(unsigned char);
 OS_DECL_CTYPE_NUMBER(short);
 OS_DECL_CTYPE_NUMBER(unsigned short);
@@ -130,52 +225,68 @@ OS_DECL_CTYPE_NUMBER(unsigned long);
 OS_DECL_CTYPE_NUMBER(long long);
 OS_DECL_CTYPE_NUMBER(unsigned long long);
 
+// namespace ObjectScript {
+
 // =====================================================================
 
-template <class T> void pushCtypeValue(OS * os, T obj)
+template <class T> void pushCtypeValue(ObjectScript::OS * os, T obj)
 {
 	typedef typename RemoveConst<T>::type type;
-	CtypeValue<type>::push(os, CtypeValue<type>::to(obj));
+	// CtypeValue<type>::push(os, CtypeValue<type>::to(obj));
+	CtypeValue<type>::push(os, obj);
 }
 
 // =====================================================================
 
-template <class T> struct CtypeSimpleObject{};
-template <class T> struct CtypeSimpleObject<T*>
+template <class T> void userObjectDestructor(T * p)
 {
+	// delete p;
+}
+
+template <class T> void userObjectDestructor(ObjectScript::OS * os, void * data, void * user_param)
+{
+	userObjectDestructor<T>((T*)data);
+}
+
+template <class T> struct CtypeUserClass{};
+template <class T> struct CtypeUserClass<T*>
+{
+	typedef typename RemoveConst<T>::type ttype;
 	typedef typename RemoveConst<T>::type * type;
 
-	static bool isValid(const type){ return true; }
-	static type to(const type val){ return (type)val; }
-	static type to(OS * os, int offs){ return (type)os->toUserdata(getInstanceId<typename RemoveConst<T>::type>(), offs);	}
-	static void push(OS * os, const type val)
+	static bool isValid(const type p){ return p != NULL; }
+	static type def(ObjectScript::OS*){ return type(); }
+	static type getArg(ObjectScript::OS * os, int offs){ return (type)os->toUserdata(getInstanceId<ttype>(), offs);	}
+	static void push(ObjectScript::OS * os, const type val)
 	{
-		pushCtypeValue(os, val);
+		// pushCtypeValue(os, val);
+		os->pushUserPointer(getInstanceId<ttype>(), val, userObjectDestructor<ttype>);
 		os->pushStackValue();
-		os->getGlobal(getCtypeName<T>());
-		if(!os->isUserdata(getCtypeId<T>(), -1)){
+		os->getGlobal(getCtypeName<ttype>());
+		if(!os->isUserdata(getCtypeId<ttype>(), -1)){
 			os->pop(2);
 		}else{
-			os->setPrototype(getInstanceId<T>());
+			os->setPrototype(getInstanceId<ttype>());
 		}
 	}
 };
 
-#define OS_DECL_CTYPE_SIMPLE_OBJECT(type) \
+#define OS_DECL_USER_CLASS(type) \
 	OS_DECL_CTYPE(type); \
-	template <> struct CtypeValue<type*>: public CtypeSimpleObject<type*>{}
+	template <> struct CtypeValue<type*>: public CtypeUserClass<type*>{}; \
+	template <> void userObjectDestructor<type>(type * p){ delete p; }
 
 // =====================================================================
 
 #define OS_GET_TEMPLATE_SELF(argType) \
-	argType self = CtypeValue< typename RemoveConst<argType>::type >::to(os, -params-1); \
+	argType self = CtypeValue< typename RemoveConst<argType>::type >::getArg(os, -params-1); \
 	if(!self){ \
 		os->triggerError(OS_E_ERROR, OS::String(os, getCtypeName< typename PlainType<argType>::type >())+" this must not be null"); \
 		return 0; \
 	}
 
 #define OS_GET_SELF(argType) \
-	argType self = CtypeValue< RemoveConst<argType>::type >::to(os, -params-1); \
+	argType self = CtypeValue< RemoveConst<argType>::type >::getArg(os, -params-1); \
 	if(!self){ \
 		os->triggerError(OS_E_ERROR, OS::String(os, getCtypeName< PlainType<argType>::type >())+" this must not be null"); \
 		return 0; \
@@ -184,32 +295,34 @@ template <class T> struct CtypeSimpleObject<T*>
 // =====================================================================
 
 #define OS_GET_TEMPLATE_ARG(num, argType) \
-	typename CtypeValue< typename RemoveConst<argType>::type >::type arg##num = CtypeValue< typename RemoveConst<argType>::type >::to(os, -params+num-1); \
+	OS_ASSERT(num > 0); \
+	typename CtypeValue< typename RemoveConst<argType>::type >::type arg##num = cur_param_offs < 0 ? CtypeValue< typename RemoveConst<argType>::type >::getArg(os, cur_param_offs) : CtypeValue< typename RemoveConst<argType>::type >::def(os); \
 	if(!CtypeValue< typename RemoveConst<argType>::type >::isValid(arg##num)){ \
 		os->triggerError(OS_E_ERROR, OS::String(os, getCtypeName< typename PlainType<argType>::type >())+" expected"); \
 		return 0; \
-	}
+	} cur_param_offs++
 
 #define OS_GET_ARG(num, argType) \
-	CtypeValue< RemoveConst<argType>::type >::type arg##num = CtypeValue< RemoveConst<argType>::type >::to(os, -params+num-1); \
+	OS_ASSERT(num > 0); \
+	CtypeValue< RemoveConst<argType>::type >::type arg##num = cur_param_offs < 0 ? CtypeValue< RemoveConst<argType>::type >::getArg(os, cur_param_offs) : CtypeValue< RemoveConst<argType>::type >::def(os); \
 	if(!CtypeValue< RemoveConst<argType>::type >::isValid(arg##num)){ \
 		os->triggerError(OS_E_ERROR, OS::String(os, getCtypeName< PlainType<argType>::type >())+" expected"); \
 		return 0; \
-	}
+	} cur_param_offs++
 
 // =====================================================================
 
 template <class T, class fieldType, class T2, fieldType T2::*field> 
-int getField(OS * os, int params, int, int, void*)
+int getField(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	typedef typename RemoveConst<fieldType>::type type;
-	CtypeValue<type>::push(os, CtypeValue<type>::to(self->*field));
+	CtypeValue<type>::push(os, self->*field);
 	return 1;
 }
 
 template <class T, class fieldType, class T2, fieldType T2::*field> 
-int setField(OS * os, int params, int, int, void*)
+int setField(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, fieldType);
@@ -218,9 +331,9 @@ int setField(OS * os, int params, int, int, void*)
 }
 
 // =====================================================================
-
+/*
 template <class T, class resType, class T2, resType(T2::*method)()const> 
-int getFieldByMethod(OS * os, int params, int, int, void*)
+int getFieldByMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	typedef typename RemoveConst<resType>::type type;
@@ -229,7 +342,7 @@ int getFieldByMethod(OS * os, int params, int, int, void*)
 }
 
 template <class T, class resType, class T2, resType(T2::*method)()> 
-int getFieldByMethodNotConst(OS * os, int params, int, int, void*)
+int getFieldByMethodNotConst(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	typedef typename RemoveConst<resType>::type type;
@@ -240,7 +353,7 @@ int getFieldByMethodNotConst(OS * os, int params, int, int, void*)
 // =====================================================================
 
 template <class T, class resType, class argType1, class T2, resType(T2::*method)(argType1)const> 
-int getFieldByMethod(OS * os, int params, int, int, void*)
+int getFieldByMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -250,7 +363,7 @@ int getFieldByMethod(OS * os, int params, int, int, void*)
 }
 
 template <class T, class resType, class argType1, class T2, resType(T2::*method)(argType1)> 
-int getFieldByMethodNotConst(OS * os, int params, int, int, void*)
+int getFieldByMethodNotConst(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -262,7 +375,7 @@ int getFieldByMethodNotConst(OS * os, int params, int, int, void*)
 // =====================================================================
 
 template <class T, class resType, class argType1, class argType2, class T2, resType(T2::*method)(argType1, argType2)const> 
-int getFieldByMethod(OS * os, int params, int, int, void*)
+int getFieldByMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -273,7 +386,7 @@ int getFieldByMethod(OS * os, int params, int, int, void*)
 }
 
 template <class T, class resType, class argType1, class argType2, class T2, resType(T2::*method)(argType1, argType2)> 
-int getFieldByMethodNotConst(OS * os, int params, int, int, void*)
+int getFieldByMethodNotConst(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -286,7 +399,7 @@ int getFieldByMethodNotConst(OS * os, int params, int, int, void*)
 // =====================================================================
 
 template <class T, class T2, void(T2::*method)()> 
-int voidMethod(OS * os, int params, int, int, void*)
+int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	(self->*method)();
@@ -294,7 +407,7 @@ int voidMethod(OS * os, int params, int, int, void*)
 }
 
 template <class T, class argType1, class T2, void(T2::*method)(argType1)> 
-int voidMethod(OS * os, int params, int, int, void*)
+int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -303,7 +416,7 @@ int voidMethod(OS * os, int params, int, int, void*)
 }
 
 template <class T, class argType1, class argType2, class T2, void(T2::*method)(argType1, argType2)> 
-int voidMethod(OS * os, int params, int, int, void*)
+int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -313,7 +426,7 @@ int voidMethod(OS * os, int params, int, int, void*)
 }
 
 template <class T, class argType1, class argType2, class argType3, class T2, void(T2::*method)(argType1, argType2, argType3)> 
-int voidMethod(OS * os, int params, int, int, void*)
+int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -325,7 +438,7 @@ int voidMethod(OS * os, int params, int, int, void*)
 
 template <class T, class argType1, class argType2, class argType3, class argType4, class T2, 
 	void(T2::*method)(argType1, argType2, argType3, argType4)> 
-int voidMethod(OS * os, int params, int, int, void*)
+int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -338,7 +451,7 @@ int voidMethod(OS * os, int params, int, int, void*)
 
 template <class T, class argType1, class argType2, class argType3, class argType4, class argType5, class T2, 
 	void(T2::*method)(argType1, argType2, argType3, argType4, argType5)> 
-int voidMethod(OS * os, int params, int, int, void*)
+int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -352,7 +465,7 @@ int voidMethod(OS * os, int params, int, int, void*)
 
 template <class T, class argType1, class argType2, class argType3, class argType4, class argType5, class argType6, class T2, 
 	void(T2::*method)(argType1, argType2, argType3, argType4, argType5, argType6)> 
-int voidMethod(OS * os, int params, int, int, void*)
+int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -367,7 +480,7 @@ int voidMethod(OS * os, int params, int, int, void*)
 
 template <class T, class argType1, class argType2, class argType3, class argType4, class argType5, class argType6, class argType7,
 	class T2, void(T2::*method)(argType1, argType2, argType3, argType4, argType5, argType6, argType7)> 
-int voidMethod(OS * os, int params, int, int, void*)
+int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -383,7 +496,7 @@ int voidMethod(OS * os, int params, int, int, void*)
 
 template <class T, class argType1, class argType2, class argType3, class argType4, class argType5, class argType6, class argType7, class argType8,
 	class T2, void(T2::*method)(argType1, argType2, argType3, argType4, argType5, argType6, argType7, argType8)> 
-int voidMethod(OS * os, int params, int, int, void*)
+int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
 {
 	OS_GET_TEMPLATE_SELF(T*);
 	OS_GET_TEMPLATE_ARG(1, argType1);
@@ -434,11 +547,14 @@ int voidMethod(OS * os, int params, int, int, void*)
 #define OS_VOID_METHOD_5_SPEC(T, name, T2, method, argType1, argType2, argType3, argType4, argType5)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, argType5, T2, & T::method>}
 #define OS_VOID_METHOD_6_SPEC(T, name, T2, method, argType1, argType2, argType3, argType4, argType5, argType6)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, argType5, argType6, T2, & T::method>}
 #define OS_VOID_METHOD_7_SPEC(T, name, T2, method, argType1, argType2, argType3, argType4, argType5, argType6, argType7)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, argType5, argType6, argType7, T2, & T2::method>}
-
+*/
 // =====================================================================
 
+namespace ObjectScript
+{
+
 template <class T>
-void createCtypePrototype(OS * os, OS::FuncDef * list)
+void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
 {
 	os->pushGlobals();
 	os->pushString(getCtypeName<T>());
@@ -447,8 +563,39 @@ void createCtypePrototype(OS * os, OS::FuncDef * list)
 	os->setProperty();
 }
 
+} // namespace ObjectScript
+
+// =====================================================================
+// =====================================================================
 // =====================================================================
 
+struct OS_FunctionDataChain
+{
+	OS_FunctionDataChain * next;
+	OS_FunctionDataChain();
+	virtual ~OS_FunctionDataChain();
 };
 
-#endif // __OS_API_HELPER_H__
+template <class F> struct OS_FunctionData: public OS_FunctionDataChain
+{
+	F f;
+	OS_FunctionData(F _f): f(_f){}
+};
+
+// =====================================================================
+
+#include "os-binder-arg-cc-functions.h"
+
+// =====================================================================
+
+// finalizeAllBinds is called on programm exit
+// call it if you use leak system integrated
+void OS_finalizeAllBinds();
+
+// } // namespace ObjectScript
+
+// =====================================================================
+// =====================================================================
+// =====================================================================
+
+#endif // __OS_BINDER_H__
