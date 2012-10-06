@@ -233,7 +233,7 @@ template <class T> void pushCtypeValue(ObjectScript::OS * os, T obj)
 {
 	typedef typename RemoveConst<T>::type type;
 	// CtypeValue<type>::push(os, CtypeValue<type>::to(obj));
-	CtypeValue<type>::push(os, (type)obj);
+	CtypeValue<type>::push(os, obj);
 }
 
 // =====================================================================
