@@ -11,6 +11,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "add_user_module", "add_user
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "profile_benchmark", "profile_benchmark\profile_benchmark.vcxproj", "{430E6616-2719-4943-BD29-FF77CC5717C8}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "osbind", "osbind\osbind.vcxproj", "{2A1B3553-CE78-47C3-A7E1-3B8D758963FC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -37,6 +39,10 @@ Global
 		{430E6616-2719-4943-BD29-FF77CC5717C8}.Debug|Win32.Build.0 = Debug|Win32
 		{430E6616-2719-4943-BD29-FF77CC5717C8}.Release|Win32.ActiveCfg = Release|Win32
 		{430E6616-2719-4943-BD29-FF77CC5717C8}.Release|Win32.Build.0 = Release|Win32
+		{2A1B3553-CE78-47C3-A7E1-3B8D758963FC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{2A1B3553-CE78-47C3-A7E1-3B8D758963FC}.Debug|Win32.Build.0 = Debug|Win32
+		{2A1B3553-CE78-47C3-A7E1-3B8D758963FC}.Release|Win32.ActiveCfg = Release|Win32
+		{2A1B3553-CE78-47C3-A7E1-3B8D758963FC}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,289 @@
+
+[FILE] ../../examples-os/bind.os
+[3] var t = TestClass(1, 0.25)
+
+begin function
+  begin locals, total 5
+    0 _E
+    1 _G
+    2 t
+    3 t2
+    4 t3
+  end locals
+  begin set local var
+    begin call method
+      get local var _E (0 0)
+      begin params 3
+        push const string "TestClass"
+        ,
+        push const number 1
+        ,
+        push const number 0.25
+      end params ret values 3
+    end call method ret values 1
+  end set local var t (2 0)
+
+
+[4] print "t.i: "..t.i
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "t.i: "
+        begin get property
+          get local var t (2 0)
+          push const string "i"
+        end get property ret values 1
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[5] print "t.j: "..t.j
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "t.j: "
+        begin get property
+          get local var t (2 0)
+          push const string "j"
+        end get property ret values 1
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[7] var t2 = clone t
+
+  begin set local var
+    begin clone
+      get local var t (2 0)
+    end clone
+  end set local var t2 (3 0)
+
+
+[8] t2.i = t2.i + 10
+
+  begin set property
+    begin operator +
+      begin get property
+        get local var t2 (3 0)
+        push const string "i"
+      end get property ret values 1
+      push const number 10
+    end operator +
+    get local var auto create t2 (3 0)
+    push const string "i"
+  end set property ret values 0
+
+
+[9] t2.j = t2.j + 20.5
+
+  begin set property
+    begin operator +
+      begin get property
+        get local var t2 (3 0)
+        push const string "j"
+      end get property ret values 1
+      push const number 20.5
+    end operator +
+    get local var auto create t2 (3 0)
+    push const string "j"
+  end set property ret values 0
+
+
+[11] var t3 = t + t2
+
+  begin set local var by bin operator locals
+    begin binary operator by locals
+      begin operator +
+        get local var t (2 0)
+        get local var t2 (3 0)
+      end operator +
+    end binary operator by locals
+  end set local var by bin operator locals t3 (4 0)
+
+
+[12] t3.print()
+
+  begin call method
+    get local var t3 (4 0)
+    begin params 1
+      push const string "print"
+    end params ret values 1
+  end call method ret values 0
+
+
+[14] print "isdigit(123): "..my.isdigit("123")
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "isdigit(123): "
+        begin call method
+          get env var my
+          begin params 2
+            push const string "isdigit"
+            ,
+            push const string "123"
+          end params ret values 2
+        end call method ret values 1
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[15] print "isdigit(123q): "..my.isdigit("123q")
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "isdigit(123q): "
+        begin call method
+          get env var my
+          begin params 2
+            push const string "isdigit"
+            ,
+            push const string "123q"
+          end params ret values 2
+        end call method ret values 1
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[17] print "my.hash(123): "..my.hash(123)
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "my.hash(123): "
+        begin call method
+          get env var my
+          begin params 2
+            push const string "hash"
+            ,
+            push const number 123
+          end params ret values 2
+        end call method ret values 1
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[18] print "call my.print_num(123.5) /* Note: it should be converted to int due to\n'void my_print_num(int i)' declaration */"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "call my.print_num(123.5) /* Note: it should be converted to int due to
+'void my_print_num(int i)' declaration */"
+    end params ret values 2
+  end call method ret values 0
+
+
+[19] my.print_num(123.5)
+
+  begin call method
+    get env var my
+    begin params 2
+      push const string "print_num"
+      ,
+      push const number 123.5
+    end params ret values 2
+  end call method ret values 0
+
+
+[20] print "call my.print_void()"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "call my.print_void()"
+    end params ret values 2
+  end call method ret values 0
+
+
+[21] my.print_void()
+
+  begin call method
+    get env var my
+    begin params 1
+      push const string "print_void"
+    end params ret values 1
+  end call method ret values 0
+
+
+[22] print "my.abs(-12): "..my.abs(-12)
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "my.abs(-12): "
+        begin call method
+          get env var my
+          begin params 2
+            push const string "abs"
+            ,
+            begin neg
+              push const number 12
+            end neg
+          end params ret values 2
+        end call method ret values 1
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[23] print "my.fabs(-123.5): "..my.fabs(-123.5)
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "my.fabs(-123.5): "
+        begin call method
+          get env var my
+          begin params 2
+            push const string "fabs"
+            ,
+            begin neg
+              push const number 123.5
+            end neg
+          end params ret values 2
+        end call method ret values 1
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+  begin code list
+    begin return
+      get local var _E (0 0)
+    end return values 1
+  end code list ret values 0
+end function
