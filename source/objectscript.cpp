@@ -19139,7 +19139,6 @@ void OS::initMathModule()
 			return minmax(os, params, OP_LOGIC_GE);
 		}
 
-		/*
 		static double abs(double p)
 		{
 			return ::fabs(p);
@@ -19154,7 +19153,6 @@ void OS::initMathModule()
 		{
 			return ::floor(p);
 		}
-		*/
 
 		static double round(double a, int precision)
 		{
@@ -19175,7 +19173,6 @@ void OS::initMathModule()
 			return ::floor(a * p + 0.5f) / p;
 		}
 
-		/*
 		static double sin(double p)
 		{
 			return ::sin(p);
@@ -19230,7 +19227,6 @@ void OS::initMathModule()
 		{
 			return ::exp(p);
 		}
-		*/
 
 		static int frexp(OS * os, int params, int, int, void*)
 		{
@@ -19241,7 +19237,6 @@ void OS::initMathModule()
 			return 2;
 		}
 
-		/*
 		static double ldexp(double x, int y)
 		{
 			return ::ldexp(x, y);
@@ -19251,7 +19246,6 @@ void OS::initMathModule()
 		{
 			return ::pow(x, y);
 		}
-		*/
 
 		static int random(OS * os, int params, int, int, void*)
 		{
@@ -19286,12 +19280,10 @@ void OS::initMathModule()
 			return 0;
 		}
 
-		/*
 		static double fmod(double x, double y)
 		{
 			return ::fmod(x, y);
 		}
-		*/
 
 		static int modf(OS * os, int params, int, int, void*)
 		{
@@ -19303,12 +19295,10 @@ void OS::initMathModule()
 			return 2;
 		}
 
-		/*
 		static double sqrt(double p)
 		{
 			return ::sqrt(p);
 		}
-		*/
 
 		static int log(OS * os, int params, int, int, void*)
 		{
@@ -19340,30 +19330,30 @@ void OS::initMathModule()
 	FuncDef list[] = {
 		{OS_TEXT("min"), Math::min_func},
 		{OS_TEXT("max"), Math::max_func},
-		def(OS_TEXT("abs"), (double(__cdecl*)(double))::fabs), // Math::abs),
-		def(OS_TEXT("ceil"), (double(__cdecl*)(double))::ceil), // Math::ceil),
-		def(OS_TEXT("floor"), (double(__cdecl*)(double))::floor), // Math::floor),
+		def(OS_TEXT("abs"), Math::abs),
+		def(OS_TEXT("ceil"), Math::ceil),
+		def(OS_TEXT("floor"), Math::floor),
 		def(OS_TEXT("round"), Math::round),
-		def(OS_TEXT("sin"), (double(__cdecl*)(double))::sin), // Math::sin),
-		def(OS_TEXT("sinh"), (double(__cdecl*)(double))::sinh), // Math::sinh),
-		def(OS_TEXT("cos"), (double(__cdecl*)(double))::cos), // Math::cos),
-		def(OS_TEXT("cosh"), (double(__cdecl*)(double))::cosh), // Math::cosh),
-		def(OS_TEXT("tan"), (double(__cdecl*)(double))::tan), // Math::tan),
-		def(OS_TEXT("tanh"), (double(__cdecl*)(double))::tanh), // Math::tanh),
-		def(OS_TEXT("acos"), (double(__cdecl*)(double))::acos), // Math::acos),
-		def(OS_TEXT("asin"), (double(__cdecl*)(double))::asin), // Math::asin),
-		def(OS_TEXT("atan"), (double(__cdecl*)(double))::atan), // Math::atan),
-		def(OS_TEXT("atan2"), (double(__cdecl*)(double, double))::atan2), // Math::atan2),
-		def(OS_TEXT("exp"), (double(__cdecl*)(double))::exp), // Math::exp),
+		def(OS_TEXT("sin"), Math::sin),
+		def(OS_TEXT("sinh"), Math::sinh),
+		def(OS_TEXT("cos"), Math::cos),
+		def(OS_TEXT("cosh"), Math::cosh),
+		def(OS_TEXT("tan"), Math::tan),
+		def(OS_TEXT("tanh"), Math::tanh),
+		def(OS_TEXT("acos"), Math::acos),
+		def(OS_TEXT("asin"), Math::asin),
+		def(OS_TEXT("atan"), Math::atan),
+		def(OS_TEXT("atan2"), Math::atan2),
+		def(OS_TEXT("exp"), Math::exp),
 		{OS_TEXT("frexp"), Math::frexp},
-		def(OS_TEXT("ldexp"), (double(__cdecl*)(double, int))::ldexp), // Math::ldexp),
-		def(OS_TEXT("pow"), (double(__cdecl*)(double, double))::pow), // Math::pow),
+		def(OS_TEXT("ldexp"), Math::ldexp),
+		def(OS_TEXT("pow"), Math::pow),
 		{OS_TEXT("random"), Math::random},
 		{OS_TEXT("__get@randseed"), Math::getrandseed},
 		{OS_TEXT("__set@randseed"), Math::setrandseed},
-		def(OS_TEXT("fmod"), (double(__cdecl*)(double, double))::fmod), // Math::fmod),
+		def(OS_TEXT("fmod"), Math::fmod),
 		{OS_TEXT("modf"), Math::modf},
-		def(OS_TEXT("sqrt"), (double(__cdecl*)(double))::sqrt), // Math::sqrt),
+		def(OS_TEXT("sqrt"), Math::sqrt),
 		{OS_TEXT("log"), Math::log},
 		def(OS_TEXT("deg"), Math::deg),
 		def(OS_TEXT("rad"), Math::rad),
