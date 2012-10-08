@@ -78,19 +78,3 @@ and must NOT have multiple-inclusion protection.
 #include "os-binder-cc-functions.h"
 #undef OS_BIND_FUNC_NUM_ARGS
 
-#define OS_BIND_FUNC_NUM_ARGS 12
-#include "os-binder-cc-functions.h"
-#undef OS_BIND_FUNC_NUM_ARGS
-
-#define OS_BIND_FUNC_NUM_ARGS 13
-#include "os-binder-cc-functions.h"
-#undef OS_BIND_FUNC_NUM_ARGS
-
-#define OS_BIND_FUNC_NUM_ARGS 14
-#include "os-binder-cc-functions.h"
-#undef OS_BIND_FUNC_NUM_ARGS
-
-#define OS_BIND_FUNC_NUM_ARGS 15
-#include "os-binder-cc-functions.h"
-#undef OS_BIND_FUNC_NUM_ARGS
-

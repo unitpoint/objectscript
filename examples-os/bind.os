@@ -1,4 +1,4 @@
-// print _G
+print "getcwd: "..getcwd()
 
 var t = TestClass(1, 0.25)
 print "t.i: "..t.i

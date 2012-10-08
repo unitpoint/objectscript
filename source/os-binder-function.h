@@ -203,96 +203,6 @@ and must NOT have multiple-inclusion protection.
 	OS_GET_TEMPLATE_ARG(10, ARG_TYPE_10); \
 	OS_GET_TEMPLATE_ARG(11, ARG_TYPE_11)
 
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-
-#define OS_BIND_FUNC_PARMS_COMMA ,
-#define OS_BIND_FUNC_TEMPLATE_PARMS class ARG_TYPE_1, class ARG_TYPE_2, class ARG_TYPE_3, class ARG_TYPE_4, class ARG_TYPE_5, class ARG_TYPE_6, class ARG_TYPE_7, class ARG_TYPE_8, class ARG_TYPE_9, class ARG_TYPE_10, class ARG_TYPE_11, class ARG_TYPE_12
-#define OS_BIND_FUNC_PARMS ARG_TYPE_1, ARG_TYPE_2, ARG_TYPE_3, ARG_TYPE_4, ARG_TYPE_5, ARG_TYPE_6, ARG_TYPE_7, ARG_TYPE_8, ARG_TYPE_9, ARG_TYPE_10, ARG_TYPE_11, ARG_TYPE_12
-#define OS_BIND_FUNC_ARGS arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12
-#define OS_BIND_FUNC_GET_ARGS  \
-	int cur_param_offs = -params; \
-	OS_GET_TEMPLATE_ARG(1, ARG_TYPE_1); \
-	OS_GET_TEMPLATE_ARG(2, ARG_TYPE_2); \
-	OS_GET_TEMPLATE_ARG(3, ARG_TYPE_3); \
-	OS_GET_TEMPLATE_ARG(4, ARG_TYPE_4); \
-	OS_GET_TEMPLATE_ARG(5, ARG_TYPE_5); \
-	OS_GET_TEMPLATE_ARG(6, ARG_TYPE_6); \
-	OS_GET_TEMPLATE_ARG(7, ARG_TYPE_7); \
-	OS_GET_TEMPLATE_ARG(8, ARG_TYPE_8); \
-	OS_GET_TEMPLATE_ARG(9, ARG_TYPE_9); \
-	OS_GET_TEMPLATE_ARG(10, ARG_TYPE_10); \
-	OS_GET_TEMPLATE_ARG(11, ARG_TYPE_11); \
-	OS_GET_TEMPLATE_ARG(12, ARG_TYPE_12)
-
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-
-#define OS_BIND_FUNC_PARMS_COMMA ,
-#define OS_BIND_FUNC_TEMPLATE_PARMS class ARG_TYPE_1, class ARG_TYPE_2, class ARG_TYPE_3, class ARG_TYPE_4, class ARG_TYPE_5, class ARG_TYPE_6, class ARG_TYPE_7, class ARG_TYPE_8, class ARG_TYPE_9, class ARG_TYPE_10, class ARG_TYPE_11, class ARG_TYPE_12, class ARG_TYPE_13
-#define OS_BIND_FUNC_PARMS ARG_TYPE_1, ARG_TYPE_2, ARG_TYPE_3, ARG_TYPE_4, ARG_TYPE_5, ARG_TYPE_6, ARG_TYPE_7, ARG_TYPE_8, ARG_TYPE_9, ARG_TYPE_10, ARG_TYPE_11, ARG_TYPE_12, ARG_TYPE_13
-#define OS_BIND_FUNC_ARGS arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13
-#define OS_BIND_FUNC_GET_ARGS  \
-	int cur_param_offs = -params; \
-	OS_GET_TEMPLATE_ARG(1, ARG_TYPE_1); \
-	OS_GET_TEMPLATE_ARG(2, ARG_TYPE_2); \
-	OS_GET_TEMPLATE_ARG(3, ARG_TYPE_3); \
-	OS_GET_TEMPLATE_ARG(4, ARG_TYPE_4); \
-	OS_GET_TEMPLATE_ARG(5, ARG_TYPE_5); \
-	OS_GET_TEMPLATE_ARG(6, ARG_TYPE_6); \
-	OS_GET_TEMPLATE_ARG(7, ARG_TYPE_7); \
-	OS_GET_TEMPLATE_ARG(8, ARG_TYPE_8); \
-	OS_GET_TEMPLATE_ARG(9, ARG_TYPE_9); \
-	OS_GET_TEMPLATE_ARG(10, ARG_TYPE_10); \
-	OS_GET_TEMPLATE_ARG(11, ARG_TYPE_11); \
-	OS_GET_TEMPLATE_ARG(12, ARG_TYPE_12); \
-	OS_GET_TEMPLATE_ARG(13, ARG_TYPE_13)
-
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-
-#define OS_BIND_FUNC_PARMS_COMMA ,
-#define OS_BIND_FUNC_TEMPLATE_PARMS class ARG_TYPE_1, class ARG_TYPE_2, class ARG_TYPE_3, class ARG_TYPE_4, class ARG_TYPE_5, class ARG_TYPE_6, class ARG_TYPE_7, class ARG_TYPE_8, class ARG_TYPE_9, class ARG_TYPE_10, class ARG_TYPE_11, class ARG_TYPE_12, class ARG_TYPE_13, class ARG_TYPE_14
-#define OS_BIND_FUNC_PARMS ARG_TYPE_1, ARG_TYPE_2, ARG_TYPE_3, ARG_TYPE_4, ARG_TYPE_5, ARG_TYPE_6, ARG_TYPE_7, ARG_TYPE_8, ARG_TYPE_9, ARG_TYPE_10, ARG_TYPE_11, ARG_TYPE_12, ARG_TYPE_13, ARG_TYPE_14
-#define OS_BIND_FUNC_ARGS arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14
-#define OS_BIND_FUNC_GET_ARGS  \
-	int cur_param_offs = -params; \
-	OS_GET_TEMPLATE_ARG(1, ARG_TYPE_1); \
-	OS_GET_TEMPLATE_ARG(2, ARG_TYPE_2); \
-	OS_GET_TEMPLATE_ARG(3, ARG_TYPE_3); \
-	OS_GET_TEMPLATE_ARG(4, ARG_TYPE_4); \
-	OS_GET_TEMPLATE_ARG(5, ARG_TYPE_5); \
-	OS_GET_TEMPLATE_ARG(6, ARG_TYPE_6); \
-	OS_GET_TEMPLATE_ARG(7, ARG_TYPE_7); \
-	OS_GET_TEMPLATE_ARG(8, ARG_TYPE_8); \
-	OS_GET_TEMPLATE_ARG(9, ARG_TYPE_9); \
-	OS_GET_TEMPLATE_ARG(10, ARG_TYPE_10); \
-	OS_GET_TEMPLATE_ARG(11, ARG_TYPE_11); \
-	OS_GET_TEMPLATE_ARG(12, ARG_TYPE_12); \
-	OS_GET_TEMPLATE_ARG(13, ARG_TYPE_13); \
-	OS_GET_TEMPLATE_ARG(14, ARG_TYPE_14)
-
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-
-#define OS_BIND_FUNC_PARMS_COMMA ,
-#define OS_BIND_FUNC_TEMPLATE_PARMS class ARG_TYPE_1, class ARG_TYPE_2, class ARG_TYPE_3, class ARG_TYPE_4, class ARG_TYPE_5, class ARG_TYPE_6, class ARG_TYPE_7, class ARG_TYPE_8, class ARG_TYPE_9, class ARG_TYPE_10, class ARG_TYPE_11, class ARG_TYPE_12, class ARG_TYPE_13, class ARG_TYPE_14, class ARG_TYPE_15
-#define OS_BIND_FUNC_PARMS ARG_TYPE_1, ARG_TYPE_2, ARG_TYPE_3, ARG_TYPE_4, ARG_TYPE_5, ARG_TYPE_6, ARG_TYPE_7, ARG_TYPE_8, ARG_TYPE_9, ARG_TYPE_10, ARG_TYPE_11, ARG_TYPE_12, ARG_TYPE_13, ARG_TYPE_14, ARG_TYPE_15
-#define OS_BIND_FUNC_ARGS arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15
-#define OS_BIND_FUNC_GET_ARGS  \
-	int cur_param_offs = -params; \
-	OS_GET_TEMPLATE_ARG(1, ARG_TYPE_1); \
-	OS_GET_TEMPLATE_ARG(2, ARG_TYPE_2); \
-	OS_GET_TEMPLATE_ARG(3, ARG_TYPE_3); \
-	OS_GET_TEMPLATE_ARG(4, ARG_TYPE_4); \
-	OS_GET_TEMPLATE_ARG(5, ARG_TYPE_5); \
-	OS_GET_TEMPLATE_ARG(6, ARG_TYPE_6); \
-	OS_GET_TEMPLATE_ARG(7, ARG_TYPE_7); \
-	OS_GET_TEMPLATE_ARG(8, ARG_TYPE_8); \
-	OS_GET_TEMPLATE_ARG(9, ARG_TYPE_9); \
-	OS_GET_TEMPLATE_ARG(10, ARG_TYPE_10); \
-	OS_GET_TEMPLATE_ARG(11, ARG_TYPE_11); \
-	OS_GET_TEMPLATE_ARG(12, ARG_TYPE_12); \
-	OS_GET_TEMPLATE_ARG(13, ARG_TYPE_13); \
-	OS_GET_TEMPLATE_ARG(14, ARG_TYPE_14); \
-	OS_GET_TEMPLATE_ARG(15, ARG_TYPE_15)
-
 #endif
 
 #ifdef OS_BIND_FUNC_CDECL
@@ -306,53 +216,41 @@ and must NOT have multiple-inclusion protection.
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst0 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst0_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst0 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst0_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst1 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst1_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst1 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst1_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst2 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst2_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst2 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst2_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst3 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst3_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst3 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst3_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst4 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst4_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst4 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst4_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst5 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst5_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst5 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst5_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst6 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst6_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst6 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst6_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst7 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst7_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst7 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst7_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst8 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst8_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst8 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst8_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst9 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst9_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst9 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst9_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst10 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst10_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst10 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst10_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst11 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst11_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst12 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst12_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst13 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst13_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst14 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst14_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst15 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst15_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst11 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst11_run ## _cdecl
 #endif
 
 #elif defined OS_BIND_FUNC_STDCALL
@@ -366,53 +264,41 @@ and must NOT have multiple-inclusion protection.
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst0 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst0_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst0 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst0_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst1 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst1_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst1 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst1_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst2 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst2_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst2 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst2_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst3 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst3_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst3 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst3_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst4 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst4_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst4 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst4_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst5 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst5_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst5 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst5_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst6 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst6_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst6 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst6_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst7 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst7_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst7 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst7_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst8 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst8_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst8 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst8_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst9 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst9_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst9 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst9_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst10 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst10_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst10 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst10_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst11 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst11_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst12 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst12_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst13 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst13_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst14 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst14_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst15 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst15_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst11 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst11_run ## _stdcall
 #endif
 
 #elif defined OS_BIND_FUNC_FASTCALL
@@ -426,53 +312,41 @@ and must NOT have multiple-inclusion protection.
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst0 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst0_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst0 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst0_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst1 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst1_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst1 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst1_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst2 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst2_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst2 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst2_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst3 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst3_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst3 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst3_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst4 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst4_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst4 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst4_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst5 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst5_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst5 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst5_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst6 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst6_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst6 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst6_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst7 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst7_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst7 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst7_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst8 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst8_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst8 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst8_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst9 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst9_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst9 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst9_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst10 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst10_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst10 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst10_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst11 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst11_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst12 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst12_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst13 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst13_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst14 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst14_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst15 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst15_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst11 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst11_run ## _fastcall
 #endif
 
 #elif defined OS_BIND_FUNC_THISCALL
@@ -486,53 +360,41 @@ and must NOT have multiple-inclusion protection.
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst0 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst0_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst0 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst0_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst1 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst1_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst1 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst1_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst2 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst2_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst2 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst2_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst3 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst3_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst3 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst3_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst4 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst4_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst4 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst4_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst5 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst5_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst5 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst5_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst6 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst6_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst6 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst6_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst7 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst7_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst7 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst7_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst8 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst8_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst8 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst8_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst9 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst9_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst9 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst9_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst10 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst10_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst10 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst10_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst11 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst11_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst12 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst12_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst13 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst13_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst14 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst14_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst15 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst15_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst11 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst11_run ## _thiscall
 #endif
 
 #else
@@ -576,18 +438,6 @@ and must NOT have multiple-inclusion protection.
 #elif OS_BIND_FUNC_NUM_ARGS == 11
 #define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst11
 #define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst11_run
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst12
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst12_run
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst13
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst13_run
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst14
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst14_run
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImpConst15
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImpConst15_run
 #endif
 
 #endif
@@ -671,53 +521,41 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp0 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp0_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp0 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp0_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp1 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp1_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp1 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp1_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp2 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp2_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp2 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp2_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp3 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp3_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp3 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp3_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp4 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp4_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp4 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp4_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp5 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp5_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp5 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp5_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp6 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp6_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp6 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp6_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp7 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp7_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp7 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp7_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp8 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp8_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp8 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp8_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp9 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp9_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp9 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp9_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp10 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp10_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp10 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp10_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp11 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp11_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp12 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp12_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp13 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp13_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp14 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp14_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp15 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp15_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp11 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp11_run ## _cdecl
 #endif
 
 #elif defined OS_BIND_FUNC_STDCALL
@@ -731,53 +569,41 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp0 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp0_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp0 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp0_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp1 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp1_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp1 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp1_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp2 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp2_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp2 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp2_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp3 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp3_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp3 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp3_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp4 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp4_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp4 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp4_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp5 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp5_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp5 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp5_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp6 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp6_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp6 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp6_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp7 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp7_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp7 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp7_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp8 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp8_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp8 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp8_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp9 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp9_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp9 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp9_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp10 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp10_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp10 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp10_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp11 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp11_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp12 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp12_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp13 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp13_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp14 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp14_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp15 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp15_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp11 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp11_run ## _stdcall
 #endif
 
 #elif defined OS_BIND_FUNC_FASTCALL
@@ -791,53 +617,41 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp0 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp0_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp0 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp0_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp1 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp1_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp1 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp1_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp2 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp2_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp2 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp2_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp3 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp3_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp3 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp3_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp4 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp4_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp4 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp4_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp5 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp5_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp5 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp5_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp6 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp6_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp6 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp6_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp7 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp7_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp7 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp7_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp8 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp8_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp8 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp8_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp9 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp9_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp9 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp9_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp10 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp10_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp10 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp10_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp11 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp11_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp12 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp12_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp13 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp13_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp14 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp14_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp15 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp15_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp11 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp11_run ## _fastcall
 #endif
 
 #elif defined OS_BIND_FUNC_THISCALL
@@ -851,53 +665,41 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp0 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp0_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp0 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp0_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp1 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp1_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp1 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp1_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp2 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp2_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp2 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp2_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp3 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp3_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp3 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp3_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp4 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp4_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp4 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp4_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp5 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp5_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp5 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp5_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp6 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp6_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp6 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp6_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp7 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp7_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp7 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp7_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp8 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp8_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp8 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp8_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp9 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp9_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp9 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp9_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp10 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp10_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp10 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp10_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp11 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp11_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp12 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp12_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp13 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp13_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp14 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp14_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp15 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp15_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp11 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp11_run ## _thiscall
 #endif
 
 #else
@@ -941,18 +743,6 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #elif OS_BIND_FUNC_NUM_ARGS == 11
 #define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp11
 #define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp11_run
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp12
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp12_run
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp13
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp13_run
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp14
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp14_run
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionClassImp15
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionClassImp15_run
 #endif
 
 #endif
@@ -1036,53 +826,41 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp0 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp0_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp0 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp0_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp1 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp1_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp1 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp1_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp2 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp2_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp2 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp2_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp3 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp3_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp3 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp3_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp4 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp4_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp4 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp4_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp5 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp5_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp5 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp5_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp6 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp6_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp6 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp6_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp7 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp7_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp7 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp7_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp8 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp8_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp8 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp8_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp9 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp9_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp9 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp9_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp10 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp10_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp10 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp10_run ## _cdecl
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp11 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp11_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp12 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp12_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp13 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp13_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp14 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp14_run ## cdecl
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp15 ## cdecl
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp15_run ## cdecl
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp11 ## _cdecl
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp11_run ## _cdecl
 #endif
 
 #elif defined OS_BIND_FUNC_STDCALL
@@ -1096,53 +874,41 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp0 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp0_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp0 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp0_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp1 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp1_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp1 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp1_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp2 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp2_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp2 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp2_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp3 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp3_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp3 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp3_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp4 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp4_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp4 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp4_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp5 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp5_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp5 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp5_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp6 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp6_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp6 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp6_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp7 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp7_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp7 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp7_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp8 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp8_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp8 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp8_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp9 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp9_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp9 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp9_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp10 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp10_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp10 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp10_run ## _stdcall
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp11 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp11_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp12 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp12_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp13 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp13_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp14 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp14_run ## stdcall
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp15 ## stdcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp15_run ## stdcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp11 ## _stdcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp11_run ## _stdcall
 #endif
 
 #elif defined OS_BIND_FUNC_FASTCALL
@@ -1156,53 +922,41 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp0 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp0_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp0 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp0_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp1 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp1_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp1 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp1_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp2 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp2_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp2 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp2_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp3 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp3_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp3 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp3_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp4 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp4_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp4 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp4_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp5 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp5_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp5 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp5_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp6 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp6_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp6 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp6_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp7 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp7_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp7 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp7_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp8 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp8_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp8 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp8_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp9 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp9_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp9 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp9_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp10 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp10_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp10 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp10_run ## _fastcall
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp11 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp11_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp12 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp12_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp13 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp13_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp14 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp14_run ## fastcall
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp15 ## fastcall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp15_run ## fastcall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp11 ## _fastcall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp11_run ## _fastcall
 #endif
 
 #elif defined OS_BIND_FUNC_THISCALL
@@ -1216,53 +970,41 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #endif
 
 #if OS_BIND_FUNC_NUM_ARGS == 0
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp0 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp0_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp0 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp0_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 1
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp1 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp1_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp1 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp1_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 2
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp2 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp2_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp2 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp2_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 3
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp3 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp3_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp3 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp3_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 4
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp4 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp4_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp4 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp4_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 5
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp5 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp5_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp5 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp5_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 6
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp6 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp6_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp6 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp6_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 7
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp7 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp7_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp7 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp7_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 8
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp8 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp8_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp8 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp8_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 9
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp9 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp9_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp9 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp9_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 10
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp10 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp10_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp10 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp10_run ## _thiscall
 #elif OS_BIND_FUNC_NUM_ARGS == 11
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp11 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp11_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp12 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp12_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp13 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp13_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp14 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp14_run ## thiscall
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp15 ## thiscall
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp15_run ## thiscall
+#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp11 ## _thiscall
+#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp11_run ## _thiscall
 #endif
 
 #else
@@ -1306,18 +1048,6 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIN
 #elif OS_BIND_FUNC_NUM_ARGS == 11
 #define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp11
 #define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp11_run
-#elif OS_BIND_FUNC_NUM_ARGS == 12
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp12
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp12_run
-#elif OS_BIND_FUNC_NUM_ARGS == 13
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp13
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp13_run
-#elif OS_BIND_FUNC_NUM_ARGS == 14
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp14
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp14_run
-#elif OS_BIND_FUNC_NUM_ARGS == 15
-#define OS_BIND_FUNC_CLASS_NAME OS_FunctionImp15
-#define OS_BIND_FUNC_RUN_CLASS_NAME OS_FunctionImp15_run
 #endif
 
 #endif
@@ -1385,34 +1115,60 @@ ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC *f)(OS_BIND_F
 
 #else
 
-struct OS_BIND_FUNC_CLASS_NAME
+template <class R> 
+struct OS_BIND_FUNC_RUN_CLASS_NAME
+{
+	typedef R(OS_BIND_FUNC_CC *F)() OS_BIND_FUNC_CC_GNUC;
+
+	static int run(ObjectScript::OS * os, int params, int, int, void * user_param)
+	{
+		OS_BIND_FUNC_GET_ARGS;
+		typedef typename RemoveConst<R>::type type;
+		F& f = *(F*)user_param;
+		CtypeValue<type>::push(os, (*f)());
+		return 1;
+	}
+};
+
+template <> 
+struct OS_BIND_FUNC_RUN_CLASS_NAME<void>
 {
 	typedef void(OS_BIND_FUNC_CC *F)() OS_BIND_FUNC_CC_GNUC;
+
+	static int run(ObjectScript::OS * os, int params, int, int, void * user_param)
+	{
+		OS_BIND_FUNC_GET_ARGS;
+		F& f = *(F*)user_param;
+		(*f)();
+		return 0;
+	}
+};
+
+template <class R>
+struct OS_BIND_FUNC_CLASS_NAME
+{
+	typedef R(OS_BIND_FUNC_CC *F)() OS_BIND_FUNC_CC_GNUC;
 
 	const char * name;
 	F f;
 
 	OS_BIND_FUNC_CLASS_NAME(const char * _name, F _f): name(_name), f(_f){}
 
-	static int run(ObjectScript::OS * os, int params, int, int, void * user_param)
-	{
-		F& f = *(F*)user_param;
-		(*f)();
-		return 0;
-	}
-
 	operator ObjectScript::OS::FuncDef() const 
 	{ 
-		ObjectScript::OS::FuncDef def = {name, run, &(new OS_FunctionData<F>(f))->f}; 
+		ObjectScript::OS::FuncDef def = {name, 
+			OS_BIND_FUNC_RUN_CLASS_NAME<R>::run, 
+			&(new OS_FunctionData<F>(f))->f}; 
 		return def; 
 	}
 };
 
 namespace ObjectScript {
 
-inline ObjectScript::OS::FuncDef def(const char * name, void(OS_BIND_FUNC_CC *f)() OS_BIND_FUNC_CC_GNUC)
+template <class R> 
+ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC *f)() OS_BIND_FUNC_CC_GNUC)
 {
-	typedef OS_BIND_FUNC_CLASS_NAME Func; 
+	typedef OS_BIND_FUNC_CLASS_NAME<R> Func; 
 	return Func(name, f);
 }
 

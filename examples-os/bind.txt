@@ -1,6 +1,6 @@
 
 [FILE] ../../examples-os/bind.os
-[3] var t = TestClass(1, 0.25)
+[1] print "getcwd: "..getcwd()
 
 begin function
   begin locals, total 5
@@ -10,6 +10,26 @@ begin function
     3 t2
     4 t3
   end locals
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "getcwd: "
+        begin call method
+          get local var _E (0 0)
+          begin params 1
+            push const string "getcwd"
+          end params ret values 1
+        end call method ret values 1
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[3] var t = TestClass(1, 0.25)
+
   begin set local var
     begin call method
       get local var _E (0 0)

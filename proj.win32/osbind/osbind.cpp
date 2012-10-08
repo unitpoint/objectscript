@@ -2,6 +2,7 @@
 #include "../../source/objectscript.h"
 #include "../../source/os-binder.h"
 #include <ctype.h>
+#include <direct.h>
 
 using namespace ObjectScript;
 
@@ -128,6 +129,14 @@ void initMyModule(OS * os)
 	os->pop();
 }
 
+std::string getcwdString()
+{
+	const int PATH_MAX = 1024;
+	char buf[PATH_MAX];
+	getcwd(buf, PATH_MAX);
+	return buf;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	// craete ObjectScript instance
@@ -135,6 +144,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	registerTestClass(os);
 	initMyModule(os);
+
+	os->setGlobal(def("getcwd", getcwdString));
 
 	// run program
 	os->require("../../examples-os/bind.os");
