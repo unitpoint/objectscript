@@ -77,6 +77,11 @@ public:
 		return new TestClass(a->i + b->i, a->j + b->j);
 	}
 
+	double doSomething(int a, float b, double c)
+	{
+		return i + j + a + b + c;
+	}
+
 	void print()
 	{
 		printf("test class: %d, %f\n", i, j);
@@ -100,6 +105,7 @@ void registerTestClass(OS * os)
 		def("__set@j", &TestClass::setJ),
 		def("__clone", &TestClass::clone),
 		def("__add", &TestClass::add),
+		def("doSomething", &TestClass::doSomething),
 		def("print", &TestClass::print),
 		{}
 	};

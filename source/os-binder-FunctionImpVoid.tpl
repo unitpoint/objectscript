@@ -1,6 +1,6 @@
 struct OS_BIND_FUNC_CLASS_NAME
 {
-	typedef void(OS_BIND_FUNC_CC *F)();
+	typedef void(OS_BIND_FUNC_CC *F)() OS_BIND_FUNC_CC_GNUC;
 
 	const char * name;
 	F f;
@@ -23,7 +23,7 @@ struct OS_BIND_FUNC_CLASS_NAME
 
 namespace ObjectScript {
 
-inline ObjectScript::OS::FuncDef def(const char * name, void(OS_BIND_FUNC_CC *f)())
+inline ObjectScript::OS::FuncDef def(const char * name, void(OS_BIND_FUNC_CC *f)() OS_BIND_FUNC_CC_GNUC)
 {
 	typedef OS_BIND_FUNC_CLASS_NAME Func; 
 	return Func(name, f);

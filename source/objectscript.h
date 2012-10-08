@@ -124,9 +124,8 @@ inline void operator delete(void *, void *){}
 #define OS_IS_SLASH(c) ((c) == OS_TEXT('/') || (c) == OS_TEXT('\\'))
 
 #define OS_AUTO_PRECISION 20
-
+#define OS_TOP_STACK_NULL_VALUES 20
 #define OS_DEF_FMT_BUF_LEN (1024*10)
-
 #define OS_PATH_SEPARATOR OS_TEXT("/")
 
 // uncomment it if need
@@ -134,7 +133,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("0.97-vm2")
+#define OS_VERSION OS_TEXT("0.98-rc")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_SOURCECODE_EXT OS_TEXT(".os")
@@ -3127,6 +3126,9 @@ namespace ObjectScript
 
 		void triggerError(int code, const OS_CHAR * message);
 		void triggerError(int code, const String& message);
+
+		void triggerError(const OS_CHAR * message);
+		void triggerError(const String& message);
 
 		String changeFilenameExt(const String& filename, const String& ext);
 		String changeFilenameExt(const String& filename, const OS_CHAR * ext);

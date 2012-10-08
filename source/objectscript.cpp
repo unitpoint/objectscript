@@ -439,17 +439,17 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
 		return dst;
 	}
 	if(precision == OS_AUTO_PRECISION){
-		OS_SNPRINTF(dst, sizeof(buf)-sizeof(OS_CHAR), OS_TEXT("%g"), a);
+		/* %G already handles removing trailing zeros from the fractional part, yay */ 
+		OS_SNPRINTF(dst, sizeof(buf)-sizeof(OS_CHAR), OS_TEXT("%.*G"), 17, a);
 		return dst;
 	}
-
-	OS_SNPRINTF(buf, sizeof(buf)-sizeof(OS_CHAR), OS_TEXT("%%.%dg"), precision);
+	OS_SNPRINTF(buf, sizeof(buf)-sizeof(OS_CHAR), OS_TEXT("%%.%df"), precision);
 	int n = OS_SNPRINTF(dst, sizeof(buf)-sizeof(OS_CHAR), buf, a);
-
 	OS_ASSERT(n >= 1 && !OS_STRSTR(dst, OS_TEXT(".")) || dst[n-1] != '0');
-	// while(n > 0 && dst[n-1] == '0') dst[--n] = (OS_CHAR)0;
-	// if(n > 0 && dst[n-1] == '.') dst[--n] = (OS_CHAR)0;
-
+	/* if(n > 0 && dst[n-1] == '0'){
+		do{ dst[--n] = (OS_CHAR)0; }while(n > 0 && dst[n-1] == '0');
+		if(n > 0 && dst[n-1] == '.') dst[--n] = (OS_CHAR)0;
+	} */
 	return dst;
 }
 
@@ -11390,7 +11390,8 @@ void OS::release()
 bool OS::Core::init()
 {
 	// string_values_table = newTable(OS_DBG_FILEPOS_START);
-	for(int i = 0; i < PROTOTYPE_COUNT; i++){
+	int i;
+	for(i = 0; i < PROTOTYPE_COUNT; i++){
 		prototypes[i] = newObjectValue(NULL);
 		prototypes[i]->type = OS_VALUE_TYPE_OBJECT;
 		prototypes[i]->external_ref_count++;
@@ -11417,6 +11418,17 @@ bool OS::Core::init()
 	setGlobalValue(OS_TEXT("Function"), Value(prototypes[PROTOTYPE_FUNCTION]), false, false);
 	setGlobalValue(OS_TEXT("Userdata"), Value(prototypes[PROTOTYPE_USERDATA]), false, false);
 
+	/*
+		SAFE usage of user function arguments 
+		so user can use just os->toNumber(-params+3) and so on
+		if function call has no enough arguments, for example params == 0
+		then (-params+3) will be not relative offset but absolute offset 3
+		lets make top OS_TOP_STACK_NULL_VALUES value as null values
+	*/
+	for(i = 0; i < OS_TOP_STACK_NULL_VALUES; i++){
+		pushValue(Value());
+	}
+
 	return true;
 }
 
@@ -11432,7 +11444,12 @@ int OS::Core::compareGCValues(const void * a, const void * b)
 
 void OS::Core::shutdown()
 {
-	stack_values.count = 0;
+	int i;
+	OS_ASSERT(stack_values.count >= OS_TOP_STACK_NULL_VALUES);
+	for(i = 0; i < OS_TOP_STACK_NULL_VALUES; i++){
+		OS_ASSERT(stack_values[i].type == OS_VALUE_TYPE_NULL);
+	}
+	// stack_values.count = 0;
 	while(call_stack_funcs.count > 0){
 		StackFunction * stack_func = &call_stack_funcs[--call_stack_funcs.count];
 		clearStackFunction(stack_func);
@@ -11445,7 +11462,6 @@ void OS::Core::shutdown()
 
 	allocator->deleteObj(strings);
 
-	int i;
 	// try to finalize the values accurately
 	Vector<GCValue*> collectedValues;
 	allocator->vectorReserveCapacity(collectedValues, values.count OS_DBG_FILEPOS);
@@ -19992,6 +20008,16 @@ void OS::triggerError(int code, const OS_CHAR * message)
 void OS::triggerError(int code, const String& message)
 {
 	core->error(code, message);
+}
+
+void OS::triggerError(const OS_CHAR * message)
+{
+	core->error(OS_E_ERROR, message);
+}
+
+void OS::triggerError(const String& message)
+{
+	core->error(OS_E_ERROR, message);
 }
 
 // =====================================================================

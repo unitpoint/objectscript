@@ -281,14 +281,14 @@ template <class T> struct CtypeUserClass<T*>
 #define OS_GET_TEMPLATE_SELF(argType) \
 	argType self = CtypeValue< typename RemoveConst<argType>::type >::getArg(os, -params-1); \
 	if(!self){ \
-		os->triggerError(OS_E_ERROR, OS::String(os, getCtypeName< typename PlainType<argType>::type >())+" this must not be null"); \
+		os->triggerError(ObjectScript::OS::String(os, getCtypeName< typename PlainType<argType>::type >())+" 'this' must not be null"); \
 		return 0; \
 	}
 
 #define OS_GET_SELF(argType) \
 	argType self = CtypeValue< RemoveConst<argType>::type >::getArg(os, -params-1); \
 	if(!self){ \
-		os->triggerError(OS_E_ERROR, OS::String(os, getCtypeName< PlainType<argType>::type >())+" this must not be null"); \
+		os->triggerError(ObjectScript::OS::String(os, getCtypeName< PlainType<argType>::type >())+" 'this' must not be null"); \
 		return 0; \
 	}
 
@@ -298,7 +298,7 @@ template <class T> struct CtypeUserClass<T*>
 	OS_ASSERT(num > 0); \
 	typename CtypeValue< typename RemoveConst<argType>::type >::type arg##num = cur_param_offs < 0 ? CtypeValue< typename RemoveConst<argType>::type >::getArg(os, cur_param_offs) : CtypeValue< typename RemoveConst<argType>::type >::def(os); \
 	if(!CtypeValue< typename RemoveConst<argType>::type >::isValid(arg##num)){ \
-		os->triggerError(OS_E_ERROR, OS::String(os, getCtypeName< typename PlainType<argType>::type >())+" expected"); \
+		os->triggerError(ObjectScript::OS::String(os, getCtypeName< typename PlainType<argType>::type >())+" expected"); \
 		return 0; \
 	} cur_param_offs++
 
@@ -306,12 +306,12 @@ template <class T> struct CtypeUserClass<T*>
 	OS_ASSERT(num > 0); \
 	CtypeValue< RemoveConst<argType>::type >::type arg##num = cur_param_offs < 0 ? CtypeValue< RemoveConst<argType>::type >::getArg(os, cur_param_offs) : CtypeValue< RemoveConst<argType>::type >::def(os); \
 	if(!CtypeValue< RemoveConst<argType>::type >::isValid(arg##num)){ \
-		os->triggerError(OS_E_ERROR, OS::String(os, getCtypeName< PlainType<argType>::type >())+" expected"); \
+		os->triggerError(ObjectScript::OS::String(os, getCtypeName< PlainType<argType>::type >())+" expected"); \
 		return 0; \
 	} cur_param_offs++
 
 // =====================================================================
-
+/*
 template <class T, class fieldType, class T2, fieldType T2::*field> 
 int getField(ObjectScript::OS * os, int params, int, int, void*)
 {
@@ -329,7 +329,7 @@ int setField(ObjectScript::OS * os, int params, int, int, void*)
 	self->*field = arg1;
 	return 0;
 }
-
+*/
 // =====================================================================
 /*
 template <class T, class resType, class T2, resType(T2::*method)()const> 
@@ -589,7 +589,7 @@ template <class F> struct OS_FunctionData: public OS_FunctionDataChain
 // =====================================================================
 
 // finalizeAllBinds is called on programm exit
-// call it if you use leak system integrated
+// call it if you use leak system integrated when all OS instances already destroyed
 void OS_finalizeAllBinds();
 
 // } // namespace ObjectScript

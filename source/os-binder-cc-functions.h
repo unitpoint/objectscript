@@ -30,6 +30,9 @@ and must NOT have multiple-inclusion protection.
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 
+#ifdef __GNUC__
+#include "os-binder-function.h"
+#else
 #define OS_BIND_FUNC_CDECL
 #include "os-binder-function.h"
 #undef OS_BIND_FUNC_CDECL
@@ -46,3 +49,4 @@ and must NOT have multiple-inclusion protection.
 #include "os-binder-function.h"
 #undef OS_BIND_FUNC_THISCALL
 
+#endif
