@@ -2,13 +2,21 @@ print "getcwd: "..getcwd()
 
 // TestStruct
 var data = {a=10 b=20}
-printTestStruct data
+printTestStruct(data)
+data = changeTestStruct(data)
+printTestStruct(data)
+print data
 
 var t = TestClass(1, 0.25)
 print "t.i: "..t.i
 print "t.j: "..t.j
 
-print "t.doSomething(10, 100.001, 1000.1): "..t.doSomething(10, 100.001, 1000.1)
+var t2 = TestClass(2, 0.5)
+t2.i = t2.i + t.j
+print "t2"
+t2.print()
+
+print "t.doSomething(10, 100.001, 1000.1, t2): "..t.doSomething(10, 100.001, 1000.1, t2)
 
 var t2 = clone t
 t2.i = t2.i + 10

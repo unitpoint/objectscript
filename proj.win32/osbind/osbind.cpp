@@ -86,9 +86,9 @@ public:
 		return new TestClass(a->i + b->i, a->j + b->j);
 	}
 
-	double doSomething(int a, float b, double c)
+	double doSomething(int a, float b, double c, TestClass * pb)
 	{
-		return i + j + a + b + c;
+		return i + j + a + b + c + pb->i + pb->j;
 	}
 
 	void print()
@@ -150,6 +150,11 @@ void printTestStruct(const TestStruct& p)
 	printf("TestStruct: %f %f\n", p.a, p.b);
 }
 
+TestStruct changeTestStruct(const TestStruct& p)
+{
+	return TestStruct(p.a*10, p.b*100);
+}
+
 namespace ObjectScript {
 
 OS_DECL_USER_CLASS(TestStruct);
@@ -191,7 +196,7 @@ struct CtypeValue<TestStruct>
 	}
 };
 
-}
+} // namespace ObjectScript
 
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -203,6 +208,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	os->setGlobal(def("getcwd", getcwdString));
 	os->setGlobal(def("printTestStruct", printTestStruct));
+	os->setGlobal(def("changeTestStruct", changeTestStruct));
 
 	// run program
 	os->require("../../examples-os/bind.os");
