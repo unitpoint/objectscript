@@ -6,7 +6,15 @@
 
 using namespace ObjectScript;
 
-static bool my_isdigit(const OS::String& str)
+std::string getcwdString()
+{
+	const int PATH_MAX = 1024;
+	char buf[PATH_MAX];
+	getcwd(buf, PATH_MAX);
+	return buf;
+}
+
+bool my_isdigit(const OS::String& str)
 {
 	int len = str.getLen();
 	for(int i = 0; i < len; i++){
@@ -129,12 +137,56 @@ void initMyModule(OS * os)
 	os->pop();
 }
 
-std::string getcwdString()
+struct TestStruct
 {
-	const int PATH_MAX = 1024;
-	char buf[PATH_MAX];
-	getcwd(buf, PATH_MAX);
-	return buf;
+	float a, b;
+
+	TestStruct(){ a = b = 0; }
+	TestStruct(float _a, float _b){ a = _a; b = _b; }
+};
+
+OS_DECL_USER_CLASS(TestStruct);
+
+template <>
+struct CtypeValue<TestStruct>
+{
+	typedef TestStruct type;
+
+	static bool isValid(const TestStruct&){ return true; }
+
+	static TestStruct def(ObjectScript::OS * os){ return TestStruct(0, 0); }
+	static TestStruct getArg(ObjectScript::OS * os, int offs)
+	{
+		if(os->isObject(offs)){
+			os->getProperty(offs, "a"); // required
+			float a = os->popFloat();
+		
+			os->getProperty(offs, "b"); // required
+			float b = os->popFloat();
+
+			return TestStruct(a, b);
+		}
+		os->triggerError(OS_E_ERROR, "TestStruct expected");
+		return TestStruct(0, 0);
+	}
+
+	static void push(ObjectScript::OS * os, const TestStruct& p)
+	{
+		os->newObject();
+	
+		os->pushStackValue();
+		os->pushNumber(p.a);
+		os->setProperty("a", false, false);
+				
+		os->pushStackValue();
+		os->pushNumber(p.b);
+		os->setProperty("b", false, false);
+	}
+};
+
+void printTestStruct(const TestStruct& p)
+{
+	printf("TestStruct: %f %f\n", p.a, p.b);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
@@ -146,6 +198,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	initMyModule(os);
 
 	os->setGlobal(def("getcwd", getcwdString));
+	os->setGlobal(def("printTestStruct", printTestStruct));
 
 	// run program
 	os->require("../../examples-os/bind.os");

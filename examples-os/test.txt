@@ -1239,10 +1239,10 @@ begin function
               push const string "print"
               ,
               begin operator ..
-                begin get property
+                begin get this property by string
                   push this
                   push const string "fullname"
-                end get property ret values 1
+                end get this property by string ret values 1
                 push const string " is walking!"
               end operator ..
             end params ret values 2
@@ -1265,16 +1265,16 @@ begin function
           begin return
             begin operator ..
               begin operator ..
-                begin get property
+                begin get this property by string
                   push this
                   push const string "firstname"
-                end get property ret values 1
+                end get this property by string ret values 1
                 push const string " "
               end operator ..
-              begin get property
+              begin get this property by string
                 push this
                 push const string "lastname"
-              end get property ret values 1
+              end get this property by string ret values 1
             end operator ..
           end return values 1
         end function
@@ -1791,10 +1791,10 @@ begin function
               1 _G
             end locals
             begin return
-              begin get property
+              begin get this property by string
                 push this
                 push const string "_color"
-              end get property ret values 1
+              end get this property by string ret values 1
             end return values 1
           end function
         end set by name: [__get@color]
@@ -1902,10 +1902,10 @@ begin function
 
                 begin code list
                   begin return
-                    begin get property
+                    begin get this property by string
                       push this
                       push const string "_color"
-                    end get property ret values 1
+                    end get this property by string ret values 1
                   end return values 1
                 end code list ret values 0
               end then
@@ -2113,10 +2113,10 @@ begin function
 
             begin return
               begin get property
-                begin get property
+                begin get this property by string
                   push this
                   push const string "_matrix"
-                end get property ret values 1
+                end get this property by string ret values 1
                 begin operator +
                   begin binary operator by local & number
                     begin operator *
@@ -2180,10 +2180,10 @@ begin function
 [222] delete this._matrix[y*4 + x]
 
             begin delete
-              begin get property
+              begin get this property by string
                 push this
                 push const string "_matrix"
-              end get property ret values 1
+              end get this property by string ret values 1
               begin operator +
                 begin binary operator by local & number
                   begin operator *

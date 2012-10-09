@@ -1,5 +1,9 @@
 print "getcwd: "..getcwd()
 
+// TestStruct
+var data = {a=10 b=20}
+printTestStruct data
+
 var t = TestClass(1, 0.25)
 print "t.i: "..t.i
 print "t.j: "..t.j
