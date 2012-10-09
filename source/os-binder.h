@@ -29,7 +29,7 @@
 #include "objectscript.h"
 #include <string>
 
-// namespace ObjectScript {
+namespace ObjectScript {
 
 // =====================================================================
 
@@ -91,9 +91,6 @@ struct CtypeValue<bool>
 		os->pushBool(val);
 	}
 };
-
-// template <> struct CtypeValue<const bool>: public CtypeValue<bool>{};
-// template <> struct CtypeValue<const bool&>: public CtypeValue<bool>{};
 
 // =====================================================================
 
@@ -311,247 +308,8 @@ template <class T> struct CtypeUserClass<T*>
 	} cur_param_offs++
 
 // =====================================================================
-/*
-template <class T, class fieldType, class T2, fieldType T2::*field> 
-int getField(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	typedef typename RemoveConst<fieldType>::type type;
-	CtypeValue<type>::push(os, self->*field);
-	return 1;
-}
 
-template <class T, class fieldType, class T2, fieldType T2::*field> 
-int setField(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, fieldType);
-	self->*field = arg1;
-	return 0;
-}
-*/
-// =====================================================================
-/*
-template <class T, class resType, class T2, resType(T2::*method)()const> 
-int getFieldByMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	typedef typename RemoveConst<resType>::type type;
-	CtypeValue<type>::push(os, CtypeValue<type>::to((self->*method)()));
-	return 1;
-}
-
-template <class T, class resType, class T2, resType(T2::*method)()> 
-int getFieldByMethodNotConst(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	typedef typename RemoveConst<resType>::type type;
-	CtypeValue<type>::push(os, CtypeValue<type>::to((self->*method)()));
-	return 1;
-}
-
-// =====================================================================
-
-template <class T, class resType, class argType1, class T2, resType(T2::*method)(argType1)const> 
-int getFieldByMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	typedef typename RemoveConst<resType>::type type;
-	CtypeValue<type>::push(os, CtypeValue<type>::to((self->*method)(arg1)));
-	return 1;
-}
-
-template <class T, class resType, class argType1, class T2, resType(T2::*method)(argType1)> 
-int getFieldByMethodNotConst(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	typedef typename RemoveConst<resType>::type type;
-	CtypeValue<resType>::push(os, CtypeValue<resType>::to((self->*method)(arg1)));
-	return 1;
-}
-
-// =====================================================================
-
-template <class T, class resType, class argType1, class argType2, class T2, resType(T2::*method)(argType1, argType2)const> 
-int getFieldByMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	OS_GET_TEMPLATE_ARG(2, argType2);
-	typedef typename RemoveConst<resType>::type type;
-	CtypeValue<type>::push(os, CtypeValue<type>::to((self->*method)(arg1, arg2)));
-	return 1;
-}
-
-template <class T, class resType, class argType1, class argType2, class T2, resType(T2::*method)(argType1, argType2)> 
-int getFieldByMethodNotConst(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	OS_GET_TEMPLATE_ARG(2, argType2);
-	typedef typename RemoveConst<resType>::type type;
-	CtypeValue<type>::push(os, CtypeValue<type>::to((self->*method)(arg1, arg2)));
-	return 1;
-}
-
-// =====================================================================
-
-template <class T, class T2, void(T2::*method)()> 
-int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	(self->*method)();
-	return 0;
-}
-
-template <class T, class argType1, class T2, void(T2::*method)(argType1)> 
-int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	(self->*method)(arg1);
-	return 0;
-}
-
-template <class T, class argType1, class argType2, class T2, void(T2::*method)(argType1, argType2)> 
-int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	OS_GET_TEMPLATE_ARG(2, argType2);
-	(self->*method)(arg1, arg2);
-	return 0;
-}
-
-template <class T, class argType1, class argType2, class argType3, class T2, void(T2::*method)(argType1, argType2, argType3)> 
-int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	OS_GET_TEMPLATE_ARG(2, argType2);
-	OS_GET_TEMPLATE_ARG(3, argType3);
-	(self->*method)(arg1, arg2, arg3);
-	return 0;
-}
-
-template <class T, class argType1, class argType2, class argType3, class argType4, class T2, 
-	void(T2::*method)(argType1, argType2, argType3, argType4)> 
-int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	OS_GET_TEMPLATE_ARG(2, argType2);
-	OS_GET_TEMPLATE_ARG(3, argType3);
-	OS_GET_TEMPLATE_ARG(4, argType4);
-	(self->*method)(arg1, arg2, arg3, arg4);
-	return 0;
-}
-
-template <class T, class argType1, class argType2, class argType3, class argType4, class argType5, class T2, 
-	void(T2::*method)(argType1, argType2, argType3, argType4, argType5)> 
-int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	OS_GET_TEMPLATE_ARG(2, argType2);
-	OS_GET_TEMPLATE_ARG(3, argType3);
-	OS_GET_TEMPLATE_ARG(4, argType4);
-	OS_GET_TEMPLATE_ARG(5, argType5);
-	(self->*method)(arg1, arg2, arg3, arg4, arg5);
-	return 0;
-}
-
-template <class T, class argType1, class argType2, class argType3, class argType4, class argType5, class argType6, class T2, 
-	void(T2::*method)(argType1, argType2, argType3, argType4, argType5, argType6)> 
-int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	OS_GET_TEMPLATE_ARG(2, argType2);
-	OS_GET_TEMPLATE_ARG(3, argType3);
-	OS_GET_TEMPLATE_ARG(4, argType4);
-	OS_GET_TEMPLATE_ARG(5, argType5);
-	OS_GET_TEMPLATE_ARG(6, argType6);
-	(self->*method)(arg1, arg2, arg3, arg4, arg5, arg6);
-	return 0;
-}
-
-template <class T, class argType1, class argType2, class argType3, class argType4, class argType5, class argType6, class argType7,
-	class T2, void(T2::*method)(argType1, argType2, argType3, argType4, argType5, argType6, argType7)> 
-int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	OS_GET_TEMPLATE_ARG(2, argType2);
-	OS_GET_TEMPLATE_ARG(3, argType3);
-	OS_GET_TEMPLATE_ARG(4, argType4);
-	OS_GET_TEMPLATE_ARG(5, argType5);
-	OS_GET_TEMPLATE_ARG(6, argType6);
-	OS_GET_TEMPLATE_ARG(7, argType7);
-	(self->*method)(arg1, arg2, arg3, arg4, arg5, arg6, arg7);
-	return 0;
-}
-
-template <class T, class argType1, class argType2, class argType3, class argType4, class argType5, class argType6, class argType7, class argType8,
-	class T2, void(T2::*method)(argType1, argType2, argType3, argType4, argType5, argType6, argType7, argType8)> 
-int voidMethod(ObjectScript::OS * os, int params, int, int, void*)
-{
-	OS_GET_TEMPLATE_SELF(T*);
-	OS_GET_TEMPLATE_ARG(1, argType1);
-	OS_GET_TEMPLATE_ARG(2, argType2);
-	OS_GET_TEMPLATE_ARG(3, argType3);
-	OS_GET_TEMPLATE_ARG(4, argType4);
-	OS_GET_TEMPLATE_ARG(5, argType5);
-	OS_GET_TEMPLATE_ARG(6, argType6);
-	OS_GET_TEMPLATE_ARG(7, argType7);
-	OS_GET_TEMPLATE_ARG(8, argType8);
-	(self->*method)(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
-	return 0;
-}
-
-// =====================================================================
-
-#define OS_GET_FIELD(T, fieldType, name, field)  {"__get@"#name, getField<T, fieldType, T, & T::field>}
-#define OS_SET_FIELD(T, fieldType, name, field)  {"__set@"#name, getField<T, fieldType, T, & T::field>}
-
-#define OS_GET_FIELD_SPEC(T, fieldType, name, T2, field)  {"__get@"#name, getField<T, fieldType, T2, & T2::field>}
-#define OS_SET_FIELD_SPEC(T, fieldType, name, T2, field)  {"__set@"#name, getField<T, fieldType, T2, & T2::field>}
-
-#define OS_GET_METHOD(T, resType, name, method)  {"__get@"#name, getFieldByMethod<T, resType, T, & T::method>}
-#define OS_GET_METHOD_NOT_CONST(T, resType, name, method)  {"__get@"#name, getFieldByMethodNotConst<T, resType, T, & T::method>}
-#define OS_GET_METHOD_SPEC(T, resType, name, T2, method)  {"__get@"#name, getFieldByMethod<T, resType, T2, & T2::method>}
-
-#define OS_GET_METHOD_1(T, resType, name, method, argType1)  {"__get@"#name, getFieldByMethod<T, resType, argType1, T, & T::method>}
-#define OS_GET_METHOD_1_NOT_CONST(T, resType, name, method, argType1)  {"__get@"#name, getFieldByMethodNotConst<T, resType, argType1, T, & T::method>}
-#define OS_GET_METHOD_2_NOT_CONST(T, resType, name, method, argType1, argType2)  {"__get@"#name, getFieldByMethodNotConst<T, resType, argType1, argType2, T, & T::method>}
-
-#define OS_SET_METHOD(T, resType, name, method)  {"__set@"#name, voidMethod<T, resType, T, & T::method>}
-#define OS_SET_METHOD_SPEC(T, resType, name, T2, method)  {"__set@"#name, voidMethod<T, resType, T2, & T2::method>}
-
-#define OS_VOID_METHOD(T, name, method)  {#name, voidMethod<T, T, & T::method>}
-#define OS_VOID_METHOD_1(T, name, method, argType1)  {#name, voidMethod<T, argType1, T, & T::method>}
-#define OS_VOID_METHOD_2(T, name, method, argType1, argType2)  {#name, voidMethod<T, argType1, argType2, T, & T::method>}
-#define OS_VOID_METHOD_3(T, name, method, argType1, argType2, argType3)  {#name, voidMethod<T, argType1, argType2, argType3, T, & T::method>}
-#define OS_VOID_METHOD_4(T, name, method, argType1, argType2, argType3, argType4)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, T, & T::method>}
-#define OS_VOID_METHOD_5(T, name, method, argType1, argType2, argType3, argType4, argType5)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, argType5, T, & T::method>}
-#define OS_VOID_METHOD_6(T, name, method, argType1, argType2, argType3, argType4, argType5, argType6)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, argType5, argType6, T, & T::method>}
-#define OS_VOID_METHOD_7(T, name, method, argType1, argType2, argType3, argType4, argType5, argType6, argType7)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, argType5, argType6, argType7, T, & T::method>}
-
-#define OS_VOID_METHOD_SPEC(T, name, T2, method)  {#name, voidMethod<T, T2, & T2::method>}
-#define OS_VOID_METHOD_1_SPEC(T, name, T2, method, argType1)  {#name, voidMethod<T, argType1, T2, & T2::method>}
-#define OS_VOID_METHOD_2_SPEC(T, name, T2, method, argType1, argType2)  {#name, voidMethod<T, argType1, argType2, T2, & T2::method>}
-#define OS_VOID_METHOD_3_SPEC(T, name, T2, method, argType1, argType2, argType3)  {#name, voidMethod<T, argType1, argType2, argType3, T2, & T2::method>}
-#define OS_VOID_METHOD_4_SPEC(T, name, T2, method, argType1, argType2, argType3, argType4)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, T2, & T::method>}
-#define OS_VOID_METHOD_5_SPEC(T, name, T2, method, argType1, argType2, argType3, argType4, argType5)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, argType5, T2, & T::method>}
-#define OS_VOID_METHOD_6_SPEC(T, name, T2, method, argType1, argType2, argType3, argType4, argType5, argType6)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, argType5, argType6, T2, & T::method>}
-#define OS_VOID_METHOD_7_SPEC(T, name, T2, method, argType1, argType2, argType3, argType4, argType5, argType6, argType7)  {#name, voidMethod<T, argType1, argType2, argType3, argType4, argType5, argType6, argType7, T2, & T2::method>}
-*/
-// =====================================================================
-
-namespace ObjectScript
-{
+// namespace ObjectScript {
 
 template <class T>
 void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
@@ -563,23 +321,23 @@ void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
 	os->setProperty();
 }
 
-} // namespace ObjectScript
+// } // namespace ObjectScript
 
 // =====================================================================
 // =====================================================================
 // =====================================================================
 
-struct OS_FunctionDataChain
+struct FunctionDataChain
 {
-	OS_FunctionDataChain * next;
-	OS_FunctionDataChain();
-	virtual ~OS_FunctionDataChain();
+	FunctionDataChain * next;
+	FunctionDataChain();
+	virtual ~FunctionDataChain();
 };
 
-template <class F> struct OS_FunctionData: public OS_FunctionDataChain
+template <class F> struct FunctionData: public FunctionDataChain
 {
 	F f;
-	OS_FunctionData(F _f): f(_f){}
+	FunctionData(F _f): f(_f){}
 };
 
 // =====================================================================
@@ -590,9 +348,9 @@ template <class F> struct OS_FunctionData: public OS_FunctionDataChain
 
 // finalizeAllBinds is called on programm exit
 // call it if you use leak system integrated when all OS instances already destroyed
-void OS_finalizeAllBinds();
+void finalizeAllBinds();
 
-// } // namespace ObjectScript
+} // namespace ObjectScript
 
 // =====================================================================
 // =====================================================================

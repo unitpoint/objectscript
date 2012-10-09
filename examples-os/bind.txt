@@ -56,19 +56,7 @@ begin function
   end call method ret values 0
 
 
-[6] printTestStruct 123
-
-  begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "printTestStruct"
-      ,
-      push const number 123
-    end params ret values 2
-  end call method ret values 0
-
-
-[8] var t = TestClass(1, 0.25)
+[7] var t = TestClass(1, 0.25)
 
   begin set local var
     begin call method
@@ -84,7 +72,7 @@ begin function
   end set local var t (3 0)
 
 
-[9] print "t.i: "..t.i
+[8] print "t.i: "..t.i
 
   begin call method
     get local var _E (0 0)
@@ -102,7 +90,7 @@ begin function
   end call method ret values 0
 
 
-[10] print "t.j: "..t.j
+[9] print "t.j: "..t.j
 
   begin call method
     get local var _E (0 0)
@@ -120,7 +108,7 @@ begin function
   end call method ret values 0
 
 
-[12] print "t.doSomething(10, 100.001, 1000.1): "..t.doSomething(10, 100.001, 1000.1)
+[11] print "t.doSomething(10, 100.001, 1000.1): "..t.doSomething(10, 100.001, 1000.1)
 
   begin call method
     get local var _E (0 0)
@@ -146,7 +134,7 @@ begin function
   end call method ret values 0
 
 
-[14] var t2 = clone t
+[13] var t2 = clone t
 
   begin set local var
     begin clone
@@ -155,7 +143,7 @@ begin function
   end set local var t2 (4 0)
 
 
-[15] t2.i = t2.i + 10
+[14] t2.i = t2.i + 10
 
   begin set property
     begin operator +
@@ -170,7 +158,7 @@ begin function
   end set property ret values 0
 
 
-[16] t2.j = t2.j + 20.5
+[15] t2.j = t2.j + 20.5
 
   begin set property
     begin operator +
@@ -185,7 +173,7 @@ begin function
   end set property ret values 0
 
 
-[18] var t3 = t + t2
+[17] var t3 = t + t2
 
   begin set local var by bin operator locals
     begin binary operator by locals
@@ -197,7 +185,7 @@ begin function
   end set local var by bin operator locals t3 (5 0)
 
 
-[19] t3.print()
+[18] t3.print()
 
   begin call method
     get local var t3 (5 0)
@@ -207,7 +195,7 @@ begin function
   end call method ret values 0
 
 
-[21] print "isdigit(123): "..my.isdigit("123")
+[20] print "isdigit(123): "..my.isdigit("123")
 
   begin call method
     get local var _E (0 0)
@@ -229,7 +217,7 @@ begin function
   end call method ret values 0
 
 
-[22] print "isdigit(123q): "..my.isdigit("123q")
+[21] print "isdigit(123q): "..my.isdigit("123q")
 
   begin call method
     get local var _E (0 0)
@@ -251,7 +239,7 @@ begin function
   end call method ret values 0
 
 
-[24] print "my.hash(123): "..my.hash(123)
+[23] print "my.hash(123): "..my.hash(123)
 
   begin call method
     get local var _E (0 0)
@@ -273,7 +261,7 @@ begin function
   end call method ret values 0
 
 
-[26] print "call my.print_num(123.5)"
+[25] print "call my.print_num(123.5)"
 
   begin call method
     get local var _E (0 0)
@@ -285,7 +273,7 @@ begin function
   end call method ret values 0
 
 
-[27] my.print_num(123.5)
+[26] my.print_num(123.5)
 
   begin call method
     get env var my
@@ -297,7 +285,7 @@ begin function
   end call method ret values 0
 
 
-[28] print "call my.print_void()"
+[27] print "call my.print_void()"
 
   begin call method
     get local var _E (0 0)
@@ -309,7 +297,7 @@ begin function
   end call method ret values 0
 
 
-[29] my.print_void()
+[28] my.print_void()
 
   begin call method
     get env var my
@@ -319,7 +307,7 @@ begin function
   end call method ret values 0
 
 
-[30] print "my.abs(-12): "..my.abs(-12)
+[29] print "my.abs(-12): "..my.abs(-12)
 
   begin call method
     get local var _E (0 0)
@@ -343,7 +331,7 @@ begin function
   end call method ret values 0
 
 
-[31] print "my.fabs(-123.5): "..my.fabs(-123.5)
+[30] print "my.fabs(-123.5): "..my.fabs(-123.5)
 
   begin call method
     get local var _E (0 0)

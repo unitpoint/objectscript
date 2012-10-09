@@ -97,7 +97,7 @@ public:
 	}
 };
 
-OS_DECL_USER_CLASS(TestClass);
+namespace ObjectScript { OS_DECL_USER_CLASS(TestClass); }
 
 TestClass * __constructTestClass(int i, float j)
 {
@@ -145,6 +145,13 @@ struct TestStruct
 	TestStruct(float _a, float _b){ a = _a; b = _b; }
 };
 
+void printTestStruct(const TestStruct& p)
+{
+	printf("TestStruct: %f %f\n", p.a, p.b);
+}
+
+namespace ObjectScript {
+
 OS_DECL_USER_CLASS(TestStruct);
 
 template <>
@@ -184,9 +191,6 @@ struct CtypeValue<TestStruct>
 	}
 };
 
-void printTestStruct(const TestStruct& p)
-{
-	printf("TestStruct: %f %f\n", p.a, p.b);
 }
 
 int _tmain(int argc, _TCHAR* argv[])

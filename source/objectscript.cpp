@@ -20137,29 +20137,29 @@ recurse:
 // =====================================================================
 // =====================================================================
 
-static OS_FunctionDataChain * function_data_first = NULL;
+static FunctionDataChain * function_data_first = NULL;
 
-OS_FunctionDataChain::OS_FunctionDataChain()
+FunctionDataChain::FunctionDataChain()
 { 
 	next = function_data_first;
 	function_data_first = this;
 }
-OS_FunctionDataChain::~OS_FunctionDataChain()
+FunctionDataChain::~FunctionDataChain()
 {
 }
 
-void OS_finalizeAllBinds()
+void ObjectScript::finalizeAllBinds()
 {
 	while(function_data_first){
-		OS_FunctionDataChain * cur = function_data_first;
+		FunctionDataChain * cur = function_data_first;
 		function_data_first = cur->next;
 		delete cur;
 	}
 }
 
-struct OS_FunctionDataFinalizer
+struct FunctionDataFinalizer
 {
-	~OS_FunctionDataFinalizer(){ OS_finalizeAllBinds(); }
+	~FunctionDataFinalizer(){ ObjectScript::finalizeAllBinds(); }
 } __functionDataFinalizer__;
 
 // =====================================================================

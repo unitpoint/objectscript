@@ -3,7 +3,7 @@ struct OS_BIND_FUNC_RUN_CLASS_NAME
 {
 	typedef R(OS_BIND_FUNC_CC T::*F)(OS_BIND_FUNC_PARMS){const} OS_BIND_FUNC_CC_GNUC;
 
-	static int run(ObjectScript::OS * os, int params, int, int, void * user_param)
+	static int run(OS * os, int params, int, int, void * user_param)
 	{
 		OS_GET_TEMPLATE_SELF(T*);
 		OS_BIND_FUNC_GET_ARGS;
@@ -20,7 +20,7 @@ struct OS_BIND_FUNC_RUN_CLASS_NAME<void, T OS_BIND_FUNC_PARMS_COMMA OS_BIND_FUNC
 {
 	typedef void(OS_BIND_FUNC_CC T::*F)(OS_BIND_FUNC_PARMS){const} OS_BIND_FUNC_CC_GNUC;
 
-	static int run(ObjectScript::OS * os, int params, int, int, void * user_param)
+	static int run(OS * os, int params, int, int, void * user_param)
 	{
 		OS_GET_TEMPLATE_SELF(T*);
 		OS_BIND_FUNC_GET_ARGS;
@@ -40,22 +40,22 @@ struct OS_BIND_FUNC_CLASS_NAME
 
 	OS_BIND_FUNC_CLASS_NAME(const char * _name, F _f): name(_name), f(_f){}
 	
-	operator ObjectScript::OS::FuncDef() const 
+	operator OS::FuncDef() const 
 	{ 
-		ObjectScript::OS::FuncDef def = {name, 
+		OS::FuncDef def = {name, 
 			OS_BIND_FUNC_RUN_CLASS_NAME<R, T OS_BIND_FUNC_PARMS_COMMA OS_BIND_FUNC_PARMS>::run, 
-			&(new OS_FunctionData<F>(f))->f}; 
+			&(new FunctionData<F>(f))->f}; 
 		return def; 
 	}
 };
 
-namespace ObjectScript {
+// namespace ObjectScript {
 
 template <class R, class T OS_BIND_FUNC_PARMS_COMMA OS_BIND_FUNC_TEMPLATE_PARMS> 
-ObjectScript::OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIND_FUNC_PARMS){const} OS_BIND_FUNC_CC_GNUC)
+OS::FuncDef def(const char * name, R(OS_BIND_FUNC_CC T::*f)(OS_BIND_FUNC_PARMS){const} OS_BIND_FUNC_CC_GNUC)
 {
 	typedef OS_BIND_FUNC_CLASS_NAME<R, T OS_BIND_FUNC_PARMS_COMMA OS_BIND_FUNC_PARMS> Func; 
 	return Func(name, f);
 }
 
-} // namespace ObjectScript
+// } // namespace ObjectScript
