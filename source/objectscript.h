@@ -2443,6 +2443,19 @@ namespace ObjectScript
 				String syntax_in;
 				String syntax_break;
 				String syntax_continue;
+				String syntax_try;
+				String syntax_catch;
+				String syntax_finally;
+				String syntax_throw;
+				String syntax_new;
+				String syntax_while;
+				String syntax_do;
+				String syntax_const;
+				String syntax_public;
+				String syntax_protected;
+				String syntax_private;
+				String syntax_yield;
+				String syntax_static;
 				String syntax_debugger;
 				String syntax_debuglocals;
 

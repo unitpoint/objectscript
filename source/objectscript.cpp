@@ -6745,23 +6745,37 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 				return exp;
 			}
 			if(token->type == Tokenizer::NAME){
-				if(token->str == allocator->core->strings->syntax_var
-					// || token->str == allocator->core->strings->syntax_function
-					|| token->str == allocator->core->strings->syntax_return
-					|| token->str == allocator->core->strings->syntax_if
-					|| token->str == allocator->core->strings->syntax_else
-					|| token->str == allocator->core->strings->syntax_elseif
-					|| token->str == allocator->core->strings->syntax_for
-					|| token->str == allocator->core->strings->syntax_break
-					|| token->str == allocator->core->strings->syntax_continue
-					|| token->str == allocator->core->strings->syntax_in
-					|| token->str == allocator->core->strings->syntax_class
-					|| token->str == allocator->core->strings->syntax_enum
-					|| token->str == allocator->core->strings->syntax_switch
-					|| token->str == allocator->core->strings->syntax_case 
-					|| token->str == allocator->core->strings->syntax_default
-					|| token->str == allocator->core->strings->syntax_debugger
-					// || token->str == allocator->core->strings->syntax_debuglocals
+				Core::Strings * strings = allocator->core->strings;
+				if(token->str == strings->syntax_var
+					// || token->str == strings->syntax_function
+					|| token->str == strings->syntax_return
+					|| token->str == strings->syntax_if
+					|| token->str == strings->syntax_else
+					|| token->str == strings->syntax_elseif
+					|| token->str == strings->syntax_for
+					|| token->str == strings->syntax_break
+					|| token->str == strings->syntax_continue
+					|| token->str == strings->syntax_in
+					|| token->str == strings->syntax_class
+					|| token->str == strings->syntax_enum
+					|| token->str == strings->syntax_switch
+					|| token->str == strings->syntax_case 
+					|| token->str == strings->syntax_default
+					|| token->str == strings->syntax_try
+					|| token->str == strings->syntax_catch
+					|| token->str == strings->syntax_finally
+					|| token->str == strings->syntax_throw
+					|| token->str == strings->syntax_new
+					|| token->str == strings->syntax_while
+					|| token->str == strings->syntax_do
+					|| token->str == strings->syntax_const
+					|| token->str == strings->syntax_public
+					|| token->str == strings->syntax_protected
+					|| token->str == strings->syntax_private
+					|| token->str == strings->syntax_yield
+					|| token->str == strings->syntax_static
+					|| token->str == strings->syntax_debugger
+					// || token->str == strings->syntax_debuglocals
 					)
 				{
 					return exp;
@@ -6890,52 +6904,59 @@ OS::Core::Compiler::Params& OS::Core::Compiler::Params::setAllowNopResult(bool v
 
 bool OS::Core::Compiler::isVarNameValid(const String& name)
 {
-	const String * list[] = {
-		&allocator->core->strings->syntax_super,
-		&allocator->core->strings->syntax_is,
-		&allocator->core->strings->syntax_isprototypeof,
-		&allocator->core->strings->syntax_typeof,
-		&allocator->core->strings->syntax_valueof,
-		&allocator->core->strings->syntax_booleanof,
-		&allocator->core->strings->syntax_numberof,
-		&allocator->core->strings->syntax_stringof,
-		&allocator->core->strings->syntax_arrayof,
-		&allocator->core->strings->syntax_objectof,
-		&allocator->core->strings->syntax_userdataof,
-		&allocator->core->strings->syntax_functionof,
-		&allocator->core->strings->syntax_extends,
-		&allocator->core->strings->syntax_clone,
-		&allocator->core->strings->syntax_delete,
-		&allocator->core->strings->syntax_prototype,
-		&allocator->core->strings->syntax_var,
-		&allocator->core->strings->syntax_this,
-		&allocator->core->strings->syntax_arguments,
-		&allocator->core->strings->syntax_function,
-		&allocator->core->strings->syntax_null,
-		&allocator->core->strings->syntax_true,
-		&allocator->core->strings->syntax_false,
-		&allocator->core->strings->syntax_return,
-		&allocator->core->strings->syntax_class,
-		&allocator->core->strings->syntax_enum,
-		&allocator->core->strings->syntax_switch,
-		&allocator->core->strings->syntax_case,
-		&allocator->core->strings->syntax_default,
-		&allocator->core->strings->syntax_if,
-		&allocator->core->strings->syntax_else,
-		&allocator->core->strings->syntax_elseif,
-		&allocator->core->strings->syntax_for,
-		&allocator->core->strings->syntax_in,
-		&allocator->core->strings->syntax_break,
-		&allocator->core->strings->syntax_continue,
-		&allocator->core->strings->syntax_debugger,
-		&allocator->core->strings->syntax_debuglocals
-	};
-	for(int i = 0; i < (int)(sizeof(list)/sizeof(list[0])); i++){
-		if(name == *(list[i])){
-			return false;
-		}
-	}
-	return true;
+	Core::Strings * strings = allocator->core->strings;
+	return !(name == strings->syntax_super
+		|| name == strings->syntax_is
+		|| name == strings->syntax_isprototypeof
+		|| name == strings->syntax_typeof
+		|| name == strings->syntax_valueof
+		|| name == strings->syntax_booleanof
+		|| name == strings->syntax_numberof
+		|| name == strings->syntax_stringof
+		|| name == strings->syntax_arrayof
+		|| name == strings->syntax_objectof
+		|| name == strings->syntax_userdataof
+		|| name == strings->syntax_functionof
+		|| name == strings->syntax_extends
+		|| name == strings->syntax_clone
+		|| name == strings->syntax_delete
+		|| name == strings->syntax_prototype
+		|| name == strings->syntax_var
+		|| name == strings->syntax_this
+		|| name == strings->syntax_arguments
+		|| name == strings->syntax_function
+		|| name == strings->syntax_null
+		|| name == strings->syntax_true
+		|| name == strings->syntax_false
+		|| name == strings->syntax_return
+		|| name == strings->syntax_class
+		|| name == strings->syntax_enum
+		|| name == strings->syntax_switch
+		|| name == strings->syntax_case
+		|| name == strings->syntax_default
+		|| name == strings->syntax_if
+		|| name == strings->syntax_else
+		|| name == strings->syntax_elseif
+		|| name == strings->syntax_for
+		|| name == strings->syntax_in
+		|| name == strings->syntax_break
+		|| name == strings->syntax_continue
+		|| name == strings->syntax_try
+		|| name == strings->syntax_catch
+		|| name == strings->syntax_finally
+		|| name == strings->syntax_throw
+		|| name == strings->syntax_new
+		|| name == strings->syntax_while
+		|| name == strings->syntax_do
+		|| name == strings->syntax_const
+		|| name == strings->syntax_public
+		|| name == strings->syntax_protected
+		|| name == strings->syntax_private
+		|| name == strings->syntax_yield
+		|| name == strings->syntax_static
+		|| name == strings->syntax_debugger
+		|| name == strings->syntax_debuglocals
+		);
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scope * scope, bool allow_nop_result, bool allow_inline_nested_block)
@@ -7265,6 +7286,58 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return NULL;
 		}
 		if(token->str == allocator->core->strings->syntax_case || token->str == allocator->core->strings->syntax_default){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_try){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_catch){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_finally){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_throw){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_new){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_while){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_do){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_const){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_public){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_protected){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_private){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_yield){
+			setError(ERROR_SYNTAX, token);
+			return NULL;
+		}
+		if(token->str == allocator->core->strings->syntax_static){
 			setError(ERROR_SYNTAX, token);
 			return NULL;
 		}
@@ -10643,6 +10716,19 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_in(allocator, OS_TEXT("in")),
 	syntax_break(allocator, OS_TEXT("break")),
 	syntax_continue(allocator, OS_TEXT("continue")),
+	syntax_try(allocator, OS_TEXT("try")),
+	syntax_catch(allocator, OS_TEXT("catch")),
+	syntax_finally(allocator, OS_TEXT("finally")),
+	syntax_throw(allocator, OS_TEXT("throw")),
+	syntax_new(allocator, OS_TEXT("new")),
+	syntax_while(allocator, OS_TEXT("while")),
+	syntax_do(allocator, OS_TEXT("do")),
+	syntax_const(allocator, OS_TEXT("const")),
+	syntax_public(allocator, OS_TEXT("public")),
+	syntax_protected(allocator, OS_TEXT("protected")),
+	syntax_private(allocator, OS_TEXT("private")),
+	syntax_yield(allocator, OS_TEXT("yield")),
+	syntax_static(allocator, OS_TEXT("static")),
 	syntax_debugger(allocator, OS_TEXT("debugger")),
 	syntax_debuglocals(allocator, OS_TEXT("debuglocals")),
 #ifdef OS_GLOBAL_VAR_ENABLED
