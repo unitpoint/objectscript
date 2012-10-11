@@ -133,7 +133,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("0.98-rc")
+#define OS_VERSION OS_TEXT("0.98.1-rc")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_SOURCECODE_EXT OS_TEXT(".os")
@@ -1319,6 +1319,7 @@ namespace ObjectScript
 				// static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b, GCStringValue * c);
 
 				bool isNumber(OS_NUMBER*) const;
+				OS_NUMBER toNumber() const;
 				// bool isNumber(OS_FLOAT*) const;
 
 				int cmp(GCStringValue*) const;

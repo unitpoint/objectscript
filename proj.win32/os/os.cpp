@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "windows.h"
 #include "../../source/objectscript.h"
+#include "../../source/os-binder.h"
 
 using namespace ObjectScript;
 
@@ -45,12 +46,6 @@ double getTimeSec()
 	return inv_frequency * (count - start_time);
 }
 
-static int OS_getTimeSec(OS * os, int params, int upvalues, int, void*)
-{
-	os->pushNumber(getTimeSec());
-	return 1;
-}
-
 int _tmain(int argc, _TCHAR* argv[])
 {
 	if(argc < 2){
@@ -80,8 +75,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	// we can use the program arguments as global arg variable inside of our script
 	os->setGlobal("arg");
 	// set global getTimeSec function so we can check time inside of our script
-	os->pushCFunction(OS_getTimeSec);
-	os->setGlobal("getTimeSec");
+	os->setGlobal(def("getTimeSec", getTimeSec));
 	// run main stript
 	os->require(getString(os, argv[1]));
 	{

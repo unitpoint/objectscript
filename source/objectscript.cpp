@@ -793,11 +793,7 @@ int OS::Core::String::getHash() const
 
 OS_NUMBER OS::Core::String::toNumber() const
 {
-	OS_NUMBER val;
-	if(string->isNumber(&val)){
-		return val;
-	}
-	return 0;
+	return string->toNumber();
 }
 
 // =====================================================================
@@ -10003,6 +9999,17 @@ bool OS::Core::GCStringValue::isNumber(OS_NUMBER* p_val) const
 	return false;
 }
 
+OS_NUMBER OS::Core::GCStringValue::toNumber() const
+{
+	const OS_CHAR * str = toChar();
+	const OS_CHAR * end = str + getLen();
+	OS_FLOAT val;
+	if(Utils::parseFloat(str, val) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
+		return (OS_NUMBER)val;
+	}
+	return 0;
+}
+
 int OS::Core::GCStringValue::cmp(GCStringValue * string) const
 {
 	if(this == string){
@@ -10096,13 +10103,7 @@ OS_NUMBER OS::Core::valueToNumber(const Value& val, bool valueof_enabled)
 		return val.v.number;
 
 	case OS_VALUE_TYPE_STRING:
-		{
-			OS_NUMBER fval;
-			if(val.v.string->isNumber(&fval)){
-				return fval;
-			}
-			return 0; // nan_float;
-		}
+		return val.v.string->toNumber();
 	}
 	if(valueof_enabled){
 		pushValueOf(val);
@@ -13615,7 +13616,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 					return left_value.v.boolean == right_value.v.boolean;
 
 				case OS_VALUE_TYPE_STRING:
-					// the same strings are always share one instance, so check only value_id
+					// the same strings are always share one instance, so check only gc value ptr
 
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
@@ -13643,11 +13644,15 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 			return 0;
 		}
 
-		int compareStrings(GCStringValue * left_string_data, OS_NUMBER right_number)
+		int compareStringAndNumber(GCStringValue * left_string_data, OS_NUMBER right_number)
 		{
+#if 1
+			return compareNumbers(left_string_data->toNumber(), right_number);
+#else
 			OS_CHAR buf[128];
 			Utils::numToStr(buf, right_number);
 			return left_string_data->cmp(buf);
+#endif
 		}
 
 		int compareStrings(GCStringValue * left_string_data, GCStringValue * right_string_data)
@@ -13655,7 +13660,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 			return left_string_data->cmp(right_string_data);
 		}
 
-		int compareObjectToValue(Value left_value, Value right_value)
+		int compareObjectAndValue(Value left_value, Value right_value)
 		{
 			GCValue * left = left_value.v.value;
 			switch(left->type){
@@ -13663,7 +13668,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 				{
 					OS_ASSERT(dynamic_cast<GCStringValue*>(left));
 					GCStringValue * string = (GCStringValue*)left;
-					return compareStringToValue(left_value, string, right_value);
+					return compareStringAndValue(left_value, string, right_value);
 				}
 
 			case OS_VALUE_TYPE_ARRAY:
@@ -13751,27 +13756,27 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 				return compareNumbers(left_number, (OS_NUMBER)right_value.v.boolean);
 
 			case OS_VALUE_TYPE_STRING:
-				return -compareStrings(right_value.v.string, left_number);
+				return -compareStringAndNumber(right_value.v.string, left_number);
 			}
-			return -compareObjectToValue(right_value, left_value);
+			return -compareObjectAndValue(right_value, left_value);
 		}
 
-		int compareStringToValue(Value left_value, GCStringValue * left_string_data, Value right_value)
+		int compareStringAndValue(Value left_value, GCStringValue * left_string_data, Value right_value)
 		{
 			switch(right_value.type){
 			case OS_VALUE_TYPE_NULL:
 				return 1;
 
 			case OS_VALUE_TYPE_NUMBER:
-				return compareStrings(left_string_data, right_value.v.number);
+				return compareStringAndNumber(left_string_data, right_value.v.number);
 
 			case OS_VALUE_TYPE_BOOL:
-				return compareStrings(left_string_data, (OS_NUMBER)right_value.v.boolean);
+				return compareStringAndNumber(left_string_data, (OS_NUMBER)right_value.v.boolean);
 
 			case OS_VALUE_TYPE_STRING:
 				return compareStrings(left_string_data, right_value.v.string);
 			}
-			return -compareObjectToValue(right_value, left_value);
+			return -compareObjectAndValue(right_value, left_value);
 		}
 
 		int compareValues(Value left_value, Value right_value)
@@ -13787,9 +13792,9 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 				return compareNumberToValue(left_value, (OS_NUMBER)left_value.v.boolean, right_value);
 
 				// case OS_VALUE_TYPE_STRING:
-				// 	return compareStringToValue(left_value->v.string_data, right_value);
+				// 	return compareStringAndValue(left_value->v.string_data, right_value);
 			}
-			return compareObjectToValue(left_value, right_value);
+			return compareObjectAndValue(left_value, right_value);
 		}
 
 		void pushSimpleOpcodeValue(int opcode, Value left_value, Value right_value)
