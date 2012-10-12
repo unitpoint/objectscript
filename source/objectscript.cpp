@@ -18058,6 +18058,11 @@ void OS::initGlobalFunctions()
 			os->triggerError(code, message);
 			return 0;
 		}
+
+      static int __exit(OS * os, int params, int, int, void*)
+      {
+         exit(1);
+      }
 	};
 	FuncDef list[] = {
 		{OS_TEXT("print"), Lib::print},
@@ -18070,6 +18075,7 @@ void OS::initGlobalFunctions()
 		{OS_TEXT("terminate"), Lib::terminate},
 		{OS_TEXT("setErrorHandler"), Lib::setErrorHandler},
 		{OS_TEXT("triggerError"), Lib::triggerError},
+		{OS_TEXT("exit"), Lib::__exit},
 		{}
 	};
 	NumberDef numbers[] = {

@@ -16,8 +16,12 @@ prompt_cb(EditLine*)
 }
 
 
+
 int main(int argc, char *argv[])
 {
+
+    printf("objectscript version %s\n\n" , OS_VERSION);
+
     HistEvent hevent;
     History *hh(history_init());
     history(hh, &hevent, H_SETUNIQUE, 1);

@@ -6,7 +6,7 @@ LD       = $(CXX)
 
 all: bin/os
 
-bin/os: $(OBJECTS) -ledit -lstdc++ -lm
+bin/os: $(OBJECTS) -ledit -lm
 	$(LD) $(LDFLAGS) -o $@ $^
 
 clean:
