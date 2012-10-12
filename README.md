@@ -10,7 +10,7 @@ Please check proj.win32\examples.sln for more examples.
 License
 =======
 
-ObjectScript is free software distributed under the terms of the MIT license reproduced below. ObjectScript may be used for any purpose, including commercial purposes, at absolutely no cost. No paperwork, no royalties, no GNU-like "copyleft" restrictions, either. Just download it and use it. ObjectScript is certified Open Source software.
+ObjectScript is free software distributed under the terms of the MIT license reproduced below. ObjectScript may be used for any purpose, including commercial purposes, at absolutely no cost. No paperwork, no royalties, no GNU-like "copyleft" restrictions, either. Just download it and use it.
 
 The spirit of the ObjectScript license is that you are free to use ObjectScript for any purpose at no cost without having to ask us. The only requirement is that if you do use ObjectScript, then you should give us credit by including the copyright notice somewhere in your product or its documentation. A nice, but optional, way to give us further credit is to include a ObjectScript logo and a link to our site in a web page for your product.
 
