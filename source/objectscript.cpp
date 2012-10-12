@@ -363,8 +363,8 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 			return false;
 		}
 
-		OS_FLOAT m = 0.1;
-		for(str++; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++, m *= 0.1){
+		OS_FLOAT m = (OS_FLOAT)0.1;
+		for(str++; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++, m *= (OS_FLOAT)0.1){
 			float_val += (OS_FLOAT)(*str - OS_TEXT('0')) * m;
 		}
 		if(start_str == str){
@@ -6089,12 +6089,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 		return NULL;
 	}
 	token = recent_token;
-	Expression * then_exp = expectSingleExpression(scope, true, true);
-	/* if(recent_token->type == Tokenizer::BEGIN_CODE_BLOCK){
-	then_exp = expectCodeExpression(scope);
+	Expression * then_exp; // = expectSingleExpression(scope, true, true);
+	if(recent_token->type == Tokenizer::BEGIN_CODE_BLOCK){
+		then_exp = expectCodeExpression(scope);
 	}else{
-	then_exp = expectSingleExpression(scope, true);
-	} */
+		then_exp = expectSingleExpression(scope, true);
+		if(recent_token && recent_token->type == Tokenizer::CODE_SEPARATOR){
+			readToken();
+		}
+	}
 	if(!then_exp){
 		allocator->deleteObj(if_exp);
 		return NULL;
@@ -8772,19 +8775,23 @@ OS::Core::PropertyIndex::PropertyIndex(const String& p_index, const KeepStringIn
 void OS::Core::PropertyIndex::convertIndexStringToNumber()
 {
 	if(index.type == OS_VALUE_TYPE_STRING){
-		OS_NUMBER val;
+		bool neg = false;
 		const OS_CHAR * str = index.v.string->toChar();
-		if(*str >= OS_TEXT('0') && *str <= OS_TEXT('9')){
+		if((*str >= OS_TEXT('0') && *str <= OS_TEXT('9'))
+			|| ((neg = *str == OS_TEXT('-')) && str[1] >= OS_TEXT('0') && str[1] <= OS_TEXT('9')))
+		{
 			const OS_CHAR * end = str + index.v.string->getLen();
+			str += (int)neg;
+			OS_FLOAT val;
 			if(parseSimpleFloat(str, val)){
 				if(*str == OS_TEXT('.')){
-					OS_NUMBER m = (OS_NUMBER)0.1f;
-					for(str++; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++, m *= (OS_NUMBER)0.1f){
-						val += (OS_NUMBER)(*str - OS_TEXT('0')) * m;
+					OS_FLOAT m = (OS_FLOAT)0.1;
+					for(str++; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++, m *= (OS_FLOAT)0.1){
+						val += (OS_FLOAT)(*str - OS_TEXT('0')) * m;
 					}
 				}
 				if(str == end){
-					index.v.number = val;
+					index.v.number = (OS_NUMBER)(neg ? -val : val);
 					index.type = OS_VALUE_TYPE_NUMBER;
 					// OS_ASSERT((OS_INT)index.v.number == val);
 				}

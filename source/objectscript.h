@@ -188,7 +188,6 @@ inline void operator delete(void *, void *){}
 
 namespace ObjectScript
 {
-
 	class OS;
 
 	typedef void (*OS_UserdataDtor)(OS*, void * data, void * user_param);
