@@ -133,7 +133,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("0.98.1-rc")
+#define OS_VERSION OS_TEXT("0.98.2-rc")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_SOURCECODE_EXT OS_TEXT(".os")
@@ -2726,6 +2726,7 @@ namespace ObjectScript
 			bool isValueInstanceOf(GCValue * val, GCValue * prototype_val);
 			bool isValueInstanceOf(Value val, Value prototype_val);
 			bool isValuePrototypeOf(GCValue * val, GCValue * prototype_val);
+			bool isValuePrototypeOfUserdata(GCValue * val, int prototype_crc);
 			bool isValuePrototypeOf(Value val, Value prototype_val);
 
 			Table * newTable(OS_DBG_FILEPOS_START_DECL);
@@ -3048,7 +3049,7 @@ namespace ObjectScript
 		bool isObject(int offs = -1);
 		bool isArray(int offs = -1);
 		bool isFunction(int offs = -1);
-		bool isUserdata(int crc, int offs);
+		bool isUserdata(int crc, int offs, int prototype_crc = 0);
 		bool isPrototypeOf(int value_offs = -2, int prototype_offs = -1);
 		bool is(int value_offs = -2, int prototype_offs = -1);
 
@@ -3059,8 +3060,8 @@ namespace ObjectScript
 		int			toInt(int offs = -1, bool valueof_enabled = true);
 		String		toString(int offs = -1, bool valueof_enabled = true);
 		
-		void * toUserdata(int crc, int offs = -1);
-		void clearUserdata(int crc, int offs = -1);
+		void * toUserdata(int crc, int offs = -1, int prototype_crc = 0);
+		void clearUserdata(int crc, int offs = -1, int prototype_crc = 0);
 
 		bool		toBool(int offs, bool def);
 		OS_NUMBER	toNumber(int offs, OS_NUMBER def, bool valueof_enabled = true);

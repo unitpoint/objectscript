@@ -55,6 +55,8 @@ long double my_fabs(long double a)
 	return a >= 0 ? a : -a;
 }
 
+// ========================================
+
 class TestClass
 {
 public:
@@ -120,6 +122,39 @@ void registerTestClass(OS * os)
 	};
 	registerUserClass<TestClass>(os, funcs);
 }
+
+// ========================================
+
+class NewTestClass: public TestClass
+{
+public:
+
+	NewTestClass(): TestClass(10, 20){}
+
+	double doSomething(int a, float b, double c, TestClass * pb)
+	{
+		return i - j - a - b - c - pb->i - pb->j;
+	}
+};
+
+namespace ObjectScript { OS_DECL_USER_CLASS(NewTestClass); }
+
+NewTestClass * __constructNewTestClass()
+{
+	return new NewTestClass();
+}
+
+void registerNewTestClass(OS * os)
+{
+	OS::FuncDef funcs[] = {
+		def("__construct", __constructNewTestClass),
+		def("doSomething", &NewTestClass::doSomething),
+		{}
+	};
+	registerUserClass<NewTestClass, TestClass>(os, funcs);
+}
+
+// ========================================
 
 void initMyModule(OS * os)
 {
@@ -204,6 +239,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	OS * os = OS::create();
 
 	registerTestClass(os);
+	registerNewTestClass(os);
 	initMyModule(os);
 
 	os->setGlobal(def("getcwd", getcwdString));

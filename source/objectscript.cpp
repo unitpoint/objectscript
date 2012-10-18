@@ -14710,18 +14710,25 @@ bool OS::isObject(int offs)
 	return false;
 }
 
-bool OS::isUserdata(int crc, int offs)
+bool OS::isUserdata(int crc, int offs, int prototype_crc)
 {
 	Core::Value val = core->getStackValue(offs);
 	switch(val.type){
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		return val.v.userdata->crc == crc;
+		if(val.v.userdata->crc == crc){
+			return true;
+		}
+		if(prototype_crc && val.v.userdata->prototype 
+			&& core->isValuePrototypeOfUserdata(val.v.userdata->prototype, prototype_crc))
+		{
+			return true;
+		}
 	}
 	return false;
 }
 
-void * OS::toUserdata(int crc, int offs)
+void * OS::toUserdata(int crc, int offs, int prototype_crc)
 {
 	Core::Value val = core->getStackValue(offs);
 	switch(val.type){
@@ -14730,11 +14737,16 @@ void * OS::toUserdata(int crc, int offs)
 		if(val.v.userdata->crc == crc){
 			return val.v.userdata->ptr;
 		}
+		if(prototype_crc && val.v.userdata->prototype 
+			&& core->isValuePrototypeOfUserdata(val.v.userdata->prototype, prototype_crc))
+		{
+			return val.v.userdata->ptr;
+		}
 	}
 	return NULL;
 }
 
-void OS::clearUserdata(int crc, int offs)
+void OS::clearUserdata(int crc, int offs, int prototype_crc)
 {
 	Core::Value val = core->getStackValue(offs);
 	switch(val.type){
@@ -14743,6 +14755,13 @@ void OS::clearUserdata(int crc, int offs)
 		if(val.v.userdata->crc == crc){ // && val.v.userdata->ptr){
 			core->clearValue(val.v.value);
 			// val.v.userdata->ptr = NULL;
+			return;
+		}
+		if(prototype_crc && val.v.userdata->prototype 
+			&& core->isValuePrototypeOfUserdata(val.v.userdata->prototype, prototype_crc))
+		{
+			core->clearValue(val.v.value);
+			return;
 		}
 	}
 }
@@ -14766,6 +14785,26 @@ bool OS::Core::isValuePrototypeOf(GCValue * val, GCValue * prototype_val)
 		}
 	}
 	return true;
+}
+
+bool OS::Core::isValuePrototypeOfUserdata(GCValue * val, int prototype_crc)
+{
+	for(int value_crc;;){
+		switch(val->type){
+		case OS_VALUE_TYPE_USERDATA:
+		case OS_VALUE_TYPE_USERPTR:
+			OS_ASSERT(dynamic_cast<GCUserdataValue*>(val));
+			value_crc = ((GCUserdataValue*)val)->crc; // make crc visible in debugger
+			if(value_crc == prototype_crc){
+				return true;
+			}
+		}
+		val = val->prototype;
+		if(!val){
+			return false;
+		}
+	}
+	return false; // shut up compiler
 }
 
 bool OS::Core::isValueInstanceOf(GCValue * val, GCValue * prototype_val)

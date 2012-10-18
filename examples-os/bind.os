@@ -25,6 +25,11 @@ t2.j = t2.j + 20.5
 var t3 = t + t2
 t3.print()
 
+var t3 = NewTestClass()
+print "t3"
+t3.print()
+print "t3.doSomething(10, 100.001, 1000.1, t3): "..t3.doSomething(10, 100.001, 1000.1, t3)
+
 print "isdigit(123): "..my.isdigit("123")
 print "isdigit(123q): "..my.isdigit("123q")
 

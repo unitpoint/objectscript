@@ -253,7 +253,7 @@ template <class T> struct CtypeUserClass<T*>
 
 	static bool isValid(const type p){ return p != NULL; }
 	static type def(ObjectScript::OS*){ return type(); }
-	static type getArg(ObjectScript::OS * os, int offs){ return (type)os->toUserdata(getInstanceId<ttype>(), offs);	}
+	static type getArg(ObjectScript::OS * os, int offs){ return (type)os->toUserdata(getInstanceId<ttype>(), offs, getCtypeId<ttype>()); }
 	static void push(ObjectScript::OS * os, const type val)
 	{
 		// pushCtypeValue(os, val);
@@ -318,6 +318,19 @@ void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
 	os->pushString(getCtypeName<T>());
 	os->pushUserdata(getCtypeId<T>(), 0);
 	os->setFuncs(list);
+	os->setProperty();
+}
+
+template <class T, class Prototype>
+void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
+{
+	os->pushGlobals();
+	os->pushString(getCtypeName<T>());
+	os->pushUserdata(getCtypeId<T>(), 0);
+	os->setFuncs(list);
+	os->pushStackValue();
+	os->getGlobal(getCtypeName<Prototype>());
+	os->setPrototype(getCtypeId<T>());
 	os->setProperty();
 }
 

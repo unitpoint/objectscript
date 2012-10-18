@@ -3,7 +3,7 @@
 [1] print "getcwd: "..getcwd()
 
 begin function
-  begin locals, total 7
+  begin locals, total 8
     0 _E
     1 _G
     2 data
@@ -11,6 +11,7 @@ begin function
     4 t2
     5 t2
     6 t3
+    7 t3
   end locals
   begin call method
     get local var _E (0 0)
@@ -292,7 +293,69 @@ begin function
   end call method ret values 0
 
 
-[28] print "isdigit(123): "..my.isdigit("123")
+[28] var t3 = NewTestClass()
+
+  begin set local var
+    begin call method
+      get local var _E (0 0)
+      begin params 1
+        push const string "NewTestClass"
+      end params ret values 1
+    end call method ret values 1
+  end set local var t3 (7 0)
+
+
+[29] print "t3"
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      push const string "t3"
+    end params ret values 2
+  end call method ret values 0
+
+
+[30] t3.print()
+
+  begin call method
+    get local var t3 (7 0)
+    begin params 1
+      push const string "print"
+    end params ret values 1
+  end call method ret values 0
+
+
+[31] print "t3.doSomething(10, 100.001, 1000.1, t3): "..t3.doSomething(10, 100.001, 1000.1, t3)
+
+  begin call method
+    get local var _E (0 0)
+    begin params 2
+      push const string "print"
+      ,
+      begin operator ..
+        push const string "t3.doSomething(10, 100.001, 1000.1, t3): "
+        begin call method
+          get local var t3 (7 0)
+          begin params 5
+            push const string "doSomething"
+            ,
+            push const number 10
+            ,
+            push const number 100.001
+            ,
+            push const number 1000.1
+            ,
+            get local var t3 (7 0)
+          end params ret values 5
+        end call method ret values 1
+      end operator ..
+    end params ret values 2
+  end call method ret values 0
+
+
+[33] print "isdigit(123): "..my.isdigit("123")
 
   begin call method
     get local var _E (0 0)
@@ -314,7 +377,7 @@ begin function
   end call method ret values 0
 
 
-[29] print "isdigit(123q): "..my.isdigit("123q")
+[34] print "isdigit(123q): "..my.isdigit("123q")
 
   begin call method
     get local var _E (0 0)
@@ -336,7 +399,7 @@ begin function
   end call method ret values 0
 
 
-[31] print "my.hash(123): "..my.hash(123)
+[36] print "my.hash(123): "..my.hash(123)
 
   begin call method
     get local var _E (0 0)
@@ -358,7 +421,7 @@ begin function
   end call method ret values 0
 
 
-[33] print "call my.print_num(123.5)"
+[38] print "call my.print_num(123.5)"
 
   begin call method
     get local var _E (0 0)
@@ -370,7 +433,7 @@ begin function
   end call method ret values 0
 
 
-[34] my.print_num(123.5)
+[39] my.print_num(123.5)
 
   begin call method
     get env var my
@@ -382,7 +445,7 @@ begin function
   end call method ret values 0
 
 
-[35] print "call my.print_void()"
+[40] print "call my.print_void()"
 
   begin call method
     get local var _E (0 0)
@@ -394,7 +457,7 @@ begin function
   end call method ret values 0
 
 
-[36] my.print_void()
+[41] my.print_void()
 
   begin call method
     get env var my
@@ -404,7 +467,7 @@ begin function
   end call method ret values 0
 
 
-[37] print "my.abs(-12): "..my.abs(-12)
+[42] print "my.abs(-12): "..my.abs(-12)
 
   begin call method
     get local var _E (0 0)
@@ -428,7 +491,7 @@ begin function
   end call method ret values 0
 
 
-[38] print "my.fabs(-123.5): "..my.fabs(-123.5)
+[43] print "my.fabs(-123.5): "..my.fabs(-123.5)
 
   begin call method
     get local var _E (0 0)
