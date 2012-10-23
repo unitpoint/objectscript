@@ -1651,6 +1651,11 @@ namespace ObjectScript
 					EXP_TYPE_POW_ASSIGN, // **=
 
 					EXP_TYPE_ASSIGN,
+
+					EXP_TYPE_GET_UPVALUE_VAR,
+					EXP_TYPE_SET_UPVALUE_VAR,
+					
+					EXP_TYPE_MOVE,
 				};
 
 			protected:
@@ -1694,6 +1699,7 @@ namespace ObjectScript
 					LocalVarDesc();
 				};
 
+				struct Scope;
 				struct Expression
 				{
 					TokenData * token;
@@ -1701,7 +1707,10 @@ namespace ObjectScript
 					LocalVarDesc local_var;
 					OS_U16 active_locals;
 					OS_U16 ret_values;
-					OS_U16 target_local;
+					// OS_U16 target_local;
+					struct {
+						OS_INT16 a, b, c;
+					} slots;
 					ExpressionType type;
 					
 					Expression(ExpressionType type, TokenData*);
@@ -1726,7 +1735,8 @@ namespace ObjectScript
 					bool isAssignOperator() const;
 					bool isLogicOperator() const;
 
-					void debugPrint(StringBuffer&, Compiler * compiler, int depth);
+					String getSlotStr(Compiler * compiler, Scope * scope, int slot_num, int up_count = 0);
+					void debugPrint(StringBuffer&, Compiler * compiler, Scope * scope, int depth);
 				};
 
 				struct Scope: public Expression
@@ -1776,6 +1786,8 @@ namespace ObjectScript
 					int func_index;
 					int num_local_funcs;
 
+					// int temp_locals_used;
+
 					Vector<LoopBreak> loop_breaks;
 
 					bool parser_started;
@@ -1789,6 +1801,8 @@ namespace ObjectScript
 					void addStdVars();
 					void addLocalVar(const String& name);
 					void addLocalVar(const String& name, LocalVarDesc&);
+					int newTempVar();
+					int newTempVar(int, int);
 				};
 
 				enum ErrorType {
@@ -1932,26 +1946,28 @@ namespace ObjectScript
 				Expression * expectSingleExpression(Scope*, const Params& p);
 				Expression * expectSingleExpression(Scope*, bool allow_nop_result = false, bool allow_inline_nested_block = false);
 
-				Expression * expectExpressionValues(Expression * exp, int ret_values);
-				Expression * newExpressionFromList(ExpressionList& list, int ret_values);
+				Expression * expectExpressionValues(Expression * exp, int ret_values, bool auto_no_values = false);
+				Expression * newExpressionFromList(ExpressionList& list, int ret_values, bool auto_no_values = false);
 				Expression * newAssingExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
 				Expression * newSingleValueExpression(Expression * exp);
 				
 				Expression * postProcessExpression(Scope * scope, Expression * exp);
 				Expression * stepPass2(Scope * scope, Expression * exp);
 				Expression * stepPass3(Scope * scope, Expression * exp);
+				Expression * stepPassNewVM(Scope * scope, Expression * exp);
 
 				bool isVarNameValid(const String& name);
 
 				Scope * expectTextExpression();
 				Scope * expectCodeExpression(Scope*, int ret_values = 0);
 				Expression * expectFunctionExpression(Scope*);
+				Expression * expectFunctionSugarExpression(Scope*);
 				Expression * expectExtendsExpression(Scope*);
 				Expression * expectCloneExpression(Scope*);
 				Expression * expectDeleteExpression(Scope*);
 				Expression * expectValueOfExpression(Scope*, ExpressionType exp_type);
 				Expression * expectVarExpression(Scope*);
-				Expression * expectObjectExpression(Scope*, const Params& p, bool allow_finish_exp = true);
+				Expression * expectObjectOrFunctionExpression(Scope*, const Params& p, bool allow_finish_exp = true);
 				Expression * expectArrayExpression(Scope*, const Params& p);
 				Expression * expectParamsExpression(Scope*);
 				Expression * expectReturnExpression(Scope*);
@@ -2190,6 +2206,42 @@ namespace ObjectScript
 
 					OP_NOP,
 
+					OP_NEW_MOVE,
+					OP_NEW_GET_PROPERTY,
+					OP_NEW_SET_PROPERTY,
+
+					OP_NEW_LOGIC_PTR_EQ,
+					OP_NEW_LOGIC_PTR_NE,
+					OP_NEW_LOGIC_EQ,
+					OP_NEW_LOGIC_NE,
+					OP_NEW_LOGIC_GE,
+					OP_NEW_LOGIC_LE,
+					OP_NEW_LOGIC_GREATER,
+					OP_NEW_LOGIC_LESS,
+
+					OP_NEW_BIT_AND,
+					OP_NEW_BIT_OR,
+					OP_NEW_BIT_XOR,
+
+					OP_NEW_ADD, // +
+					OP_NEW_SUB, // -
+					OP_NEW_MUL, // *
+					OP_NEW_DIV, // /
+					OP_NEW_MOD, // %
+					OP_NEW_LSHIFT, // <<
+					OP_NEW_RSHIFT, // >>
+					OP_NEW_POW, // **
+
+					OP_NEW_CONCAT,	// ..
+
+					OP_NEW_BIT_NOT,
+					OP_NEW_PLUS,
+					OP_NEW_NEG,
+					OP_NEW_LENGTH,
+
+					OP_NEW_LOGIC_BOOL,
+					OP_NEW_LOGIC_NOT,
+
 					OPCODE_COUNT
 				};
 
@@ -2234,6 +2286,7 @@ namespace ObjectScript
 			};
 
 			enum {
+				UNUSED_VAR_INDEX,
 				ENV_VAR_INDEX,
 #ifdef OS_GLOBAL_VAR_ENABLED
 				GLOBALS_VAR_INDEX,
@@ -2463,6 +2516,7 @@ namespace ObjectScript
 				String var_globals;
 #endif
 				String var_env;
+				String var_temp_prefix;
 
 				int __dummy__;
 

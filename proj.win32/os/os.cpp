@@ -77,7 +77,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	// set global getTimeSec function so we can check time inside of our script
 	os->setGlobal(def("getTimeSec", getTimeSec));
 	// run main stript
-	os->require(getString(os, argv[1]));
+	// os->require(getString(os, argv[1]));
+	os->compileFile(getString(os, argv[1]));
 	{
 		int mem_allocated = os->getAllocatedBytes()/1024;
 		int mem_cached = os->getCachedBytes()/1024;

@@ -1,3 +1,14 @@
+var i = 2
+var j = 3
+var k = i - j*10 / i + i - j*10 / i
+
+var f = function(){
+	var i = i * k - 10
+	k = 2 - i
+}
+
+
+/*
 // call function with arguments without comma
 print(5 " differences")
 
@@ -312,6 +323,7 @@ print([9 4 0 276 15 39 3].rsort())
 
 print "User sorted array"
 print([9 4 0 276 15 39 3].sort(function(a b){return (a % 10) - (b % 10)}))
+print([9 4 0 276 15 39 3].sort {|a b| (a % 10) - (b % 10)})
 
 print "Sorted object by values"
 print({b=9 4 d=0 c=276 15 a=39 3}.sort())
@@ -345,3 +357,4 @@ print "Test in operator (should be true) "..("name" in {x = 0 y = 0 name = 0 ind
 
 terminate()
 print "This is never printed"
+*/
