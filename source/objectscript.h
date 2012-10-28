@@ -446,7 +446,6 @@ namespace ObjectScript
 			static OS_INT strToInt(const OS_CHAR*);
 			static OS_FLOAT strToFloat(const OS_CHAR*);
 
-			static int addKeyToHash(int hash, const void*, int size);
 			static int keyToHash(const void*, int size);
 			static int keyToHash(const void * buf1, int size1, const void * buf2, int size2);
 
@@ -1654,7 +1653,7 @@ namespace ObjectScript
 
 					EXP_TYPE_GET_UPVALUE_VAR,
 					EXP_TYPE_SET_UPVALUE_VAR,
-					
+
 					EXP_TYPE_MOVE,
 				};
 
@@ -1776,6 +1775,7 @@ namespace ObjectScript
 					// used by function scope
 					int prog_func_index;
 					Vector<LocalVar> locals;
+					// Vector<LocalVar> func_locals;
 					Vector<LocalVarCompiled> locals_compiled;
 					int num_params;
 					int num_locals;
@@ -1786,7 +1786,8 @@ namespace ObjectScript
 					int func_index;
 					int num_local_funcs;
 
-					// int temp_locals_used;
+					int stack_size;
+					int stack_cur_size;
 
 					Vector<LoopBreak> loop_breaks;
 
@@ -1801,8 +1802,13 @@ namespace ObjectScript
 					void addStdVars();
 					void addLocalVar(const String& name);
 					void addLocalVar(const String& name, LocalVarDesc&);
-					int newTempVar();
-					int newTempVar(int, int);
+
+					int allocTempVar();
+					// int allocTempVar(int, int);
+					void popTempVar(int count = 1);
+
+					// int newTempVar();
+					// int newTempVar(int, int);
 				};
 
 				enum ErrorType {
@@ -1951,15 +1957,15 @@ namespace ObjectScript
 				Expression * newAssingExpression(Scope * scope, Expression * var_exp, Expression * value_exp);
 				Expression * newSingleValueExpression(Expression * exp);
 				
-				Expression * postProcessExpression(Scope * scope, Expression * exp);
-				Expression * stepPass2(Scope * scope, Expression * exp);
-				Expression * stepPass3(Scope * scope, Expression * exp);
-				Expression * stepPassNewVM(Scope * scope, Expression * exp);
+				Expression * postCompileExpression(Scope * scope, Expression * exp);
+				Expression * postCompilePass2(Scope * scope, Expression * exp);
+				Expression * postCompilePass3(Scope * scope, Expression * exp);
+				Expression * postCompileNewVM(Scope * scope, Expression * exp);
 
 				bool isVarNameValid(const String& name);
 
 				Scope * expectTextExpression();
-				Scope * expectCodeExpression(Scope*, int ret_values = 0);
+				Scope * expectCodeExpression(Scope*);
 				Expression * expectFunctionExpression(Scope*);
 				Expression * expectFunctionSugarExpression(Scope*);
 				Expression * expectExtendsExpression(Scope*);
@@ -1992,12 +1998,12 @@ namespace ObjectScript
 				int cacheDebugString(const String& str);
 				int cacheNumber(OS_NUMBER);
 
-				void writeJumpOpcode(int offs);
-				void fixJumpOpcode(StreamWriter * writer, int offs, int pos);
-				void fixJumpOpcode(StreamWriter * writer, int offs, int pos, int opcode);
+				void writeJumpOpcodeOld(int offs);
+				void fixJumpOpcodeOld(StreamWriter * writer, int offs, int pos);
+				void fixJumpOpcodeOld(StreamWriter * writer, int offs, int pos, int opcode);
 
-				bool writeOpcodes(Scope*, Expression*);
-				bool writeOpcodes(Scope*, ExpressionList&);
+				bool writeOpcodesOld(Scope*, Expression*);
+				bool writeOpcodesOld(Scope*, ExpressionList&);
 				void writeDebugInfo(Expression*);
 				bool saveToStream(StreamWriter * writer, StreamWriter * debug_info_writer);
 
@@ -2286,11 +2292,20 @@ namespace ObjectScript
 			};
 
 			enum {
-				UNUSED_VAR_INDEX,
-				ENV_VAR_INDEX,
+				VAR_UNUSED,
+				VAR_THIS,
+				VAR_ENV,
 #ifdef OS_GLOBAL_VAR_ENABLED
-				GLOBALS_VAR_INDEX,
+				VAR_GLOBALS,
 #endif
+			};
+
+			enum {
+				CONST_NULL,
+				CONST_TRUE,
+				CONST_FALSE,
+				// -----------------
+				CONST_STD_VALUES
 			};
 
 			struct Upvalues
