@@ -2768,7 +2768,29 @@ int OS::Core::Compiler::writeOpcode(OS_U32 opcode)
 
 int OS::Core::Compiler::writeOpcode(int opcode, int a, int b, int c)
 {
-	return OS_OPCODE_ABC(opcode, a, b, c);
+	OS_ASSERT(a >= 0 && a <= MAXARG_A);
+	if(b < 0){
+		b = -1-b;
+		OS_ASSERT(b <= MAXARG_B);
+		b |= 1 << SIZE_B;
+	}else{
+		OS_ASSERT(b <= MAXARG_B);
+	}
+	if(c < 0){
+		c = -1-c;
+		OS_ASSERT(c <= MAXARG_C);
+		c |= 1 << SIZE_C;
+	}else{
+		OS_ASSERT(c <= MAXARG_C);
+	}
+	return writeOpcode(OS_OPCODE_ABC(opcode, a, b, c));
+}
+
+int OS::Core::Compiler::writeOpcodeABx(int opcode, int a, int b)
+{
+	OS_ASSERT(a >= 0 && a <= MAXARG_A);
+	OS_ASSERT(b >= 0 && b <= MAXARG_Bx);
+	return writeOpcode(OS_OPCODE_ABx(opcode, a, b));
 }
 
 void OS::Core::Compiler::writeOpcodeAt(OS_U32 opcode, int pos)
@@ -2778,7 +2800,7 @@ void OS::Core::Compiler::writeOpcodeAt(OS_U32 opcode, int pos)
 
 bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 {
-#if 0
+#if 1
 	int i;
 	switch(exp->type){
 	default:
@@ -2856,6 +2878,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		}
 
 	case EXP_TYPE_IF:
+	case EXP_TYPE_QUESTION:
 		{
 			OS_ASSERT(exp->list.count == 2 || exp->list.count == 3);
 			bool inverse;
@@ -2870,7 +2893,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				inverse = false;
 			}
 			int opcode;
-			OS_ASSERT(exp_compare->slots.a > 0 && exp_compare->slots.b > 0);
+			OS_ASSERT(exp_compare->slots.a > 0);
 			switch(exp_compare->type){
 			case EXP_TYPE_LOGIC_PTR_EQ:
 			case EXP_TYPE_LOGIC_PTR_NE:
@@ -2916,7 +2939,10 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				break;
 			}
 			writeDebugInfo(exp);
-			int if_jump_pos = writeOpcode(opcode, exp_compare->slots.b, inverse, 0);
+
+			writeOpcode(opcode, exp_compare->slots.a, inverse, 1);
+			int if_jump_pos = writeOpcode(Program::OP_JUMP);
+
 			if(!writeOpcodes(scope, exp->list[1])){
 				return false;
 			}
@@ -2930,9 +2956,159 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				}
 				fixJumpOpcode(getOpcodePos() - jump_pos - 1, jump_pos, Program::OP_JUMP);
 			}
-			fixJumpOpcode(if_jump_to - if_jump_pos - 1, if_jump_pos, opcode);
+			fixJumpOpcode(if_jump_to - if_jump_pos - 1, if_jump_pos, Program::OP_JUMP);
 			break;
 		}
+
+	case EXP_TYPE_LOGIC_AND: // &&
+	case EXP_TYPE_LOGIC_OR:  // ||
+		{
+			OS_ASSERT(exp->list.count == 2);
+			if(!writeOpcodes(scope, exp->list[0])){
+				return false;
+			}
+			writeDebugInfo(exp);
+
+			Expression * exp_compare = exp->list[0];
+			bool inverse = exp->type == EXP_TYPE_LOGIC_AND;
+			writeOpcode(Program::OP_LOGIC_BOOL, exp_compare->slots.a, inverse, 1);
+			int op_jump_pos = writeOpcode(Program::OP_JUMP);
+
+			if(!writeOpcodes(scope, exp->list[1])){
+				return false;
+			}
+
+			int op_jump_to = getOpcodePos();
+			fixJumpOpcode(op_jump_to - op_jump_pos - 1, op_jump_pos, Program::OP_JUMP);
+			break;
+		}
+
+	case EXP_TYPE_ARRAY:
+	case EXP_TYPE_OBJECT:
+		writeDebugInfo(exp);
+		writeOpcode(exp->type == EXP_TYPE_OBJECT ? Program::OP_NEW_OBJECT : Program::OP_NEW_ARRAY, exp->slots.a, exp->list.count);
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		break;
+
+	case EXP_TYPE_GET_ARGUMENTS:
+	case EXP_TYPE_GET_REST_ARGUMENTS:
+		OS_ASSERT(exp->list.count == 0);
+		writeDebugInfo(exp);
+		writeOpcode(Program::OP_MULTI, exp->slots.a, 0, exp->type == EXP_TYPE_GET_ARGUMENTS ? Program::OP_MULTI_GET_ARGUMENTS : Program::OP_MULTI_GET_REST_ARGUMENTS);
+		break;
+
+	case EXP_TYPE_SUPER:
+		OS_ASSERT(exp->list.count == 0);
+		writeDebugInfo(exp);
+		writeOpcode(Program::OP_MULTI, exp->slots.a, 0, Program::OP_MULTI_SUPER);
+		break;
+
+	case EXP_TYPE_LOGIC_BOOL:
+	case EXP_TYPE_LOGIC_NOT:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		writeDebugInfo(exp);
+		writeOpcode(Program::OP_LOGIC_BOOL, exp->slots.a, exp->type == EXP_TYPE_LOGIC_NOT, 0);
+		break;
+
+	case EXP_TYPE_LOGIC_PTR_EQ:
+	case EXP_TYPE_LOGIC_PTR_NE:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		writeDebugInfo(exp);
+		writeOpcode(Program::OP_LOGIC_PTR_EQ, exp->slots.a, exp->type == EXP_TYPE_LOGIC_PTR_NE, 0);
+		break;
+
+	case EXP_TYPE_LOGIC_EQ:
+	case EXP_TYPE_LOGIC_NE:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		writeDebugInfo(exp);
+		writeOpcode(Program::OP_LOGIC_EQ, exp->slots.a, exp->type == EXP_TYPE_LOGIC_NE, 0);
+		break;
+
+	case EXP_TYPE_LOGIC_LE:
+	case EXP_TYPE_LOGIC_GREATER:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		writeDebugInfo(exp);
+		writeOpcode(Program::OP_LOGIC_GREATER, exp->slots.a, exp->type == EXP_TYPE_LOGIC_LE, 0);
+		break;
+
+	case EXP_TYPE_LOGIC_GE:
+	case EXP_TYPE_LOGIC_LESS:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		writeDebugInfo(exp);
+		writeOpcode(Program::OP_LOGIC_GE, exp->slots.a, exp->type == EXP_TYPE_LOGIC_LESS, 0);
+		break;
+
+	case EXP_TYPE_SUPER_CALL:
+	case EXP_TYPE_CALL:
+	case EXP_TYPE_CALL_METHOD:
+	case EXP_TYPE_TAIL_CALL:
+	case EXP_TYPE_TAIL_CALL_METHOD:
+
+	case EXP_TYPE_GET_PROPERTY:
+	case EXP_TYPE_SET_PROPERTY:
+
+	case EXP_TYPE_GET_UPVALUE_VAR:
+	case EXP_TYPE_SET_UPVALUE_VAR:
+
+	case EXP_TYPE_MOVE:
+	case EXP_TYPE_RETURN:
+
+	case EXP_TYPE_BIT_NOT:
+	case EXP_TYPE_PLUS:
+	case EXP_TYPE_NEG:
+
+	case EXP_TYPE_BIT_AND:
+	case EXP_TYPE_BIT_OR:
+	case EXP_TYPE_BIT_XOR:
+
+	case EXP_TYPE_ADD:
+	case EXP_TYPE_SUB:
+	case EXP_TYPE_MUL:
+	case EXP_TYPE_DIV:
+	case EXP_TYPE_MOD:
+	case EXP_TYPE_LSHIFT:
+	case EXP_TYPE_RSHIFT:
+	case EXP_TYPE_POW:
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		writeDebugInfo(exp);
+		writeOpcode(Program::getOpcodeType(exp->type), exp->slots.a, exp->slots.b, exp->slots.c);
+		break;
+
+	case EXP_TYPE_GET_XCONST:
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		writeDebugInfo(exp);
+		OS_ASSERT(exp->slots.b < 0);
+		writeOpcodeABx(Program::OP_GET_XCONST, exp->slots.a, -1-exp->slots.b);
+		break;
+
+	case EXP_TYPE_BREAK:
+	case EXP_TYPE_CONTINUE:
+		OS_ASSERT(exp->list.count == 0);
+		writeDebugInfo(exp);
+		scope->addLoopBreak(writeOpcode(Program::OP_JUMP), exp->type == EXP_TYPE_BREAK ? Scope::LOOP_BREAK : Scope::LOOP_CONTINUE);
+		break;
+
 	}
 #endif
 	return false;
