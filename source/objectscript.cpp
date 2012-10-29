@@ -6,6 +6,83 @@ using namespace ObjectScript;
 
 #define HASH_GROW_SHIFT 0
 
+#define MAX_GENERIC_CONST_INDEX 143
+
+#define Instruction OS_U32
+
+/*
+** size and position of opcode arguments.
+*/
+#define SIZE_C		9
+#define SIZE_B		9
+#define SIZE_Bx		(SIZE_C + SIZE_B)
+#define SIZE_A		8
+#define SIZE_Ax		(SIZE_C + SIZE_B + SIZE_A)
+
+#define SIZE_OP		6
+
+#define POS_OP		0
+#define POS_A		(POS_OP + SIZE_OP)
+#define POS_C		(POS_A + SIZE_A)
+#define POS_B		(POS_C + SIZE_C)
+#define POS_Bx		POS_C
+#define POS_Ax		POS_A
+
+#define MAXARG_Bx        ((1<<SIZE_Bx)-1)
+#define MAXARG_sBx        (MAXARG_Bx>>1)         /* `sBx' is signed */
+#define MAXARG_Ax	((1<<SIZE_Ax)-1)
+
+#define MAXARG_A        ((1<<SIZE_A)-1)
+#define MAXARG_B        ((1<<SIZE_B)-1)
+#define MAXARG_C        ((1<<SIZE_C)-1)
+
+/* creates a mask with `n' 1 bits at position `p' */
+#define MASK1(n,p)	((~((~(Instruction)0)<<(n)))<<(p))
+
+/* creates a mask with `n' 0 bits at position `p' */
+#define MASK0(n,p)	(~MASK1(n,p))
+
+/*
+** the following macros help to manipulate instructions
+*/
+
+#define GET_OPCODE(i)	(((i)>>POS_OP) & MASK1(SIZE_OP, 0))
+#define SET_OPCODE(i,o)	((i) = (((i) & MASK0(SIZE_OP, POS_OP)) | (((Instruction)(o))<<POS_OP) & MASK1(SIZE_OP, POS_OP)))
+
+#define getarg(i,pos,size)		(((i)>>pos) & MASK1(size, 0))
+#define setarg(i,v,pos,size)	((i) = (((i)&MASK0(size,pos)) | (((Instruction)(v))<<pos) & MASK1(size, pos)))
+
+#define GETARG_A(i)		getarg(i, POS_A, SIZE_A)
+#define SETARG_A(i,v)	setarg(i, v, POS_A, SIZE_A)
+
+#define GETARG_B(i)		getarg(i, POS_B, SIZE_B)
+#define SETARG_B(i,v)	setarg(i, v, POS_B, SIZE_B)
+
+#define GETARG_C(i)		getarg(i, POS_C, SIZE_C)
+#define SETARG_C(i,v)	setarg(i, v, POS_C, SIZE_C)
+
+#define GETARG_Bx(i)	getarg(i, POS_Bx, SIZE_Bx)
+#define SETARG_Bx(i,v)	setarg(i, v, POS_Bx, SIZE_Bx)
+
+#define GETARG_Ax(i)	getarg(i, POS_Ax, SIZE_Ax)
+#define SETARG_Ax(i,v)	setarg(i, v, POS_Ax, SIZE_Ax)
+
+#define GETARG_sBx(i)	(GETARG_Bx(i)-MAXARG_sBx)
+#define SETARG_sBx(i,b)	SETARG_Bx((i),((unsigned int)((b)+MAXARG_sBx)))
+
+
+#define OS_OPCODE_ABC(o,a,b,c)	((((Instruction)(o)) << POS_OP) \
+			| (((Instruction)(a)) << POS_A) \
+			| (((Instruction)(b)) << POS_B) \
+			| (((Instruction)(c)) << POS_C))
+
+#define OS_OPCODE_ABx(o,a,bc)	((((Instruction)(o)) << POS_OP) \
+			| (((Instruction)(a)) << POS_A) \
+			| (((Instruction)(bc)) << POS_Bx))
+
+#define OS_OPCODE_Ax(o,a)		((((Instruction)(o)) << POS_OP) \
+			| (((Instruction)(a)) << POS_Ax)) 
+
 // =====================================================================
 // =====================================================================
 // =====================================================================
@@ -1964,6 +2041,7 @@ OS::Core::String OS::Core::Compiler::Expression::getSlotStr(OS::Core::Compiler *
 	}
 	return String::format(allocator, slot_num < scope->function->num_params ? OS_TEXT("param %s") : OS_TEXT("var %s"), local_var.name.toChar());
 	*/
+	return allocator->core->strings->var_temp_prefix; // shut up compiler
 }
 
 void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Compiler * compiler, Scope * scope, int depth)
@@ -2137,7 +2215,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			OS_ASSERT(scope);
 			out += String::format(allocator, OS_TEXT("%sbegin function\n"), spaces);
 			if(scope->num_locals > 0){
-				out += String::format(allocator, OS_TEXT("%s  begin locals, total %d\n"), spaces, scope->num_locals);
+				out += String::format(allocator, OS_TEXT("%s  begin locals %d, stack %d\n"), spaces, scope->num_locals, scope->stack_size - scope->num_locals);
 				for(i = 0; i < scope->locals.count; i++){
 					if(scope->locals[i].name == allocator->core->strings->var_temp_prefix){
 						continue;
@@ -2219,26 +2297,30 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 
 	case EXP_TYPE_SET_UPVALUE_VAR:
 		OS_ASSERT(list.count == 1);
-		list[0]->debugPrint(out, compiler, scope, depth+1);
+		list[0]->debugPrint(out, compiler, scope, depth);
 		out += String::format(allocator, OS_TEXT("%sset upvalue: %s (%d %d) = %s (%d)\n"), spaces,
 			getSlotStr(compiler, scope, slots.a, slots.c).toChar(), slots.a, slots.c, 
 			getSlotStr(compiler, scope, slots.b).toChar(), slots.b);
 		break;
 					
 	case EXP_TYPE_MOVE:
-		for(i = 0; i < list.count; i++){
-			if(i > 0){
-				// out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
+	case EXP_TYPE_GET_XCONST:
+		{
+			for(i = 0; i < list.count; i++){
+				if(i > 0){
+					// out += String::format(allocator, OS_TEXT("%s  ,\n"), spaces);
+				}
+				list[i]->debugPrint(out, compiler, scope, depth);
 			}
-			list[i]->debugPrint(out, compiler, scope, depth+1);
+			if(slots.a != slots.b && slots.a){
+				OS_ASSERT(slots.a > 0);
+				const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
+				out += String::format(allocator, OS_TEXT("%s%s: %s (%d) = %s (%d)\n"), spaces, exp_name,
+					getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
+					getSlotStr(compiler, scope, slots.b).toChar(), slots.b);
+			}
+			break;
 		}
-		if(slots.a != slots.b && slots.a){
-			OS_ASSERT(slots.a > 0);
-			out += String::format(allocator, OS_TEXT("%smove: %s (%d) = %s (%d)\n"), spaces, 
-				getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
-				getSlotStr(compiler, scope, slots.b).toChar(), slots.b);
-		}
-		break;
 
 	case EXP_TYPE_BREAK:
 		OS_ASSERT(list.count == 0);
@@ -2255,6 +2337,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		out += String::format(allocator, OS_TEXT("%sdebugger\n"), spaces);
 		break;
 
+	/*
 	case EXP_TYPE_DEBUG_LOCALS:
 		out += String::format(allocator, OS_TEXT("%sbegin debug locals\n"), spaces);
 		for(i = 0; i < list.count; i++){
@@ -2265,6 +2348,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		}
 		out += String::format(allocator, OS_TEXT("%send debug locals\n"), spaces);
 		break;
+	*/
 
 	case EXP_TYPE_TAIL_CALL:
 		OS_ASSERT(list.count == 2);
@@ -2291,7 +2375,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
 		// case EXP_TYPE_GET_PROPERTY_DIM:
 		// case EXP_TYPE_SET_ENV_VAR_DIM:
-	case EXP_TYPE_EXTENDS:
+	// case EXP_TYPE_EXTENDS:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		list[0]->debugPrint(out, compiler, scope, depth+1);
@@ -2303,8 +2387,8 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		OS_ASSERT(list.count == 0 || list.count == 2);
 		// out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		if(list.count == 2){
-			list[0]->debugPrint(out, compiler, scope, depth+1);
-			list[1]->debugPrint(out, compiler, scope, depth+1);
+			list[0]->debugPrint(out, compiler, scope, depth);
+			list[1]->debugPrint(out, compiler, scope, depth);
 		}
 		out += String::format(allocator, OS_TEXT("%s%s: %s (%d) = %s (%d) [%s (%d)]\n"), spaces, OS::Core::Compiler::getExpName(type), 
 					getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
@@ -2312,6 +2396,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 					getSlotStr(compiler, scope, slots.c).toChar(), slots.c);
 		break;
 
+	/*
 	case EXP_TYPE_DELETE:
 		OS_ASSERT(list.count == 2);
 		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, OS::Core::Compiler::getExpName(type));
@@ -2326,6 +2411,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		list[0]->debugPrint(out, compiler, scope, depth+1);
 		out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, OS::Core::Compiler::getExpName(type));
 		break;
+	*/
 
 	case EXP_TYPE_VALUE:
 		OS_ASSERT(list.count == 1);
@@ -2346,6 +2432,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		out += String::format(allocator, OS_TEXT("%ssuper\n"), spaces);
 		break;
 
+	/*
 	case EXP_TYPE_TYPE_OF:
 	case EXP_TYPE_VALUE_OF:
 	case EXP_TYPE_NUMBER_OF:
@@ -2354,16 +2441,19 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 	case EXP_TYPE_OBJECT_OF:
 	case EXP_TYPE_USERDATA_OF:
 	case EXP_TYPE_FUNCTION_OF:
+	*/
 	case EXP_TYPE_PLUS:			// +
 	case EXP_TYPE_NEG:			// -
-	case EXP_TYPE_LENGTH:		// #
+	// case EXP_TYPE_LENGTH:		// #
 	case EXP_TYPE_LOGIC_BOOL:	// !!
 	case EXP_TYPE_LOGIC_NOT:	// !
 	case EXP_TYPE_BIT_NOT:		// ~
+	/*
 	case EXP_TYPE_PRE_INC:		// ++
 	case EXP_TYPE_PRE_DEC:		// --
 	case EXP_TYPE_POST_INC:		// ++
 	case EXP_TYPE_POST_DEC:		// --
+	*/
 		{
 			OS_ASSERT(list.count == 1);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
@@ -2382,16 +2472,6 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 	case EXP_TYPE_IN:
 	case EXP_TYPE_ISPROTOTYPEOF:
 	case EXP_TYPE_IS:
-	case EXP_TYPE_LOGIC_AND: // &&
-	case EXP_TYPE_LOGIC_OR:  // ||
-	case EXP_TYPE_LOGIC_PTR_EQ:  // ===
-	case EXP_TYPE_LOGIC_PTR_NE:  // !==
-	case EXP_TYPE_LOGIC_EQ:  // ==
-	case EXP_TYPE_LOGIC_NE:  // !=
-	case EXP_TYPE_LOGIC_GE:  // >=
-	case EXP_TYPE_LOGIC_LE:  // <=
-	case EXP_TYPE_LOGIC_GREATER: // >
-	case EXP_TYPE_LOGIC_LESS:    // <
 	case EXP_TYPE_BIT_AND: // &
 	case EXP_TYPE_BIT_OR:  // |
 	case EXP_TYPE_BIT_XOR: // ^
@@ -2421,8 +2501,8 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			OS_ASSERT(list.count == 2);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
 			// out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			list[0]->debugPrint(out, compiler, scope, depth+1);
-			list[1]->debugPrint(out, compiler, scope, depth+1);
+			list[0]->debugPrint(out, compiler, scope, depth);
+			list[1]->debugPrint(out, compiler, scope, depth);
 			/* out += String::format(allocator, OS_TEXT("%send %s: %d (%s), %d (%s) => %d (%s)\n"), spaces, exp_name, 
 				slots.a, getSlotStr(compiler, scope, slots.a).toChar(), 
 				slots.b, getSlotStr(compiler, scope, slots.b).toChar(), 
@@ -2434,7 +2514,44 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			break;
 		}
 
+	case EXP_TYPE_LOGIC_PTR_EQ:  // ===
+	case EXP_TYPE_LOGIC_PTR_NE:  // !==
+	case EXP_TYPE_LOGIC_EQ:  // ==
+	case EXP_TYPE_LOGIC_NE:  // !=
+	case EXP_TYPE_LOGIC_GE:  // >=
+	case EXP_TYPE_LOGIC_LE:  // <=
+	case EXP_TYPE_LOGIC_GREATER: // >
+	case EXP_TYPE_LOGIC_LESS:    // <
+		{
+			OS_ASSERT(list.count == 2);
+			list[0]->debugPrint(out, compiler, scope, depth);
+			list[1]->debugPrint(out, compiler, scope, depth);
+			out += String::format(allocator, OS_TEXT("%s%s (%d) = %s (%d) [%s] %s (%d)\n"), spaces,  
+				getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
+				getSlotStr(compiler, scope, slots.a).toChar(), slots.a, OS::Core::Compiler::getExpName(type),
+				getSlotStr(compiler, scope, slots.a+1).toChar(), slots.a+1);
+			break;
+		}
+
+	case EXP_TYPE_LOGIC_AND: // &&
+	case EXP_TYPE_LOGIC_OR:  // ||
+		{
+			OS_ASSERT(list.count == 2);
+			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
+			// out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+			list[0]->debugPrint(out, compiler, scope, depth);
+			list[1]->debugPrint(out, compiler, scope, depth);
+			/* out += String::format(allocator, OS_TEXT("%send %s: %d (%s), %d (%s) => %d (%s)\n"), spaces, exp_name, 
+				slots.a, getSlotStr(compiler, scope, slots.a).toChar(), 
+				slots.b, getSlotStr(compiler, scope, slots.b).toChar(), 
+				slots.c, getSlotStr(compiler, scope, slots.c).toChar()); */
+			out += String::format(allocator, OS_TEXT("%s%s: %s (%d)\n"), spaces, exp_name,
+				getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
+			break;
+		}
+
 	case EXP_TYPE_CALL_METHOD:
+	case EXP_TYPE_SUPER_CALL:
 	case EXP_TYPE_CALL:
 	case EXP_TYPE_CALL_AUTO_PARAM:
 		{
@@ -2456,7 +2573,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, OS::Core::Compiler::getExpName(type), ret_values);
 		break; */
 
-
+	/*
 	case EXP_TYPE_BIN_OPERATOR_BY_LOCALS:
 	case EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER:
 		{
@@ -2467,6 +2584,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			out += String::format(allocator, OS_TEXT("%send %s\n"), spaces, exp_name);
 			break;
 		}
+	*/
 
 	case EXP_TYPE_NEW_LOCAL_VAR:
 		{
@@ -2486,7 +2604,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 		{
 			OS_ASSERT(list.count == 0);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += String::format(allocator, OS_TEXT("%s%s\n"), spaces, exp_name);
+			out += String::format(allocator, OS_TEXT("%s%s: %s (%d)\n"), spaces, exp_name, getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
 			break;
 		}
 
@@ -2510,7 +2628,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			out += String::format(allocator, OS_TEXT("%s%s %s\n"), spaces, exp_name, token->str.toChar());
 			break;
 		}
-
+	/*
 	case EXP_TYPE_SET_LOCAL_VAR:
 	case EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS:
 	case EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER:
@@ -2525,7 +2643,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			out += String::format(allocator, OS_TEXT("%send %s %s %s\n"), spaces, exp_name, token->str.toChar(), info.toChar());
 			break;
 		}
-
+	*/
 	/*
 	case EXP_TYPE_SET_ENV_VAR:
 		{
@@ -2543,7 +2661,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			OS_ASSERT(list.count >= 1 && list.count <= 3);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
 			for(i = 0; i < list.count; i++){
-				list[i]->debugPrint(out, compiler, scope, depth+1);
+				list[i]->debugPrint(out, compiler, scope, depth);
 			}
 			out += String::format(allocator, OS_TEXT("%s%s: %s (%d) [%s (%d)] = %s (%d)\n"), spaces, exp_name, 
 				getSlotStr(compiler, scope, slots.a).toChar(), slots.a,
@@ -2552,6 +2670,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			break;
 		}
 
+	/*
 	case EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
 	case EXP_TYPE_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
 		// case EXP_TYPE_SET_PROPERTY_DIM:
@@ -2566,6 +2685,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			out += String::format(allocator, OS_TEXT("%send %s ret values %d\n"), spaces, exp_name, ret_values);
 			break;
 		}
+	*/
 	}
 }
 
@@ -2617,31 +2737,226 @@ void OS::Core::Compiler::writeDebugInfo(Expression * exp)
 {
 	if(prog_debug_info){
 		prog_num_debug_infos++;
-		prog_debug_info->writeUVariable(prog_opcodes->getPos());
+		prog_debug_info->writeUVariable(prog_opcodes_old->getPos());
 		prog_debug_info->writeUVariable(exp->token->line+1);
 		prog_debug_info->writeUVariable(exp->token->pos+1);
 		prog_debug_info->writeUVariable(cacheDebugString(exp->token->str));
 	}
 }
 
+bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list)
+{
+	for(int i = 0; i < list.count; i++){
+		if(!writeOpcodes(scope, list[i])){
+			return false;
+		}
+	}
+	return true;
+}
+
+int OS::Core::Compiler::getOpcodePos()
+{
+	return prog_opcodes.count;
+}
+
+int OS::Core::Compiler::writeOpcode(OS_U32 opcode)
+{
+	int i = prog_opcodes.count;
+	allocator->vectorAddItem(prog_opcodes, opcode OS_DBG_FILEPOS);
+	return i;
+}
+
+int OS::Core::Compiler::writeOpcode(int opcode, int a, int b, int c)
+{
+	return OS_OPCODE_ABC(opcode, a, b, c);
+}
+
+void OS::Core::Compiler::writeOpcodeAt(OS_U32 opcode, int pos)
+{
+	prog_opcodes[pos] = opcode;
+}
+
+bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
+{
+#if 0
+	int i;
+	switch(exp->type){
+	default:
+		{
+			ExpressionType exp_type = exp->type;
+			OS_ASSERT(false);
+			break;
+		}
+
+	case EXP_TYPE_NOP:
+	case EXP_TYPE_NEW_LOCAL_VAR:
+		break;
+
+	case EXP_TYPE_VALUE:
+	case EXP_TYPE_CODE_LIST:
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		break;
+
+	case EXP_TYPE_FUNCTION:
+		{
+			Scope * scope = dynamic_cast<Scope*>(exp);
+			OS_ASSERT(scope);
+			writeDebugInfo(exp);
+			
+			int prog_func_index = scope->prog_func_index; // prog_functions.indexOf(scope);
+			OS_ASSERT(prog_func_index >= 0);
+			
+			int pos = writeOpcode(Program::OP_NEW_FUNCTION, prog_func_index, 0, 0);
+
+			allocator->vectorReserveCapacity(scope->locals_compiled, scope->num_locals OS_DBG_FILEPOS);
+			scope->locals_compiled.count = scope->num_locals;
+
+			scope->opcodes_pos = getOpcodePos();
+			if(!writeOpcodes(scope, exp->list)){
+				return false;
+			}
+			writeOpcode(Program::OP_RETURN, 0, 0, 1); // return auto
+			scope->opcodes_size = getOpcodePos() - scope->opcodes_pos;
+
+			for(i = 0; i < scope->locals.count; i++){
+				Scope::LocalVar& var = scope->locals[i];
+				Scope::LocalVarCompiled& var_scope = scope->locals_compiled[var.index];
+				var_scope.cached_name_index = cacheString(var.name);
+				var_scope.start_code_pos = scope->opcodes_pos;
+				var_scope.end_code_pos = getOpcodePos();
+			}
+			break;
+		}
+
+	case EXP_TYPE_SCOPE:
+	case EXP_TYPE_LOOP_SCOPE:
+		{
+			Scope * scope = dynamic_cast<Scope*>(exp);
+			OS_ASSERT(scope);
+			int start_code_pos = getOpcodePos();
+			if(!writeOpcodes(scope, exp->list)){
+				return false;
+			}
+			if(exp->type == EXP_TYPE_LOOP_SCOPE){
+				writeJumpOpcode(start_code_pos - getOpcodePos() - 1);
+				scope->fixLoopBreaks(this, start_code_pos, getOpcodePos());
+			}else{
+				OS_ASSERT(scope->loop_breaks.count == 0);
+			}
+			for(i = 0; i < scope->locals.count; i++){
+				Scope::LocalVar& var = scope->locals[i];
+				Scope::LocalVarCompiled& var_scope = scope->function->locals_compiled[var.index];
+				var_scope.cached_name_index = cacheString(var.name);
+				var_scope.start_code_pos = start_code_pos;
+				var_scope.end_code_pos = getOpcodePos();
+			}
+			break;
+		}
+
+	case EXP_TYPE_IF:
+		{
+			OS_ASSERT(exp->list.count == 2 || exp->list.count == 3);
+			bool inverse;
+			Expression * exp_compare;
+			if(exp->list[0]->type == EXP_TYPE_LOGIC_NOT){
+				OS_ASSERT(exp->list[0]->list.count == 1);
+				exp_compare = exp->list[0]->list[0];
+				inverse = true;
+			}else{
+				OS_ASSERT(exp->list.count == 1);
+				exp_compare = exp->list[0];
+				inverse = false;
+			}
+			int opcode;
+			OS_ASSERT(exp_compare->slots.a > 0 && exp_compare->slots.b > 0);
+			switch(exp_compare->type){
+			case EXP_TYPE_LOGIC_PTR_EQ:
+			case EXP_TYPE_LOGIC_PTR_NE:
+				if(!writeOpcodes(scope, exp_compare->list)){
+					return false;
+				}
+				opcode = Program::OP_LOGIC_PTR_EQ;
+				inverse ^= exp_compare->type != EXP_TYPE_LOGIC_PTR_EQ;
+				break;
+
+			case EXP_TYPE_LOGIC_EQ:
+			case EXP_TYPE_LOGIC_NE:
+				if(!writeOpcodes(scope, exp_compare->list)){
+					return false;
+				}
+				opcode = Program::OP_LOGIC_EQ;
+				inverse ^= exp_compare->type != EXP_TYPE_LOGIC_EQ;
+				break;
+
+			case EXP_TYPE_LOGIC_LE:
+			case EXP_TYPE_LOGIC_GREATER:
+				if(!writeOpcodes(scope, exp_compare->list)){
+					return false;
+				}
+				opcode = Program::OP_LOGIC_GREATER;
+				inverse ^= exp_compare->type != EXP_TYPE_LOGIC_GREATER;
+				break;
+
+			case EXP_TYPE_LOGIC_GE:
+			case EXP_TYPE_LOGIC_LESS:
+				if(!writeOpcodes(scope, exp_compare->list)){
+					return false;
+				}
+				opcode = Program::OP_LOGIC_GE;
+				inverse ^= exp_compare->type != EXP_TYPE_LOGIC_GE;
+				break;
+
+			default:
+				if(!writeOpcodes(scope, exp_compare)){
+					return false;
+				}
+				opcode = Program::OP_LOGIC_BOOL;
+				break;
+			}
+			writeDebugInfo(exp);
+			int if_jump_pos = writeOpcode(opcode, exp_compare->slots.b, inverse, 0);
+			if(!writeOpcodes(scope, exp->list[1])){
+				return false;
+			}
+			int if_jump_to = getOpcodePos();
+			if(exp->list.count == 3 && exp->list[2]->list.count > 0){
+				int jump_pos = writeOpcode(Program::OP_JUMP);
+				
+				if_jump_to = getOpcodePos();
+				if(!writeOpcodes(scope, exp->list[2])){
+					return false;
+				}
+				fixJumpOpcode(getOpcodePos() - jump_pos - 1, jump_pos, Program::OP_JUMP);
+			}
+			fixJumpOpcode(if_jump_to - if_jump_pos - 1, if_jump_pos, opcode);
+			break;
+		}
+	}
+#endif
+	return false;
+}
+
+#if 0
 void OS::Core::Compiler::writeJumpOpcodeOld(int offs)
 {
 	offs += 3;
 	if((int)(OS_INT8)offs == offs){
-		prog_opcodes->writeByte(Program::OP_JUMP_1);
-		prog_opcodes->writeInt8(offs);
-		prog_opcodes->writeInt8(0);
-		prog_opcodes->writeInt16(0);
+		prog_opcodes_old->writeByte(Program::OP_JUMP_1);
+		prog_opcodes_old->writeInt8(offs);
+		prog_opcodes_old->writeInt8(0);
+		prog_opcodes_old->writeInt16(0);
 		return;
 	}
 	if((int)(OS_INT16)offs == offs){
-		prog_opcodes->writeByte(Program::OP_JUMP_2);
-		prog_opcodes->writeInt16(offs);
-		prog_opcodes->writeInt16(0);
+		prog_opcodes_old->writeByte(Program::OP_JUMP_2);
+		prog_opcodes_old->writeInt16(offs);
+		prog_opcodes_old->writeInt16(0);
 		return;
 	}
-	prog_opcodes->writeByte(Program::OP_JUMP_4);
-	prog_opcodes->writeInt32(offs);
+	prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+	prog_opcodes_old->writeInt32(offs);
 }
 
 void OS::Core::Compiler::fixJumpOpcodeOld(StreamWriter * writer, int offs, int pos)
@@ -2724,15 +3039,15 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			writeDebugInfo(exp);
 			OS_NUMBER number = (OS_NUMBER)exp->token->getFloat();
 			if(number == 1.0f){
-				prog_opcodes->writeByte(Program::OP_PUSH_ONE);
+				prog_opcodes_old->writeByte(Program::OP_PUSH_ONE);
 			}else{
 				int i = cacheNumber(number);
 				if(i <= 255){
-					prog_opcodes->writeByte(Program::OP_PUSH_NUMBER_1);
-					prog_opcodes->writeByte(i);
+					prog_opcodes_old->writeByte(Program::OP_PUSH_NUMBER_1);
+					prog_opcodes_old->writeByte(i);
 				}else{
-					prog_opcodes->writeByte(Program::OP_PUSH_NUMBER_BY_AUTO_INDEX);
-					prog_opcodes->writeUVariable(i);
+					prog_opcodes_old->writeByte(Program::OP_PUSH_NUMBER_BY_AUTO_INDEX);
+					prog_opcodes_old->writeUVariable(i);
 				}
 			}
 			break;
@@ -2744,11 +3059,11 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			writeDebugInfo(exp);
 			int i = cacheString(exp->token->str);
 			if(i <= 255){
-				prog_opcodes->writeByte(Program::OP_PUSH_STRING_1);
-				prog_opcodes->writeByte(i);
+				prog_opcodes_old->writeByte(Program::OP_PUSH_STRING_1);
+				prog_opcodes_old->writeByte(i);
 			}else{
-				prog_opcodes->writeByte(Program::OP_PUSH_STRING_BY_AUTO_INDEX);
-				prog_opcodes->writeUVariable(i);
+				prog_opcodes_old->writeByte(Program::OP_PUSH_STRING_BY_AUTO_INDEX);
+				prog_opcodes_old->writeUVariable(i);
 			}
 			break;
 		}
@@ -2756,19 +3071,19 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 	case EXP_TYPE_CONST_NULL:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_PUSH_NULL);
+		prog_opcodes_old->writeByte(Program::OP_PUSH_NULL);
 		break;
 
 	case EXP_TYPE_CONST_TRUE:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_PUSH_TRUE);
+		prog_opcodes_old->writeByte(Program::OP_PUSH_TRUE);
 		break;
 
 	case EXP_TYPE_CONST_FALSE:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_PUSH_FALSE);
+		prog_opcodes_old->writeByte(Program::OP_PUSH_FALSE);
 		break;
 
 	case EXP_TYPE_FUNCTION:
@@ -2776,28 +3091,28 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			Scope * scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_PUSH_FUNCTION);
+			prog_opcodes_old->writeByte(Program::OP_PUSH_FUNCTION);
 
 			int prog_func_index = scope->prog_func_index; // prog_functions.indexOf(scope);
 			OS_ASSERT(prog_func_index >= 0);
-			prog_opcodes->writeUVariable(prog_func_index);
+			prog_opcodes_old->writeUVariable(prog_func_index);
 
 			allocator->vectorReserveCapacity(scope->locals_compiled, scope->num_locals OS_DBG_FILEPOS);
 			scope->locals_compiled.count = scope->num_locals;
 
-			scope->opcodes_pos = prog_opcodes->getPos();
+			scope->opcodes_pos = prog_opcodes_old->getPos();
 			if(!writeOpcodesOld(scope, exp->list)){
 				return false;
 			}
-			prog_opcodes->writeByte(Program::OP_RETURN_AUTO);
-			scope->opcodes_size = prog_opcodes->getPos() - scope->opcodes_pos;
+			prog_opcodes_old->writeByte(Program::OP_RETURN_AUTO);
+			scope->opcodes_size = prog_opcodes_old->getPos() - scope->opcodes_pos;
 
 			for(i = 0; i < scope->locals.count; i++){
 				Scope::LocalVar& var = scope->locals[i];
 				Scope::LocalVarCompiled& var_scope = scope->locals_compiled[var.index];
 				var_scope.cached_name_index = cacheString(var.name);
 				var_scope.start_code_pos = scope->opcodes_pos;
-				var_scope.end_code_pos = prog_opcodes->getPos();
+				var_scope.end_code_pos = prog_opcodes_old->getPos();
 			}
 			break;
 		}
@@ -2807,16 +3122,16 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		{
 			Scope * scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
-			int start_code_pos = prog_opcodes->getPos();
+			int start_code_pos = prog_opcodes_old->getPos();
 			if(!writeOpcodesOld(scope, exp->list)){
 				return false;
 			}
 			if(exp->type == EXP_TYPE_LOOP_SCOPE){
-				// prog_opcodes->writeByte(Program::OP_JUMP);
-				// prog_opcodes->writeInt32(start_code_pos - prog_opcodes->getPos() - sizeof(OS_INT32));
-				writeJumpOpcodeOld(start_code_pos - prog_opcodes->getPos() - sizeof(OS_INT32));
+				// prog_opcodes_old->writeByte(Program::OP_JUMP);
+				// prog_opcodes_old->writeInt32(start_code_pos - prog_opcodes_old->getPos() - sizeof(OS_INT32));
+				writeJumpOpcodeOld(start_code_pos - prog_opcodes_old->getPos() - sizeof(OS_INT32));
 
-				scope->fixLoopBreaks(this, start_code_pos, prog_opcodes->getPos(), prog_opcodes);
+				scope->fixLoopBreaks(this, start_code_pos, prog_opcodes_old->getPos(), prog_opcodes_old);
 			}else{
 				OS_ASSERT(scope->loop_breaks.count == 0);
 			}
@@ -2825,7 +3140,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 				Scope::LocalVarCompiled& var_scope = scope->function->locals_compiled[var.index];
 				var_scope.cached_name_index = cacheString(var.name);
 				var_scope.start_code_pos = start_code_pos;
-				var_scope.end_code_pos = prog_opcodes->getPos();
+				var_scope.end_code_pos = prog_opcodes_old->getPos();
 			}
 			break;
 		}
@@ -2848,29 +3163,29 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			}
 			writeDebugInfo(exp);
 			
-			int if_jump_pos = prog_opcodes->getPos();
-			prog_opcodes->writeByte(if_opcode);
-			prog_opcodes->writeInt32(0);
+			int if_jump_pos = prog_opcodes_old->getPos();
+			prog_opcodes_old->writeByte(if_opcode);
+			prog_opcodes_old->writeInt32(0);
 
 			if(!writeOpcodesOld(scope, exp->list[1])){
 				return false;
 			}
 
-			int if_jump_to = prog_opcodes->getPos();
+			int if_jump_to = prog_opcodes_old->getPos();
 			if(exp->list.count == 3 && exp->list[2]->list.count > 0){
-				int jump_pos = prog_opcodes->getPos();
-				prog_opcodes->writeByte(Program::OP_JUMP_4);
-				prog_opcodes->writeInt32(0);
+				int jump_pos = prog_opcodes_old->getPos();
+				prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+				prog_opcodes_old->writeInt32(0);
 
-				if_jump_to = prog_opcodes->getPos();
+				if_jump_to = prog_opcodes_old->getPos();
 				if(!writeOpcodesOld(scope, exp->list[2])){
 					return false;
 				}
-				// prog_opcodes->writeInt32AtPos(prog_opcodes->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos);
-				fixJumpOpcodeOld(prog_opcodes, prog_opcodes->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos, Program::OP_JUMP_4);
+				// prog_opcodes_old->writeInt32AtPos(prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos);
+				fixJumpOpcodeOld(prog_opcodes_old, prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos, Program::OP_JUMP_4);
 			}
-			// prog_opcodes->writeInt32AtPos(if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos);
-			fixJumpOpcodeOld(prog_opcodes, if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos, if_opcode);
+			// prog_opcodes_old->writeInt32AtPos(if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos);
+			fixJumpOpcodeOld(prog_opcodes_old, if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos, if_opcode);
 			break;
 		}
 
@@ -2892,27 +3207,27 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			}
 			writeDebugInfo(exp);
 			
-			int if_jump_pos = prog_opcodes->getPos();
-			prog_opcodes->writeByte(if_opcode);
-			prog_opcodes->writeInt32(0);
+			int if_jump_pos = prog_opcodes_old->getPos();
+			prog_opcodes_old->writeByte(if_opcode);
+			prog_opcodes_old->writeInt32(0);
 
 			if(!writeOpcodesOld(scope, exp->list[1])){
 				return false;
 			}
 
-			int jump_pos = prog_opcodes->getPos();
-			prog_opcodes->writeByte(Program::OP_JUMP_4);
-			prog_opcodes->writeInt32(0);
+			int jump_pos = prog_opcodes_old->getPos();
+			prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+			prog_opcodes_old->writeInt32(0);
 
-			int if_jump_to = prog_opcodes->getPos();
+			int if_jump_to = prog_opcodes_old->getPos();
 			if(!writeOpcodesOld(scope, exp->list[2])){
 				return false;
 			}
-			// prog_opcodes->writeInt32AtPos(prog_opcodes->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos);
-			fixJumpOpcodeOld(prog_opcodes, prog_opcodes->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos, Program::OP_JUMP_4);
+			// prog_opcodes_old->writeInt32AtPos(prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos);
+			fixJumpOpcodeOld(prog_opcodes_old, prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos, Program::OP_JUMP_4);
 
-			// prog_opcodes->writeInt32AtPos(if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos);
-			fixJumpOpcodeOld(prog_opcodes, if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos, if_opcode);
+			// prog_opcodes_old->writeInt32AtPos(if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos);
+			fixJumpOpcodeOld(prog_opcodes_old, if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos, if_opcode);
 			break;
 		}
 
@@ -2926,17 +3241,17 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			writeDebugInfo(exp);
 
 			int opcode = Program::getOpcodeType(exp->type);
-			int op_jump_pos = prog_opcodes->getPos();
-			prog_opcodes->writeByte(opcode);
-			prog_opcodes->writeInt32(0);
+			int op_jump_pos = prog_opcodes_old->getPos();
+			prog_opcodes_old->writeByte(opcode);
+			prog_opcodes_old->writeInt32(0);
 
 			if(!writeOpcodesOld(scope, exp->list[1])){
 				return false;
 			}
 
-			int op_jump_to = prog_opcodes->getPos();
-			// prog_opcodes->writeInt32AtPos(op_jump_to - op_jump_pos - sizeof(OS_BYTE)*5, op_jump_pos);
-			fixJumpOpcodeOld(prog_opcodes, op_jump_to - op_jump_pos - sizeof(OS_BYTE)*5, op_jump_pos, opcode);
+			int op_jump_to = prog_opcodes_old->getPos();
+			// prog_opcodes_old->writeInt32AtPos(op_jump_to - op_jump_pos - sizeof(OS_BYTE)*5, op_jump_pos);
+			fixJumpOpcodeOld(prog_opcodes_old, op_jump_to - op_jump_pos - sizeof(OS_BYTE)*5, op_jump_pos, opcode);
 			break;
 		}
 
@@ -2946,17 +3261,19 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_EXTENDS);
+		prog_opcodes_old->writeByte(Program::OP_EXTENDS);
 		break;
 
+	/*
 	case EXP_TYPE_CLONE:
 		OS_ASSERT(exp->list.count == 1);
 		if(!writeOpcodesOld(scope, exp->list)){
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_CLONE);
+		prog_opcodes_old->writeByte(Program::OP_CLONE);
 		break;
+	*/
 
 	case EXP_TYPE_DELETE:
 		OS_ASSERT(exp->list.count == 2);
@@ -2964,13 +3281,13 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_DELETE_PROP);
+		prog_opcodes_old->writeByte(Program::OP_DELETE_PROP);
 		break;
 
 	case EXP_TYPE_ARRAY:
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_PUSH_NEW_ARRAY);
-		prog_opcodes->writeByte(exp->list.count > 255 ? 256 : exp->list.count);
+		prog_opcodes_old->writeByte(Program::OP_PUSH_NEW_ARRAY);
+		prog_opcodes_old->writeByte(exp->list.count > 255 ? 256 : exp->list.count);
 		if(!writeOpcodesOld(scope, exp->list)){
 			return false;
 		}
@@ -2979,7 +3296,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 	case EXP_TYPE_OBJECT:
 		// OS_ASSERT(exp->list.count >= 0);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_PUSH_NEW_OBJECT);
+		prog_opcodes_old->writeByte(Program::OP_PUSH_NEW_OBJECT);
 		if(!writeOpcodesOld(scope, exp->list)){
 			return false;
 		}
@@ -2991,7 +3308,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_AUTO_INDEX);
+		prog_opcodes_old->writeByte(Program::OP_OBJECT_SET_BY_AUTO_INDEX);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
@@ -3000,7 +3317,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_EXP);
+		prog_opcodes_old->writeByte(Program::OP_OBJECT_SET_BY_EXP);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
@@ -3009,9 +3326,9 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_INDEX);
-		// prog_opcodes->writeInt64(exp->token->getInt());
-		prog_opcodes->writeUVariable(cacheNumber((OS_NUMBER)exp->token->getFloat()));
+		prog_opcodes_old->writeByte(Program::OP_OBJECT_SET_BY_INDEX);
+		// prog_opcodes_old->writeInt64(exp->token->getInt());
+		prog_opcodes_old->writeUVariable(cacheNumber((OS_NUMBER)exp->token->getFloat()));
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
@@ -3020,22 +3337,22 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_OBJECT_SET_BY_NAME);
-		prog_opcodes->writeUVariable(cacheString(exp->token->str));
+		prog_opcodes_old->writeByte(Program::OP_OBJECT_SET_BY_NAME);
+		prog_opcodes_old->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_GET_ENV_VAR:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_PUSH_ENV_VAR);
-		prog_opcodes->writeUVariable(cacheString(exp->token->str));
+		prog_opcodes_old->writeByte(Program::OP_PUSH_ENV_VAR);
+		prog_opcodes_old->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_GET_ENV_VAR_AUTO_CREATE:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_PUSH_ENV_VAR_AUTO_CREATE);
-		prog_opcodes->writeUVariable(cacheString(exp->token->str));
+		prog_opcodes_old->writeByte(Program::OP_PUSH_ENV_VAR_AUTO_CREATE);
+		prog_opcodes_old->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_SET_ENV_VAR:
@@ -3044,8 +3361,8 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_SET_ENV_VAR);
-		prog_opcodes->writeUVariable(cacheString(exp->token->str));
+		prog_opcodes_old->writeByte(Program::OP_SET_ENV_VAR);
+		prog_opcodes_old->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_GET_THIS:
@@ -3053,7 +3370,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 	case EXP_TYPE_GET_REST_ARGUMENTS:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::getOpcodeType(exp->type));
+		prog_opcodes_old->writeByte(Program::getOpcodeType(exp->type));
 		break;
 
 	case EXP_TYPE_GET_LOCAL_VAR:
@@ -3061,17 +3378,17 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		if(!exp->local_var.up_count){
 			writeDebugInfo(exp);
 			if(exp->local_var.index <= 255){
-				prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR_1);
-				prog_opcodes->writeByte(exp->local_var.index);
+				prog_opcodes_old->writeByte(Program::OP_PUSH_LOCAL_VAR_1);
+				prog_opcodes_old->writeByte(exp->local_var.index);
 			}else{
-				prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX);
-				prog_opcodes->writeUVariable(exp->local_var.index);
+				prog_opcodes_old->writeByte(Program::OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX);
+				prog_opcodes_old->writeUVariable(exp->local_var.index);
 			}
 		}else{
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_PUSH_UP_LOCAL_VAR);
-			prog_opcodes->writeUVariable(exp->local_var.index);
-			prog_opcodes->writeByte(exp->local_var.up_count);
+			prog_opcodes_old->writeByte(Program::OP_PUSH_UP_LOCAL_VAR);
+			prog_opcodes_old->writeUVariable(exp->local_var.index);
+			prog_opcodes_old->writeByte(exp->local_var.up_count);
 		}
 		break;
 
@@ -3079,13 +3396,13 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list.count == 0);
 		if(!exp->local_var.up_count){
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_PUSH_LOCAL_VAR_AUTO_CREATE);
-			prog_opcodes->writeUVariable(exp->local_var.index);
+			prog_opcodes_old->writeByte(Program::OP_PUSH_LOCAL_VAR_AUTO_CREATE);
+			prog_opcodes_old->writeUVariable(exp->local_var.index);
 		}else{
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE);
-			prog_opcodes->writeUVariable(exp->local_var.index);
-			prog_opcodes->writeByte(exp->local_var.up_count);
+			prog_opcodes_old->writeByte(Program::OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE);
+			prog_opcodes_old->writeUVariable(exp->local_var.index);
+			prog_opcodes_old->writeByte(exp->local_var.up_count);
 		}
 		break;
 
@@ -3097,16 +3414,16 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		writeDebugInfo(exp);
 		if(!exp->local_var.up_count){
 			if(exp->local_var.index <= 255){
-				prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR_1);
-				prog_opcodes->writeByte(exp->local_var.index);
+				prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR_1);
+				prog_opcodes_old->writeByte(exp->local_var.index);
 			}else{
-				prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR);
-				prog_opcodes->writeUVariable(exp->local_var.index);
+				prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR);
+				prog_opcodes_old->writeUVariable(exp->local_var.index);
 			}
 		}else{
-			prog_opcodes->writeByte(Program::OP_SET_UP_LOCAL_VAR);
-			prog_opcodes->writeUVariable(exp->local_var.index);
-			prog_opcodes->writeByte(exp->local_var.up_count);
+			prog_opcodes_old->writeByte(Program::OP_SET_UP_LOCAL_VAR);
+			prog_opcodes_old->writeUVariable(exp->local_var.index);
+			prog_opcodes_old->writeByte(exp->local_var.up_count);
 		}
 		break;
 
@@ -3116,14 +3433,14 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			OS_ASSERT(!exp->local_var.up_count);
 			OS_ASSERT(exp->list[0]->type == EXP_TYPE_BIN_OPERATOR_BY_LOCALS);
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS);
+			prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS);
 			Expression * exp_binary = exp->list[0]->list[0];
 			Expression * exp1 = exp_binary->list[0];
 			Expression * exp2 = exp_binary->list[1];
-			prog_opcodes->writeByte(Program::getOpcodeType(exp_binary->type));
-			prog_opcodes->writeByte(exp1->local_var.index);
-			prog_opcodes->writeByte(exp2->local_var.index);
-			prog_opcodes->writeUVariable(exp->local_var.index);
+			prog_opcodes_old->writeByte(Program::getOpcodeType(exp_binary->type));
+			prog_opcodes_old->writeByte(exp1->local_var.index);
+			prog_opcodes_old->writeByte(exp2->local_var.index);
+			prog_opcodes_old->writeUVariable(exp->local_var.index);
 			break;
 		}
 
@@ -3138,17 +3455,17 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			Expression * exp2 = exp_binary->list[1];
 			int number_index = cacheNumber((OS_NUMBER)exp2->token->getFloat());
 			if(number_index <= 255 && exp->local_var.index <= 255){
-				prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER);
-				prog_opcodes->writeByte(Program::getOpcodeType(exp_binary->type));
-				prog_opcodes->writeByte(exp1->local_var.index);
-				prog_opcodes->writeByte(number_index);
-				prog_opcodes->writeByte(exp->local_var.index);
+				prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER);
+				prog_opcodes_old->writeByte(Program::getOpcodeType(exp_binary->type));
+				prog_opcodes_old->writeByte(exp1->local_var.index);
+				prog_opcodes_old->writeByte(number_index);
+				prog_opcodes_old->writeByte(exp->local_var.index);
 			}else{
-				prog_opcodes->writeByte(Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER);
-				prog_opcodes->writeByte(Program::getOpcodeType(exp_binary->type));
-				prog_opcodes->writeByte(exp1->local_var.index);
-				prog_opcodes->writeUVariable(number_index);
-				prog_opcodes->writeUVariable(exp->local_var.index);
+				prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER);
+				prog_opcodes_old->writeByte(Program::getOpcodeType(exp_binary->type));
+				prog_opcodes_old->writeByte(exp1->local_var.index);
+				prog_opcodes_old->writeUVariable(number_index);
+				prog_opcodes_old->writeUVariable(exp->local_var.index);
 			}
 			break;
 		}
@@ -3161,19 +3478,19 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 
 			bool is_super_call = exp->list[0]->type == EXP_TYPE_SUPER;
 			if(is_super_call){
-				prog_opcodes->writeByte(Program::OP_PUSH_NULL); // func
+				prog_opcodes_old->writeByte(Program::OP_PUSH_NULL); // func
 			}else if(!writeOpcodesOld(scope, exp->list[0])){
 				return false;
 			}
 			// writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_PUSH_NULL); // this
+			prog_opcodes_old->writeByte(Program::OP_PUSH_NULL); // this
 			if(!writeOpcodesOld(scope, exp->list[1])){
 				return false;
 			}
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(is_super_call ? Program::OP_SUPER_CALL : Program::getOpcodeType(exp->type));
-			prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
-			prog_opcodes->writeByte(exp->ret_values);
+			prog_opcodes_old->writeByte(is_super_call ? Program::OP_SUPER_CALL : Program::getOpcodeType(exp->type));
+			prog_opcodes_old->writeByte(exp->list[1]->ret_values); // params number
+			prog_opcodes_old->writeByte(exp->ret_values);
 			break;
 		}
 
@@ -3184,8 +3501,8 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::getOpcodeType(exp->type));
-		prog_opcodes->writeByte(exp->list[1]->ret_values); // params number
+		prog_opcodes_old->writeByte(Program::getOpcodeType(exp->type));
+		prog_opcodes_old->writeByte(exp->list[1]->ret_values); // params number
 		break;
 
 		// case EXP_TYPE_GET_DIM:
@@ -3196,9 +3513,9 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::getOpcodeType(exp->type));
-		prog_opcodes->writeByte(exp->list[1]->ret_values-1); // params number
-		prog_opcodes->writeByte(exp->ret_values);
+		prog_opcodes_old->writeByte(Program::getOpcodeType(exp->type));
+		prog_opcodes_old->writeByte(exp->list[1]->ret_values-1); // params number
+		prog_opcodes_old->writeByte(exp->ret_values);
 		break;
 
 	case EXP_TYPE_TAIL_CALL_METHOD:
@@ -3208,8 +3525,8 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::getOpcodeType(exp->type));
-		prog_opcodes->writeByte(exp->list[1]->ret_values-1); // params number
+		prog_opcodes_old->writeByte(Program::getOpcodeType(exp->type));
+		prog_opcodes_old->writeByte(exp->list[1]->ret_values-1); // params number
 		break;
 
 	case EXP_TYPE_GET_PROPERTY:
@@ -3218,8 +3535,8 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_GET_PROPERTY);
-		prog_opcodes->writeByte(exp->ret_values);
+		prog_opcodes_old->writeByte(Program::OP_GET_PROPERTY);
+		prog_opcodes_old->writeByte(exp->ret_values);
 		break;
 
 	case EXP_TYPE_GET_THIS_PROPERTY_BY_STRING:
@@ -3228,9 +3545,9 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			OS_ASSERT(exp->list[0]->type == EXP_TYPE_GET_THIS);
 			OS_ASSERT(exp->list[1]->type == EXP_TYPE_CONST_STRING);
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_GET_THIS_PROPERTY_BY_STRING);
-			prog_opcodes->writeByte(exp->ret_values);
-			prog_opcodes->writeUVariable(cacheString(exp->list[1]->token->str));
+			prog_opcodes_old->writeByte(Program::OP_GET_THIS_PROPERTY_BY_STRING);
+			prog_opcodes_old->writeByte(exp->ret_values);
+			prog_opcodes_old->writeUVariable(cacheString(exp->list[1]->token->str));
 			break;
 		}
 
@@ -3239,10 +3556,10 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->local_var.up_count);
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[1]->local_var.up_count);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_GET_PROPERTY_BY_LOCALS);
-		prog_opcodes->writeByte(exp->ret_values);
-		prog_opcodes->writeByte(exp->list[0]->local_var.index);
-		prog_opcodes->writeByte(exp->list[1]->local_var.index);
+		prog_opcodes_old->writeByte(Program::OP_GET_PROPERTY_BY_LOCALS);
+		prog_opcodes_old->writeByte(exp->ret_values);
+		prog_opcodes_old->writeByte(exp->list[0]->local_var.index);
+		prog_opcodes_old->writeByte(exp->list[1]->local_var.index);
 		break;
 
 	case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
@@ -3250,10 +3567,10 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->local_var.up_count);
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_CONST_NUMBER);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER);
-		prog_opcodes->writeByte(exp->ret_values);
-		prog_opcodes->writeByte(exp->list[0]->local_var.index);
-		prog_opcodes->writeUVariable(cacheNumber((OS_NUMBER)exp->list[1]->token->getFloat()));
+		prog_opcodes_old->writeByte(Program::OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER);
+		prog_opcodes_old->writeByte(exp->ret_values);
+		prog_opcodes_old->writeByte(exp->list[0]->local_var.index);
+		prog_opcodes_old->writeUVariable(cacheNumber((OS_NUMBER)exp->list[1]->token->getFloat()));
 		break;
 
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
@@ -3262,8 +3579,8 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_GET_PROPERTY_AUTO_CREATE);
-		prog_opcodes->writeByte(exp->ret_values);
+		prog_opcodes_old->writeByte(Program::OP_GET_PROPERTY_AUTO_CREATE);
+		prog_opcodes_old->writeByte(exp->ret_values);
 		break;
 
 	case EXP_TYPE_SET_PROPERTY:
@@ -3272,7 +3589,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_SET_PROPERTY);
+		prog_opcodes_old->writeByte(Program::OP_SET_PROPERTY);
 		break;
 
 	case EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
@@ -3281,9 +3598,9 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list[2]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[2]->local_var.up_count);
 		writeOpcodesOld(scope, exp->list[0]);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
-		prog_opcodes->writeByte(exp->list[1]->local_var.index);
-		prog_opcodes->writeByte(exp->list[2]->local_var.index);
+		prog_opcodes_old->writeByte(Program::OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
+		prog_opcodes_old->writeByte(exp->list[1]->local_var.index);
+		prog_opcodes_old->writeByte(exp->list[2]->local_var.index);
 		break;
 
 	case EXP_TYPE_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
@@ -3294,11 +3611,11 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE && !exp->list[1]->local_var.up_count);
 		OS_ASSERT(exp->list[2]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[2]->local_var.up_count);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
-		prog_opcodes->writeByte(exp->list[0]->list[0]->local_var.index);
-		prog_opcodes->writeByte(exp->list[0]->list[1]->local_var.index);
-		prog_opcodes->writeByte(exp->list[1]->local_var.index);
-		prog_opcodes->writeByte(exp->list[2]->local_var.index);
+		prog_opcodes_old->writeByte(Program::OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
+		prog_opcodes_old->writeByte(exp->list[0]->list[0]->local_var.index);
+		prog_opcodes_old->writeByte(exp->list[0]->list[1]->local_var.index);
+		prog_opcodes_old->writeByte(exp->list[1]->local_var.index);
+		prog_opcodes_old->writeByte(exp->list[2]->local_var.index);
 		break;
 
 	case EXP_TYPE_SET_DIM:
@@ -3307,8 +3624,8 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_SET_DIM);
-		prog_opcodes->writeByte(exp->list[2]->list.count); // params
+		prog_opcodes_old->writeByte(Program::OP_SET_DIM);
+		prog_opcodes_old->writeByte(exp->list[2]->list.count); // params
 		break;
 
 	case EXP_TYPE_PARAMS:
@@ -3322,40 +3639,40 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_RETURN);
-		prog_opcodes->writeByte(exp->ret_values);
+		prog_opcodes_old->writeByte(Program::OP_RETURN);
+		prog_opcodes_old->writeByte(exp->ret_values);
 		break;
 
 	case EXP_TYPE_BREAK:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		scope->addLoopBreak(prog_opcodes->getPos(), Scope::LOOP_BREAK);
-		prog_opcodes->writeByte(Program::OP_JUMP_4);
-		prog_opcodes->writeInt32(0);
+		scope->addLoopBreak(prog_opcodes_old->getPos(), Scope::LOOP_BREAK);
+		prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+		prog_opcodes_old->writeInt32(0);
 		break;
 
 	case EXP_TYPE_CONTINUE:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		scope->addLoopBreak(prog_opcodes->getPos(), Scope::LOOP_CONTINUE);
-		prog_opcodes->writeByte(Program::OP_JUMP_4);
-		prog_opcodes->writeInt32(0);
+		scope->addLoopBreak(prog_opcodes_old->getPos(), Scope::LOOP_CONTINUE);
+		prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+		prog_opcodes_old->writeInt32(0);
 		break;
 
 	case EXP_TYPE_DEBUGGER:
 		{
 			OS_ASSERT(exp->list.count == 0);
-			prog_opcodes->writeByte(Program::OP_DEBUGGER);
-			prog_opcodes->writeUVariable(exp->token->line + 1);
-			prog_opcodes->writeUVariable(exp->token->pos + 1);
-			prog_opcodes->writeUVariable(OS_DEBUGGER_SAVE_NUM_LINES);
+			prog_opcodes_old->writeByte(Program::OP_DEBUGGER);
+			prog_opcodes_old->writeUVariable(exp->token->line + 1);
+			prog_opcodes_old->writeUVariable(exp->token->pos + 1);
+			prog_opcodes_old->writeUVariable(OS_DEBUGGER_SAVE_NUM_LINES);
 			Core::String empty(allocator);
 			for(int i = 0; i < OS_DEBUGGER_SAVE_NUM_LINES; i++){
 				int j = exp->token->line - OS_DEBUGGER_SAVE_NUM_LINES/2 + i;
 				if(j >= 0 && j < exp->token->text_data->lines.count){
-					prog_opcodes->writeUVariable(cacheString(exp->token->text_data->lines[j]));
+					prog_opcodes_old->writeUVariable(cacheString(exp->token->text_data->lines[j]));
 				}else{
-					prog_opcodes->writeUVariable(cacheString(empty));
+					prog_opcodes_old->writeUVariable(cacheString(empty));
 				}
 			}
 			break;
@@ -3373,15 +3690,15 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		// writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_POP);
+		prog_opcodes_old->writeByte(Program::OP_POP);
 		break;
 
 	case EXP_TYPE_SUPER:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::OP_SUPER);
+		prog_opcodes_old->writeByte(Program::OP_SUPER);
 		break;
-
+	/*
 	case EXP_TYPE_TYPE_OF:
 	case EXP_TYPE_VALUE_OF:
 	case EXP_TYPE_NUMBER_OF:
@@ -3390,6 +3707,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 	case EXP_TYPE_OBJECT_OF:
 	case EXP_TYPE_USERDATA_OF:
 	case EXP_TYPE_FUNCTION_OF:
+	*/
 	case EXP_TYPE_LOGIC_BOOL:
 	case EXP_TYPE_LOGIC_NOT:
 	case EXP_TYPE_BIT_NOT:
@@ -3401,7 +3719,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::getOpcodeType(exp->type));
+		prog_opcodes_old->writeByte(Program::getOpcodeType(exp->type));
 		break;
 
 	case EXP_TYPE_CONCAT:
@@ -3437,7 +3755,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes->writeByte(Program::getOpcodeType(exp->type));
+		prog_opcodes_old->writeByte(Program::getOpcodeType(exp->type));
 		break;
 
 	case EXP_TYPE_BIN_OPERATOR_BY_LOCALS:
@@ -3447,13 +3765,13 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			OS_ASSERT(exp->list[0]->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[0]->local_var.up_count);
 			OS_ASSERT(exp->list[0]->list[1]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[1]->local_var.up_count);
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_BIN_OPERATOR_BY_LOCALS);
+			prog_opcodes_old->writeByte(Program::OP_BIN_OPERATOR_BY_LOCALS);
 			Expression * exp_binary = exp->list[0];
 			Expression * exp1 = exp_binary->list[0];
 			Expression * exp2 = exp_binary->list[1];
-			prog_opcodes->writeByte(Program::getOpcodeType(exp_binary->type));
-			prog_opcodes->writeByte(exp1->local_var.index);
-			prog_opcodes->writeByte(exp2->local_var.index);
+			prog_opcodes_old->writeByte(Program::getOpcodeType(exp_binary->type));
+			prog_opcodes_old->writeByte(exp1->local_var.index);
+			prog_opcodes_old->writeByte(exp2->local_var.index);
 			break;
 		}
 
@@ -3464,18 +3782,19 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			OS_ASSERT(exp->list[0]->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[0]->local_var.up_count);
 			OS_ASSERT(exp->list[0]->list[1]->type == EXP_TYPE_CONST_NUMBER);
 			writeDebugInfo(exp);
-			prog_opcodes->writeByte(Program::OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER);
+			prog_opcodes_old->writeByte(Program::OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER);
 			Expression * exp_binary = exp->list[0];
 			Expression * exp1 = exp_binary->list[0];
 			Expression * exp2 = exp_binary->list[1];
-			prog_opcodes->writeByte(Program::getOpcodeType(exp_binary->type));
-			prog_opcodes->writeByte(exp1->local_var.index);
-			prog_opcodes->writeUVariable(cacheNumber((OS_NUMBER)exp2->token->getFloat()));
+			prog_opcodes_old->writeByte(Program::getOpcodeType(exp_binary->type));
+			prog_opcodes_old->writeByte(exp1->local_var.index);
+			prog_opcodes_old->writeUVariable(cacheNumber((OS_NUMBER)exp2->token->getFloat()));
 			break;
 		}
 	}
 	return true;
 }
+#endif // 0
 
 // =====================================================================
 
@@ -3534,18 +3853,16 @@ bool OS::Core::Compiler::Scope::addLoopBreak(int pos, ELoopBreakType type)
 	return true;
 }
 
-void OS::Core::Compiler::Scope::fixLoopBreaks(Compiler * compiler, int scope_start_pos, int scope_end_pos, StreamWriter * writer)
+void OS::Core::Compiler::Scope::fixLoopBreaks(Compiler * compiler, int scope_start_pos, int scope_end_pos)
 {
 	for(int i = 0; i < loop_breaks.count; i++){
 		LoopBreak& loop_break = loop_breaks[i];
 		if(loop_break.type == LOOP_BREAK){
 			int offs = scope_end_pos - loop_break.pos - sizeof(OS_BYTE)*5;
-			// writer->writeInt32AtPos(offs, loop_break.pos);
-			compiler->fixJumpOpcodeOld(writer, offs, loop_break.pos);
+			// compiler->fixJumpOpcode(offs, loop_break.pos);
 		}else{
 			int offs = scope_start_pos - loop_break.pos - sizeof(OS_BYTE)*5;
-			// writer->writeInt32AtPos(offs, loop_break.pos);
-			compiler->fixJumpOpcodeOld(writer, offs, loop_break.pos);
+			// compiler->fixJumpOpcode(offs, loop_break.pos);
 		}
 	}
 }
@@ -3645,7 +3962,7 @@ OS::Core::Compiler::Compiler(Tokenizer * p_tokenizer)
 	prog_strings_table = NULL;
 	prog_debug_strings_table = NULL;
 	prog_numbers_table = NULL;
-	prog_opcodes = NULL;
+	prog_opcodes_old = NULL;
 	prog_debug_info = NULL;
 	prog_num_debug_infos = 0;
 	prog_max_up_count = 0;
@@ -3672,14 +3989,14 @@ OS::Core::Compiler::~Compiler()
 	allocator->vectorClear(prog_strings);
 	allocator->vectorClear(prog_debug_strings);
 	allocator->vectorClear(prog_functions);
-	allocator->deleteObj(prog_opcodes);
+	allocator->deleteObj(prog_opcodes_old);
 	allocator->deleteObj(prog_debug_info);
 	// allocator->deleteObj(tokenizer);
 }
 
 bool OS::Core::Compiler::compile()
 {
-	OS_ASSERT(!prog_opcodes && !prog_strings_table && !prog_debug_strings_table && !prog_numbers_table);
+	OS_ASSERT(!prog_opcodes_old && !prog_strings_table && !prog_debug_strings_table && !prog_numbers_table);
 	OS_ASSERT(!prog_functions.count && !prog_numbers.count && !prog_strings.count);
 
 	Scope * scope = NULL;
@@ -3697,7 +4014,7 @@ bool OS::Core::Compiler::compile()
 		Expression * exp = postCompileExpression(scope, scope);
 		OS_ASSERT(exp->type == EXP_TYPE_FUNCTION);
 
-		prog_opcodes = new (malloc(sizeof(MemStreamWriter) OS_DBG_FILEPOS)) MemStreamWriter(allocator);
+		prog_opcodes_old = new (malloc(sizeof(MemStreamWriter) OS_DBG_FILEPOS)) MemStreamWriter(allocator);
 
 		OS::String filename(allocator, tokenizer->getTextData()->filename);
 		bool is_eval = filename.getDataSize() == 0;
@@ -3712,7 +4029,7 @@ bool OS::Core::Compiler::compile()
 		prog_debug_strings_table = allocator->core->newTable(OS_DBG_FILEPOS_START);
 		prog_debug_info = new (malloc(sizeof(MemStreamWriter) OS_DBG_FILEPOS)) MemStreamWriter(allocator);
 
-		if(!writeOpcodesOld(scope, exp)){
+		if(!writeOpcodes(scope, exp)){
 			// TODO:
 		}
 
@@ -4034,7 +4351,7 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::getOpcodeLevel(ExpressionTyp
 	case EXP_TYPE_POST_INC:    // ++
 	case EXP_TYPE_POST_DEC:    // --
 		return OP_LEVEL_14;
-
+	/*
 	case EXP_TYPE_TYPE_OF:
 	case EXP_TYPE_VALUE_OF:
 	case EXP_TYPE_NUMBER_OF:
@@ -4043,7 +4360,7 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::getOpcodeLevel(ExpressionTyp
 	case EXP_TYPE_OBJECT_OF:
 	case EXP_TYPE_USERDATA_OF:
 	case EXP_TYPE_FUNCTION_OF:
-
+	*/
 	case EXP_TYPE_LOGIC_BOOL:	// !!
 	case EXP_TYPE_LOGIC_NOT:    // !
 	case EXP_TYPE_PLUS:			// +
@@ -4923,6 +5240,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 		exp->slots.b = cacheString(exp->token->str);
 		break;
 
+	case EXP_TYPE_DELETE:
+		OS_ASSERT(exp->list.count == 2);
+		exp->slots.b = cacheString(allocator->core->strings->__del);
+		break;
+
+	case EXP_TYPE_SET_DIM:
+		OS_ASSERT(exp->list.count == 3);
+		OS_ASSERT(exp->list[2]->type == EXP_TYPE_PARAMS);
+		exp->slots.b = cacheString(exp->list[2]->ret_values > 0 ? allocator->core->strings->__setdim : allocator->core->strings->__setempty);
+		break;
+
 	case EXP_TYPE_LENGTH:
 		OS_ASSERT(exp->list.count == 1);
 		exp->slots.b = cacheString(allocator->core->strings->__len);
@@ -4941,6 +5269,26 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 	case EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX:
 		OS_ASSERT(exp->list.count == 1);
 		exp->slots.b = cacheString(allocator->core->strings->func_push);
+		break;
+
+	case EXP_TYPE_EXTENDS:
+		OS_ASSERT(exp->list.count == 2);
+		exp->slots.b = cacheString(allocator->core->strings->func_extends);
+		break;
+
+	case EXP_TYPE_IN:
+		OS_ASSERT(exp->list.count == 2);
+		exp->slots.b = cacheString(allocator->core->strings->func_in);
+		break;
+
+	case EXP_TYPE_IS:
+		OS_ASSERT(exp->list.count == 2);
+		exp->slots.b = cacheString(allocator->core->strings->func_is);
+		break;
+
+	case EXP_TYPE_ISPROTOTYPEOF:
+		OS_ASSERT(exp->list.count == 2);
+		exp->slots.b = cacheString(allocator->core->strings->func_isprototypeof);
 		break;
 
 	case EXP_TYPE_CONST_NUMBER:
@@ -4980,6 +5328,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			}
 			return exp;
 		}
+		
 		static bool allowOverrideOpcodeResult(Expression * exp)
 		{
 			switch(exp->type){
@@ -5015,9 +5364,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			}
 			return false;
 		}
+
+		static Expression * addXconst(Compiler * compiler, Expression * exp, Expression * xconst)
+		{
+			if(xconst){
+				return new (compiler->malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CODE_LIST, exp->token, xconst, exp OS_DBG_FILEPOS);
+			}
+			return exp;
+		}
 	};
-	Expression * exp1, * exp2;
-	int stack_pos;
+	Expression * exp1, * exp2, * exp_xconst;
+	int stack_pos, b;
 	switch(exp->type){
 	default:
 		OS_ASSERT(false);
@@ -5056,6 +5413,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		scope->popTempVar();
 		return exp;
 
+	case EXP_TYPE_VALUE:
+		break;
+		// stack_pos = scope->function->stack_cur_size;
+		// exp = Lib::processList(this, scope, exp);
+		// return exp;
+
 	case EXP_TYPE_RETURN:
 		stack_pos = scope->function->stack_cur_size;
 		exp = Lib::processList(this, scope, exp);
@@ -5076,8 +5439,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 	case EXP_TYPE_CALL:
 	case EXP_TYPE_CALL_AUTO_PARAM:
-	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_TAIL_CALL:
+		OS_ASSERT(exp->list.count == 2);
+		OS_ASSERT(exp->list[1]->type == EXP_TYPE_PARAMS);
+		exp1 = exp->list[0];
+		if(exp1->type == EXP_TYPE_SUPER){
+			exp1->type = EXP_TYPE_CONST_NULL;
+			exp->type = EXP_TYPE_SUPER_CALL;
+		}
+		// no break
+
+	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_TAIL_CALL_METHOD:
 		stack_pos = scope->function->stack_cur_size;
 		exp = Lib::processList(this, scope, exp);
@@ -5102,7 +5474,31 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp->list[2] = exp1 = postCompileNewVM(scope, exp->list[2]);
 			OS_ASSERT(stack_pos == scope->function->stack_cur_size);
 		}
+		OS_ASSERT(stack_pos == scope->function->stack_cur_size);
 		return exp;
+
+	case EXP_TYPE_QUESTION:
+		OS_ASSERT(exp->list.count == 3);
+		stack_pos = scope->function->stack_cur_size;
+		
+		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
+		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+		scope->popTempVar();
+		
+		exp->list[1] = exp1 = postCompileNewVM(scope, exp->list[1]);
+		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+		scope->popTempVar();
+		
+		exp->list[2] = exp1 = postCompileNewVM(scope, exp->list[2]);
+		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+		return exp;
+
+	case EXP_TYPE_DEBUG_LOCALS:
+		OS_ASSERT(exp->list.count == 1);
+		exp1 = postCompileNewVM(scope, exp->list[0]);
+		allocator->vectorClear(exp->list);
+		allocator->deleteObj(exp);
+		return exp1;
 
 	case EXP_TYPE_ARRAY:
 	case EXP_TYPE_OBJECT:
@@ -5111,33 +5507,51 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
 		OS_ASSERT(exp->list.count == 1);
+
+		stack_pos = scope->allocTempVar();
+		b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES; // const string
+		if(b < -MAX_GENERIC_CONST_INDEX){
+			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
+			exp_xconst->slots.b = b;
+			exp_xconst->slots.a = b = stack_pos;
+		}else exp_xconst = NULL;
+
 		exp->type = EXP_TYPE_SET_PROPERTY;
 		OS_ASSERT(scope->function->stack_cur_size > scope->function->num_locals);
-		exp->slots.a = scope->function->stack_cur_size-1;
-		exp->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES; // const string
+		exp->slots.a = scope->function->stack_cur_size-2;
+		exp->slots.b = b;
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		exp->slots.c = exp1->slots.a;
-		scope->popTempVar();
+		scope->popTempVar(2);
 		if(exp1->type == EXP_TYPE_MOVE){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		return exp;
+		return Lib::addXconst(this, exp, exp_xconst);
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
 		OS_ASSERT(exp->list.count == 1);
+
+		stack_pos = scope->allocTempVar();
+		b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES; // const string
+		if(b < -MAX_GENERIC_CONST_INDEX){
+			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
+			exp_xconst->slots.b = b;
+			exp_xconst->slots.a = b = stack_pos;
+		}else exp_xconst = NULL;
+
 		exp->type = EXP_TYPE_SET_PROPERTY;
 		OS_ASSERT(scope->function->stack_cur_size > scope->function->num_locals);
-		exp->slots.a = scope->function->stack_cur_size-1;
-		exp->slots.b = -1 - exp->slots.b - CONST_STD_VALUES; // const integer		
+		exp->slots.a = scope->function->stack_cur_size-2;
+		exp->slots.b = b;
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		exp->slots.c = exp1->slots.a;
-		scope->popTempVar();
+		scope->popTempVar(2);
 		if(exp1->type == EXP_TYPE_MOVE){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		return exp;
+		return Lib::addXconst(this, exp, exp_xconst);
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
 		OS_ASSERT(exp->list.count == 2);
@@ -5161,6 +5575,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 	case EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX:
 		stack_pos = scope->function->stack_cur_size;
+
 		exp->type = EXP_TYPE_CALL_METHOD;
 		exp->ret_values = 0;
 
@@ -5179,6 +5594,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp2->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES; // const string
 		allocator->vectorInsertAtIndex(exp1->list, 0, exp2 OS_DBG_FILEPOS);
 
+		if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+			exp2->type = EXP_TYPE_GET_XCONST;
+		}
+
 		exp1->list[1] = postCompileNewVM(scope, exp1->list[1]);
 		OS_ASSERT(scope->function->stack_cur_size - stack_pos == 3);
 		exp->slots.a = stack_pos;
@@ -5193,14 +5612,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		OS_ASSERT(exp->list.count == 0);
 		exp->slots.a = scope->allocTempVar();
 		exp->slots.b = -1 - exp->slots.b - CONST_STD_VALUES;
-		exp->type = EXP_TYPE_MOVE;
+		exp->type = exp->slots.b < -MAX_GENERIC_CONST_INDEX ? EXP_TYPE_GET_XCONST : EXP_TYPE_MOVE;
 		return exp;
 
 	case EXP_TYPE_CONST_STRING:
 		OS_ASSERT(exp->list.count == 0);
 		exp->slots.a = scope->allocTempVar();
 		exp->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES;
-		exp->type = EXP_TYPE_MOVE;
+		exp->type = exp->slots.b < -MAX_GENERIC_CONST_INDEX ? EXP_TYPE_GET_XCONST : EXP_TYPE_MOVE;
 		return exp;
 
 	case EXP_TYPE_CONST_NULL:
@@ -5227,8 +5646,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_GET_THIS:
 		OS_ASSERT(exp->list.count == 0);
 		exp->slots.a = scope->allocTempVar();
-		exp->slots.b = VAR_THIS;
+		exp->slots.b = scope->function->num_params + VAR_THIS;
 		exp->type = EXP_TYPE_MOVE;
+		return exp;
+
+	case EXP_TYPE_GET_ARGUMENTS:
+	case EXP_TYPE_GET_REST_ARGUMENTS:
+		OS_ASSERT(exp->list.count == 0);
+		exp->slots.a = scope->allocTempVar();
 		return exp;
 
 	case EXP_TYPE_LOGIC_NOT: // !
@@ -5277,6 +5702,126 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = stack_pos;
 		return exp;
 
+	case EXP_TYPE_EXTENDS:
+	case EXP_TYPE_IN:
+	case EXP_TYPE_IS:
+	case EXP_TYPE_ISPROTOTYPEOF:
+		OS_ASSERT(exp->list.count == 2 && exp->ret_values == 1);
+		stack_pos = scope->function->stack_cur_size;
+
+		exp1 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, exp->token);
+		exp1->list.swap(exp->list);
+		exp1->ret_values = 2;
+
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+		exp2->slots.a = scope->allocTempVar();
+		exp2->slots.b = scope->function->num_params + VAR_ENV;
+		exp2->ret_values = 1;
+		exp->list.add(exp2 OS_DBG_FILEPOS);
+
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+		exp2->slots.a = scope->allocTempVar();
+		exp2->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES;
+		exp2->ret_values = 1;
+		allocator->vectorInsertAtIndex(exp1->list, 0, exp2 OS_DBG_FILEPOS);
+
+		if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+			exp2->type = EXP_TYPE_GET_XCONST;
+		}
+
+		OS_ASSERT(exp1->list.count == 3);
+		exp1->list[1] = postCompileNewVM(scope, exp1->list[1]);
+		exp1->list[2] = postCompileNewVM(scope, exp1->list[2]);
+		OS_ASSERT(stack_pos+4 == scope->function->stack_cur_size);
+
+		exp->list.add(exp1 OS_DBG_FILEPOS); // params
+
+		exp->type = EXP_TYPE_CALL_METHOD;
+		exp->slots.a = stack_pos;
+		exp->slots.b = scope->function->stack_cur_size - stack_pos;
+		exp->slots.c = exp->ret_values;
+		scope->function->stack_cur_size = stack_pos + exp->ret_values;
+		return exp;
+
+	case EXP_TYPE_DELETE:
+		OS_ASSERT(exp->list.count == 2 && exp->ret_values == 0);
+		stack_pos = scope->function->stack_cur_size;
+		exp->list[0] = postCompileNewVM(scope, exp->list[0]);
+		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+
+		exp1 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, exp->token);
+		
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+		exp2->slots.a = scope->allocTempVar();
+		exp2->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES;
+		exp2->ret_values = 1;
+		exp1->list.add(exp2 OS_DBG_FILEPOS);
+		
+		if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+			exp2->type = EXP_TYPE_GET_XCONST;
+		}
+
+		exp1->list.add(postCompileNewVM(scope, exp->list[1]) OS_DBG_FILEPOS);
+		exp1->ret_values = 2;
+
+		exp->list[1] = exp1;
+		
+		OS_ASSERT(stack_pos+3 == scope->function->stack_cur_size);
+
+		exp->type = EXP_TYPE_CALL_METHOD;
+		exp->slots.a = stack_pos;
+		exp->slots.b = scope->function->stack_cur_size - stack_pos;
+		exp->slots.c = 0;
+		scope->function->stack_cur_size = stack_pos;
+		return exp;
+
+	case EXP_TYPE_SET_DIM:
+		{
+			OS_ASSERT(exp->list.count == 3);
+			stack_pos = scope->function->stack_cur_size;
+			exp->list[0] = postCompileNewVM(scope, exp->list[0]);
+			OS_ASSERT(stack_pos+1 <= scope->function->stack_cur_size);
+
+			stack_pos = scope->function->stack_cur_size;
+			exp->list[1] = postCompileNewVM(scope, exp->list[1]);
+			OS_ASSERT(stack_pos+1 <= scope->function->stack_cur_size);
+
+			exp1 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CODE_LIST, exp->token);
+			exp1->list.swap(exp->list);
+			exp->list.add(exp1 OS_DBG_FILEPOS);
+
+			exp2 = exp1->list[2];
+			OS_ASSERT(exp2->type == EXP_TYPE_PARAMS);
+			allocator->vectorRemoveAtIndex(exp1->list, 2);
+			exp->list.add(exp2 OS_DBG_FILEPOS);
+
+			exp1 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+			exp1->slots.a = scope->allocTempVar();
+			exp1->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES;
+			exp1->ret_values = 1;
+			allocator->vectorInsertAtIndex(exp2->list, 0, exp1 OS_DBG_FILEPOS);
+
+			if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+				exp2->type = EXP_TYPE_GET_XCONST;
+			}
+
+			exp1 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+			exp1->slots.a = scope->allocTempVar();
+			exp1->slots.b = scope->function->stack_cur_size - 4;
+			exp1->ret_values = 1;
+			allocator->vectorInsertAtIndex(exp2->list, 1, exp1 OS_DBG_FILEPOS);
+
+			for(int i = 2; i < exp2->list.count; i++){
+				exp2->list[i] = postCompileNewVM(scope, exp2->list[i]);
+			}
+			exp->type = EXP_TYPE_CALL_METHOD;
+			exp->slots.a = stack_pos;
+			exp->slots.b = scope->function->stack_cur_size - stack_pos;
+			exp->slots.c = 0;
+			scope->function->stack_cur_size = stack_pos - 1;
+			return exp;
+		}
+
 	case EXP_TYPE_LENGTH: // #
 		OS_ASSERT(exp->list.count == 1);
 		stack_pos = scope->function->stack_cur_size;
@@ -5293,6 +5838,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp1->list.add(exp2 OS_DBG_FILEPOS);
 		exp->list.add(exp1 OS_DBG_FILEPOS);
 
+		if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+			exp2->type = EXP_TYPE_GET_XCONST;
+		}
+
 		exp->type = EXP_TYPE_CALL_METHOD;
 		exp->slots.a = stack_pos;
 		exp->slots.b = scope->function->stack_cur_size - stack_pos;
@@ -5300,19 +5849,39 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		scope->function->stack_cur_size = stack_pos + exp->ret_values;
 		return exp;
 
-	// case EXP_TYPE_BIT_NOT:		// ~
-	// case EXP_TYPE_PLUS:			// +
-	// case EXP_TYPE_NEG:			// -
+	case EXP_TYPE_BIT_NOT:		// ~
+	case EXP_TYPE_PLUS:			// +
+	case EXP_TYPE_NEG:			// -
+		OS_ASSERT(exp->list.count == 1);
+		stack_pos = scope->function->stack_cur_size;
+		exp = Lib::processList(this, scope, exp);
+		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+		exp->slots.a = stack_pos;
+		exp->slots.b = stack_pos;
+		exp1 = exp->list[0];
+		if(exp1->type == EXP_TYPE_MOVE){
+			exp->slots.b = exp1->slots.b;
+			exp1->type = EXP_TYPE_NOP;
+		}		
+		return exp;
+
+	case EXP_TYPE_LOGIC_AND:
+	case EXP_TYPE_LOGIC_OR:
+		OS_ASSERT(exp->list.count == 2);
+		stack_pos = scope->function->stack_cur_size;
+		
+		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
+		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+		scope->popTempVar();
+
+		exp->list[1] = exp2 = postCompileNewVM(scope, exp->list[1]);
+		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+		OS_ASSERT(stack_pos == exp1->slots.a && stack_pos == exp2->slots.a);
+		
+		exp->slots.a = stack_pos;
+		return exp;
 
 	case EXP_TYPE_CONCAT:
-	case EXP_TYPE_LOGIC_PTR_EQ:
-	case EXP_TYPE_LOGIC_PTR_NE:
-	case EXP_TYPE_LOGIC_EQ:
-	case EXP_TYPE_LOGIC_NE:
-	case EXP_TYPE_LOGIC_GE:
-	case EXP_TYPE_LOGIC_LE:
-	case EXP_TYPE_LOGIC_GREATER:
-	case EXP_TYPE_LOGIC_LESS:
 	case EXP_TYPE_BIT_AND:
 	case EXP_TYPE_BIT_OR:
 	case EXP_TYPE_BIT_XOR:
@@ -5330,7 +5899,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp1 = exp->list[0];
 		exp2 = exp->list[1];
 		OS_ASSERT(stack_pos+2 == scope->function->stack_cur_size);
-		OS_ASSERT(stack_pos == exp1->slots.a && stack_pos+1 == exp2->slots.a);
+		// OS_ASSERT(stack_pos == exp1->slots.a && stack_pos+1 == exp2->slots.a);
 		exp->slots.a = stack_pos;
 		exp->slots.b = stack_pos;
 		exp->slots.c = stack_pos+1;
@@ -5345,7 +5914,26 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		}
 		return exp;
 
+	case EXP_TYPE_LOGIC_PTR_EQ:
+	case EXP_TYPE_LOGIC_PTR_NE:
+	case EXP_TYPE_LOGIC_EQ:
+	case EXP_TYPE_LOGIC_NE:
+	case EXP_TYPE_LOGIC_GE:
+	case EXP_TYPE_LOGIC_LE:
+	case EXP_TYPE_LOGIC_GREATER:
+	case EXP_TYPE_LOGIC_LESS:
+		OS_ASSERT(exp->list.count == 2);
+		stack_pos = scope->function->stack_cur_size;
+		exp = Lib::processList(this, scope, exp);
+		OS_ASSERT(stack_pos+2 == scope->function->stack_cur_size);
+		exp->slots.a = stack_pos;
+		exp->slots.b = 0;
+		exp->slots.c = 0;
+		scope->popTempVar();
+		return exp;
+
 	case EXP_TYPE_GET_LOCAL_VAR:
+	case EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE:
 		OS_ASSERT(exp->list.count == 0);
 		if(exp->local_var.up_count){
 			exp->type = EXP_TYPE_GET_UPVALUE_VAR;
@@ -5408,6 +5996,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
+		exp1 = exp->list[1];
+		if(exp1->type == EXP_TYPE_MOVE){
+			exp->slots.a = exp1->slots.b;
+			exp1->type = EXP_TYPE_NOP;
+		}
 		exp1 = exp->list[2];
 		if(exp1->type == EXP_TYPE_MOVE){
 			exp->slots.b = exp1->slots.b;
@@ -5422,6 +6015,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES;
 		exp->slots.b = scope->function->num_params + VAR_ENV;
 		exp->type = EXP_TYPE_GET_PROPERTY;
+		
+		if(exp->slots.c < -MAX_GENERIC_CONST_INDEX){
+			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
+			exp_xconst->slots.b = exp->slots.c;
+			exp_xconst->slots.a = exp->slots.c = exp->slots.a;
+			return Lib::addXconst(this, exp, exp_xconst);
+		}
 		return exp;
 
 	case EXP_TYPE_SET_ENV_VAR:
@@ -5429,12 +6029,26 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		stack_pos = scope->function->stack_cur_size;
 		exp = Lib::processList(this, scope, exp);
 		OS_ASSERT(stack_pos < scope->function->stack_cur_size);
-		exp1 = exp->list[0];
 		exp->slots.a = scope->function->num_params + VAR_ENV;
 		exp->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES;
 		exp->slots.c = --scope->function->stack_cur_size;
 		exp->type = EXP_TYPE_SET_PROPERTY;
+
+		if(exp->slots.b < -MAX_GENERIC_CONST_INDEX){
+			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
+			exp_xconst->slots.b = exp->slots.b;
+			exp_xconst->slots.a = exp->slots.b = exp->slots.c + 1;
+			if(exp_xconst->slots.a >= scope->function->stack_size){
+				scope->function->stack_size = exp_xconst->slots.a + 1;
+			}
+			exp->list.add(exp_xconst OS_DBG_FILEPOS);
+		}
+		exp1 = exp->list[0];
 		return exp;
+
+	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
+		exp->type = EXP_TYPE_GET_PROPERTY;
+		// no break
 
 	case EXP_TYPE_GET_PROPERTY:
 		OS_ASSERT(exp->list.count == 2);
@@ -6175,7 +6789,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishQuestionOperator(Scop
 	return exp;
 }
 
-
+/*
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectCloneExpression(Scope * scope)
 {
 	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_clone);
@@ -6192,6 +6806,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectCloneExpression(Scope
 	exp->ret_values = 1;
 	return exp;
 }
+*/
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectDeleteExpression(Scope * scope)
 {
@@ -6244,6 +6859,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectDeleteExpression(Scop
 	return NULL;
 }
 
+/*
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectValueOfExpression(Scope * scope, ExpressionType exp_type)
 {
 	OS_ASSERT(recent_token);
@@ -6260,6 +6876,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectValueOfExpression(Sco
 	exp->ret_values = 1;
 	return exp;
 }
+*/
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Scope * parent)
 {
@@ -7872,6 +8489,7 @@ bool OS::Core::Compiler::isVarNameValid(const String& name)
 	return !(name == strings->syntax_super
 		|| name == strings->syntax_is
 		|| name == strings->syntax_isprototypeof
+		/*
 		|| name == strings->syntax_typeof
 		|| name == strings->syntax_valueof
 		|| name == strings->syntax_booleanof
@@ -7881,8 +8499,9 @@ bool OS::Core::Compiler::isVarNameValid(const String& name)
 		|| name == strings->syntax_objectof
 		|| name == strings->syntax_userdataof
 		|| name == strings->syntax_functionof
-		|| name == strings->syntax_extends
 		|| name == strings->syntax_clone
+		*/
+		|| name == strings->syntax_extends
 		|| name == strings->syntax_delete
 		|| name == strings->syntax_prototype
 		|| name == strings->syntax_var
@@ -8125,6 +8744,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			}
 			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
+		/*
 		if(token->str == allocator->core->strings->syntax_clone){
 			exp = expectCloneExpression(scope);
 			if(!exp){
@@ -8132,6 +8752,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			}
 			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
+		*/
 		if(token->str == allocator->core->strings->syntax_delete){
 			if(!p.allow_root_blocks){
 				setError(ERROR_NESTED_ROOT_BLOCK, token);
@@ -8139,6 +8760,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			}
 			return expectDeleteExpression(scope);
 		}
+		/*
 		if(token->str == allocator->core->strings->syntax_typeof){
 			exp = expectValueOfExpression(scope, EXP_TYPE_TYPE_OF);
 			if(!exp){
@@ -8202,6 +8824,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			}
 			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
+		*/
 		if(token->str == allocator->core->strings->syntax_break){
 			if(!p.allow_root_blocks){
 				setError(ERROR_NESTED_ROOT_BLOCK, token);
@@ -8420,6 +9043,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_CALL_AUTO_PARAM:
 		return OS_TEXT("call");
 
+	case EXP_TYPE_SUPER_CALL:
+		return OS_TEXT("super call");
+
 	case EXP_TYPE_CALL_DIM:
 		return OS_TEXT("dim");
 
@@ -8441,8 +9067,10 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_EXTENDS:
 		return OS_TEXT("extends");
 
+	/*
 	case EXP_TYPE_CLONE:
 		return OS_TEXT("clone");
+	*/
 
 	case EXP_TYPE_DELETE:
 		return OS_TEXT("delete");
@@ -8557,7 +9185,7 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 
 	case EXP_TYPE_SUPER:
 		return OS_TEXT("super");
-
+	/*
 	case EXP_TYPE_TYPE_OF:
 		return OS_TEXT("typeof");
 
@@ -8581,7 +9209,7 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 
 	case EXP_TYPE_FUNCTION_OF:
 		return OS_TEXT("functionof");
-
+	*/
 		/*
 		case EXP_TYPE_INC:     // ++
 		return OS_TEXT("operator ++");
@@ -8676,6 +9304,12 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 
 	case EXP_TYPE_POW_ASSIGN: // **=
 		return OS_TEXT("operator **=");
+
+	case EXP_TYPE_MOVE:
+		return OS_TEXT("move");
+
+	case EXP_TYPE_GET_XCONST:
+		return OS_TEXT("get xconst");
 	}
 	return OS_TEXT("unknown exp");
 }
@@ -8804,7 +9438,7 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 	writer->writeUVariable(double_count);
 	writer->writeUVariable(prog_strings.count);
 	writer->writeUVariable(prog_functions.count);
-	writer->writeUVariable(prog_opcodes->getPos());
+	writer->writeUVariable(prog_opcodes_old->getPos());
 
 	writer->writeBytes(int_stream.buffer.buf, int_stream.buffer.count);
 	writer->writeBytes(float_stream.buffer.buf, float_stream.buffer.count);
@@ -8839,7 +9473,7 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 		}
 	}
 
-	writer->writeBytes(prog_opcodes->buffer.buf, prog_opcodes->buffer.count);
+	writer->writeBytes(prog_opcodes_old->buffer.buf, prog_opcodes_old->buffer.count);
 
 	if(debug_info_writer){
 		debug_info_writer->writeBytes(OS_DEBUGINFO_HEADER, OS_STRLEN(OS_DEBUGINFO_HEADER));
@@ -9077,7 +9711,7 @@ OS::Core::Program::OpcodeType OS::Core::Program::getOpcodeType(Compiler::Express
 	case Compiler::EXP_TYPE_GET_REST_ARGUMENTS: return OP_PUSH_REST_ARGUMENTS;
 
 	case Compiler::EXP_TYPE_SUPER: return OP_SUPER;
-
+	/*
 	case Compiler::EXP_TYPE_TYPE_OF: return OP_TYPE_OF;
 	case Compiler::EXP_TYPE_VALUE_OF: return OP_VALUE_OF;
 	case Compiler::EXP_TYPE_NUMBER_OF: return OP_NUMBER_OF;
@@ -9086,7 +9720,7 @@ OS::Core::Program::OpcodeType OS::Core::Program::getOpcodeType(Compiler::Express
 	case Compiler::EXP_TYPE_OBJECT_OF: return OP_OBJECT_OF;
 	case Compiler::EXP_TYPE_USERDATA_OF: return OP_USERDATA_OF;
 	case Compiler::EXP_TYPE_FUNCTION_OF: return OP_FUNCTION_OF;
-
+	*/
 	case Compiler::EXP_TYPE_LOGIC_BOOL: return OP_LOGIC_BOOL;
 	case Compiler::EXP_TYPE_LOGIC_NOT: return OP_LOGIC_NOT;
 	case Compiler::EXP_TYPE_BIT_NOT: return OP_BIT_NOT;
@@ -11645,6 +12279,10 @@ OS::Core::Strings::Strings(OS * allocator)
 	__lshift(allocator, OS_TEXT("__lshift")),
 	__rshift(allocator, OS_TEXT("__rshift")),
 	__pow(allocator, OS_TEXT("__pow")),
+	func_extends(allocator, OS_TEXT("extends")),
+	func_in(allocator, OS_TEXT("__in")),
+	func_is(allocator, OS_TEXT("__is")),
+	func_isprototypeof(allocator, OS_TEXT("__isprototypeof")),
 	func_push(allocator, OS_TEXT("push")),
 
 	typeof_null(allocator, OS_TEXT("null")),
@@ -11661,6 +12299,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_super(allocator, OS_TEXT("super")),
 	syntax_is(allocator, OS_TEXT("is")),
 	syntax_isprototypeof(allocator, OS_TEXT("isprototypeof")),
+	/*
 	syntax_typeof(allocator, OS_TEXT("typeof")),
 	syntax_valueof(allocator, OS_TEXT("valueof")),
 	syntax_booleanof(allocator, OS_TEXT("booleanof")),
@@ -11670,8 +12309,9 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_objectof(allocator, OS_TEXT("objectof")),
 	syntax_userdataof(allocator, OS_TEXT("userdataof")),
 	syntax_functionof(allocator, OS_TEXT("functionof")),
-	syntax_extends(allocator, OS_TEXT("extends")),
 	syntax_clone(allocator, OS_TEXT("clone")),
+	*/
+	syntax_extends(allocator, OS_TEXT("extends")),
 	syntax_delete(allocator, OS_TEXT("delete")),
 	syntax_prototype(allocator, OS_TEXT("prototype")),
 	syntax_var(allocator, OS_TEXT("var")),

@@ -1489,6 +1489,7 @@ namespace ObjectScript
 					EXP_TYPE_NAME, // temp
 					// EXP_TYPE_POST_IF,
 					EXP_TYPE_POP_VALUE,
+					EXP_TYPE_SUPER_CALL,
 					EXP_TYPE_CALL,
 					EXP_TYPE_CALL_AUTO_PARAM,
 					EXP_TYPE_CALL_DIM, // temp
@@ -1496,7 +1497,7 @@ namespace ObjectScript
 					EXP_TYPE_PARAMS,
 					EXP_TYPE_FUNCTION,
 					EXP_TYPE_EXTENDS,
-					EXP_TYPE_CLONE,
+					// EXP_TYPE_CLONE,
 					EXP_TYPE_DELETE,
 					EXP_TYPE_RETURN,
 					EXP_TYPE_BREAK,
@@ -1516,6 +1517,8 @@ namespace ObjectScript
 					EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX,
 
 					EXP_TYPE_SUPER,
+
+					/*
 					EXP_TYPE_TYPE_OF,
 					EXP_TYPE_VALUE_OF,
 					// EXP_TYPE_BOOLEAN_OF, == EXP_TYPE_LOGIC_BOOL
@@ -1525,6 +1528,7 @@ namespace ObjectScript
 					EXP_TYPE_OBJECT_OF,
 					EXP_TYPE_USERDATA_OF,
 					EXP_TYPE_FUNCTION_OF,
+					*/
 
 					EXP_TYPE_GET_THIS,
 					EXP_TYPE_GET_ARGUMENTS,
@@ -1655,6 +1659,7 @@ namespace ObjectScript
 					EXP_TYPE_SET_UPVALUE_VAR,
 
 					EXP_TYPE_MOVE,
+					EXP_TYPE_GET_XCONST,
 				};
 
 			protected:
@@ -1797,7 +1802,7 @@ namespace ObjectScript
 					virtual ~Scope();
 
 					bool addLoopBreak(int pos, ELoopBreakType);
-					void fixLoopBreaks(Compiler*, int scope_start_pos, int scope_end_pos, StreamWriter*);
+					void fixLoopBreaks(Compiler*, int scope_start_pos, int scope_end_pos);
 
 					void addStdVars();
 					void addLocalVar(const String& name);
@@ -1880,7 +1885,8 @@ namespace ObjectScript
 				Vector<String> prog_strings;
 				Vector<String> prog_debug_strings;
 				Vector<Scope*> prog_functions;
-				MemStreamWriter * prog_opcodes;
+				Vector<OS_U32> prog_opcodes;
+				MemStreamWriter * prog_opcodes_old;
 				MemStreamWriter * prog_debug_info;
 				int prog_num_debug_infos;
 				int prog_max_up_count;
@@ -1969,9 +1975,9 @@ namespace ObjectScript
 				Expression * expectFunctionExpression(Scope*);
 				Expression * expectFunctionSugarExpression(Scope*);
 				Expression * expectExtendsExpression(Scope*);
-				Expression * expectCloneExpression(Scope*);
+				// Expression * expectCloneExpression(Scope*);
 				Expression * expectDeleteExpression(Scope*);
-				Expression * expectValueOfExpression(Scope*, ExpressionType exp_type);
+				// Expression * expectValueOfExpression(Scope*, ExpressionType exp_type);
 				Expression * expectVarExpression(Scope*);
 				Expression * expectObjectOrFunctionExpression(Scope*, const Params& p, bool allow_finish_exp = true);
 				Expression * expectArrayExpression(Scope*, const Params& p);
@@ -1997,6 +2003,18 @@ namespace ObjectScript
 				int cacheString(const String& str);
 				int cacheDebugString(const String& str);
 				int cacheNumber(OS_NUMBER);
+
+				void writeJumpOpcode(int offs);
+				void fixJumpOpcode(int offs, int pos);
+				void fixJumpOpcode(int offs, int pos, int opcode);
+
+				int getOpcodePos();
+				int writeOpcode(OS_U32 opcode);
+				int writeOpcode(int opcode, int a, int b = 0, int c = 0);
+				void writeOpcodeAt(OS_U32 opcode, int pos);
+
+				bool writeOpcodes(Scope*, Expression*);
+				bool writeOpcodes(Scope*, ExpressionList&);
 
 				void writeJumpOpcodeOld(int offs);
 				void fixJumpOpcodeOld(StreamWriter * writer, int offs, int pos);
@@ -2062,6 +2080,17 @@ namespace ObjectScript
 
 				enum OpcodeType
 				{
+					OP_NOP,
+					OP_NEW_FUNCTION,
+					OP_RETURN,
+					OP_JUMP,
+
+					OP_LOGIC_PTR_EQ,
+					OP_LOGIC_EQ,
+					OP_LOGIC_GREATER,
+					OP_LOGIC_GE,
+					OP_LOGIC_BOOL,
+
 					OP_UNKNOWN,
 					OP_PUSH_ONE,
 					OP_PUSH_NUMBER_1,
@@ -2146,7 +2175,6 @@ namespace ObjectScript
 
 					OP_EXTENDS,
 					OP_DELETE_PROP,
-					OP_RETURN,
 					OP_RETURN_AUTO,
 					OP_POP,
 
@@ -2162,13 +2190,9 @@ namespace ObjectScript
 					OP_LOGIC_OR_4,
 
 					OP_COMPARE,
-					OP_LOGIC_PTR_EQ,
 					OP_LOGIC_PTR_NE,
-					OP_LOGIC_EQ,
 					OP_LOGIC_NE,
-					OP_LOGIC_GE,
 					OP_LOGIC_LE,
-					OP_LOGIC_GREATER,
 					OP_LOGIC_LESS,
 
 					OP_BIT_AND,
@@ -2191,7 +2215,6 @@ namespace ObjectScript
 					OP_NEG,
 					OP_LENGTH,
 
-					OP_LOGIC_BOOL,
 					OP_LOGIC_NOT,
 
 					OP_IN,
@@ -2209,8 +2232,6 @@ namespace ObjectScript
 					OP_USERDATA_OF,
 					OP_FUNCTION_OF,
 					OP_CLONE,
-
-					OP_NOP,
 
 					OP_NEW_MOVE,
 					OP_NEW_GET_PROPERTY,
@@ -2463,6 +2484,11 @@ namespace ObjectScript
 				String __lshift;
 				String __rshift;
 				String __pow;
+				
+				String func_extends;
+				String func_in;
+				String func_is;
+				String func_isprototypeof;
 				String func_push;
 
 				String typeof_null;
@@ -2479,6 +2505,7 @@ namespace ObjectScript
 				String syntax_super;
 				String syntax_is;
 				String syntax_isprototypeof;
+				/*
 				String syntax_typeof;
 				String syntax_valueof;
 				String syntax_booleanof;
@@ -2488,8 +2515,9 @@ namespace ObjectScript
 				String syntax_objectof;
 				String syntax_userdataof;
 				String syntax_functionof;
-				String syntax_extends;
 				String syntax_clone;
+				*/
+				String syntax_extends;
 				String syntax_delete;
 				String syntax_prototype;
 				String syntax_var;
