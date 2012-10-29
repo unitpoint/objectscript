@@ -2292,7 +2292,7 @@ namespace ObjectScript
 			};
 
 			enum {
-				VAR_UNUSED,
+				// VAR_UNUSED,
 				VAR_THIS,
 				VAR_ENV,
 #ifdef OS_GLOBAL_VAR_ENABLED
@@ -2463,6 +2463,7 @@ namespace ObjectScript
 				String __lshift;
 				String __rshift;
 				String __pow;
+				String func_push;
 
 				String typeof_null;
 				String typeof_boolean;
