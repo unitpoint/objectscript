@@ -1479,6 +1479,7 @@ namespace ObjectScript
 				OP_MULTI_GET_ARGUMENTS,
 				OP_MULTI_GET_REST_ARGUMENTS,
 				OP_MULTI_SUPER,
+				OP_MULTI_DEBUGGER,
 			};
 
 			enum OpcodeType
@@ -1597,8 +1598,6 @@ namespace ObjectScript
 				OP_JUMP_2,
 				OP_JUMP_4,
 					
-				OP_DEBUGGER,
-
 				OP_EXTENDS,
 				OP_DELETE_PROP,
 				OP_RETURN_AUTO,
@@ -2384,9 +2383,9 @@ namespace ObjectScript
 				GCValue * arguments;
 				GCValue * rest_arguments;
 				
-				// int caller_stack_pos;
+				int caller_stack_size;
 				int locals_stack_pos;
-				int stack_pos;
+				// int stack_pos;
 				
 				int need_ret_values;
 
