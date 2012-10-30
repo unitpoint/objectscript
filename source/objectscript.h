@@ -1534,7 +1534,7 @@ namespace ObjectScript
 				OP_PLUS,
 				OP_NEG,
 
-
+				/*
 				OP_UNKNOWN,
 				OP_PUSH_ONE,
 				OP_PUSH_NUMBER_1,
@@ -1614,7 +1614,6 @@ namespace ObjectScript
 				OP_LOGIC_OR_2,
 				OP_LOGIC_OR_4,
 
-				OP_COMPARE,
 				OP_LOGIC_PTR_NE,
 				OP_LOGIC_NE,
 				OP_LOGIC_LE,
@@ -1674,8 +1673,10 @@ namespace ObjectScript
 
 				OP_NEW_LOGIC_BOOL,
 				OP_NEW_LOGIC_NOT,
+				*/
 
-				OPCODE_COUNT
+				OPCODE_COUNT,
+				OP_COMPARE		// virtual opcode
 			};
 
 			class Compiler
@@ -2471,20 +2472,7 @@ namespace ObjectScript
 				String __deldim;
 				String __cmp;
 				String __iter;
-				// String __tostring;
-				String __valueof;
-				/*
-				String __booleanof;
-				String __numberof;
-				String __stringof;
-				String __arrayof;
-				String __objectof;
-				String __userdataof;
-				String __functionof;
-				*/
-				String __clone;
-				// String __tobool;
-				String __concat;
+				// String __concat;
 				String __bitand;
 				String __bitor;
 				String __bitxor;
@@ -2506,6 +2494,8 @@ namespace ObjectScript
 				String func_is;
 				String func_isprototypeof;
 				String func_push;
+				String func_valueOf;
+				String func_clone;
 
 				String typeof_null;
 				String typeof_boolean;
@@ -2784,14 +2774,14 @@ namespace ObjectScript
 			GCObjectValue * pushObjectValue(GCValue * prototype);
 			GCArrayValue * pushArrayValue(int initial_capacity = 0);
 
-			void pushTypeOf(Value val);
-			bool pushNumberOf(Value val);
-			bool pushStringOf(Value val);
+			void pushTypeOf(const Value& val);
+			bool pushNumberOf(const Value& val);
+			bool pushStringOf(const Value& val);
 			bool pushValueOf(Value val);
-			GCArrayValue * pushArrayOf(Value val);
-			GCObjectValue * pushObjectOf(Value val);
-			GCUserdataValue * pushUserdataOf(Value val);
-			bool pushFunctionOf(Value val);
+			GCArrayValue * pushArrayOf(const Value& val);
+			GCObjectValue * pushObjectOf(const Value& val);
+			GCUserdataValue * pushUserdataOf(const Value& val);
+			bool pushFunctionOf(const Value& val);
 
 			void pushCloneValue(Value val);
 

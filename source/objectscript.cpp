@@ -1657,7 +1657,7 @@ bool OS::Core::Tokenizer::parseLines()
 				}
 			}
 
-			if(*str == OS_TEXT('_') || *str == OS_TEXT('$') || *str == OS_TEXT('@') 
+			if(*str == OS_TEXT('_') || *str == OS_TEXT('$') // || *str == OS_TEXT('@') 
 				|| (*str >= OS_TEXT('a') && *str <= OS_TEXT('z'))
 				|| (*str >= OS_TEXT('A') && *str <= OS_TEXT('Z')) )
 			{ // parse name
@@ -2859,6 +2859,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_VALUE:
 	case EXP_TYPE_CODE_LIST:
 	case EXP_TYPE_PARAMS:
+	case EXP_TYPE_POP_VALUE:
 		if(!writeOpcodes(scope, exp->list)){
 			return false;
 		}
@@ -3117,6 +3118,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 
 	case EXP_TYPE_SUPER_CALL:
 	case EXP_TYPE_CALL:
+	case EXP_TYPE_CALL_AUTO_PARAM:
 	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_TAIL_CALL:
 	case EXP_TYPE_TAIL_CALL_METHOD:
@@ -5415,7 +5417,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileExpression(Scope
 	OS_ASSERT(scope->type == EXP_TYPE_FUNCTION);
 	exp = postCompilePass3(scope, exp);
 	exp = postCompileNewVM(scope, exp);
-	OS_ASSERT(scope->function->stack_cur_size == scope->function->num_locals);
+	OS_ASSERT(scope->function->stack_cur_size == scope->function->num_locals || scope->function->stack_cur_size == scope->function->num_locals+1);
 	return exp;
 #else
 	OS_ASSERT(scope->type == EXP_TYPE_FUNCTION);
@@ -5599,6 +5601,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			case EXP_TYPE_RSHIFT: // >>
 			case EXP_TYPE_POW: // **
 			case EXP_TYPE_GET_UPVALUE:
+			case EXP_TYPE_GET_PROPERTY:
 				return true;
 			}
 			return false;
@@ -5641,7 +5644,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			break;
 		}
 
-	case EXP_TYPE_CODE_LIST:
 	case EXP_TYPE_PARAMS:
 	case EXP_TYPE_MOVE:
 	case EXP_TYPE_NEW_LOCAL_VAR:
@@ -5649,6 +5651,16 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_CONTINUE:
 	case EXP_TYPE_NOP:
 		break;
+
+	case EXP_TYPE_CODE_LIST:
+		{
+			stack_pos = scope->function->stack_cur_size;
+			exp = Lib::processList(this, scope, exp);
+			while(stack_pos + exp->ret_values > scope->function->stack_cur_size){
+				scope->allocTempVar();
+			}
+			return exp;
+		}
 
 	case EXP_TYPE_POP_VALUE:
 		exp = Lib::processList(this, scope, exp);
@@ -5672,7 +5684,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		if(exp->slots.b == 1){
 			OS_ASSERT(exp->list.count == 1);
 			exp1 = exp->list[0];
-			if(exp1->type == EXP_TYPE_MOVE){ // && exp1->slots.a >= scope->function->num_locals){ // stack_cur_size is already decremented
+			if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){
 				exp->slots.a = exp1->slots.b;
 				exp1->type = EXP_TYPE_NOP;
 			}
@@ -5888,7 +5900,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_GET_THIS:
 		OS_ASSERT(exp->list.count == 0);
 		exp->slots.a = scope->allocTempVar();
-		exp->slots.b = 0; // 0 - is this scope->function->num_params + VAR_THIS;
+		exp->slots.b = 0; // 0 - is this
 		exp->type = EXP_TYPE_MOVE;
 		return exp;
 
@@ -6117,8 +6129,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		scope->popTempVar();
 
 		exp->list[1] = exp2 = postCompileNewVM(scope, exp->list[1]);
-		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
-		OS_ASSERT(stack_pos == exp1->slots.a && stack_pos == exp2->slots.a);
+		// OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+		/* if(stack_pos+1 != scope->function->stack_cur_size){
+			int i = 0;
+		} */
+		scope->function->stack_cur_size = stack_pos+1;
+		// OS_ASSERT(stack_pos == exp1->slots.a && stack_pos == exp2->slots.a);
 		
 		exp->slots.a = stack_pos;
 		return exp;
@@ -6216,7 +6232,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		}
 		if(exp->type == EXP_TYPE_MOVE 
 			&& Lib::allowOverrideOpcodeResult(exp1)
-			&& exp1->slots.a >= scope->function->num_locals) // stack_cur_size is already decremented
+			&& exp1->slots.a >= scope->function->num_locals
+			)
 		{
 			exp1->slots.a = exp->slots.a;
 			exp->type = EXP_TYPE_NOP;
@@ -6674,7 +6691,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectOrFunctionExpre
 	if(!expectToken()){
 		return NULL;
 	}
-	if(recent_token->type == Tokenizer::OPERATOR_BIT_OR){
+	if(recent_token->type == Tokenizer::OPERATOR_BIT_OR || recent_token->type == Tokenizer::OPERATOR_LOGIC_OR){ // {|| - no params
 		Expression * exp = expectFunctionSugarExpression(scope); // {|x, x2| x*x2}
 		// TODO: process org_p, allow_finish_exp ?
 		return exp;
@@ -7217,11 +7234,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Sc
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpression(Scope * parent)
 {
-	OS_ASSERT(recent_token && recent_token->type == Tokenizer::OPERATOR_BIT_OR);
+	OS_ASSERT(recent_token && (recent_token->type == Tokenizer::OPERATOR_BIT_OR || recent_token->type == Tokenizer::OPERATOR_LOGIC_OR));
 	Scope * scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(parent, EXP_TYPE_FUNCTION, recent_token);
 	scope->function = scope;
 	scope->ret_values = 1;
 	scope->addLocalVar(allocator->core->strings->syntax_this);
+	if(recent_token->type == Tokenizer::OPERATOR_BIT_OR)
 	for(;;){
 		if(!readToken()){
 			setError(ERROR_SYNTAX, recent_token);
@@ -7263,7 +7281,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 		break;
 	}
 	scope->num_params = scope->num_locals;
-	OS_ASSERT(recent_token && recent_token->type == Tokenizer::OPERATOR_BIT_OR);
+	OS_ASSERT(recent_token && (recent_token->type == Tokenizer::OPERATOR_BIT_OR || recent_token->type == Tokenizer::OPERATOR_LOGIC_OR));
 	scope->addStdVars();
 	// scope = expectCodeExpression(scope);
 
@@ -8737,7 +8755,7 @@ bool OS::Core::Compiler::isVarNameValid(const String& name)
 		|| name == strings->syntax_isprototypeof
 		/*
 		|| name == strings->syntax_typeof
-		|| name == strings->syntax_valueof
+		|| name == strings->syntax_valueOf
 		|| name == strings->syntax_booleanof
 		|| name == strings->syntax_numberof
 		|| name == strings->syntax_stringof
@@ -9014,7 +9032,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			}
 			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
-		if(token->str == allocator->core->strings->syntax_valueof){
+		if(token->str == allocator->core->strings->syntax_valueOf){
 			exp = expectValueOfExpression(scope, EXP_TYPE_VALUE_OF);
 			if(!exp){
 				return NULL;
@@ -9436,7 +9454,7 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 		return OS_TEXT("typeof");
 
 	case EXP_TYPE_VALUE_OF:
-		return OS_TEXT("valueof");
+		return OS_TEXT("valueOf");
 
 	case EXP_TYPE_NUMBER_OF:
 		return OS_TEXT("numberof");
@@ -9969,12 +9987,12 @@ OS::Core::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType e
 {
 	switch(exp_type){
 	case Compiler::EXP_TYPE_CALL: return OP_CALL;
-	// case Compiler::EXP_TYPE_CALL_AUTO_PARAM: return OP_CALL;
+	case Compiler::EXP_TYPE_CALL_AUTO_PARAM: return OP_CALL;
 	case Compiler::EXP_TYPE_CALL_METHOD: return OP_CALL_METHOD;
 	case Compiler::EXP_TYPE_TAIL_CALL: return OP_TAIL_CALL;
 	case Compiler::EXP_TYPE_TAIL_CALL_METHOD: return OP_TAIL_CALL_METHOD;
 	case Compiler::EXP_TYPE_SUPER_CALL: return OP_SUPER_CALL;
-	case Compiler::EXP_TYPE_SUPER: return OP_SUPER;
+	// case Compiler::EXP_TYPE_SUPER: return OP_SUPER;
 
 	case Compiler::EXP_TYPE_GET_PROPERTY: return OP_GET_PROPERTY;
 	case Compiler::EXP_TYPE_SET_PROPERTY:return OP_SET_PROPERTY;
@@ -11297,7 +11315,7 @@ int OS::Core::compareObjectProperties(OS * os, const void * a, const void * b, v
 	os->core->pushStringValue(name);
 	os->getProperty();
 
-	os->runOp(OS_EOpcode::OP_COMPARE);
+	os->runOp(ObjectScript::OP_COMPARE);
 	return compareResult(os->popNumber());
 }
 
@@ -12533,19 +12551,6 @@ OS::Core::Strings::Strings(OS * allocator)
 	__deldim(allocator, OS_TEXT("__deldim")),
 	__cmp(allocator, OS_TEXT("__cmp")),
 	__iter(allocator, OS_TEXT("__iter")),
-	// __tostring(allocator, OS_TEXT("__tostring")),
-	__valueof(allocator, OS_TEXT("__valueof")),
-	/*
-	__booleanof(allocator, OS_TEXT("__booleanof")),
-	__numberof(allocator, OS_TEXT("__numberof")),
-	__stringof(allocator, OS_TEXT("__stringof")),
-	__arrayof(allocator, OS_TEXT("__arrayof")),
-	__objectof(allocator, OS_TEXT("__objectof")),
-	__userdataof(allocator, OS_TEXT("__userdataof")),
-	__functionof(allocator, OS_TEXT("__functionof")),
-	*/
-	__clone(allocator, OS_TEXT("__clone")),
-	__concat(allocator, OS_TEXT("__concat")),
 	__bitand(allocator, OS_TEXT("__bitand")),
 	__bitor(allocator, OS_TEXT("__bitor")),
 	__bitxor(allocator, OS_TEXT("__bitxor")),
@@ -12566,6 +12571,8 @@ OS::Core::Strings::Strings(OS * allocator)
 	func_is(allocator, OS_TEXT("__is")),
 	func_isprototypeof(allocator, OS_TEXT("__isprototypeof")),
 	func_push(allocator, OS_TEXT("push")),
+	func_valueOf(allocator, OS_TEXT("valueOf")),
+	func_clone(allocator, OS_TEXT("clone")),
 
 	typeof_null(allocator, OS_TEXT("null")),
 	typeof_boolean(allocator, OS_TEXT("boolean")),
@@ -15132,7 +15139,7 @@ OS::Core::GCArrayValue * OS::Core::pushArrayValue(int initial_capacity)
 	return pushValue(newArrayValue(initial_capacity));
 }
 
-void OS::Core::pushTypeOf(Value val)
+void OS::Core::pushTypeOf(const Value& val)
 {
 	switch(val.type){
 		// case OS_VALUE_TYPE_NULL:
@@ -15169,7 +15176,7 @@ void OS::Core::pushTypeOf(Value val)
 	pushStringValue(strings->typeof_null);
 }
 
-bool OS::Core::pushNumberOf(Value val)
+bool OS::Core::pushNumberOf(const Value& val)
 {
 	if(val.type == OS_VALUE_TYPE_NUMBER){
 		pushValue(val);
@@ -15184,7 +15191,7 @@ bool OS::Core::pushNumberOf(Value val)
 	return false;
 }
 
-bool OS::Core::pushStringOf(Value val)
+bool OS::Core::pushStringOf(const Value& val)
 {
 	if(val.type == OS_VALUE_TYPE_STRING){
 		pushValue(val);
@@ -15230,7 +15237,7 @@ bool OS::Core::pushValueOf(Value val)
 
 	bool prototype_enabled = true;
 	Value func;
-	if(getPropertyValue(func, val.v.value, PropertyIndex(strings->__valueof, PropertyIndex::KeepStringIndex()), prototype_enabled)
+	if(getPropertyValue(func, val.v.value, PropertyIndex(strings->func_valueOf, PropertyIndex::KeepStringIndex()), prototype_enabled)
 		&& func.isFunction())
 	{
 		pushValue(func);
@@ -15250,7 +15257,7 @@ bool OS::Core::pushValueOf(Value val)
 	return false;
 }
 
-OS::Core::GCArrayValue * OS::Core::pushArrayOf(Value val)
+OS::Core::GCArrayValue * OS::Core::pushArrayOf(const Value& val)
 {
 	// GCArrayValue * arr;
 	switch(val.type){
@@ -15285,7 +15292,7 @@ OS::Core::GCArrayValue * OS::Core::pushArrayOf(Value val)
 	return NULL;
 }
 
-OS::Core::GCObjectValue * OS::Core::pushObjectOf(Value val)
+OS::Core::GCObjectValue * OS::Core::pushObjectOf(const Value& val)
 {
 	// GCObjectValue * object;
 	switch(val.type){
@@ -15319,7 +15326,7 @@ OS::Core::GCObjectValue * OS::Core::pushObjectOf(Value val)
 	return NULL;
 }
 
-OS::Core::GCUserdataValue * OS::Core::pushUserdataOf(Value val)
+OS::Core::GCUserdataValue * OS::Core::pushUserdataOf(const Value& val)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_USERDATA:
@@ -15330,7 +15337,7 @@ OS::Core::GCUserdataValue * OS::Core::pushUserdataOf(Value val)
 	return NULL;
 }
 
-bool OS::Core::pushFunctionOf(Value val)
+bool OS::Core::pushFunctionOf(const Value& val)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_FUNCTION:
@@ -15342,76 +15349,20 @@ bool OS::Core::pushFunctionOf(Value val)
 	return false;
 }
 
-void OS::Core::pushCloneValue(Value val)
+void OS::Core::pushCloneValue(Value value)
 {
-	GCValue * value, * new_value;
-	switch(val.type){
-	case OS_VALUE_TYPE_NULL:
-	case OS_VALUE_TYPE_BOOL:
-	case OS_VALUE_TYPE_NUMBER:
-	case OS_VALUE_TYPE_STRING:
-		pushValue(val);
-		return;
-
-	case OS_VALUE_TYPE_ARRAY:
-		{
-			OS_ASSERT(dynamic_cast<GCArrayValue*>(val.v.value));
-			value = val.v.value;
-			new_value = pushArrayValue();
-			new_value->prototype = value->prototype;
-			GCArrayValue * arr = (GCArrayValue*)value;
-			GCArrayValue * new_arr = (GCArrayValue*)new_value;
-			allocator->vectorReserveCapacity(new_arr->values, arr->values.count OS_DBG_FILEPOS);
-			for(int i = 0; i < arr->values.count; i++){
-				allocator->vectorAddItem(new_arr->values, arr->values[i] OS_DBG_FILEPOS);
-			}
-			break;
-		}
-
-	case OS_VALUE_TYPE_OBJECT:
-		value = val.v.value;
-		new_value = pushObjectValue(value->prototype);
-		break;
-
-	case OS_VALUE_TYPE_FUNCTION:
-	case OS_VALUE_TYPE_USERDATA:
-	case OS_VALUE_TYPE_USERPTR:
-	case OS_VALUE_TYPE_CFUNCTION:
-		value = val.v.value;
-		new_value = pushValue(value);
-		break;
-
-	default:
-		pushNull();
+	bool prototype_enabled = true;
+	Value func;
+	if(getPropertyValue(func, value, 
+		PropertyIndex(strings->func_clone, PropertyIndex::KeepStringIndex()), prototype_enabled)
+		&& func.isFunction())
+	{
+		pushValue(func);
+		pushValue(value);
+		call(0, 1);
 		return;
 	}
-	OS_ASSERT(new_value->type != OS_VALUE_TYPE_NULL);
-	if(new_value != value && value->table && value->table->count > 0){
-		new_value->table = newTable(OS_DBG_FILEPOS_START);
-		copyTableProperties(new_value->table, value->table);
-	}
-	// removeStackValue(-2);
-
-	switch(new_value->type){
-	case OS_VALUE_TYPE_ARRAY:
-	case OS_VALUE_TYPE_OBJECT:
-	case OS_VALUE_TYPE_USERDATA:
-	case OS_VALUE_TYPE_USERPTR:
-		{
-			bool prototype_enabled = true;
-			Value func;
-			if(getPropertyValue(func, new_value, 
-				PropertyIndex(strings->__clone, PropertyIndex::KeepStringIndex()), prototype_enabled)
-				&& func.isFunction())
-			{
-				pushValue(func);
-				pushValue(new_value);
-				call(0, 1);
-				OS_ASSERT(stack_values.count >= 2);
-				removeStackValue(-2);
-			}
-		}
-	}
+	pushNull();
 }
 
 void OS::Core::pushOpResultValue(int opcode, Value value)
@@ -15812,7 +15763,8 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		{
 			switch(opcode){
 			case OP_CONCAT:
-				return pushObjectMethodOpcodeValue(opcode, core->strings->__concat, left_value, right_value, object, is_left_side);
+				// return pushObjectMethodOpcodeValue(opcode, core->strings->__concat, left_value, right_value, object, is_left_side);
+				return pushSimpleOpcodeValue(opcode, left_value, right_value);
 
 			case OP_BIT_AND:
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__bitand, left_value, right_value, object, is_left_side);
@@ -16503,73 +16455,73 @@ bool OS::isString(int offs, String * out)
 
 bool OS::popBool()
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toBool(-1);
 }
 
 bool OS::popBool(bool def)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toBool(-1, def);
 }
 
 OS_NUMBER OS::popNumber(bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toNumber(-1, valueof_enabled);
 }
 
 OS_NUMBER OS::popNumber(OS_NUMBER def, bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toNumber(-1, def, valueof_enabled);
 }
 
 float OS::popFloat(bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toFloat(-1, valueof_enabled);
 }
 
 float OS::popFloat(float def, bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toFloat(-1, def, valueof_enabled);
 }
 
 double OS::popDouble(bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toDouble(-1, valueof_enabled);
 }
 
 double OS::popDouble(double def, bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toDouble(-1, def, valueof_enabled);
 }
 
 int OS::popInt(bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toInt(-1, valueof_enabled);
 }
 
 int OS::popInt(int def, bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toInt(-1, def, valueof_enabled);
 }
 
 OS::String OS::popString(bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toString(-1, valueof_enabled);
 }
 
 OS::String OS::popString(const String& def, bool valueof_enabled)
 {
-	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this};
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toString(-1, def, valueof_enabled);
 }
 
@@ -18774,7 +18726,7 @@ int OS::Core::execute()
 #ifdef OS_DEBUG
 		OpcodeType opcode = (OpcodeType)GET_OPCODE(instruction);
 #else
-		int opcode = GET_OPCODE(instruction);
+		unsigned int opcode = GET_OPCODE(instruction);
 #endif
 		OS_PROFILE_BEGIN_OPCODE(opcode);
 		switch(opcode){
@@ -19216,8 +19168,98 @@ int OS::Core::execute()
 				b = GETARG_B(instruction);
 				OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
 				c = GETARG_C(instruction);
-				pushPropertyValue(stack_func_locals[b], PropertyIndex(ARG_C_VALUE(c)), true, true, true, false);
-				stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				// pushPropertyValue(stack_func_locals[b], PropertyIndex(ARG_C_VALUE(c)), true, true, true, false);
+				Value& obj = stack_func_locals[b];
+				const PropertyIndex index(ARG_C_VALUE(c));
+				const bool anonymous_getter_enabled = true, named_getter_enabled = true, prototype_enabled = true, auto_create = false;
+				switch(obj.type){
+				case OS_VALUE_TYPE_NULL:
+				default:
+					stack_func_locals[a] = Value();
+					break;
+
+				case OS_VALUE_TYPE_BOOL:
+				case OS_VALUE_TYPE_NUMBER:
+					pushPropertyValueForPrimitive(obj, index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+					break;
+
+				case OS_VALUE_TYPE_ARRAY:
+					if(index.index.type == OS_VALUE_TYPE_NUMBER){
+						OS_ASSERT(dynamic_cast<GCArrayValue*>(obj.v.value));
+						int i = (int)index.index.v.number;
+						if((i >= 0 || (i += ((GCArrayValue*)obj.v.value)->values.count) >= 0) && i < ((GCArrayValue*)obj.v.value)->values.count){
+							stack_func_locals[a] = ((GCArrayValue*)obj.v.value)->values[i];
+						}else{
+							stack_func_locals[a] = Value();
+						}
+						break;
+					}
+					// no break
+
+				case OS_VALUE_TYPE_STRING:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_FUNCTION:
+				case OS_VALUE_TYPE_CFUNCTION:
+					{
+						GCValue * self = obj.v.value;
+						GCValue * table_value = self;
+						for(;;){
+							if(getPropertyValue(stack_func_locals[a], table_value, index, prototype_enabled)){
+								break;
+							}
+							if((anonymous_getter_enabled || named_getter_enabled) && !hasSpecialPrefix(index.index)){
+								Value value;
+								if(index.index.type == OS_VALUE_TYPE_STRING && named_getter_enabled){
+									const void * buf1 = strings->__getAt.toChar();
+									int size1 = strings->__getAt.getDataSize();
+									const void * buf2 = index.index.v.string->toChar();
+									int size2 = index.index.v.string->getDataSize();
+									GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
+									if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+										pushValue(value);
+										pushValue(self);
+										call(0, 1);
+										stack_func_locals[a] = stack_values.buf[--stack_values.count];
+										break;
+									}
+								}
+								if(anonymous_getter_enabled && getPropertyValue(value, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+									// auto_create = false;
+									if(value.type == OS_VALUE_TYPE_OBJECT){
+										table_value = value.v.value;
+										continue;
+									}
+									pushValue(value);
+									pushValue(self);
+									pushValue(index.index);
+									if(!auto_create){
+										call(1, 1);
+									}else{
+										pushBool(true);
+										call(2, 1);
+									}
+									if(auto_create && stack_values.lastElement().type == OS_VALUE_TYPE_NULL){
+										pop();
+										setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
+									}
+									stack_func_locals[a] = stack_values.buf[--stack_values.count];
+									break;
+								}
+							}
+							if(auto_create){
+								setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
+								stack_func_locals[a] = stack_values.buf[--stack_values.count];
+								break;
+							}
+							stack_func_locals[a] = Value();
+							break;
+						}
+						break;
+					}
+				}
 				break;
 			}
 
@@ -20206,25 +20248,33 @@ void OS::runOp(OS_EOpcode opcode)
 		return lib.runBinaryOpcode(Core::OP_LOGIC_PTR_EQ);
 
 	case OP_LOGIC_PTR_NE:	// !==
-		return lib.runBinaryOpcode(Core::OP_LOGIC_PTR_NE);
+		lib.runBinaryOpcode(Core::OP_LOGIC_PTR_EQ);
+		core->stack_values.lastElement() = !core->valueToBool(core->stack_values.lastElement());
+		return;
 
 	case OP_LOGIC_EQ:		// ==
 		return lib.runBinaryOpcode(Core::OP_LOGIC_EQ);
 
 	case OP_LOGIC_NE:		// !=
-		return lib.runBinaryOpcode(Core::OP_LOGIC_NE);
+		lib.runBinaryOpcode(Core::OP_LOGIC_EQ);
+		core->stack_values.lastElement() = !core->valueToBool(core->stack_values.lastElement());
+		return;
 
 	case OP_LOGIC_GE:		// >=
 		return lib.runBinaryOpcode(Core::OP_LOGIC_GE);
 
 	case OP_LOGIC_LE:		// <=
-		return lib.runBinaryOpcode(Core::OP_LOGIC_LE);
+		lib.runBinaryOpcode(Core::OP_LOGIC_GREATER);
+		core->stack_values.lastElement() = !core->valueToBool(core->stack_values.lastElement());
+		return;
 
 	case OP_LOGIC_GREATER:	// >
 		return lib.runBinaryOpcode(Core::OP_LOGIC_GREATER);
 
 	case OP_LOGIC_LESS:		// <
-		return lib.runBinaryOpcode(Core::OP_LOGIC_LESS);
+		lib.runBinaryOpcode(Core::OP_LOGIC_GE);
+		core->stack_values.lastElement() = !core->valueToBool(core->stack_values.lastElement());
+		return;
 
 	case OP_BIT_AND:	// &
 		return lib.runBinaryOpcode(Core::OP_BIT_AND);
@@ -20262,17 +20312,19 @@ void OS::runOp(OS_EOpcode opcode)
 	case OP_CONCAT: // ..
 		return lib.runBinaryOpcode(Core::OP_CONCAT);
 
-	case OP_BIT_NOT:		// ~
+	case OP_BIT_NOT: // ~
 		return lib.runUnaryOpcode(Core::OP_BIT_NOT);
 
-	case OP_PLUS:		// +
+	case OP_PLUS: // +
 		return lib.runUnaryOpcode(Core::OP_PLUS);
 
-	case OP_NEG:			// -
+	case OP_NEG: // -
 		return lib.runUnaryOpcode(Core::OP_NEG);
 
-	case OP_LENGTH:		// #
-		return lib.runUnaryOpcode(Core::OP_LENGTH);
+	case OP_LENGTH: // #
+		pushString(core->strings->__len);
+		call(0, 1);
+		return;
 
 		/*
 		case OP_LOGIC_BOOL:
@@ -20655,12 +20707,92 @@ void OS::initGlobalFunctions()
 			os->pushBool(os->isPrototypeOf());
 			return 1;
 		}
+
+		static int typeOf(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params == 1);
+			os->core->pushTypeOf(os->core->getStackValue(-params));
+			return 1;
+		}
+
+		/* static int valueOf(OS * os, int params, int, int, void*)
+		{
+			// OS_ASSERT(params == 1);
+			os->core->pushValueOf(os->core->getStackValue(-params - (params == 0)));
+			return 1;
+		} */
+
+		static int numberOf(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params == 1);
+			os->core->pushNumberOf(os->core->getStackValue(-params));
+			return 1;
+		}
+
+		static int stringOf(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params == 1);
+			os->core->pushStringOf(os->core->getStackValue(-params));
+			return 1;
+		}
+
+		static int arrayOf(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params == 1);
+			os->core->pushArrayOf(os->core->getStackValue(-params));
+			return 1;
+		}
+
+		static int objectOf(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params == 1);
+			os->core->pushObjectOf(os->core->getStackValue(-params));
+			return 1;
+		}
+
+		static int functionOf(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params == 1);
+			os->core->pushFunctionOf(os->core->getStackValue(-params));
+			return 1;
+		}
+
+		static int toBool(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params == 1);
+			os->toBool(-params);
+			return 1;
+		}
+
+		static int toNumber(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params >= 1);
+			os->pushNumber(os->toNumber(-params, params < 2 || os->toBool(-params+1)));
+			return 1;
+		}
+
+		static int toString(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params >= 1);
+			os->pushString(os->toString(-params, params < 2 || os->toBool(-params+1)));
+			return 1;
+		}
 	};
 	FuncDef list[] = {
 		{core->strings->func_extends, Lib::extends},
 		{core->strings->func_in, Lib::in},
 		{core->strings->func_is, Lib::is},
 		{core->strings->func_isprototypeof, Lib::isprototypeof},
+		{OS_TEXT("typeOf"), Lib::typeOf},
+		// {OS_TEXT("valueOf"), Lib::valueOf},
+		{OS_TEXT("numberOf"), Lib::numberOf},
+		{OS_TEXT("stringOf"), Lib::stringOf},
+		{OS_TEXT("arrayOf"), Lib::arrayOf},
+		{OS_TEXT("objectOf"), Lib::objectOf},
+		{OS_TEXT("functionOf"), Lib::functionOf},
+		{OS_TEXT("toBool"), Lib::toBool},
+		{OS_TEXT("toNumber"), Lib::toNumber},
+		{OS_TEXT("toString"), Lib::toString},
 		{OS_TEXT("print"), Lib::print},
 		{OS_TEXT("echo"), Lib::echo},
 		{OS_TEXT("concat"), Lib::concat},
@@ -21017,7 +21149,7 @@ void OS::initObjectClass()
 			buf += OS_TEXT("\"");
 		}
 
-		static int valueof(OS * os, int params, int closure_values, int, void*)
+		static int valueOf(OS * os, int params, int closure_values, int, void*)
 		{
 			Core::Value self_var = os->core->getStackValue(-params-closure_values-1);
 			switch(self_var.type){
@@ -21414,6 +21546,81 @@ void OS::initObjectClass()
 			}
 			return 0;
 		}
+
+		static int clone(OS * os, int params, int, int, void*)
+		{
+			Core::Value val = os->core->getStackValue(-params-1);
+			Core::GCValue * value, * new_value;
+			switch(val.type){
+			case OS_VALUE_TYPE_NULL:
+			case OS_VALUE_TYPE_BOOL:
+			case OS_VALUE_TYPE_NUMBER:
+			case OS_VALUE_TYPE_STRING:
+				os->core->pushValue(val);
+				return 1;
+
+			case OS_VALUE_TYPE_ARRAY:
+				{
+					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(val.v.value));
+					value = val.v.value;
+					new_value = os->core->pushArrayValue();
+					new_value->prototype = value->prototype;
+					Core::GCArrayValue * arr = (Core::GCArrayValue*)value;
+					Core::GCArrayValue * new_arr = (Core::GCArrayValue*)new_value;
+					os->vectorReserveCapacity(new_arr->values, arr->values.count OS_DBG_FILEPOS);
+					for(int i = 0; i < arr->values.count; i++){
+						os->vectorAddItem(new_arr->values, arr->values[i] OS_DBG_FILEPOS);
+					}
+					break;
+				}
+
+			case OS_VALUE_TYPE_OBJECT:
+				value = val.v.value;
+				new_value = os->core->pushObjectValue(value->prototype);
+				break;
+
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_CFUNCTION:
+				value = val.v.value;
+				new_value = os->core->pushValue(value);
+				break;
+
+			default:
+				os->pushNull();
+				return 1;
+			}
+			OS_ASSERT(new_value->type != OS_VALUE_TYPE_NULL);
+			if(new_value != value && value->table && value->table->count > 0){
+				new_value->table = os->core->newTable(OS_DBG_FILEPOS_START);
+				os->core->copyTableProperties(new_value->table, value->table);
+			}
+			// removeStackValue(-2);
+			/*
+			switch(new_value->type){
+			case OS_VALUE_TYPE_ARRAY:
+			case OS_VALUE_TYPE_OBJECT:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+				{
+					bool prototype_enabled = true;
+					Value func;
+					if(getPropertyValue(func, new_value, 
+						PropertyIndex(strings->__clone, PropertyIndex::KeepStringIndex()), prototype_enabled)
+						&& func.isFunction())
+					{
+						pushValue(func);
+						pushValue(new_value);
+						call(0, 1);
+						OS_ASSERT(stack_values.count >= 2);
+						removeStackValue(-2);
+					}
+				}
+			}
+			*/
+			return 1;
+		}
 	};
 	FuncDef list[] = {
 		{OS_TEXT("rawget"), Object::rawget},
@@ -21423,7 +21630,8 @@ void OS::initObjectClass()
 		// {OS_TEXT("__get@length"), Object::length},
 		{core->strings->__iter, Object::iterator},
 		{OS_TEXT("reverseIter"), Object::reverseIterator},
-		{core->strings->__valueof, Object::valueof},
+		{core->strings->func_valueOf, Object::valueOf},
+		{core->strings->func_clone, Object::clone},
 		{OS_TEXT("sort"), Object::sort},
 		{OS_TEXT("rsort"), Object::rsort},
 		{OS_TEXT("ksort"), Object::ksort},
@@ -21530,8 +21738,8 @@ void OS::initStringClass()
 					// os->pushNumber(os->core->valueToString(self).getDataSize() / sizeof(OS_CHAR));
 					return 1;
 				}
-				os->core->pushOpResultValue(Core::OP_LENGTH, self_var);
-				return 1;
+				// os->core->pushOpResultValue(Core::OP_LENGTH, self_var);
+				return 0;
 			}
 			return 0;
 		}
@@ -22321,7 +22529,7 @@ void OS::Core::pushArguments(StackFunction * stack_func)
 		GCArrayValue * args = pushArrayValue(stack_func->num_real_params);
 		Upvalues * func_upvalues = stack_func->locals;
 		int num_params = stack_func->num_real_params - stack_func->num_extra_params;
-		for(i = 0; i < num_params; i++){
+		for(i = 1; i < num_params; i++){ // skip this
 			allocator->vectorAddItem(args->values, func_upvalues->locals[i] OS_DBG_FILEPOS);
 		}
 		int offs = func_upvalues->func_decl->stack_size;
@@ -22341,7 +22549,7 @@ void OS::Core::pushArgumentsWithNames(StackFunction * stack_func)
 	Upvalues * func_upvalues = stack_func->locals;
 	FunctionDecl * func_decl = stack_func->func->func_decl;
 	int num_params = stack_func->num_real_params - stack_func->num_extra_params;
-	for(i = 0; i < num_params; i++){
+	for(i = 1; i < num_params; i++){ // skip this
 		setPropertyValue(args, PropertyIndex(func_decl->locals[i].name.string, PropertyIndex::KeepStringIndex()), func_upvalues->locals[i], false, false);
 	}
 	int offs = func_upvalues->func_decl->stack_size;
