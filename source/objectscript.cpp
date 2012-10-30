@@ -2737,11 +2737,29 @@ void OS::Core::Compiler::writeDebugInfo(Expression * exp)
 {
 	if(prog_debug_info){
 		prog_num_debug_infos++;
-		prog_debug_info->writeUVariable(prog_opcodes_old->getPos());
+		prog_debug_info->writeUVariable(getOpcodePos());
 		prog_debug_info->writeUVariable(exp->token->line+1);
 		prog_debug_info->writeUVariable(exp->token->pos+1);
 		prog_debug_info->writeUVariable(cacheDebugString(exp->token->str));
 	}
+}
+
+void OS::Core::Compiler::writeJumpOpcode(int offs)
+{
+	offs += 1;
+	Instruction instruction = 0;
+	SET_OPCODE(instruction, OP_JUMP);
+	SETARG_sBx(instruction, offs);
+	writeOpcode(instruction);
+}
+
+void OS::Core::Compiler::fixJumpOpcode(int offs, int pos)
+{
+	Instruction instruction = prog_opcodes[pos];
+	OpcodeType opcode = (OpcodeType)GET_OPCODE(instruction);
+	OS_ASSERT(opcode == OP_JUMP);
+	SETARG_sBx(instruction, offs);
+	prog_opcodes[pos] = instruction;
 }
 
 bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list)
@@ -2766,27 +2784,27 @@ int OS::Core::Compiler::writeOpcode(OS_U32 opcode)
 	return i;
 }
 
-int OS::Core::Compiler::writeOpcode(int opcode, int a, int b, int c)
+int OS::Core::Compiler::writeOpcodeABC(OpcodeType opcode, int a, int b, int c)
 {
 	OS_ASSERT(a >= 0 && a <= MAXARG_A);
 	if(b < 0){
 		b = -1-b;
-		OS_ASSERT(b <= MAXARG_B);
+		OS_ASSERT(b <= MAXARG_B && !(b & 1 << SIZE_B));
 		b |= 1 << SIZE_B;
 	}else{
-		OS_ASSERT(b <= MAXARG_B);
+		OS_ASSERT(b <= MAXARG_B && !(b & 1 << SIZE_B));
 	}
 	if(c < 0){
 		c = -1-c;
-		OS_ASSERT(c <= MAXARG_C);
+		OS_ASSERT(c <= MAXARG_C && !(c & 1 << SIZE_C));
 		c |= 1 << SIZE_C;
 	}else{
-		OS_ASSERT(c <= MAXARG_C);
+		OS_ASSERT(c <= MAXARG_C && !(c & 1 << SIZE_C));
 	}
 	return writeOpcode(OS_OPCODE_ABC(opcode, a, b, c));
 }
 
-int OS::Core::Compiler::writeOpcodeABx(int opcode, int a, int b)
+int OS::Core::Compiler::writeOpcodeABx(OpcodeType opcode, int a, int b)
 {
 	OS_ASSERT(a >= 0 && a <= MAXARG_A);
 	OS_ASSERT(b >= 0 && b <= MAXARG_Bx);
@@ -2807,15 +2825,14 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		{
 			ExpressionType exp_type = exp->type;
 			OS_ASSERT(false);
-			break;
+			return false;;
 		}
 
 	case EXP_TYPE_NOP:
 	case EXP_TYPE_NEW_LOCAL_VAR:
-		break;
-
 	case EXP_TYPE_VALUE:
 	case EXP_TYPE_CODE_LIST:
+	case EXP_TYPE_PARAMS:
 		if(!writeOpcodes(scope, exp->list)){
 			return false;
 		}
@@ -2830,7 +2847,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			int prog_func_index = scope->prog_func_index; // prog_functions.indexOf(scope);
 			OS_ASSERT(prog_func_index >= 0);
 			
-			int pos = writeOpcode(Program::OP_NEW_FUNCTION, prog_func_index, 0, 0);
+			int pos = writeOpcodeABC(OP_NEW_FUNCTION, prog_func_index, 0, 0);
 
 			allocator->vectorReserveCapacity(scope->locals_compiled, scope->num_locals OS_DBG_FILEPOS);
 			scope->locals_compiled.count = scope->num_locals;
@@ -2839,7 +2856,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			if(!writeOpcodes(scope, exp->list)){
 				return false;
 			}
-			writeOpcode(Program::OP_RETURN, 0, 0, 1); // return auto
+			writeOpcodeABC(OP_RETURN, 0, 0, 1); // return auto
 			scope->opcodes_size = getOpcodePos() - scope->opcodes_pos;
 
 			for(i = 0; i < scope->locals.count; i++){
@@ -2881,26 +2898,33 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_QUESTION:
 		{
 			OS_ASSERT(exp->list.count == 2 || exp->list.count == 3);
-			bool inverse;
-			Expression * exp_compare;
-			if(exp->list[0]->type == EXP_TYPE_LOGIC_NOT){
-				OS_ASSERT(exp->list[0]->list.count == 1);
-				exp_compare = exp->list[0]->list[0];
-				inverse = true;
-			}else{
-				OS_ASSERT(exp->list.count == 1);
-				exp_compare = exp->list[0];
-				inverse = false;
+			Expression * exp_compare = exp->list[0];
+			bool inverse = exp_compare->type == EXP_TYPE_LOGIC_NOT;
+			if(inverse){
+				OS_ASSERT(exp_compare->list.count == 1);
+				switch(exp_compare->list[0]->type){
+				case EXP_TYPE_LOGIC_PTR_EQ:
+				case EXP_TYPE_LOGIC_PTR_NE:
+				case EXP_TYPE_LOGIC_EQ:
+				case EXP_TYPE_LOGIC_NE:
+				case EXP_TYPE_LOGIC_LE:
+				case EXP_TYPE_LOGIC_GREATER:
+				case EXP_TYPE_LOGIC_GE:
+				case EXP_TYPE_LOGIC_LESS:
+					exp_compare = exp_compare->list[0];
+					break;
+				}
 			}
-			int opcode;
-			OS_ASSERT(exp_compare->slots.a > 0);
+			
+			OpcodeType opcode;
+			OS_ASSERT(exp_compare->slots.a >= scope->function->num_locals);
 			switch(exp_compare->type){
 			case EXP_TYPE_LOGIC_PTR_EQ:
 			case EXP_TYPE_LOGIC_PTR_NE:
 				if(!writeOpcodes(scope, exp_compare->list)){
 					return false;
 				}
-				opcode = Program::OP_LOGIC_PTR_EQ;
+				opcode = OP_LOGIC_PTR_EQ;
 				inverse ^= exp_compare->type != EXP_TYPE_LOGIC_PTR_EQ;
 				break;
 
@@ -2909,7 +2933,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				if(!writeOpcodes(scope, exp_compare->list)){
 					return false;
 				}
-				opcode = Program::OP_LOGIC_EQ;
+				opcode = OP_LOGIC_EQ;
 				inverse ^= exp_compare->type != EXP_TYPE_LOGIC_EQ;
 				break;
 
@@ -2918,7 +2942,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				if(!writeOpcodes(scope, exp_compare->list)){
 					return false;
 				}
-				opcode = Program::OP_LOGIC_GREATER;
+				opcode = OP_LOGIC_GREATER;
 				inverse ^= exp_compare->type != EXP_TYPE_LOGIC_GREATER;
 				break;
 
@@ -2927,36 +2951,36 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				if(!writeOpcodes(scope, exp_compare->list)){
 					return false;
 				}
-				opcode = Program::OP_LOGIC_GE;
+				opcode = OP_LOGIC_GE;
 				inverse ^= exp_compare->type != EXP_TYPE_LOGIC_GE;
 				break;
 
 			default:
-				if(!writeOpcodes(scope, exp_compare)){
+				if(!writeOpcodes(scope, exp_compare->list)){
 					return false;
 				}
-				opcode = Program::OP_LOGIC_BOOL;
+				opcode = OP_LOGIC_BOOL;
 				break;
 			}
 			writeDebugInfo(exp);
 
-			writeOpcode(opcode, exp_compare->slots.a, inverse, 1);
-			int if_jump_pos = writeOpcode(Program::OP_JUMP);
+			writeOpcodeABC(opcode, exp_compare->slots.a, inverse, 1);
+			int if_jump_pos = writeOpcode(OP_JUMP);
 
 			if(!writeOpcodes(scope, exp->list[1])){
 				return false;
 			}
 			int if_jump_to = getOpcodePos();
 			if(exp->list.count == 3 && exp->list[2]->list.count > 0){
-				int jump_pos = writeOpcode(Program::OP_JUMP);
+				int jump_pos = writeOpcode(OP_JUMP);
 				
 				if_jump_to = getOpcodePos();
 				if(!writeOpcodes(scope, exp->list[2])){
 					return false;
 				}
-				fixJumpOpcode(getOpcodePos() - jump_pos - 1, jump_pos, Program::OP_JUMP);
+				fixJumpOpcode(getOpcodePos() - jump_pos - 1, jump_pos);
 			}
-			fixJumpOpcode(if_jump_to - if_jump_pos - 1, if_jump_pos, Program::OP_JUMP);
+			fixJumpOpcode(if_jump_to - if_jump_pos - 1, if_jump_pos);
 			break;
 		}
 
@@ -2969,24 +2993,24 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			}
 			writeDebugInfo(exp);
 
-			Expression * exp_compare = exp->list[0];
+			// Expression * exp_compare = exp->list[0];
 			bool inverse = exp->type == EXP_TYPE_LOGIC_AND;
-			writeOpcode(Program::OP_LOGIC_BOOL, exp_compare->slots.a, inverse, 1);
-			int op_jump_pos = writeOpcode(Program::OP_JUMP);
+			writeOpcodeABC(OP_LOGIC_BOOL, exp->slots.a, inverse, 1);
+			int op_jump_pos = writeOpcode(OP_JUMP);
 
 			if(!writeOpcodes(scope, exp->list[1])){
 				return false;
 			}
 
 			int op_jump_to = getOpcodePos();
-			fixJumpOpcode(op_jump_to - op_jump_pos - 1, op_jump_pos, Program::OP_JUMP);
+			fixJumpOpcode(op_jump_to - op_jump_pos - 1, op_jump_pos);
 			break;
 		}
 
 	case EXP_TYPE_ARRAY:
 	case EXP_TYPE_OBJECT:
 		writeDebugInfo(exp);
-		writeOpcode(exp->type == EXP_TYPE_OBJECT ? Program::OP_NEW_OBJECT : Program::OP_NEW_ARRAY, exp->slots.a, exp->list.count);
+		writeOpcodeABC(exp->type == EXP_TYPE_OBJECT ? OP_NEW_OBJECT : OP_NEW_ARRAY, exp->slots.a, exp->list.count);
 		if(!writeOpcodes(scope, exp->list)){
 			return false;
 		}
@@ -2996,13 +3020,13 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_GET_REST_ARGUMENTS:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		writeOpcode(Program::OP_MULTI, exp->slots.a, 0, exp->type == EXP_TYPE_GET_ARGUMENTS ? Program::OP_MULTI_GET_ARGUMENTS : Program::OP_MULTI_GET_REST_ARGUMENTS);
+		writeOpcodeABC(OP_MULTI, exp->slots.a, 0, exp->type == EXP_TYPE_GET_ARGUMENTS ? OP_MULTI_GET_ARGUMENTS : OP_MULTI_GET_REST_ARGUMENTS);
 		break;
 
 	case EXP_TYPE_SUPER:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		writeOpcode(Program::OP_MULTI, exp->slots.a, 0, Program::OP_MULTI_SUPER);
+		writeOpcodeABC(OP_MULTI, exp->slots.a, 0, OP_MULTI_SUPER);
 		break;
 
 	case EXP_TYPE_LOGIC_BOOL:
@@ -3012,47 +3036,47 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		writeOpcode(Program::OP_LOGIC_BOOL, exp->slots.a, exp->type == EXP_TYPE_LOGIC_NOT, 0);
+		writeOpcodeABC(OP_LOGIC_BOOL, exp->slots.a, exp->type == EXP_TYPE_LOGIC_NOT, 0);
 		break;
 
 	case EXP_TYPE_LOGIC_PTR_EQ:
 	case EXP_TYPE_LOGIC_PTR_NE:
-		OS_ASSERT(exp->list.count == 1);
+		OS_ASSERT(exp->list.count == 2);
 		if(!writeOpcodes(scope, exp->list)){
 			return false;
 		}
 		writeDebugInfo(exp);
-		writeOpcode(Program::OP_LOGIC_PTR_EQ, exp->slots.a, exp->type == EXP_TYPE_LOGIC_PTR_NE, 0);
+		writeOpcodeABC(OP_LOGIC_PTR_EQ, exp->slots.a, exp->type == EXP_TYPE_LOGIC_PTR_NE, 0);
 		break;
 
 	case EXP_TYPE_LOGIC_EQ:
 	case EXP_TYPE_LOGIC_NE:
-		OS_ASSERT(exp->list.count == 1);
+		OS_ASSERT(exp->list.count == 2);
 		if(!writeOpcodes(scope, exp->list)){
 			return false;
 		}
 		writeDebugInfo(exp);
-		writeOpcode(Program::OP_LOGIC_EQ, exp->slots.a, exp->type == EXP_TYPE_LOGIC_NE, 0);
+		writeOpcodeABC(OP_LOGIC_EQ, exp->slots.a, exp->type == EXP_TYPE_LOGIC_NE, 0);
 		break;
 
 	case EXP_TYPE_LOGIC_LE:
 	case EXP_TYPE_LOGIC_GREATER:
-		OS_ASSERT(exp->list.count == 1);
+		OS_ASSERT(exp->list.count == 2);
 		if(!writeOpcodes(scope, exp->list)){
 			return false;
 		}
 		writeDebugInfo(exp);
-		writeOpcode(Program::OP_LOGIC_GREATER, exp->slots.a, exp->type == EXP_TYPE_LOGIC_LE, 0);
+		writeOpcodeABC(OP_LOGIC_GREATER, exp->slots.a, exp->type == EXP_TYPE_LOGIC_LE, 0);
 		break;
 
 	case EXP_TYPE_LOGIC_GE:
 	case EXP_TYPE_LOGIC_LESS:
-		OS_ASSERT(exp->list.count == 1);
+		OS_ASSERT(exp->list.count == 2);
 		if(!writeOpcodes(scope, exp->list)){
 			return false;
 		}
 		writeDebugInfo(exp);
-		writeOpcode(Program::OP_LOGIC_GE, exp->slots.a, exp->type == EXP_TYPE_LOGIC_LESS, 0);
+		writeOpcodeABC(OP_LOGIC_GE, exp->slots.a, exp->type == EXP_TYPE_LOGIC_LESS, 0);
 		break;
 
 	case EXP_TYPE_SUPER_CALL:
@@ -3078,6 +3102,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_BIT_OR:
 	case EXP_TYPE_BIT_XOR:
 
+	case EXP_TYPE_CONCAT:
 	case EXP_TYPE_ADD:
 	case EXP_TYPE_SUB:
 	case EXP_TYPE_MUL:
@@ -3090,7 +3115,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		writeOpcode(Program::getOpcodeType(exp->type), exp->slots.a, exp->slots.b, exp->slots.c);
+		writeOpcodeABC(Program::getOpcodeType(exp->type), exp->slots.a, exp->slots.b, exp->slots.c);
 		break;
 
 	case EXP_TYPE_GET_XCONST:
@@ -3099,19 +3124,19 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		}
 		writeDebugInfo(exp);
 		OS_ASSERT(exp->slots.b < 0);
-		writeOpcodeABx(Program::OP_GET_XCONST, exp->slots.a, -1-exp->slots.b);
+		writeOpcodeABx(OP_GET_XCONST, exp->slots.a, -1-exp->slots.b);
 		break;
 
 	case EXP_TYPE_BREAK:
 	case EXP_TYPE_CONTINUE:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		scope->addLoopBreak(writeOpcode(Program::OP_JUMP), exp->type == EXP_TYPE_BREAK ? Scope::LOOP_BREAK : Scope::LOOP_CONTINUE);
+		scope->addLoopBreak(writeOpcode(OP_JUMP), exp->type == EXP_TYPE_BREAK ? Scope::LOOP_BREAK : Scope::LOOP_CONTINUE);
 		break;
 
 	}
 #endif
-	return false;
+	return true;
 }
 
 #if 0
@@ -3119,25 +3144,25 @@ void OS::Core::Compiler::writeJumpOpcodeOld(int offs)
 {
 	offs += 3;
 	if((int)(OS_INT8)offs == offs){
-		prog_opcodes_old->writeByte(Program::OP_JUMP_1);
+		prog_opcodes_old->writeByte(OP_JUMP_1);
 		prog_opcodes_old->writeInt8(offs);
 		prog_opcodes_old->writeInt8(0);
 		prog_opcodes_old->writeInt16(0);
 		return;
 	}
 	if((int)(OS_INT16)offs == offs){
-		prog_opcodes_old->writeByte(Program::OP_JUMP_2);
+		prog_opcodes_old->writeByte(OP_JUMP_2);
 		prog_opcodes_old->writeInt16(offs);
 		prog_opcodes_old->writeInt16(0);
 		return;
 	}
-	prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+	prog_opcodes_old->writeByte(OP_JUMP_4);
 	prog_opcodes_old->writeInt32(offs);
 }
 
 void OS::Core::Compiler::fixJumpOpcodeOld(StreamWriter * writer, int offs, int pos)
 {
-	fixJumpOpcodeOld(writer, offs, pos, Program::OP_JUMP_4);
+	fixJumpOpcodeOld(writer, offs, pos, OP_JUMP_4);
 }
 
 void OS::Core::Compiler::fixJumpOpcodeOld(StreamWriter * writer, int offs, int pos, int opcode)
@@ -3148,15 +3173,15 @@ void OS::Core::Compiler::fixJumpOpcodeOld(StreamWriter * writer, int offs, int p
 		{
 			OS_ASSERT(type >= 1 && type <= 3);
 			switch(opcode){
-			case Program::OP_JUMP_4:
-			case Program::OP_IF_JUMP_4:
-			case Program::OP_IF_NOT_JUMP_4:
-			case Program::OP_LOGIC_AND_4:
-			case Program::OP_LOGIC_OR_4:
+			case OP_JUMP_4:
+			case OP_IF_JUMP_4:
+			case OP_IF_NOT_JUMP_4:
+			case OP_LOGIC_AND_4:
+			case OP_LOGIC_OR_4:
 				return opcode - 3 + type;
 			}
 			OS_ASSERT(false);
-			return Program::OP_UNKNOWN;
+			return OP_UNKNOWN;
 		}
 	};
 	offs += 4;
@@ -3215,14 +3240,14 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			writeDebugInfo(exp);
 			OS_NUMBER number = (OS_NUMBER)exp->token->getFloat();
 			if(number == 1.0f){
-				prog_opcodes_old->writeByte(Program::OP_PUSH_ONE);
+				prog_opcodes_old->writeByte(OP_PUSH_ONE);
 			}else{
 				int i = cacheNumber(number);
 				if(i <= 255){
-					prog_opcodes_old->writeByte(Program::OP_PUSH_NUMBER_1);
+					prog_opcodes_old->writeByte(OP_PUSH_NUMBER_1);
 					prog_opcodes_old->writeByte(i);
 				}else{
-					prog_opcodes_old->writeByte(Program::OP_PUSH_NUMBER_BY_AUTO_INDEX);
+					prog_opcodes_old->writeByte(OP_PUSH_NUMBER_BY_AUTO_INDEX);
 					prog_opcodes_old->writeUVariable(i);
 				}
 			}
@@ -3235,10 +3260,10 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			writeDebugInfo(exp);
 			int i = cacheString(exp->token->str);
 			if(i <= 255){
-				prog_opcodes_old->writeByte(Program::OP_PUSH_STRING_1);
+				prog_opcodes_old->writeByte(OP_PUSH_STRING_1);
 				prog_opcodes_old->writeByte(i);
 			}else{
-				prog_opcodes_old->writeByte(Program::OP_PUSH_STRING_BY_AUTO_INDEX);
+				prog_opcodes_old->writeByte(OP_PUSH_STRING_BY_AUTO_INDEX);
 				prog_opcodes_old->writeUVariable(i);
 			}
 			break;
@@ -3247,19 +3272,19 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 	case EXP_TYPE_CONST_NULL:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_PUSH_NULL);
+		prog_opcodes_old->writeByte(OP_PUSH_NULL);
 		break;
 
 	case EXP_TYPE_CONST_TRUE:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_PUSH_TRUE);
+		prog_opcodes_old->writeByte(OP_PUSH_TRUE);
 		break;
 
 	case EXP_TYPE_CONST_FALSE:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_PUSH_FALSE);
+		prog_opcodes_old->writeByte(OP_PUSH_FALSE);
 		break;
 
 	case EXP_TYPE_FUNCTION:
@@ -3267,7 +3292,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			Scope * scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
 			writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(Program::OP_PUSH_FUNCTION);
+			prog_opcodes_old->writeByte(OP_PUSH_FUNCTION);
 
 			int prog_func_index = scope->prog_func_index; // prog_functions.indexOf(scope);
 			OS_ASSERT(prog_func_index >= 0);
@@ -3280,7 +3305,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			if(!writeOpcodesOld(scope, exp->list)){
 				return false;
 			}
-			prog_opcodes_old->writeByte(Program::OP_RETURN_AUTO);
+			prog_opcodes_old->writeByte(OP_RETURN_AUTO);
 			scope->opcodes_size = prog_opcodes_old->getPos() - scope->opcodes_pos;
 
 			for(i = 0; i < scope->locals.count; i++){
@@ -3303,7 +3328,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 				return false;
 			}
 			if(exp->type == EXP_TYPE_LOOP_SCOPE){
-				// prog_opcodes_old->writeByte(Program::OP_JUMP);
+				// prog_opcodes_old->writeByte(OP_JUMP);
 				// prog_opcodes_old->writeInt32(start_code_pos - prog_opcodes_old->getPos() - sizeof(OS_INT32));
 				writeJumpOpcodeOld(start_code_pos - prog_opcodes_old->getPos() - sizeof(OS_INT32));
 
@@ -3330,12 +3355,12 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 				if(!writeOpcodesOld(scope, exp->list[0]->list)){
 					return false;
 				}
-				if_opcode = Program::OP_IF_JUMP_4;
+				if_opcode = OP_IF_JUMP_4;
 			}else{
 				if(!writeOpcodesOld(scope, exp->list[0])){
 					return false;
 				}
-				if_opcode = Program::OP_IF_NOT_JUMP_4;
+				if_opcode = OP_IF_NOT_JUMP_4;
 			}
 			writeDebugInfo(exp);
 			
@@ -3350,7 +3375,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			int if_jump_to = prog_opcodes_old->getPos();
 			if(exp->list.count == 3 && exp->list[2]->list.count > 0){
 				int jump_pos = prog_opcodes_old->getPos();
-				prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+				prog_opcodes_old->writeByte(OP_JUMP_4);
 				prog_opcodes_old->writeInt32(0);
 
 				if_jump_to = prog_opcodes_old->getPos();
@@ -3358,7 +3383,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 					return false;
 				}
 				// prog_opcodes_old->writeInt32AtPos(prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos);
-				fixJumpOpcodeOld(prog_opcodes_old, prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos, Program::OP_JUMP_4);
+				fixJumpOpcodeOld(prog_opcodes_old, prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos, OP_JUMP_4);
 			}
 			// prog_opcodes_old->writeInt32AtPos(if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos);
 			fixJumpOpcodeOld(prog_opcodes_old, if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos, if_opcode);
@@ -3374,12 +3399,12 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 				if(!writeOpcodesOld(scope, exp->list[0]->list)){
 					return false;
 				}
-				if_opcode = Program::OP_IF_JUMP_4;
+				if_opcode = OP_IF_JUMP_4;
 			}else{
 				if(!writeOpcodesOld(scope, exp->list[0])){
 					return false;
 				}
-				if_opcode = Program::OP_IF_NOT_JUMP_4;
+				if_opcode = OP_IF_NOT_JUMP_4;
 			}
 			writeDebugInfo(exp);
 			
@@ -3392,7 +3417,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			}
 
 			int jump_pos = prog_opcodes_old->getPos();
-			prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+			prog_opcodes_old->writeByte(OP_JUMP_4);
 			prog_opcodes_old->writeInt32(0);
 
 			int if_jump_to = prog_opcodes_old->getPos();
@@ -3400,7 +3425,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 				return false;
 			}
 			// prog_opcodes_old->writeInt32AtPos(prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos);
-			fixJumpOpcodeOld(prog_opcodes_old, prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos, Program::OP_JUMP_4);
+			fixJumpOpcodeOld(prog_opcodes_old, prog_opcodes_old->getPos() - jump_pos - sizeof(OS_BYTE)*5, jump_pos, OP_JUMP_4);
 
 			// prog_opcodes_old->writeInt32AtPos(if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos);
 			fixJumpOpcodeOld(prog_opcodes_old, if_jump_to - if_jump_pos - sizeof(OS_BYTE)*5, if_jump_pos, if_opcode);
@@ -3437,7 +3462,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_EXTENDS);
+		prog_opcodes_old->writeByte(OP_EXTENDS);
 		break;
 
 	/*
@@ -3447,7 +3472,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_CLONE);
+		prog_opcodes_old->writeByte(OP_CLONE);
 		break;
 	*/
 
@@ -3457,12 +3482,12 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_DELETE_PROP);
+		prog_opcodes_old->writeByte(OP_DELETE_PROP);
 		break;
 
 	case EXP_TYPE_ARRAY:
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_PUSH_NEW_ARRAY);
+		prog_opcodes_old->writeByte(OP_PUSH_NEW_ARRAY);
 		prog_opcodes_old->writeByte(exp->list.count > 255 ? 256 : exp->list.count);
 		if(!writeOpcodesOld(scope, exp->list)){
 			return false;
@@ -3472,7 +3497,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 	case EXP_TYPE_OBJECT:
 		// OS_ASSERT(exp->list.count >= 0);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_PUSH_NEW_OBJECT);
+		prog_opcodes_old->writeByte(OP_PUSH_NEW_OBJECT);
 		if(!writeOpcodesOld(scope, exp->list)){
 			return false;
 		}
@@ -3484,7 +3509,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_OBJECT_SET_BY_AUTO_INDEX);
+		prog_opcodes_old->writeByte(OP_OBJECT_SET_BY_AUTO_INDEX);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
@@ -3493,7 +3518,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_OBJECT_SET_BY_EXP);
+		prog_opcodes_old->writeByte(OP_OBJECT_SET_BY_EXP);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
@@ -3502,7 +3527,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_OBJECT_SET_BY_INDEX);
+		prog_opcodes_old->writeByte(OP_OBJECT_SET_BY_INDEX);
 		// prog_opcodes_old->writeInt64(exp->token->getInt());
 		prog_opcodes_old->writeUVariable(cacheNumber((OS_NUMBER)exp->token->getFloat()));
 		break;
@@ -3513,21 +3538,21 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_OBJECT_SET_BY_NAME);
+		prog_opcodes_old->writeByte(OP_OBJECT_SET_BY_NAME);
 		prog_opcodes_old->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_GET_ENV_VAR:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_PUSH_ENV_VAR);
+		prog_opcodes_old->writeByte(OP_PUSH_ENV_VAR);
 		prog_opcodes_old->writeUVariable(cacheString(exp->token->str));
 		break;
 
 	case EXP_TYPE_GET_ENV_VAR_AUTO_CREATE:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_PUSH_ENV_VAR_AUTO_CREATE);
+		prog_opcodes_old->writeByte(OP_PUSH_ENV_VAR_AUTO_CREATE);
 		prog_opcodes_old->writeUVariable(cacheString(exp->token->str));
 		break;
 
@@ -3537,7 +3562,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_SET_ENV_VAR);
+		prog_opcodes_old->writeByte(OP_SET_ENV_VAR);
 		prog_opcodes_old->writeUVariable(cacheString(exp->token->str));
 		break;
 
@@ -3554,15 +3579,15 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		if(!exp->local_var.up_count){
 			writeDebugInfo(exp);
 			if(exp->local_var.index <= 255){
-				prog_opcodes_old->writeByte(Program::OP_PUSH_LOCAL_VAR_1);
+				prog_opcodes_old->writeByte(OP_PUSH_LOCAL_VAR_1);
 				prog_opcodes_old->writeByte(exp->local_var.index);
 			}else{
-				prog_opcodes_old->writeByte(Program::OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX);
+				prog_opcodes_old->writeByte(OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX);
 				prog_opcodes_old->writeUVariable(exp->local_var.index);
 			}
 		}else{
 			writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(Program::OP_PUSH_UP_LOCAL_VAR);
+			prog_opcodes_old->writeByte(OP_PUSH_UP_LOCAL_VAR);
 			prog_opcodes_old->writeUVariable(exp->local_var.index);
 			prog_opcodes_old->writeByte(exp->local_var.up_count);
 		}
@@ -3572,11 +3597,11 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list.count == 0);
 		if(!exp->local_var.up_count){
 			writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(Program::OP_PUSH_LOCAL_VAR_AUTO_CREATE);
+			prog_opcodes_old->writeByte(OP_PUSH_LOCAL_VAR_AUTO_CREATE);
 			prog_opcodes_old->writeUVariable(exp->local_var.index);
 		}else{
 			writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(Program::OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE);
+			prog_opcodes_old->writeByte(OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE);
 			prog_opcodes_old->writeUVariable(exp->local_var.index);
 			prog_opcodes_old->writeByte(exp->local_var.up_count);
 		}
@@ -3590,14 +3615,14 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		writeDebugInfo(exp);
 		if(!exp->local_var.up_count){
 			if(exp->local_var.index <= 255){
-				prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR_1);
+				prog_opcodes_old->writeByte(OP_SET_LOCAL_VAR_1);
 				prog_opcodes_old->writeByte(exp->local_var.index);
 			}else{
-				prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR);
+				prog_opcodes_old->writeByte(OP_SET_LOCAL_VAR);
 				prog_opcodes_old->writeUVariable(exp->local_var.index);
 			}
 		}else{
-			prog_opcodes_old->writeByte(Program::OP_SET_UP_LOCAL_VAR);
+			prog_opcodes_old->writeByte(OP_SET_UP_LOCAL_VAR);
 			prog_opcodes_old->writeUVariable(exp->local_var.index);
 			prog_opcodes_old->writeByte(exp->local_var.up_count);
 		}
@@ -3609,7 +3634,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			OS_ASSERT(!exp->local_var.up_count);
 			OS_ASSERT(exp->list[0]->type == EXP_TYPE_BIN_OPERATOR_BY_LOCALS);
 			writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS);
+			prog_opcodes_old->writeByte(OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS);
 			Expression * exp_binary = exp->list[0]->list[0];
 			Expression * exp1 = exp_binary->list[0];
 			Expression * exp2 = exp_binary->list[1];
@@ -3631,13 +3656,13 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			Expression * exp2 = exp_binary->list[1];
 			int number_index = cacheNumber((OS_NUMBER)exp2->token->getFloat());
 			if(number_index <= 255 && exp->local_var.index <= 255){
-				prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER);
+				prog_opcodes_old->writeByte(OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER);
 				prog_opcodes_old->writeByte(Program::getOpcodeType(exp_binary->type));
 				prog_opcodes_old->writeByte(exp1->local_var.index);
 				prog_opcodes_old->writeByte(number_index);
 				prog_opcodes_old->writeByte(exp->local_var.index);
 			}else{
-				prog_opcodes_old->writeByte(Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER);
+				prog_opcodes_old->writeByte(OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER);
 				prog_opcodes_old->writeByte(Program::getOpcodeType(exp_binary->type));
 				prog_opcodes_old->writeByte(exp1->local_var.index);
 				prog_opcodes_old->writeUVariable(number_index);
@@ -3654,17 +3679,17 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 
 			bool is_super_call = exp->list[0]->type == EXP_TYPE_SUPER;
 			if(is_super_call){
-				prog_opcodes_old->writeByte(Program::OP_PUSH_NULL); // func
+				prog_opcodes_old->writeByte(OP_PUSH_NULL); // func
 			}else if(!writeOpcodesOld(scope, exp->list[0])){
 				return false;
 			}
 			// writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(Program::OP_PUSH_NULL); // this
+			prog_opcodes_old->writeByte(OP_PUSH_NULL); // this
 			if(!writeOpcodesOld(scope, exp->list[1])){
 				return false;
 			}
 			writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(is_super_call ? Program::OP_SUPER_CALL : Program::getOpcodeType(exp->type));
+			prog_opcodes_old->writeByte(is_super_call ? OP_SUPER_CALL : Program::getOpcodeType(exp->type));
 			prog_opcodes_old->writeByte(exp->list[1]->ret_values); // params number
 			prog_opcodes_old->writeByte(exp->ret_values);
 			break;
@@ -3711,7 +3736,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_GET_PROPERTY);
+		prog_opcodes_old->writeByte(OP_GET_PROPERTY);
 		prog_opcodes_old->writeByte(exp->ret_values);
 		break;
 
@@ -3721,7 +3746,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			OS_ASSERT(exp->list[0]->type == EXP_TYPE_GET_THIS);
 			OS_ASSERT(exp->list[1]->type == EXP_TYPE_CONST_STRING);
 			writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(Program::OP_GET_THIS_PROPERTY_BY_STRING);
+			prog_opcodes_old->writeByte(OP_GET_THIS_PROPERTY_BY_STRING);
 			prog_opcodes_old->writeByte(exp->ret_values);
 			prog_opcodes_old->writeUVariable(cacheString(exp->list[1]->token->str));
 			break;
@@ -3732,7 +3757,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->local_var.up_count);
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[1]->local_var.up_count);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_GET_PROPERTY_BY_LOCALS);
+		prog_opcodes_old->writeByte(OP_GET_PROPERTY_BY_LOCALS);
 		prog_opcodes_old->writeByte(exp->ret_values);
 		prog_opcodes_old->writeByte(exp->list[0]->local_var.index);
 		prog_opcodes_old->writeByte(exp->list[1]->local_var.index);
@@ -3743,7 +3768,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->local_var.up_count);
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_CONST_NUMBER);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER);
+		prog_opcodes_old->writeByte(OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER);
 		prog_opcodes_old->writeByte(exp->ret_values);
 		prog_opcodes_old->writeByte(exp->list[0]->local_var.index);
 		prog_opcodes_old->writeUVariable(cacheNumber((OS_NUMBER)exp->list[1]->token->getFloat()));
@@ -3755,7 +3780,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_GET_PROPERTY_AUTO_CREATE);
+		prog_opcodes_old->writeByte(OP_GET_PROPERTY_AUTO_CREATE);
 		prog_opcodes_old->writeByte(exp->ret_values);
 		break;
 
@@ -3765,7 +3790,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_SET_PROPERTY);
+		prog_opcodes_old->writeByte(OP_SET_PROPERTY);
 		break;
 
 	case EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
@@ -3774,7 +3799,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list[2]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[2]->local_var.up_count);
 		writeOpcodesOld(scope, exp->list[0]);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
+		prog_opcodes_old->writeByte(OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
 		prog_opcodes_old->writeByte(exp->list[1]->local_var.index);
 		prog_opcodes_old->writeByte(exp->list[2]->local_var.index);
 		break;
@@ -3787,7 +3812,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list[1]->type == EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE && !exp->list[1]->local_var.up_count);
 		OS_ASSERT(exp->list[2]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[2]->local_var.up_count);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
+		prog_opcodes_old->writeByte(OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE);
 		prog_opcodes_old->writeByte(exp->list[0]->list[0]->local_var.index);
 		prog_opcodes_old->writeByte(exp->list[0]->list[1]->local_var.index);
 		prog_opcodes_old->writeByte(exp->list[1]->local_var.index);
@@ -3800,7 +3825,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_SET_DIM);
+		prog_opcodes_old->writeByte(OP_SET_DIM);
 		prog_opcodes_old->writeByte(exp->list[2]->list.count); // params
 		break;
 
@@ -3815,7 +3840,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_RETURN);
+		prog_opcodes_old->writeByte(OP_RETURN);
 		prog_opcodes_old->writeByte(exp->ret_values);
 		break;
 
@@ -3823,7 +3848,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
 		scope->addLoopBreak(prog_opcodes_old->getPos(), Scope::LOOP_BREAK);
-		prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+		prog_opcodes_old->writeByte(OP_JUMP_4);
 		prog_opcodes_old->writeInt32(0);
 		break;
 
@@ -3831,14 +3856,14 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
 		scope->addLoopBreak(prog_opcodes_old->getPos(), Scope::LOOP_CONTINUE);
-		prog_opcodes_old->writeByte(Program::OP_JUMP_4);
+		prog_opcodes_old->writeByte(OP_JUMP_4);
 		prog_opcodes_old->writeInt32(0);
 		break;
 
 	case EXP_TYPE_DEBUGGER:
 		{
 			OS_ASSERT(exp->list.count == 0);
-			prog_opcodes_old->writeByte(Program::OP_DEBUGGER);
+			prog_opcodes_old->writeByte(OP_DEBUGGER);
 			prog_opcodes_old->writeUVariable(exp->token->line + 1);
 			prog_opcodes_old->writeUVariable(exp->token->pos + 1);
 			prog_opcodes_old->writeUVariable(OS_DEBUGGER_SAVE_NUM_LINES);
@@ -3866,13 +3891,13 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			return false;
 		}
 		// writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_POP);
+		prog_opcodes_old->writeByte(OP_POP);
 		break;
 
 	case EXP_TYPE_SUPER:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		prog_opcodes_old->writeByte(Program::OP_SUPER);
+		prog_opcodes_old->writeByte(OP_SUPER);
 		break;
 	/*
 	case EXP_TYPE_TYPE_OF:
@@ -3941,7 +3966,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			OS_ASSERT(exp->list[0]->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[0]->local_var.up_count);
 			OS_ASSERT(exp->list[0]->list[1]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[1]->local_var.up_count);
 			writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(Program::OP_BIN_OPERATOR_BY_LOCALS);
+			prog_opcodes_old->writeByte(OP_BIN_OPERATOR_BY_LOCALS);
 			Expression * exp_binary = exp->list[0];
 			Expression * exp1 = exp_binary->list[0];
 			Expression * exp2 = exp_binary->list[1];
@@ -3958,7 +3983,7 @@ bool OS::Core::Compiler::writeOpcodesOld(Scope * scope, Expression * exp)
 			OS_ASSERT(exp->list[0]->list[0]->type == EXP_TYPE_GET_LOCAL_VAR && !exp->list[0]->list[0]->local_var.up_count);
 			OS_ASSERT(exp->list[0]->list[1]->type == EXP_TYPE_CONST_NUMBER);
 			writeDebugInfo(exp);
-			prog_opcodes_old->writeByte(Program::OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER);
+			prog_opcodes_old->writeByte(OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER);
 			Expression * exp_binary = exp->list[0];
 			Expression * exp1 = exp_binary->list[0];
 			Expression * exp2 = exp_binary->list[1];
@@ -4034,11 +4059,11 @@ void OS::Core::Compiler::Scope::fixLoopBreaks(Compiler * compiler, int scope_sta
 	for(int i = 0; i < loop_breaks.count; i++){
 		LoopBreak& loop_break = loop_breaks[i];
 		if(loop_break.type == LOOP_BREAK){
-			int offs = scope_end_pos - loop_break.pos - sizeof(OS_BYTE)*5;
-			// compiler->fixJumpOpcode(offs, loop_break.pos);
+			int offs = scope_end_pos - loop_break.pos - 1;
+			compiler->fixJumpOpcode(offs, loop_break.pos);
 		}else{
-			int offs = scope_start_pos - loop_break.pos - sizeof(OS_BYTE)*5;
-			// compiler->fixJumpOpcode(offs, loop_break.pos);
+			int offs = scope_start_pos - loop_break.pos - 1;
+			compiler->fixJumpOpcode(offs, loop_break.pos);
 		}
 	}
 }
@@ -9533,7 +9558,7 @@ OS::Core::Program::Program(OS * allocator): filename(allocator)
 {
 	this->allocator = allocator;
 	ref_count = 1;
-	opcodes = NULL;
+	// opcodes = NULL;
 	const_numbers = NULL;
 	const_strings = NULL;
 	num_numbers = 0;
@@ -9572,7 +9597,7 @@ OS::Core::Program::~Program()
 	allocator->free(functions);
 	functions = NULL;
 
-	allocator->deleteObj(opcodes);
+	allocator->vectorClear(opcodes);
 	allocator->vectorClear(debug_info);
 }
 
@@ -9614,7 +9639,7 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 	writer->writeUVariable(double_count);
 	writer->writeUVariable(prog_strings.count);
 	writer->writeUVariable(prog_functions.count);
-	writer->writeUVariable(prog_opcodes_old->getPos());
+	writer->writeUVariable(prog_opcodes.count);
 
 	writer->writeBytes(int_stream.buffer.buf, int_stream.buffer.count);
 	writer->writeBytes(float_stream.buffer.buf, float_stream.buffer.count);
@@ -9629,6 +9654,7 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 	for(i = 0; i < prog_functions.count; i++){
 		Compiler::Scope * func_scope = prog_functions[i];
 		writer->writeUVariable(func_scope->parent ? func_scope->parent->func_index+1 : 0); // prog_functions.indexOf(func_scope->parent));
+		writer->writeUVariable(func_scope->stack_size);
 		writer->writeUVariable(func_scope->num_locals);
 		writer->writeUVariable(func_scope->num_params);
 		writer->writeUVariable(func_scope->max_up_count);
@@ -9649,7 +9675,9 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 		}
 	}
 
-	writer->writeBytes(prog_opcodes_old->buffer.buf, prog_opcodes_old->buffer.count);
+	for(i = 0; i < prog_opcodes.count; i++){
+		writer->writeInt32(prog_opcodes[i]);
+	}
 
 	if(debug_info_writer){
 		debug_info_writer->writeBytes(OS_DEBUGINFO_HEADER, OS_STRLEN(OS_DEBUGINFO_HEADER));
@@ -9676,7 +9704,7 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 
 bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * debuginfo_reader)
 {
-	OS_ASSERT(!opcodes && !const_numbers && !num_numbers 
+	OS_ASSERT(!opcodes.count && !const_numbers && !num_numbers 
 		&& !const_strings && !num_strings && !debug_info.count);
 
 	int i, len = OS_STRLEN(OS_COMPILED_HEADER);
@@ -9738,6 +9766,7 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		func->prog_func_index = i;
 #endif
 		func->prog_parent_func_index = reader->readUVariable() - 1;
+		func->stack_size = reader->readUVariable();
 		func->num_locals = reader->readUVariable();
 		func->num_params = reader->readUVariable();
 		func->max_up_count = reader->readUVariable();
@@ -9759,8 +9788,13 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		}
 	}
 
-	opcodes = new (allocator->malloc(sizeof(MemStreamReader) OS_DBG_FILEPOS)) MemStreamReader(allocator, opcodes_size);
-	reader->readBytes(opcodes->buffer, opcodes_size);
+	// opcodes = new (allocator->malloc(sizeof(MemStreamReader) OS_DBG_FILEPOS)) MemStreamReader(allocator, opcodes_size);
+	// reader->readBytes(opcodes->buffer, opcodes_size);
+
+	allocator->vectorReserveCapacity(opcodes, opcodes_size OS_DBG_FILEPOS);
+	for(i = 0; i < opcodes_size; i++){
+		opcodes[i] = (OS_U32)reader->readInt32();
+	}
 
 	if(debuginfo_reader){
 		len = OS_STRLEN(OS_DEBUGINFO_HEADER);
@@ -9826,14 +9860,14 @@ OS::Core::Program::DebugInfoItem::DebugInfoItem(int p_opcode_pos, int p_line, in
 
 void OS::Core::Program::pushStartFunction()
 {
-	int opcode = opcodes->readByte();
-	if(opcode != OP_PUSH_FUNCTION){
+	int opcode = opcodes[0];
+	if(GET_OPCODE(opcode) != OP_PUSH_FUNCTION){
 		OS_ASSERT(false);
 		allocator->pushNull();
 		return;
 	}
 
-	int prog_func_index = opcodes->readUVariable();
+	int prog_func_index = GETARG_A(opcode);
 	OS_ASSERT(prog_func_index == 0); // func_index >= 0 && func_index < num_functions);
 	FunctionDecl * func_decl = functions + prog_func_index;
 	OS_ASSERT(func_decl->max_up_count == 0);
@@ -9852,8 +9886,8 @@ void OS::Core::Program::pushStartFunction()
 
 	allocator->core->gcMarkProgram(this);
 
-	OS_ASSERT(func_decl->opcodes_pos == opcodes->getPos());
-	opcodes->movePos(func_decl->opcodes_size);
+	// OS_ASSERT(func_decl->opcodes_pos == opcodes->getPos());
+	// opcodes->movePos(func_decl->opcodes_size);
 }
 
 OS::Core::Program * OS::Core::Program::retain()
@@ -9872,21 +9906,49 @@ void OS::Core::Program::release()
 	}
 }
 
-OS::Core::Program::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType exp_type)
+OS::Core::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType exp_type)
 {
 	switch(exp_type){
 	case Compiler::EXP_TYPE_CALL: return OP_CALL;
-	case Compiler::EXP_TYPE_CALL_AUTO_PARAM: return OP_CALL;
-		// case Compiler::EXP_TYPE_GET_DIM: return OP_GET_DIM;
+	// case Compiler::EXP_TYPE_CALL_AUTO_PARAM: return OP_CALL;
 	case Compiler::EXP_TYPE_CALL_METHOD: return OP_CALL_METHOD;
 	case Compiler::EXP_TYPE_TAIL_CALL: return OP_TAIL_CALL;
 	case Compiler::EXP_TYPE_TAIL_CALL_METHOD: return OP_TAIL_CALL_METHOD;
-
-	case Compiler::EXP_TYPE_GET_THIS: return OP_PUSH_THIS;
-	case Compiler::EXP_TYPE_GET_ARGUMENTS: return OP_PUSH_ARGUMENTS;
-	case Compiler::EXP_TYPE_GET_REST_ARGUMENTS: return OP_PUSH_REST_ARGUMENTS;
-
+	case Compiler::EXP_TYPE_SUPER_CALL: return OP_SUPER_CALL;
 	case Compiler::EXP_TYPE_SUPER: return OP_SUPER;
+
+	case Compiler::EXP_TYPE_GET_PROPERTY: return OP_GET_PROPERTY;
+	case Compiler::EXP_TYPE_SET_PROPERTY:return OP_SET_PROPERTY;
+
+	case Compiler::EXP_TYPE_GET_UPVALUE_VAR: return OP_GET_UPVALUE;
+	case Compiler::EXP_TYPE_SET_UPVALUE_VAR: return OP_SET_UPVALUE;
+
+	case Compiler::EXP_TYPE_MOVE: return OP_MOVE;
+	case Compiler::EXP_TYPE_RETURN: return OP_RETURN;
+
+	case Compiler::EXP_TYPE_BIT_NOT: return OP_BIT_NOT;
+	case Compiler::EXP_TYPE_PLUS: return OP_PLUS;
+	case Compiler::EXP_TYPE_NEG: return OP_NEG;
+
+	case Compiler::EXP_TYPE_BIT_AND: return OP_BIT_AND;
+	case Compiler::EXP_TYPE_BIT_OR: return OP_BIT_OR;
+	case Compiler::EXP_TYPE_BIT_XOR: return OP_BIT_XOR;
+
+	case Compiler::EXP_TYPE_CONCAT: return OP_CONCAT;
+	case Compiler::EXP_TYPE_ADD: return OP_ADD;
+	case Compiler::EXP_TYPE_SUB: return OP_SUB;
+	case Compiler::EXP_TYPE_MUL: return OP_MUL;
+	case Compiler::EXP_TYPE_DIV: return OP_DIV;
+	case Compiler::EXP_TYPE_MOD: return OP_MOD;
+	case Compiler::EXP_TYPE_LSHIFT: return OP_LSHIFT;
+	case Compiler::EXP_TYPE_RSHIFT: return OP_RSHIFT;
+	case Compiler::EXP_TYPE_POW: return OP_POW;
+
+#if 0
+	// case Compiler::EXP_TYPE_GET_THIS: return OP_PUSH_THIS;
+	// case Compiler::EXP_TYPE_GET_ARGUMENTS: return OP_PUSH_ARGUMENTS;
+	// case Compiler::EXP_TYPE_GET_REST_ARGUMENTS: return OP_PUSH_REST_ARGUMENTS;
+
 	/*
 	case Compiler::EXP_TYPE_TYPE_OF: return OP_TYPE_OF;
 	case Compiler::EXP_TYPE_VALUE_OF: return OP_VALUE_OF;
@@ -9899,9 +9961,6 @@ OS::Core::Program::OpcodeType OS::Core::Program::getOpcodeType(Compiler::Express
 	*/
 	case Compiler::EXP_TYPE_LOGIC_BOOL: return OP_LOGIC_BOOL;
 	case Compiler::EXP_TYPE_LOGIC_NOT: return OP_LOGIC_NOT;
-	case Compiler::EXP_TYPE_BIT_NOT: return OP_BIT_NOT;
-	case Compiler::EXP_TYPE_PLUS: return OP_PLUS;
-	case Compiler::EXP_TYPE_NEG: return OP_NEG;
 	case Compiler::EXP_TYPE_LENGTH: return OP_LENGTH;
 
 	case Compiler::EXP_TYPE_CONCAT: return OP_CONCAT;
@@ -9919,22 +9978,10 @@ OS::Core::Program::OpcodeType OS::Core::Program::getOpcodeType(Compiler::Express
 	case Compiler::EXP_TYPE_LOGIC_LE: return OP_LOGIC_LE;
 	case Compiler::EXP_TYPE_LOGIC_GREATER: return OP_LOGIC_GREATER;
 	case Compiler::EXP_TYPE_LOGIC_LESS: return OP_LOGIC_LESS;
-
-	case Compiler::EXP_TYPE_BIT_AND: return OP_BIT_AND;
-	case Compiler::EXP_TYPE_BIT_OR: return OP_BIT_OR;
-	case Compiler::EXP_TYPE_BIT_XOR: return OP_BIT_XOR;
-
-	case Compiler::EXP_TYPE_ADD: return OP_ADD;
-	case Compiler::EXP_TYPE_SUB: return OP_SUB;
-	case Compiler::EXP_TYPE_MUL: return OP_MUL;
-	case Compiler::EXP_TYPE_DIV: return OP_DIV;
-	case Compiler::EXP_TYPE_MOD: return OP_MOD;
-	case Compiler::EXP_TYPE_LSHIFT: return OP_LSHIFT;
-	case Compiler::EXP_TYPE_RSHIFT: return OP_RSHIFT;
-	case Compiler::EXP_TYPE_POW: return OP_POW;
+#endif
 	}
 	OS_ASSERT(false);
-	return OP_UNKNOWN;
+	return OP_NOP;
 }
 
 // =====================================================================
@@ -11169,7 +11216,7 @@ static int compareResult(OS_NUMBER num)
 int OS::Core::comparePropValues(OS * os, const void * a, const void * b, void*)
 {
 	Property * props[] = {*(Property**)a, *(Property**)b};
-	os->core->pushOpResultValue(Program::OP_COMPARE, props[0]->value, props[1]->value);
+	os->core->pushOpResultValue(OP_COMPARE, props[0]->value, props[1]->value);
 	return compareResult(os->popNumber());
 }
 
@@ -11191,7 +11238,7 @@ int OS::Core::compareObjectProperties(OS * os, const void * a, const void * b, v
 	os->core->pushStringValue(name);
 	os->getProperty();
 
-	os->runOp(OP_COMPARE);
+	// os->runOp(OP_COMPARE);
 	return compareResult(os->popNumber());
 }
 
@@ -11221,7 +11268,7 @@ int OS::Core::compareUserPropValuesReverse(OS * os, const void * a, const void *
 int OS::Core::comparePropKeys(OS * os, const void * a, const void * b, void*)
 {
 	Property * props[] = {*(Property**)a, *(Property**)b};
-	os->core->pushOpResultValue(Program::OP_COMPARE, props[0]->index, props[1]->index);
+	os->core->pushOpResultValue(OP_COMPARE, props[0]->index, props[1]->index);
 	return compareResult(os->popNumber());
 }
 
@@ -11251,7 +11298,7 @@ int OS::Core::compareUserPropKeysReverse(OS * os, const void * a, const void * b
 int OS::Core::compareArrayValues(OS * os, const void * a, const void * b, void*)
 {
 	Value * values[] = {(Value*)a, (Value*)b};
-	os->core->pushOpResultValue(Program::OP_COMPARE, *values[0], *values[1]);
+	os->core->pushOpResultValue(OP_COMPARE, *values[0], *values[1]);
 	return compareResult(os->popNumber());
 }
 
@@ -13566,7 +13613,7 @@ void OS::Core::error(int code, const String& message)
 		Core::StackFunction * stack_func = call_stack_funcs.buf + i;
 		prog = stack_func->func->prog;
 		if(prog->filename.getLen() > 0){
-			int opcode_pos = stack_func->opcodes.getPos() + stack_func->func->func_decl->opcodes_pos;
+			int opcode_pos = stack_func->opcodes - prog->opcodes.buf;
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
 	}
@@ -15318,19 +15365,19 @@ void OS::Core::pushOpResultValue(int opcode, Value value)
 		void pushSimpleOpcodeValue(int opcode, Value value)
 		{
 			switch(opcode){
-			case Program::OP_BIT_NOT:
+			case OP_BIT_NOT:
 				return core->pushNumber(~core->valueToInt(value));
 
-			case Program::OP_PLUS:
+			case OP_PLUS:
 				if(value.type == OS_VALUE_TYPE_NUMBER){
 					return core->pushValue(value);
 				}
 				return core->pushNumber(core->valueToNumber(value));
 
-			case Program::OP_NEG:
+			case OP_NEG:
 				return core->pushNumber(-core->valueToNumber(value));
 
-			case Program::OP_LENGTH:
+			case OP_LENGTH:
 				// return core->pushNumber(core->valueToString(value).getDataSize() / sizeof(OS_CHAR));
 				return pushObjectMethodOpcodeValue(core->strings->__len, value);
 			}
@@ -15356,16 +15403,16 @@ void OS::Core::pushOpResultValue(int opcode, Value value)
 		void pushObjectOpcodeValue(int opcode, Value value)
 		{
 			switch(opcode){
-			case Program::OP_BIT_NOT:
+			case OP_BIT_NOT:
 				return pushObjectMethodOpcodeValue(core->strings->__bitnot, value);
 
-			case Program::OP_PLUS:
+			case OP_PLUS:
 				return pushObjectMethodOpcodeValue(core->strings->__plus, value);
 
-			case Program::OP_NEG:
+			case OP_NEG:
 				return pushObjectMethodOpcodeValue(core->strings->__neg, value);
 
-			case Program::OP_LENGTH:
+			case OP_LENGTH:
 				return pushObjectMethodOpcodeValue(core->strings->__len, value);
 			}
 			return core->pushNull();
@@ -15596,29 +15643,29 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		void pushSimpleOpcodeValue(int opcode, Value left_value, Value right_value)
 		{
 			switch(opcode){
-			case Program::OP_CONCAT:
+			case OP_CONCAT:
 				core->pushStringValue(core->newStringValue(core->valueToString(left_value), core->valueToString(right_value)));
 				return;
 
-			case Program::OP_BIT_AND:
+			case OP_BIT_AND:
 				return core->pushNumber(core->valueToInt(left_value) & core->valueToInt(right_value));
 
-			case Program::OP_BIT_OR:
+			case OP_BIT_OR:
 				return core->pushNumber(core->valueToInt(left_value) | core->valueToInt(right_value));
 
-			case Program::OP_BIT_XOR:
+			case OP_BIT_XOR:
 				return core->pushNumber(core->valueToInt(left_value) ^ core->valueToInt(right_value));
 
-			case Program::OP_ADD: // +
+			case OP_ADD: // +
 				return core->pushNumber(core->valueToNumber(left_value) + core->valueToNumber(right_value));
 
-			case Program::OP_SUB: // -
+			case OP_SUB: // -
 				return core->pushNumber(core->valueToNumber(left_value) - core->valueToNumber(right_value));
 
-			case Program::OP_MUL: // *
+			case OP_MUL: // *
 				return core->pushNumber(core->valueToNumber(left_value) * core->valueToNumber(right_value));
 
-			case Program::OP_DIV: // /
+			case OP_DIV: // /
 				{
 					OS_FLOAT right = core->valueToNumber(right_value);
 					if(!right){
@@ -15628,7 +15675,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 					return core->pushNumber(core->valueToNumber(left_value) / right);
 				}
 
-			case Program::OP_MOD: // %
+			case OP_MOD: // %
 				{
 					OS_FLOAT right = core->valueToNumber(right_value);
 					if(!right){
@@ -15638,13 +15685,13 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 					return core->pushNumber(OS_MATH_MOD_OPERATOR(core->valueToNumber(left_value), right));
 				}
 
-			case Program::OP_LSHIFT: // <<
+			case OP_LSHIFT: // <<
 				return core->pushNumber(core->valueToInt(left_value) << core->valueToInt(right_value));
 
-			case Program::OP_RSHIFT: // >>
+			case OP_RSHIFT: // >>
 				return core->pushNumber(core->valueToInt(left_value) >> core->valueToInt(right_value));
 
-			case Program::OP_POW: // **
+			case OP_POW: // **
 				return core->pushNumber(OS_MATH_POW_OPERATOR(core->valueToNumber(left_value), core->valueToNumber(right_value)));
 			}
 			core->pushNull();
@@ -15706,40 +15753,40 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		void pushObjectOpcodeValue(int opcode, Value left_value, Value right_value, GCValue * object, bool is_left_side)
 		{
 			switch(opcode){
-			case Program::OP_CONCAT:
+			case OP_CONCAT:
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__concat, left_value, right_value, object, is_left_side);
 
-			case Program::OP_BIT_AND:
+			case OP_BIT_AND:
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__bitand, left_value, right_value, object, is_left_side);
 
-			case Program::OP_BIT_OR:
+			case OP_BIT_OR:
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__bitor, left_value, right_value, object, is_left_side);
 
-			case Program::OP_BIT_XOR:
+			case OP_BIT_XOR:
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__bitxor, left_value, right_value, object, is_left_side);
 
-			case Program::OP_ADD: // +
+			case OP_ADD: // +
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__add, left_value, right_value, object, is_left_side);
 
-			case Program::OP_SUB: // -
+			case OP_SUB: // -
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__sub, left_value, right_value, object, is_left_side);
 
-			case Program::OP_MUL: // *
+			case OP_MUL: // *
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__mul, left_value, right_value, object, is_left_side);
 
-			case Program::OP_DIV: // /
+			case OP_DIV: // /
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__div, left_value, right_value, object, is_left_side);
 
-			case Program::OP_MOD: // %
+			case OP_MOD: // %
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__mod, left_value, right_value, object, is_left_side);
 
-			case Program::OP_LSHIFT: // <<
+			case OP_LSHIFT: // <<
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__lshift, left_value, right_value, object, is_left_side);
 
-			case Program::OP_RSHIFT: // >>
+			case OP_RSHIFT: // >>
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__rshift, left_value, right_value, object, is_left_side);
 
-			case Program::OP_POW: // **
+			case OP_POW: // **
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__pow, left_value, right_value, object, is_left_side);
 			}
 			core->pushNull();
@@ -15794,7 +15841,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		reserveStackValues(stack_values->count+1);
 	}
 	switch(opcode){
-	case Program::OP_COMPARE:
+	case OP_COMPARE:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number - right_value.v.number;
 			return;
@@ -15802,15 +15849,15 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		stack_values->buf[stack_values->count++] = lib.compareValues(left_value, right_value);
 		return;
 
-	case Program::OP_LOGIC_PTR_EQ:
+	case OP_LOGIC_PTR_EQ:
 		stack_values->buf[stack_values->count++] = lib.isEqualExactly(left_value, right_value);
 		return;
 
-	case Program::OP_LOGIC_PTR_NE:
+	case OP_LOGIC_PTR_NE:
 		stack_values->buf[stack_values->count++] = !lib.isEqualExactly(left_value, right_value);
 		return;
 
-	case Program::OP_LOGIC_EQ:
+	case OP_LOGIC_EQ:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number == right_value.v.number;
 			return;
@@ -15822,7 +15869,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		stack_values->buf[stack_values->count++] = lib.compareValues(left_value, right_value) == 0;
 		return;
 
-	case Program::OP_LOGIC_NE:
+	case OP_LOGIC_NE:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number != right_value.v.number;
 			return;
@@ -15834,7 +15881,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		stack_values->buf[stack_values->count++] = lib.compareValues(left_value, right_value) != 0;
 		return;
 
-	case Program::OP_LOGIC_GE:
+	case OP_LOGIC_GE:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number >= right_value.v.number;
 			return;
@@ -15842,7 +15889,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		stack_values->buf[stack_values->count++] = lib.compareValues(left_value, right_value) >= 0;
 		return;
 
-	case Program::OP_LOGIC_LE:
+	case OP_LOGIC_LE:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number <= right_value.v.number;
 			return;
@@ -15850,7 +15897,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		stack_values->buf[stack_values->count++] = lib.compareValues(left_value, right_value) <= 0;
 		return;
 
-	case Program::OP_LOGIC_GREATER:
+	case OP_LOGIC_GREATER:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number > right_value.v.number;
 			return;
@@ -15858,7 +15905,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		stack_values->buf[stack_values->count++] = lib.compareValues(left_value, right_value) > 0;
 		return;
 
-	case Program::OP_LOGIC_LESS:
+	case OP_LOGIC_LESS:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number < right_value.v.number;
 			return;
@@ -15866,56 +15913,56 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		stack_values->buf[stack_values->count++] = lib.compareValues(left_value, right_value) < 0;
 		return;
 
-	case Program::OP_CONCAT:
+	case OP_CONCAT:
 		if(left_value.type == OS_VALUE_TYPE_STRING && right_value.type == OS_VALUE_TYPE_STRING){
 			pushStringValue(newStringValue(left_value.v.string, right_value.v.string));
 			return;
 		}
 		break;
 
-	case Program::OP_BIT_AND:
+	case OP_BIT_AND:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number & (OS_INT)right_value.v.number;
 			return;
 		}
 		break;
 
-	case Program::OP_BIT_OR:
+	case OP_BIT_OR:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number | (OS_INT)right_value.v.number;
 			return;
 		}
 		break;
 
-	case Program::OP_BIT_XOR:
+	case OP_BIT_XOR:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number ^ (OS_INT)right_value.v.number;
 			return;
 		}
 		break;
 
-	case Program::OP_ADD: // +
+	case OP_ADD: // +
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number + right_value.v.number;
 			return;
 		}
 		break;
 
-	case Program::OP_SUB: // -
+	case OP_SUB: // -
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number - right_value.v.number;
 			return;
 		}
 		break;
 
-	case Program::OP_MUL: // *
+	case OP_MUL: // *
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = left_value.v.number * right_value.v.number;
 			return;
 		}
 		break;
 
-	case Program::OP_DIV: // /
+	case OP_DIV: // /
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			if(!right_value.v.number){
 				errorDivisionByZero();
@@ -15927,7 +15974,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		}
 		break;
 
-	case Program::OP_MOD: // %
+	case OP_MOD: // %
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			if(!right_value.v.number){
 				errorDivisionByZero();
@@ -15939,21 +15986,21 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		}
 		break;
 
-	case Program::OP_LSHIFT: // <<
+	case OP_LSHIFT: // <<
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number << (OS_INT)right_value.v.number;
 			return;
 		}
 		break;
 
-	case Program::OP_RSHIFT: // >>
+	case OP_RSHIFT: // >>
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number >> (OS_INT)right_value.v.number;
 			return;
 		}
 		break;
 
-	case Program::OP_POW: // **
+	case OP_POW: // **
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
 			stack_values->buf[stack_values->count++] = OS_MATH_POW_OPERATOR((OS_FLOAT)left_value.v.number, (OS_FLOAT)right_value.v.number);
 			return;
@@ -17209,7 +17256,8 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue *
 	stack_func->need_ret_values = need_ret_values;
 	// stack_func->opcode_offs = 0; // func_decl->opcodes_pos;
 
-	new (&stack_func->opcodes) MemStreamReader(NULL, func_value->prog->opcodes->buffer + func_decl->opcodes_pos, func_decl->opcodes_size);
+	// new (&stack_func->opcodes) MemStreamReader(NULL, func_value->prog->opcodes->buffer + func_decl->opcodes_pos, func_decl->opcodes_size);
+	stack_func->opcodes = func_value->prog->opcodes.buf + func_decl->opcodes_pos;
 
 	func_locals->locals[func_decl->num_params + VAR_ENV] = func_value->env;
 #ifdef OS_GLOBAL_VAR_ENABLED
@@ -17221,6 +17269,7 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue *
 	// gcMarkStackFunction(stack_func);
 }
 
+#if 0
 int OS::Core::opBreakFunction()
 {
 	StackFunction * stack_func = this->stack_func;
@@ -18405,59 +18454,59 @@ void OS::Core::opBinaryOperatorByLocals()
 		}
 		OS_NUMBER right_num;
 		switch(opcode){
-		case Program::OP_COMPARE:
+		case OP_COMPARE:
 			stack_values->buf[stack_values->count++] = left_value.v.number - right_value.v.number;
 			return;
 			
-		case Program::OP_LOGIC_EQ:
+		case OP_LOGIC_EQ:
 			stack_values->buf[stack_values->count++] = left_value.v.number == right_value.v.number;
 			return;
 
-		case Program::OP_LOGIC_NE:
+		case OP_LOGIC_NE:
 			stack_values->buf[stack_values->count++] = left_value.v.number != right_value.v.number;
 			return;
 
-		case Program::OP_LOGIC_GE:
+		case OP_LOGIC_GE:
 			stack_values->buf[stack_values->count++] = left_value.v.number >= right_value.v.number;
 			return;
 
-		case Program::OP_LOGIC_LE:
+		case OP_LOGIC_LE:
 			stack_values->buf[stack_values->count++] = left_value.v.number <= right_value.v.number;
 			return;
 
-		case Program::OP_LOGIC_GREATER:
+		case OP_LOGIC_GREATER:
 			stack_values->buf[stack_values->count++] = left_value.v.number > right_value.v.number;
 			return;
 
-		case Program::OP_LOGIC_LESS:
+		case OP_LOGIC_LESS:
 			stack_values->buf[stack_values->count++] = left_value.v.number < right_value.v.number;
 			return;
 
-		case Program::OP_BIT_AND:
+		case OP_BIT_AND:
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number & (OS_INT)right_value.v.number;
 			return;
 
-		case Program::OP_BIT_OR:
+		case OP_BIT_OR:
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number | (OS_INT)right_value.v.number;
 			return;
 
-		case Program::OP_BIT_XOR:
+		case OP_BIT_XOR:
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number ^ (OS_INT)right_value.v.number;
 			return;
 
-		case Program::OP_ADD: // +
+		case OP_ADD: // +
 			stack_values->buf[stack_values->count++] = left_value.v.number + right_value.v.number;
 			return;
 
-		case Program::OP_SUB: // -
+		case OP_SUB: // -
 			stack_values->buf[stack_values->count++] = left_value.v.number - right_value.v.number;
 			return;
 
-		case Program::OP_MUL: // *
+		case OP_MUL: // *
 			stack_values->buf[stack_values->count++] = left_value.v.number * right_value.v.number;
 			return;
 
-		case Program::OP_DIV: // /
+		case OP_DIV: // /
 			right_num = right_value.v.number;
 			if(!right_num){
 				errorDivisionByZero();
@@ -18467,7 +18516,7 @@ void OS::Core::opBinaryOperatorByLocals()
 			}
 			return;
 
-		case Program::OP_MOD: // %
+		case OP_MOD: // %
 			right_num = right_value.v.number;
 			if(!right_num){
 				errorDivisionByZero();
@@ -18477,15 +18526,15 @@ void OS::Core::opBinaryOperatorByLocals()
 			}
 			return;
 
-		case Program::OP_LSHIFT: // <<
+		case OP_LSHIFT: // <<
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number << (OS_INT)right_value.v.number;
 			return;
 
-		case Program::OP_RSHIFT: // >>
+		case OP_RSHIFT: // >>
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number >> (OS_INT)right_value.v.number;
 			return;
 
-		case Program::OP_POW: // **
+		case OP_POW: // **
 			stack_values->buf[stack_values->count++] = OS_MATH_POW_OPERATOR((OS_FLOAT)left_value.v.number, (OS_FLOAT)right_value.v.number);
 			return;
 		}
@@ -18521,59 +18570,59 @@ void OS::Core::opBinaryOperatorByLocalAndNumber()
 		}
 		OS_NUMBER right_num;
 		switch(opcode){
-		case Program::OP_COMPARE:
+		case OP_COMPARE:
 			stack_values->buf[stack_values->count++] = left_value.v.number - stack_func_prog_numbers[number_index];
 			return;
 			
-		case Program::OP_LOGIC_EQ:
+		case OP_LOGIC_EQ:
 			stack_values->buf[stack_values->count++] = left_value.v.number == stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_LOGIC_NE:
+		case OP_LOGIC_NE:
 			stack_values->buf[stack_values->count++] = left_value.v.number != stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_LOGIC_GE:
+		case OP_LOGIC_GE:
 			stack_values->buf[stack_values->count++] = left_value.v.number >= stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_LOGIC_LE:
+		case OP_LOGIC_LE:
 			stack_values->buf[stack_values->count++] = left_value.v.number <= stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_LOGIC_GREATER:
+		case OP_LOGIC_GREATER:
 			stack_values->buf[stack_values->count++] = left_value.v.number > stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_LOGIC_LESS:
+		case OP_LOGIC_LESS:
 			stack_values->buf[stack_values->count++] = left_value.v.number < stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_BIT_AND:
+		case OP_BIT_AND:
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number & (OS_INT)stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_BIT_OR:
+		case OP_BIT_OR:
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number | (OS_INT)stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_BIT_XOR:
+		case OP_BIT_XOR:
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number ^ (OS_INT)stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_ADD: // +
+		case OP_ADD: // +
 			stack_values->buf[stack_values->count++] = left_value.v.number + stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_SUB: // -
+		case OP_SUB: // -
 			stack_values->buf[stack_values->count++] = left_value.v.number - stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_MUL: // *
+		case OP_MUL: // *
 			stack_values->buf[stack_values->count++] = left_value.v.number * stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_DIV: // /
+		case OP_DIV: // /
 			right_num = stack_func_prog_numbers[number_index];
 			if(!right_num){
 				errorDivisionByZero();
@@ -18583,7 +18632,7 @@ void OS::Core::opBinaryOperatorByLocalAndNumber()
 			}
 			return;
 
-		case Program::OP_MOD: // %
+		case OP_MOD: // %
 			right_num = stack_func_prog_numbers[number_index];
 			if(!right_num){
 				errorDivisionByZero();
@@ -18593,15 +18642,15 @@ void OS::Core::opBinaryOperatorByLocalAndNumber()
 			}
 			return;
 
-		case Program::OP_LSHIFT: // <<
+		case OP_LSHIFT: // <<
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number << (OS_INT)stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_RSHIFT: // >>
+		case OP_RSHIFT: // >>
 			stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number >> (OS_INT)stack_func_prog_numbers[number_index];
 			return;
 
-		case Program::OP_POW: // **
+		case OP_POW: // **
 			stack_values->buf[stack_values->count++] = OS_MATH_POW_OPERATOR((OS_FLOAT)left_value.v.number, (OS_FLOAT)stack_func_prog_numbers[number_index]);
 			return;
 		}
@@ -18609,6 +18658,7 @@ void OS::Core::opBinaryOperatorByLocalAndNumber()
 #endif
 	pushOpResultValue(opcode, stack_func_locals[local_1], stack_func_prog_numbers[number_index]);
 }
+#endif // 0
 
 void OS::Core::reloadStackFunctionCache()
 {
@@ -18629,6 +18679,7 @@ void OS::Core::reloadStackFunctionCache()
 	}
 }
 
+#if 0
 int OS::Core::execute()
 {
 #ifdef OS_DEBUG
@@ -18655,7 +18706,7 @@ int OS::Core::execute()
 			break;
 		}
 		OS_ASSERT(this->stack_func->opcodes.getPos()+1 <= this->stack_func->opcodes.getSize());
-		Program::OpcodeType opcode = (Program::OpcodeType)*(stack_func = this->stack_func)->opcodes.cur++; // readByte();
+		OpcodeType opcode = (OpcodeType)*(stack_func = this->stack_func)->opcodes.cur++; // readByte();
 		OS_PROFILE_BEGIN_OPCODE(opcode);
 		switch(opcode){
 		default:
@@ -18663,11 +18714,11 @@ int OS::Core::execute()
 			allocator->setTerminated();
 			break;
 
-		case Program::OP_DEBUGGER:
+		case OP_DEBUGGER:
 			opDebugger();
 			break;
 
-		case Program::OP_PUSH_ONE:
+		case OP_PUSH_ONE:
 			//opPushNumber();
 			stack_values = &this->stack_values;
 			if(stack_values->capacity < stack_values->count+1){
@@ -18676,7 +18727,7 @@ int OS::Core::execute()
 			stack_values->buf[stack_values->count++] = 1.0f;
 			break;
 
-		case Program::OP_PUSH_NUMBER_1:
+		case OP_PUSH_NUMBER_1:
 			//opPushNumber();
 			OS_ASSERT(stack_func->opcodes.getPos()+1 <= stack_func->opcodes.getSize());
 			i = *stack_func->opcodes.cur++; // readByte();
@@ -18689,7 +18740,7 @@ int OS::Core::execute()
 			// pushNumber(stack_func_prog_numbers[i]);
 			break;
 
-		case Program::OP_PUSH_NUMBER_BY_AUTO_INDEX:
+		case OP_PUSH_NUMBER_BY_AUTO_INDEX:
 			//opPushNumber();
 			i = stack_func->opcodes.readUVariable();
 			OS_ASSERT(i >= 0 && i < stack_func->func->prog->num_numbers);
@@ -18701,7 +18752,7 @@ int OS::Core::execute()
 			// pushNumber(stack_func_prog_numbers[i]);
 			break;
 
-		case Program::OP_PUSH_STRING_1:
+		case OP_PUSH_STRING_1:
 			{
 				OS_ASSERT(stack_func->opcodes.getPos()+1 <= stack_func->opcodes.getSize());
 				i = *stack_func->opcodes.cur++; // readByte();
@@ -18718,7 +18769,7 @@ int OS::Core::execute()
 				break;
 			}
 
-		case Program::OP_PUSH_STRING_BY_AUTO_INDEX:
+		case OP_PUSH_STRING_BY_AUTO_INDEX:
 			{
 				i = stack_func->opcodes.readUVariable();
 				OS_ASSERT(i >= 0 && i < stack_func->func->prog->num_strings);
@@ -18734,68 +18785,68 @@ int OS::Core::execute()
 				break;
 			}
 
-		case Program::OP_PUSH_NULL:
+		case OP_PUSH_NULL:
 			pushNull();
 			break;
 
-		case Program::OP_PUSH_TRUE:
+		case OP_PUSH_TRUE:
 			pushBool(true);
 			break;
 
-		case Program::OP_PUSH_FALSE:
+		case OP_PUSH_FALSE:
 			pushBool(false);
 			break;
 
-		case Program::OP_PUSH_FUNCTION:
+		case OP_PUSH_FUNCTION:
 			opPushFunction();
 			break;
 
-		case Program::OP_PUSH_NEW_ARRAY:
+		case OP_PUSH_NEW_ARRAY:
 			opPushArray();
 			break;
 
-		case Program::OP_PUSH_NEW_OBJECT:
+		case OP_PUSH_NEW_OBJECT:
 			opPushObject();
 			break;
 
-		case Program::OP_OBJECT_SET_BY_AUTO_INDEX:
+		case OP_OBJECT_SET_BY_AUTO_INDEX:
 			opObjectSetByAutoIndex();
 			break;
 
-		case Program::OP_OBJECT_SET_BY_EXP:
+		case OP_OBJECT_SET_BY_EXP:
 			opObjectSetByExp();
 			break;
 
-		case Program::OP_OBJECT_SET_BY_INDEX:
+		case OP_OBJECT_SET_BY_INDEX:
 			opObjectSetByIndex();
 			break;
 
-		case Program::OP_OBJECT_SET_BY_NAME:
+		case OP_OBJECT_SET_BY_NAME:
 			opObjectSetByName();
 			break;
 
-		case Program::OP_PUSH_ENV_VAR:
-		case Program::OP_PUSH_ENV_VAR_AUTO_CREATE:
-			opPushEnvVar(opcode == Program::OP_PUSH_ENV_VAR_AUTO_CREATE);
+		case OP_PUSH_ENV_VAR:
+		case OP_PUSH_ENV_VAR_AUTO_CREATE:
+			opPushEnvVar(opcode == OP_PUSH_ENV_VAR_AUTO_CREATE);
 			break;
 
-		case Program::OP_SET_ENV_VAR:
+		case OP_SET_ENV_VAR:
 			opSetEnvVar();
 			break;
 
-		case Program::OP_PUSH_THIS:
+		case OP_PUSH_THIS:
 			opPushThis();
 			break;
 
-		case Program::OP_PUSH_ARGUMENTS:
+		case OP_PUSH_ARGUMENTS:
 			opPushArguments();
 			break;
 
-		case Program::OP_PUSH_REST_ARGUMENTS:
+		case OP_PUSH_REST_ARGUMENTS:
 			opPushRestArguments();
 			break;
 
-		case Program::OP_PUSH_LOCAL_VAR_1:
+		case OP_PUSH_LOCAL_VAR_1:
 			OS_ASSERT(stack_func->opcodes.getPos()+1 <= stack_func->opcodes.getSize());
 			i = *stack_func->opcodes.cur++; // readByte();
 			OS_ASSERT(i < num_stack_func_locals);
@@ -18810,15 +18861,15 @@ int OS::Core::execute()
 #endif
 			break;
 
-		case Program::OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX:
+		case OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX:
 			opPushLocalVar();
 			break;
 
-		case Program::OP_PUSH_LOCAL_VAR_AUTO_CREATE:
+		case OP_PUSH_LOCAL_VAR_AUTO_CREATE:
 			opPushLocalVarAutoCreate();
 			break;
 
-		case Program::OP_SET_LOCAL_VAR_1:
+		case OP_SET_LOCAL_VAR_1:
 			// inline function for speed optimization
 			{
 				// StackFunction * stack_func = this->stack_func;
@@ -18848,16 +18899,16 @@ int OS::Core::execute()
 				break;
 			}
 
-		case Program::OP_SET_LOCAL_VAR:
+		case OP_SET_LOCAL_VAR:
 			opSetLocalVar();
 			break;
 
-		case Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS:
+		case OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS:
 			opBinaryOperatorByLocals();
 			opSetLocalVar();
 			break;
 
-		case Program::OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER:
+		case OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER:
 			// inline function for speed optimization
 			{
 				// StackFunction * stack_func = this->stack_func;
@@ -18876,59 +18927,59 @@ int OS::Core::execute()
 						reserveStackValues(stack_values->count+1);
 					}
 					switch(opcode){
-					case Program::OP_COMPARE:
+					case OP_COMPARE:
 						stack_values->buf[stack_values->count++] = left_value.v.number - stack_func_prog_numbers[number_index];
 						break;
 			
-					case Program::OP_LOGIC_EQ:
+					case OP_LOGIC_EQ:
 						stack_values->buf[stack_values->count++] = left_value.v.number == stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_LOGIC_NE:
+					case OP_LOGIC_NE:
 						stack_values->buf[stack_values->count++] = left_value.v.number != stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_LOGIC_GE:
+					case OP_LOGIC_GE:
 						stack_values->buf[stack_values->count++] = left_value.v.number >= stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_LOGIC_LE:
+					case OP_LOGIC_LE:
 						stack_values->buf[stack_values->count++] = left_value.v.number <= stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_LOGIC_GREATER:
+					case OP_LOGIC_GREATER:
 						stack_values->buf[stack_values->count++] = left_value.v.number > stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_LOGIC_LESS:
+					case OP_LOGIC_LESS:
 						stack_values->buf[stack_values->count++] = left_value.v.number < stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_BIT_AND:
+					case OP_BIT_AND:
 						stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number & (OS_INT)stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_BIT_OR:
+					case OP_BIT_OR:
 						stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number | (OS_INT)stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_BIT_XOR:
+					case OP_BIT_XOR:
 						stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number ^ (OS_INT)stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_ADD: // +
+					case OP_ADD: // +
 						stack_values->buf[stack_values->count++] = left_value.v.number + stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_SUB: // -
+					case OP_SUB: // -
 						stack_values->buf[stack_values->count++] = left_value.v.number - stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_MUL: // *
+					case OP_MUL: // *
 						stack_values->buf[stack_values->count++] = left_value.v.number * stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_DIV: // /
+					case OP_DIV: // /
 						right_num = stack_func_prog_numbers[number_index];
 						if(!right_num){
 							errorDivisionByZero();
@@ -18938,7 +18989,7 @@ int OS::Core::execute()
 						}
 						break;
 
-					case Program::OP_MOD: // %
+					case OP_MOD: // %
 						right_num = stack_func_prog_numbers[number_index];
 						if(!right_num){
 							errorDivisionByZero();
@@ -18948,15 +18999,15 @@ int OS::Core::execute()
 						}
 						break;
 
-					case Program::OP_LSHIFT: // <<
+					case OP_LSHIFT: // <<
 						stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number << (OS_INT)stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_RSHIFT: // >>
+					case OP_RSHIFT: // >>
 						stack_values->buf[stack_values->count++] = (OS_INT)left_value.v.number >> (OS_INT)stack_func_prog_numbers[number_index];
 						break;
 
-					case Program::OP_POW: // **
+					case OP_POW: // **
 						stack_values->buf[stack_values->count++] = OS_MATH_POW_OPERATOR((OS_FLOAT)left_value.v.number, (OS_FLOAT)stack_func_prog_numbers[number_index]);
 						break;
 
@@ -18992,68 +19043,68 @@ int OS::Core::execute()
 				break;
 			}
 
-		case Program::OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER:
+		case OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER:
 			opBinaryOperatorByLocalAndNumber();
 			opSetLocalVar();
 			break;
 
-		case Program::OP_PUSH_UP_LOCAL_VAR:
+		case OP_PUSH_UP_LOCAL_VAR:
 			opPushUpvalue();
 			break;
 
-		case Program::OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE:
+		case OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE:
 			opPushUpvalueAutoCreate();
 			break;
 
-		case Program::OP_SET_UP_LOCAL_VAR:
+		case OP_SET_UP_LOCAL_VAR:
 			opSetUpvalue();
 			break;
 
-		case Program::OP_IF_NOT_JUMP_1:
+		case OP_IF_NOT_JUMP_1:
 			opIfJump1(false);
 			break;
 
-		case Program::OP_IF_NOT_JUMP_2:
+		case OP_IF_NOT_JUMP_2:
 			opIfJump2(false);
 			break;
 
-		case Program::OP_IF_NOT_JUMP_4:
+		case OP_IF_NOT_JUMP_4:
 			opIfJump4(false);
 			break;
 
-		case Program::OP_IF_JUMP_1:
+		case OP_IF_JUMP_1:
 			opIfJump1(true);
 			break;
 
-		case Program::OP_IF_JUMP_2:
+		case OP_IF_JUMP_2:
 			opIfJump2(true);
 			break;
 
-		case Program::OP_IF_JUMP_4:
+		case OP_IF_JUMP_4:
 			opIfJump4(true);
 			break;
 
-		case Program::OP_JUMP_1:
+		case OP_JUMP_1:
 			OS_ASSERT(stack_func->opcodes.getPos() + *(OS_INT8*)stack_func->opcodes.cur >= 0);
 			OS_ASSERT(stack_func->opcodes.getPos() + *(OS_INT8*)stack_func->opcodes.cur <= stack_func->opcodes.getSize());
 			stack_func->opcodes.cur += *(OS_INT8*)stack_func->opcodes.cur;
 			break;
 
-		case Program::OP_JUMP_2:
+		case OP_JUMP_2:
 			OS_ASSERT(stack_func->opcodes.getPos() + (OS_INT16)(stack_func->opcodes.cur[0] | (stack_func->opcodes.cur[1] << 8)) >= 0);
 			OS_ASSERT(stack_func->opcodes.getPos() + (OS_INT16)(stack_func->opcodes.cur[0] | (stack_func->opcodes.cur[1] << 8)) <= stack_func->opcodes.getSize());
 			stack_func->opcodes.cur += (OS_INT16)(stack_func->opcodes.cur[0] | (stack_func->opcodes.cur[1] << 8));
 			break;
 
-		case Program::OP_JUMP_4:
+		case OP_JUMP_4:
 			opJump4();
 			break;
 
-		case Program::OP_CALL:
+		case OP_CALL:
 			opCall();
 			break;
 
-		case Program::OP_SUPER_CALL:
+		case OP_SUPER_CALL:
 			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 			opSuperCall(ret_values);
 			if(ret_stack_funcs >= call_stack_funcs.count){
@@ -19062,7 +19113,7 @@ int OS::Core::execute()
 			}
 			continue;
 
-		case Program::OP_TAIL_CALL:
+		case OP_TAIL_CALL:
 			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 			opTailCall(ret_values);
 			if(ret_stack_funcs >= call_stack_funcs.count){
@@ -19071,12 +19122,12 @@ int OS::Core::execute()
 			}
 			continue;
 
-		case Program::OP_CALL_METHOD:
+		case OP_CALL_METHOD:
 			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 			opCallMethod();
 			continue;
 
-		case Program::OP_TAIL_CALL_METHOD:
+		case OP_TAIL_CALL_METHOD:
 			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 			opTailCallMethod(ret_values);
 			if(ret_stack_funcs >= call_stack_funcs.count){
@@ -19085,7 +19136,7 @@ int OS::Core::execute()
 			}
 			continue;
 
-		case Program::OP_RETURN:
+		case OP_RETURN:
 			ret_values = opReturn();
 			if(ret_stack_funcs >= call_stack_funcs.count){
 				OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
@@ -19094,7 +19145,7 @@ int OS::Core::execute()
 			}
 			break;
 
-		case Program::OP_RETURN_AUTO:
+		case OP_RETURN_AUTO:
 			ret_values = opReturnAuto();
 			if(ret_stack_funcs >= call_stack_funcs.count){
 				OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
@@ -19103,27 +19154,27 @@ int OS::Core::execute()
 			}
 			break;
 
-		case Program::OP_GET_PROPERTY:
+		case OP_GET_PROPERTY:
 			opGetProperty(false);
 			break;
 
-		case Program::OP_GET_THIS_PROPERTY_BY_STRING:
+		case OP_GET_THIS_PROPERTY_BY_STRING:
 			opGetThisPropertyByString();
 			break;
 
-		case Program::OP_GET_PROPERTY_AUTO_CREATE:
+		case OP_GET_PROPERTY_AUTO_CREATE:
 			opGetProperty(true);
 			break;
 
-		case Program::OP_GET_PROPERTY_BY_LOCALS:
+		case OP_GET_PROPERTY_BY_LOCALS:
 			opGetPropertyByLocals(false);
 			break;
 
-		case Program::OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
+		case OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
 			opGetPropertyByLocalAndNumber(false);
 			break;
 
-		case Program::OP_SET_PROPERTY:
+		case OP_SET_PROPERTY:
 #if 1 // inline function for speed optimization
 			OS_ASSERT(this->stack_values.count >= 3);
 			stack_values = &this->stack_values;
@@ -19138,7 +19189,7 @@ int OS::Core::execute()
 #endif
 			break;
 
-		case Program::OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
+		case OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
 			{
 #if 0 // increase in speed is not detected
 				OS_ASSERT(this->stack_values.count >= 1);
@@ -19190,147 +19241,147 @@ int OS::Core::execute()
 				break;
 			}
 
-		case Program::OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
+		case OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
 			opGetSetPropertyByLocals(true);
 			break;
 
-		case Program::OP_SET_DIM:
+		case OP_SET_DIM:
 			opSetDim();
 			break;
 
-		case Program::OP_EXTENDS:
+		case OP_EXTENDS:
 			opExtends();
 			break;
 
-		case Program::OP_CLONE:
+		case OP_CLONE:
 			opClone();
 			break;
 
-		case Program::OP_DELETE_PROP:
+		case OP_DELETE_PROP:
 			opDeleteProperty();
 			break;
 
-		case Program::OP_POP:
+		case OP_POP:
 			// pop();
 			OS_ASSERT(this->stack_values.count > 0);
 			--this->stack_values.count;
 			break;
 
-		case Program::OP_LOGIC_AND_1:
+		case OP_LOGIC_AND_1:
 			opLogicAndOr1(true);
 			break;
 
-		case Program::OP_LOGIC_AND_2:
+		case OP_LOGIC_AND_2:
 			opLogicAndOr2(true);
 			break;
 
-		case Program::OP_LOGIC_AND_4:
+		case OP_LOGIC_AND_4:
 			opLogicAndOr4(true);
 			break;
 
-		case Program::OP_LOGIC_OR_1:
+		case OP_LOGIC_OR_1:
 			opLogicAndOr1(false);
 			break;
 
-		case Program::OP_LOGIC_OR_2:
+		case OP_LOGIC_OR_2:
 			opLogicAndOr2(false);
 			break;
 
-		case Program::OP_LOGIC_OR_4:
+		case OP_LOGIC_OR_4:
 			opLogicAndOr4(false);
 			break;
 
-		case Program::OP_SUPER:
+		case OP_SUPER:
 			opSuper();
 			break;
 
-		case Program::OP_TYPE_OF:
+		case OP_TYPE_OF:
 			opTypeOf();
 			break;
 
-		case Program::OP_VALUE_OF:
+		case OP_VALUE_OF:
 			opValueOf();
 			break;
 
-		case Program::OP_NUMBER_OF:
+		case OP_NUMBER_OF:
 			opNumberOf();
 			break;
 
-		case Program::OP_STRING_OF:
+		case OP_STRING_OF:
 			opStringOf();
 			break;
 
-		case Program::OP_ARRAY_OF:
+		case OP_ARRAY_OF:
 			opArrayOf();
 			break;
 
-		case Program::OP_OBJECT_OF:
+		case OP_OBJECT_OF:
 			opObjectOf();
 			break;
 
-		case Program::OP_USERDATA_OF:
+		case OP_USERDATA_OF:
 			opUserdataOf();
 			break;
 
-		case Program::OP_FUNCTION_OF:
+		case OP_FUNCTION_OF:
 			opFunctionOf();
 			break;
 
-		case Program::OP_LOGIC_BOOL:
-		case Program::OP_LOGIC_NOT:
-			opBooleanOf(opcode == Program::OP_LOGIC_BOOL);
+		case OP_LOGIC_BOOL:
+		case OP_LOGIC_NOT:
+			opBooleanOf(opcode == OP_LOGIC_BOOL);
 			break;
 
-		case Program::OP_IN:
+		case OP_IN:
 			opIn();
 			break;
 
-		case Program::OP_ISPROTOTYPEOF:
+		case OP_ISPROTOTYPEOF:
 			opIsPrototypeOf();
 			break;
 
-		case Program::OP_IS:
+		case OP_IS:
 			opIs();
 			break;
 
-		case Program::OP_LENGTH:
+		case OP_LENGTH:
 			opLength();
 			break;
 
-		case Program::OP_BIT_NOT:
-		case Program::OP_PLUS:
-		case Program::OP_NEG:
+		case OP_BIT_NOT:
+		case OP_PLUS:
+		case OP_NEG:
 			opUnaryOperator(opcode);
 			break;
 
-		case Program::OP_BIN_OPERATOR_BY_LOCALS:
+		case OP_BIN_OPERATOR_BY_LOCALS:
 			opBinaryOperatorByLocals();
 			break;
 
-		case Program::OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER:
+		case OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER:
 			opBinaryOperatorByLocalAndNumber();
 			break;
 
-		case Program::OP_CONCAT:
-		case Program::OP_LOGIC_PTR_EQ:
-		case Program::OP_LOGIC_PTR_NE:
-		case Program::OP_LOGIC_EQ:
-		case Program::OP_LOGIC_NE:
-		case Program::OP_LOGIC_GE:
-		case Program::OP_LOGIC_LE:
-		case Program::OP_LOGIC_GREATER:
-		case Program::OP_LOGIC_LESS:
-		case Program::OP_BIT_AND:
-		case Program::OP_BIT_OR:
-		case Program::OP_BIT_XOR:
-		case Program::OP_ADD: // +
-		case Program::OP_SUB: // -
-		case Program::OP_MUL: // *
-		case Program::OP_DIV: // /
-		case Program::OP_MOD: // %
-		case Program::OP_LSHIFT: // <<
-		case Program::OP_RSHIFT: // >>
-		case Program::OP_POW: // **
+		case OP_CONCAT:
+		case OP_LOGIC_PTR_EQ:
+		case OP_LOGIC_PTR_NE:
+		case OP_LOGIC_EQ:
+		case OP_LOGIC_NE:
+		case OP_LOGIC_GE:
+		case OP_LOGIC_LE:
+		case OP_LOGIC_GREATER:
+		case OP_LOGIC_LESS:
+		case OP_BIT_AND:
+		case OP_BIT_OR:
+		case OP_BIT_XOR:
+		case OP_ADD: // +
+		case OP_SUB: // -
+		case OP_MUL: // *
+		case OP_DIV: // /
+		case OP_MOD: // %
+		case OP_LSHIFT: // <<
+		case OP_RSHIFT: // >>
+		case OP_POW: // **
 			// opBinaryOperator(opcode);
 			{
 				OS_ASSERT(this->stack_values.count >= 2);
@@ -19343,59 +19394,59 @@ int OS::Core::execute()
 						reserveStackValues(stack_values->count+1);
 					}
 					switch(opcode){
-					case Program::OP_COMPARE:
+					case OP_COMPARE:
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number - right_value.v.number;
 						break;
 			
-					case Program::OP_LOGIC_EQ:
+					case OP_LOGIC_EQ:
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number == right_value.v.number;
 						break;
 
-					case Program::OP_LOGIC_NE:
+					case OP_LOGIC_NE:
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number != right_value.v.number;
 						break;
 
-					case Program::OP_LOGIC_GE:
+					case OP_LOGIC_GE:
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number >= right_value.v.number;
 						break;
 
-					case Program::OP_LOGIC_LE:
+					case OP_LOGIC_LE:
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number <= right_value.v.number;
 						break;
 
-					case Program::OP_LOGIC_GREATER:
+					case OP_LOGIC_GREATER:
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number > right_value.v.number;
 						break;
 
-					case Program::OP_LOGIC_LESS:
+					case OP_LOGIC_LESS:
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number < right_value.v.number;
 						break;
 
-					case Program::OP_BIT_AND:
+					case OP_BIT_AND:
 						stack_values->buf[--stack_values->count - 1] = (OS_INT)left_value.v.number & (OS_INT)right_value.v.number;
 						break;
 
-					case Program::OP_BIT_OR:
+					case OP_BIT_OR:
 						stack_values->buf[--stack_values->count - 1] = (OS_INT)left_value.v.number | (OS_INT)right_value.v.number;
 						break;
 
-					case Program::OP_BIT_XOR:
+					case OP_BIT_XOR:
 						stack_values->buf[--stack_values->count - 1] = (OS_INT)left_value.v.number ^ (OS_INT)right_value.v.number;
 						break;
 
-					case Program::OP_ADD: // +
+					case OP_ADD: // +
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number + right_value.v.number;
 						break;
 
-					case Program::OP_SUB: // -
+					case OP_SUB: // -
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number - right_value.v.number;
 						break;
 
-					case Program::OP_MUL: // *
+					case OP_MUL: // *
 						stack_values->buf[--stack_values->count - 1] = left_value.v.number * right_value.v.number;
 						break;
 
-					case Program::OP_DIV: // /
+					case OP_DIV: // /
 						right_num = right_value.v.number;
 						if(!right_num){
 							errorDivisionByZero();
@@ -19405,7 +19456,7 @@ int OS::Core::execute()
 						}
 						break;
 
-					case Program::OP_MOD: // %
+					case OP_MOD: // %
 						right_num = right_value.v.number;
 						if(!right_num){
 							errorDivisionByZero();
@@ -19415,15 +19466,15 @@ int OS::Core::execute()
 						}
 						break;
 
-					case Program::OP_LSHIFT: // <<
+					case OP_LSHIFT: // <<
 						stack_values->buf[--stack_values->count - 1] = (OS_INT)left_value.v.number << (OS_INT)right_value.v.number;
 						break;
 
-					case Program::OP_RSHIFT: // >>
+					case OP_RSHIFT: // >>
 						stack_values->buf[--stack_values->count - 1] = (OS_INT)left_value.v.number >> (OS_INT)right_value.v.number;
 						break;
 
-					case Program::OP_POW: // **
+					case OP_POW: // **
 						stack_values->buf[--stack_values->count - 1] = OS_MATH_POW_OPERATOR((OS_FLOAT)left_value.v.number, (OS_FLOAT)right_value.v.number);
 						break;
 
@@ -19455,6 +19506,7 @@ generic_bin_op:
 	}
 	return 0;
 }
+#endif // 0
 
 void OS::runOp(OS_EOpcode opcode)
 {
@@ -19491,110 +19543,110 @@ void OS::runOp(OS_EOpcode opcode)
 	} lib = {core};
 	switch(opcode){
 	case OP_COMPARE:
-		return lib.runBinaryOpcode(Core::Program::OP_COMPARE);
+		return lib.runBinaryOpcode(Core::OP_COMPARE);
 
 	case OP_LOGIC_PTR_EQ:	// ===
-		return lib.runBinaryOpcode(Core::Program::OP_LOGIC_PTR_EQ);
+		return lib.runBinaryOpcode(Core::OP_LOGIC_PTR_EQ);
 
 	case OP_LOGIC_PTR_NE:	// !==
-		return lib.runBinaryOpcode(Core::Program::OP_LOGIC_PTR_NE);
+		return lib.runBinaryOpcode(Core::OP_LOGIC_PTR_NE);
 
 	case OP_LOGIC_EQ:		// ==
-		return lib.runBinaryOpcode(Core::Program::OP_LOGIC_EQ);
+		return lib.runBinaryOpcode(Core::OP_LOGIC_EQ);
 
 	case OP_LOGIC_NE:		// !=
-		return lib.runBinaryOpcode(Core::Program::OP_LOGIC_NE);
+		return lib.runBinaryOpcode(Core::OP_LOGIC_NE);
 
 	case OP_LOGIC_GE:		// >=
-		return lib.runBinaryOpcode(Core::Program::OP_LOGIC_GE);
+		return lib.runBinaryOpcode(Core::OP_LOGIC_GE);
 
 	case OP_LOGIC_LE:		// <=
-		return lib.runBinaryOpcode(Core::Program::OP_LOGIC_LE);
+		return lib.runBinaryOpcode(Core::OP_LOGIC_LE);
 
 	case OP_LOGIC_GREATER:	// >
-		return lib.runBinaryOpcode(Core::Program::OP_LOGIC_GREATER);
+		return lib.runBinaryOpcode(Core::OP_LOGIC_GREATER);
 
 	case OP_LOGIC_LESS:		// <
-		return lib.runBinaryOpcode(Core::Program::OP_LOGIC_LESS);
+		return lib.runBinaryOpcode(Core::OP_LOGIC_LESS);
 
 	case OP_BIT_AND:	// &
-		return lib.runBinaryOpcode(Core::Program::OP_BIT_AND);
+		return lib.runBinaryOpcode(Core::OP_BIT_AND);
 
 	case OP_BIT_OR:	// |
-		return lib.runBinaryOpcode(Core::Program::OP_BIT_OR);
+		return lib.runBinaryOpcode(Core::OP_BIT_OR);
 
 	case OP_BIT_XOR:	// ^
-		return lib.runBinaryOpcode(Core::Program::OP_BIT_XOR);
+		return lib.runBinaryOpcode(Core::OP_BIT_XOR);
 
 	case OP_ADD: // +
-		return lib.runBinaryOpcode(Core::Program::OP_ADD);
+		return lib.runBinaryOpcode(Core::OP_ADD);
 
 	case OP_SUB: // -
-		return lib.runBinaryOpcode(Core::Program::OP_SUB);
+		return lib.runBinaryOpcode(Core::OP_SUB);
 
 	case OP_MUL: // *
-		return lib.runBinaryOpcode(Core::Program::OP_MUL);
+		return lib.runBinaryOpcode(Core::OP_MUL);
 
 	case OP_DIV: // /
-		return lib.runBinaryOpcode(Core::Program::OP_DIV);
+		return lib.runBinaryOpcode(Core::OP_DIV);
 
 	case OP_MOD: // %
-		return lib.runBinaryOpcode(Core::Program::OP_MOD);
+		return lib.runBinaryOpcode(Core::OP_MOD);
 
 	case OP_LSHIFT: // <<
-		return lib.runBinaryOpcode(Core::Program::OP_LSHIFT);
+		return lib.runBinaryOpcode(Core::OP_LSHIFT);
 
 	case OP_RSHIFT: // >>
-		return lib.runBinaryOpcode(Core::Program::OP_RSHIFT);
+		return lib.runBinaryOpcode(Core::OP_RSHIFT);
 
 	case OP_POW: // **
-		return lib.runBinaryOpcode(Core::Program::OP_POW);
+		return lib.runBinaryOpcode(Core::OP_POW);
 
 	case OP_CONCAT: // ..
-		return lib.runBinaryOpcode(Core::Program::OP_CONCAT);
+		return lib.runBinaryOpcode(Core::OP_CONCAT);
 
 	case OP_BIT_NOT:		// ~
-		return lib.runUnaryOpcode(Core::Program::OP_BIT_NOT);
+		return lib.runUnaryOpcode(Core::OP_BIT_NOT);
 
 	case OP_PLUS:		// +
-		return lib.runUnaryOpcode(Core::Program::OP_PLUS);
+		return lib.runUnaryOpcode(Core::OP_PLUS);
 
 	case OP_NEG:			// -
-		return lib.runUnaryOpcode(Core::Program::OP_NEG);
+		return lib.runUnaryOpcode(Core::OP_NEG);
 
 	case OP_LENGTH:		// #
-		return lib.runUnaryOpcode(Core::Program::OP_LENGTH);
+		return lib.runUnaryOpcode(Core::OP_LENGTH);
 
 		/*
 		case OP_LOGIC_BOOL:
-		return lib.runUnaryOpcode(Core::Program::OP_LOGIC_BOOL);
+		return lib.runUnaryOpcode(Core::OP_LOGIC_BOOL);
 
 		case OP_LOGIC_NOT:
-		return lib.runUnaryOpcode(Core::Program::OP_LOGIC_NOT);
+		return lib.runUnaryOpcode(Core::OP_LOGIC_NOT);
 
 		case OP_VALUE_OF:
-		return lib.runUnaryOpcode(Core::Program::OP_VALUE_OF);
+		return lib.runUnaryOpcode(Core::OP_VALUE_OF);
 
 		case OP_NUMBER_OF:
-		return lib.runUnaryOpcode(Core::Program::OP_NUMBER_OF);
+		return lib.runUnaryOpcode(Core::OP_NUMBER_OF);
 
 		case OP_STRING_OF:
-		return lib.runUnaryOpcode(Core::Program::OP_STRING_OF);
+		return lib.runUnaryOpcode(Core::OP_STRING_OF);
 
 		case OP_ARRAY_OF:
-		return lib.runUnaryOpcode(Core::Program::OP_ARRAY_OF);
+		return lib.runUnaryOpcode(Core::OP_ARRAY_OF);
 
 		case OP_OBJECT_OF:
-		return lib.runUnaryOpcode(Core::Program::OP_OBJECT_OF);
+		return lib.runUnaryOpcode(Core::OP_OBJECT_OF);
 
 		case OP_USERDATA_OF:
-		return lib.runUnaryOpcode(Core::Program::OP_USERDATA_OF);
+		return lib.runUnaryOpcode(Core::OP_USERDATA_OF);
 
 		case OP_FUNCTION_OF:
-		return lib.runUnaryOpcode(Core::Program::OP_FUNCTION_OF);
+		return lib.runUnaryOpcode(Core::OP_FUNCTION_OF);
 
 		case OP_CLONE:
-		return lib.runUnaryOpcode(Core::Program::OP_CLONE);
+		return lib.runUnaryOpcode(Core::OP_CLONE);
 		*/
 	}
 	pushNull();
@@ -20764,7 +20816,7 @@ void OS::initStringClass()
 					// os->pushNumber(os->core->valueToString(self).getDataSize() / sizeof(OS_CHAR));
 					return 1;
 				}
-				os->core->pushOpResultValue(Core::Program::OP_LENGTH, self_var);
+				os->core->pushOpResultValue(Core::OP_LENGTH, self_var);
 				return 1;
 			}
 			return 0;
@@ -21637,7 +21689,7 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 
 		Program::DebugInfoItem * debug_info = NULL;
 		if(prog->filename.getDataSize() && prog->debug_info.count > 0){
-			int opcode_pos = stack_func->opcodes.getPos() + stack_func->func->func_decl->opcodes_pos;
+			int opcode_pos = stack_func->opcodes - prog->opcodes.buf; // .getPos() + stack_func->func->func_decl->opcodes_pos;
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
 		setPropertyValue(obj, PropertyIndex(line_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->line : Value(), false, false);

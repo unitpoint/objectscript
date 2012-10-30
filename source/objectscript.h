@@ -133,7 +133,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("0.98.2-rc")
+#define OS_VERSION OS_TEXT("0.99-vm3")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_SOURCECODE_EXT OS_TEXT(".os")
@@ -1473,6 +1473,211 @@ namespace ObjectScript
 				~Property();
 			};
 
+			enum {
+				// OP_MULTI_NEW_ARRAY,
+				// OP_MULTI_NEW_OBJECT,
+				OP_MULTI_GET_ARGUMENTS,
+				OP_MULTI_GET_REST_ARGUMENTS,
+				OP_MULTI_SUPER,
+			};
+
+			enum OpcodeType
+			{
+				OP_NOP,
+				OP_NEW_FUNCTION,
+				OP_NEW_ARRAY,
+				OP_NEW_OBJECT,
+				// OP_GET_ARGUMENTS,
+				// OP_GET_REST_ARGUMENTS,
+				// OP_GET_SUPER,
+				OP_RETURN,
+				OP_JUMP,
+				OP_MULTI,
+				OP_MOVE,
+				OP_GET_XCONST,
+
+				OP_SUPER_CALL,
+				OP_CALL,
+				OP_TAIL_CALL,
+				OP_CALL_METHOD,
+				OP_TAIL_CALL_METHOD,
+
+				OP_GET_PROPERTY,
+				OP_SET_PROPERTY,
+
+				OP_GET_UPVALUE,
+				OP_SET_UPVALUE,
+
+				OP_LOGIC_PTR_EQ,
+				OP_LOGIC_EQ,
+				OP_LOGIC_GREATER,
+				OP_LOGIC_GE,
+				OP_LOGIC_BOOL,
+
+				OP_BIT_AND,
+				OP_BIT_OR,
+				OP_BIT_XOR,
+
+				OP_ADD, // +
+				OP_SUB, // -
+				OP_MUL, // *
+				OP_DIV, // /
+				OP_MOD, // %
+				OP_LSHIFT, // <<
+				OP_RSHIFT, // >>
+				OP_POW, // **
+
+				OP_CONCAT,	// ..
+
+				OP_BIT_NOT,
+				OP_PLUS,
+				OP_NEG,
+
+
+				OP_UNKNOWN,
+				OP_PUSH_ONE,
+				OP_PUSH_NUMBER_1,
+				OP_PUSH_NUMBER_BY_AUTO_INDEX,
+				OP_PUSH_STRING_1,
+				OP_PUSH_STRING_BY_AUTO_INDEX,
+				OP_PUSH_NULL,
+				OP_PUSH_TRUE,
+				OP_PUSH_FALSE,
+
+				OP_PUSH_FUNCTION,
+
+				OP_PUSH_NEW_ARRAY,
+				OP_PUSH_NEW_OBJECT,
+				OP_OBJECT_SET_BY_AUTO_INDEX,
+				OP_OBJECT_SET_BY_EXP,
+				OP_OBJECT_SET_BY_INDEX,
+				OP_OBJECT_SET_BY_NAME,
+
+				OP_PUSH_ENV_VAR,
+				OP_PUSH_ENV_VAR_AUTO_CREATE,
+				OP_SET_ENV_VAR,
+
+				OP_PUSH_THIS,
+				OP_PUSH_ARGUMENTS,
+				OP_PUSH_REST_ARGUMENTS,
+
+				OP_PUSH_LOCAL_VAR_1,
+				OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX,
+				OP_PUSH_LOCAL_VAR_AUTO_CREATE,
+				OP_SET_LOCAL_VAR,
+				OP_SET_LOCAL_VAR_1,
+				OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS,
+				OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
+				OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
+
+				OP_PUSH_UP_LOCAL_VAR,
+				OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE,
+				OP_SET_UP_LOCAL_VAR,
+
+				OP_GET_THIS_PROPERTY_BY_STRING,
+				OP_GET_PROPERTY_BY_LOCALS,
+				OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER,
+				OP_GET_PROPERTY_AUTO_CREATE,
+					
+				OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
+
+				OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
+
+				OP_SET_DIM,
+
+				OP_IF_JUMP_1,
+				OP_IF_JUMP_2,
+				OP_IF_JUMP_4,
+					
+				OP_IF_NOT_JUMP_1,
+				OP_IF_NOT_JUMP_2,
+				OP_IF_NOT_JUMP_4,
+					
+				OP_JUMP_1,
+				OP_JUMP_2,
+				OP_JUMP_4,
+					
+				OP_DEBUGGER,
+
+				OP_EXTENDS,
+				OP_DELETE_PROP,
+				OP_RETURN_AUTO,
+				OP_POP,
+
+				OP_BIN_OPERATOR_BY_LOCALS,
+				OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER,
+
+				OP_LOGIC_AND_1,
+				OP_LOGIC_AND_2,
+				OP_LOGIC_AND_4,
+					
+				OP_LOGIC_OR_1,
+				OP_LOGIC_OR_2,
+				OP_LOGIC_OR_4,
+
+				OP_COMPARE,
+				OP_LOGIC_PTR_NE,
+				OP_LOGIC_NE,
+				OP_LOGIC_LE,
+				OP_LOGIC_LESS,
+
+				OP_LENGTH,
+
+				OP_LOGIC_NOT,
+
+				OP_IN,
+				OP_ISPROTOTYPEOF,		// is
+				OP_IS,	// is
+				OP_SUPER,
+					
+				OP_TYPE_OF,
+				OP_VALUE_OF,
+				OP_NUMBER_OF,
+				OP_STRING_OF,
+				OP_ARRAY_OF,
+				OP_OBJECT_OF,
+				OP_USERDATA_OF,
+				OP_FUNCTION_OF,
+				OP_CLONE,
+
+				OP_NEW_MOVE,
+				OP_NEW_GET_PROPERTY,
+				OP_NEW_SET_PROPERTY,
+
+				OP_NEW_LOGIC_PTR_EQ,
+				OP_NEW_LOGIC_PTR_NE,
+				OP_NEW_LOGIC_EQ,
+				OP_NEW_LOGIC_NE,
+				OP_NEW_LOGIC_GE,
+				OP_NEW_LOGIC_LE,
+				OP_NEW_LOGIC_GREATER,
+				OP_NEW_LOGIC_LESS,
+
+				OP_NEW_BIT_AND,
+				OP_NEW_BIT_OR,
+				OP_NEW_BIT_XOR,
+
+				OP_NEW_ADD, // +
+				OP_NEW_SUB, // -
+				OP_NEW_MUL, // *
+				OP_NEW_DIV, // /
+				OP_NEW_MOD, // %
+				OP_NEW_LSHIFT, // <<
+				OP_NEW_RSHIFT, // >>
+				OP_NEW_POW, // **
+
+				OP_NEW_CONCAT,	// ..
+
+				OP_NEW_BIT_NOT,
+				OP_NEW_PLUS,
+				OP_NEW_NEG,
+				OP_NEW_LENGTH,
+
+				OP_NEW_LOGIC_BOOL,
+				OP_NEW_LOGIC_NOT,
+
+				OPCODE_COUNT
+			};
 
 			class Compiler
 			{
@@ -2006,12 +2211,12 @@ namespace ObjectScript
 
 				void writeJumpOpcode(int offs);
 				void fixJumpOpcode(int offs, int pos);
-				void fixJumpOpcode(int offs, int pos, int opcode);
+				// void fixJumpOpcode(int offs, int pos, int opcode);
 
 				int getOpcodePos();
 				int writeOpcode(OS_U32 opcode);
-				int writeOpcode(int opcode, int a, int b = 0, int c = 0);
-				int writeOpcodeABx(int opcode, int a, int b);
+				int writeOpcodeABC(OpcodeType opcode, int a, int b = 0, int c = 0);
+				int writeOpcodeABx(OpcodeType opcode, int a, int b);
 				void writeOpcodeAt(OS_U32 opcode, int pos);
 
 				bool writeOpcodes(Scope*, Expression*);
@@ -2054,6 +2259,7 @@ namespace ObjectScript
 #endif
 				int prog_parent_func_index;
 				LocalVar * locals;
+				int stack_size;
 				int num_locals;
 				int num_params;
 				int max_up_count;
@@ -2079,222 +2285,6 @@ namespace ObjectScript
 
 			public:
 
-				enum {
-					// OP_MULTI_NEW_ARRAY,
-					// OP_MULTI_NEW_OBJECT,
-					OP_MULTI_GET_ARGUMENTS,
-					OP_MULTI_GET_REST_ARGUMENTS,
-					OP_MULTI_SUPER,
-				};
-
-				enum OpcodeType
-				{
-					OP_NOP,
-					OP_NEW_FUNCTION,
-					OP_NEW_ARRAY,
-					OP_NEW_OBJECT,
-					// OP_GET_ARGUMENTS,
-					// OP_GET_REST_ARGUMENTS,
-					// OP_GET_SUPER,
-					OP_RETURN,
-					OP_JUMP,
-					OP_MULTI,
-					OP_MOVE,
-					OP_GET_XCONST,
-
-					OP_SUPER_CALL,
-					OP_CALL,
-					OP_TAIL_CALL,
-					OP_CALL_METHOD,
-					OP_TAIL_CALL_METHOD,
-
-					OP_GET_PROPERTY,
-					OP_SET_PROPERTY,
-
-					OP_GET_UPVALUE,
-					OP_SET_UPVALUE,
-
-					OP_LOGIC_PTR_EQ,
-					OP_LOGIC_EQ,
-					OP_LOGIC_GREATER,
-					OP_LOGIC_GE,
-					OP_LOGIC_BOOL,
-
-					OP_BIT_AND,
-					OP_BIT_OR,
-					OP_BIT_XOR,
-
-					OP_ADD, // +
-					OP_SUB, // -
-					OP_MUL, // *
-					OP_DIV, // /
-					OP_MOD, // %
-					OP_LSHIFT, // <<
-					OP_RSHIFT, // >>
-					OP_POW, // **
-
-					OP_CONCAT,	// ..
-
-					OP_BIT_NOT,
-					OP_PLUS,
-					OP_NEG,
-
-
-					OP_UNKNOWN,
-					OP_PUSH_ONE,
-					OP_PUSH_NUMBER_1,
-					OP_PUSH_NUMBER_BY_AUTO_INDEX,
-					OP_PUSH_STRING_1,
-					OP_PUSH_STRING_BY_AUTO_INDEX,
-					OP_PUSH_NULL,
-					OP_PUSH_TRUE,
-					OP_PUSH_FALSE,
-
-					OP_PUSH_FUNCTION,
-
-					OP_PUSH_NEW_ARRAY,
-					OP_PUSH_NEW_OBJECT,
-					OP_OBJECT_SET_BY_AUTO_INDEX,
-					OP_OBJECT_SET_BY_EXP,
-					OP_OBJECT_SET_BY_INDEX,
-					OP_OBJECT_SET_BY_NAME,
-
-					OP_PUSH_ENV_VAR,
-					OP_PUSH_ENV_VAR_AUTO_CREATE,
-					OP_SET_ENV_VAR,
-
-					OP_PUSH_THIS,
-					OP_PUSH_ARGUMENTS,
-					OP_PUSH_REST_ARGUMENTS,
-
-					OP_PUSH_LOCAL_VAR_1,
-					OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX,
-					OP_PUSH_LOCAL_VAR_AUTO_CREATE,
-					OP_SET_LOCAL_VAR,
-					OP_SET_LOCAL_VAR_1,
-					OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS,
-					OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
-					OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
-
-					OP_PUSH_UP_LOCAL_VAR,
-					OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE,
-					OP_SET_UP_LOCAL_VAR,
-
-					/*
-					OP_LOCAL_VAR_INC,
-					OP_PUSH_LOCAL_VAR_PRE_INC,
-					OP_PUSH_LOCAL_VAR_POST_INC,
-
-					OP_LOCAL_VAR_DEC,
-					OP_PUSH_LOCAL_VAR_PRE_DEC,
-					OP_PUSH_LOCAL_VAR_POST_DEC,
-					*/
-
-					OP_GET_THIS_PROPERTY_BY_STRING,
-					OP_GET_PROPERTY_BY_LOCALS,
-					OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER,
-					OP_GET_PROPERTY_AUTO_CREATE,
-					
-					OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
-
-					OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
-
-					OP_SET_DIM,
-
-					OP_IF_JUMP_1,
-					OP_IF_JUMP_2,
-					OP_IF_JUMP_4,
-					
-					OP_IF_NOT_JUMP_1,
-					OP_IF_NOT_JUMP_2,
-					OP_IF_NOT_JUMP_4,
-					
-					OP_JUMP_1,
-					OP_JUMP_2,
-					OP_JUMP_4,
-					
-					OP_DEBUGGER,
-
-					OP_EXTENDS,
-					OP_DELETE_PROP,
-					OP_RETURN_AUTO,
-					OP_POP,
-
-					OP_BIN_OPERATOR_BY_LOCALS,
-					OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER,
-
-					OP_LOGIC_AND_1,
-					OP_LOGIC_AND_2,
-					OP_LOGIC_AND_4,
-					
-					OP_LOGIC_OR_1,
-					OP_LOGIC_OR_2,
-					OP_LOGIC_OR_4,
-
-					OP_COMPARE,
-					OP_LOGIC_PTR_NE,
-					OP_LOGIC_NE,
-					OP_LOGIC_LE,
-					OP_LOGIC_LESS,
-
-					OP_LENGTH,
-
-					OP_LOGIC_NOT,
-
-					OP_IN,
-					OP_ISPROTOTYPEOF,		// is
-					OP_IS,	// is
-					OP_SUPER,
-					
-					OP_TYPE_OF,
-					OP_VALUE_OF,
-					OP_NUMBER_OF,
-					OP_STRING_OF,
-					OP_ARRAY_OF,
-					OP_OBJECT_OF,
-					OP_USERDATA_OF,
-					OP_FUNCTION_OF,
-					OP_CLONE,
-
-					OP_NEW_MOVE,
-					OP_NEW_GET_PROPERTY,
-					OP_NEW_SET_PROPERTY,
-
-					OP_NEW_LOGIC_PTR_EQ,
-					OP_NEW_LOGIC_PTR_NE,
-					OP_NEW_LOGIC_EQ,
-					OP_NEW_LOGIC_NE,
-					OP_NEW_LOGIC_GE,
-					OP_NEW_LOGIC_LE,
-					OP_NEW_LOGIC_GREATER,
-					OP_NEW_LOGIC_LESS,
-
-					OP_NEW_BIT_AND,
-					OP_NEW_BIT_OR,
-					OP_NEW_BIT_XOR,
-
-					OP_NEW_ADD, // +
-					OP_NEW_SUB, // -
-					OP_NEW_MUL, // *
-					OP_NEW_DIV, // /
-					OP_NEW_MOD, // %
-					OP_NEW_LSHIFT, // <<
-					OP_NEW_RSHIFT, // >>
-					OP_NEW_POW, // **
-
-					OP_NEW_CONCAT,	// ..
-
-					OP_NEW_BIT_NOT,
-					OP_NEW_PLUS,
-					OP_NEW_NEG,
-					OP_NEW_LENGTH,
-
-					OP_NEW_LOGIC_BOOL,
-					OP_NEW_LOGIC_NOT,
-
-					OPCODE_COUNT
-				};
-
 				OS * allocator;
 				String filename;
 
@@ -2307,7 +2297,8 @@ namespace ObjectScript
 				FunctionDecl * functions;
 				int num_functions;
 
-				MemStreamReader * opcodes;
+				Vector<OS_U32> opcodes;
+				// MemStreamReader * opcodes;
 
 				struct DebugInfoItem
 				{
@@ -2401,7 +2392,8 @@ namespace ObjectScript
 
 				// cached values
 
-				MemStreamReader opcodes;
+				// MemStreamReader opcodes;
+				OS_U32 * opcodes;
 				
 				// StackFunction();
 				// ~StackFunction();
