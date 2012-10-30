@@ -1,3 +1,10 @@
+typeof = typeOf
+numberof = numberOf
+stringof = stringOf
+arrayof = arrayOf
+objectof = objectOf
+userdataof = userdataOf
+
 function __get(name){
 	echo("global property \""name"\" is not declared\n")
 	echo "back trace\n"
@@ -28,7 +35,7 @@ function assert(a, message){
 	}
 }
 
-setErrorHandler(function(code message file line){
+setErrorHandler {|code message file line|
 	var type = "ERROR"
 	if(code == E_WARNING)
 		type = "WARNING"
@@ -37,7 +44,7 @@ setErrorHandler(function(code message file line){
 	echo("["type"] "message"\n")
 	echo "back trace\n"
 	printBackTrace(1) // skip current function
-})
+}
 
 function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
@@ -56,14 +63,14 @@ function eval(str, env){
 var events = {}
 
 function addEventListener(eventName, func, zOrder){
-	functionof func || return;
+	functionOf(func) || return;
 	events[eventName][func] = zOrder || 0
 	events[eventName].rsort()
 	return [eventName func]
 }
 
 function removeEventListener(eventName, func){
-	if(arrayof eventName){
+	if(arrayOf(eventName)){
 		eventName, func = eventName[0], eventName[1]
 	}
 	if(eventName in events){
@@ -80,11 +87,14 @@ function triggerEvent(eventName, params){
 
 var timers = {}
 
-function isCallable(f){ return typeof f === "function" || typeof f === "object" || typeof f === "userdata" }
+function isCallable(f){ 
+	var type = typeOf(f)
+	return type === "function" || type === "object" || type === "userdata"
+}
 
 function setTimeout(func, delay, count, priority){
 	count = count || 1
-	count > 0 && functionof func || return;
+	count > 0 && functionOf(func) || return;
 	var i = func // #timers
 	timers[i] = {
 		nextTime = app.timeSec + delay
@@ -104,7 +114,7 @@ function clearTimeout(t){
 
 HIGH_PRIORITY = 999999
 
-addEventListener("enterFrame" function(){
+addEventListener("enterFrame" {||
 	var time = app.timeSec
 	for(var i, t in timers){
 		if(t.nextTime <= time){
@@ -123,52 +133,42 @@ addEventListener("enterFrame" function(){
 	}
 } HIGH_PRIORITY+1)
 
-function toNumber(a){
-	return numberof valueof a
-}
-
-function toString(a){
-	return stringof valueof a
-}
-
 function toArray(a){
-	var arr = arrayof a
-	arr && return arr;
-	var type = typeof a
-	if(type == "number" || type == "string" || type == "boolean" || type == "userdata"){
-		return [a]
-	}
+	arrayOf(a) && return arr;
+	var type = typeOf(a)
 	if(type == "object"){
-		arr = []
+		var arr = []
 		for(var i, v in a){
 			arr.push(v)
 		}
 		return arr
 	}
-	return null
+	if(type == "null"){
+		return null
+	}
+	return [a]
 }
 
 function toObject(a){
-	var object = objectof a
-	object && return object;
-	var type = typeof a
-	if(type == "number" || type == "string" || type == "boolean" || type == "userdata"){
-		return {a}
-	}
+	objectOf(a) && return object;
+	var type = typeOf(a)
 	if(type == "array"){
-		object = {}
+		var object = {}
 		for(var i, v in a){
 			object.push(v)
 		}
 		return object
 	}
-	return null
+	if(type == "null"){
+		return null
+	}
+	return {a}
 }
 
-function deepClone(p){
-	p = clone p
-	for(var k, v in p){
-		p[k] = deepClone(v)
+function Object.deepClone(){
+	var t = this.clone()
+	for(var k, v in t){
+		t[k] = v.deepClone()
 	}
-	return p
+	return t
 }

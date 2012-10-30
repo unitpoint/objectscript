@@ -86,7 +86,9 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\source\objectscript.cpp" />
+    <ClCompile Include="..\..\source\objectscript.cpp">
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NoListing</AssemblerOutput>
+    </ClCompile>
     <ClCompile Include="os.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>

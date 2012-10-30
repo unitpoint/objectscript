@@ -1495,6 +1495,7 @@ namespace ObjectScript
 				OP_JUMP,
 				OP_MULTI,
 				OP_MOVE,
+				OP_MOVE2,
 				OP_GET_XCONST,
 
 				OP_SUPER_CALL,
@@ -1534,147 +1535,6 @@ namespace ObjectScript
 				OP_PLUS,
 				OP_NEG,
 
-				/*
-				OP_UNKNOWN,
-				OP_PUSH_ONE,
-				OP_PUSH_NUMBER_1,
-				OP_PUSH_NUMBER_BY_AUTO_INDEX,
-				OP_PUSH_STRING_1,
-				OP_PUSH_STRING_BY_AUTO_INDEX,
-				OP_PUSH_NULL,
-				OP_PUSH_TRUE,
-				OP_PUSH_FALSE,
-
-				OP_PUSH_FUNCTION,
-
-				OP_PUSH_NEW_ARRAY,
-				OP_PUSH_NEW_OBJECT,
-				OP_OBJECT_SET_BY_AUTO_INDEX,
-				OP_OBJECT_SET_BY_EXP,
-				OP_OBJECT_SET_BY_INDEX,
-				OP_OBJECT_SET_BY_NAME,
-
-				OP_PUSH_ENV_VAR,
-				OP_PUSH_ENV_VAR_AUTO_CREATE,
-				OP_SET_ENV_VAR,
-
-				OP_PUSH_THIS,
-				OP_PUSH_ARGUMENTS,
-				OP_PUSH_REST_ARGUMENTS,
-
-				OP_PUSH_LOCAL_VAR_1,
-				OP_PUSH_LOCAL_VAR_BY_AUTO_INDEX,
-				OP_PUSH_LOCAL_VAR_AUTO_CREATE,
-				OP_SET_LOCAL_VAR,
-				OP_SET_LOCAL_VAR_1,
-				OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS,
-				OP_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
-				OP_SET_LOCAL_VAR_1_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
-
-				OP_PUSH_UP_LOCAL_VAR,
-				OP_PUSH_UP_LOCAL_VAR_AUTO_CREATE,
-				OP_SET_UP_LOCAL_VAR,
-
-				OP_GET_THIS_PROPERTY_BY_STRING,
-				OP_GET_PROPERTY_BY_LOCALS,
-				OP_GET_PROPERTY_BY_LOCAL_AND_NUMBER,
-				OP_GET_PROPERTY_AUTO_CREATE,
-					
-				OP_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
-
-				OP_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
-
-				OP_SET_DIM,
-
-				OP_IF_JUMP_1,
-				OP_IF_JUMP_2,
-				OP_IF_JUMP_4,
-					
-				OP_IF_NOT_JUMP_1,
-				OP_IF_NOT_JUMP_2,
-				OP_IF_NOT_JUMP_4,
-					
-				OP_JUMP_1,
-				OP_JUMP_2,
-				OP_JUMP_4,
-					
-				OP_EXTENDS,
-				OP_DELETE_PROP,
-				OP_RETURN_AUTO,
-				OP_POP,
-
-				OP_BIN_OPERATOR_BY_LOCALS,
-				OP_BIN_OPERATOR_BY_LOCAL_AND_NUMBER,
-
-				OP_LOGIC_AND_1,
-				OP_LOGIC_AND_2,
-				OP_LOGIC_AND_4,
-					
-				OP_LOGIC_OR_1,
-				OP_LOGIC_OR_2,
-				OP_LOGIC_OR_4,
-
-				OP_LOGIC_PTR_NE,
-				OP_LOGIC_NE,
-				OP_LOGIC_LE,
-				OP_LOGIC_LESS,
-
-				OP_LENGTH,
-
-				OP_LOGIC_NOT,
-
-				OP_IN,
-				OP_ISPROTOTYPEOF,		// is
-				OP_IS,	// is
-				OP_SUPER,
-					
-				OP_TYPE_OF,
-				OP_VALUE_OF,
-				OP_NUMBER_OF,
-				OP_STRING_OF,
-				OP_ARRAY_OF,
-				OP_OBJECT_OF,
-				OP_USERDATA_OF,
-				OP_FUNCTION_OF,
-				OP_CLONE,
-
-				OP_NEW_MOVE,
-				OP_NEW_GET_PROPERTY,
-				OP_NEW_SET_PROPERTY,
-
-				OP_NEW_LOGIC_PTR_EQ,
-				OP_NEW_LOGIC_PTR_NE,
-				OP_NEW_LOGIC_EQ,
-				OP_NEW_LOGIC_NE,
-				OP_NEW_LOGIC_GE,
-				OP_NEW_LOGIC_LE,
-				OP_NEW_LOGIC_GREATER,
-				OP_NEW_LOGIC_LESS,
-
-				OP_NEW_BIT_AND,
-				OP_NEW_BIT_OR,
-				OP_NEW_BIT_XOR,
-
-				OP_NEW_ADD, // +
-				OP_NEW_SUB, // -
-				OP_NEW_MUL, // *
-				OP_NEW_DIV, // /
-				OP_NEW_MOD, // %
-				OP_NEW_LSHIFT, // <<
-				OP_NEW_RSHIFT, // >>
-				OP_NEW_POW, // **
-
-				OP_NEW_CONCAT,	// ..
-
-				OP_NEW_BIT_NOT,
-				OP_NEW_PLUS,
-				OP_NEW_NEG,
-				OP_NEW_LENGTH,
-
-				OP_NEW_LOGIC_BOOL,
-				OP_NEW_LOGIC_NOT,
-				*/
-
 				OPCODE_COUNT,
 				OP_COMPARE		// virtual opcode
 			};
@@ -1692,7 +1552,6 @@ namespace ObjectScript
 					EXP_TYPE_LOOP_SCOPE,
 					EXP_TYPE_CODE_LIST,
 					EXP_TYPE_NAME, // temp
-					// EXP_TYPE_POST_IF,
 					EXP_TYPE_POP_VALUE,
 					EXP_TYPE_SUPER_CALL,
 					EXP_TYPE_CALL,
@@ -1702,7 +1561,6 @@ namespace ObjectScript
 					EXP_TYPE_PARAMS,
 					EXP_TYPE_FUNCTION,
 					EXP_TYPE_EXTENDS,
-					// EXP_TYPE_CLONE,
 					EXP_TYPE_DELETE,
 					EXP_TYPE_RETURN,
 					EXP_TYPE_BREAK,
@@ -1722,18 +1580,6 @@ namespace ObjectScript
 					EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX,
 
 					EXP_TYPE_SUPER,
-
-					/*
-					EXP_TYPE_TYPE_OF,
-					EXP_TYPE_VALUE_OF,
-					// EXP_TYPE_BOOLEAN_OF, == EXP_TYPE_LOGIC_BOOL
-					EXP_TYPE_NUMBER_OF,
-					EXP_TYPE_STRING_OF,
-					EXP_TYPE_ARRAY_OF,
-					EXP_TYPE_OBJECT_OF,
-					EXP_TYPE_USERDATA_OF,
-					EXP_TYPE_FUNCTION_OF,
-					*/
 
 					EXP_TYPE_GET_THIS,
 					EXP_TYPE_GET_ARGUMENTS,
@@ -1764,13 +1610,6 @@ namespace ObjectScript
 
 					EXP_TYPE_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
 					
-					// EXP_TYPE_GET_PROPERTY_DIM,
-					// EXP_TYPE_SET_PROPERTY_DIM,
-
-					// EXP_TYPE_GET_LOCAL_VAR_DIM,
-					// EXP_TYPE_GET_ENV_VAR_DIM,
-
-					// EXP_TYPE_GET_DIM,
 					EXP_TYPE_SET_DIM,
 
 					EXP_TYPE_CALL_METHOD,
@@ -1778,15 +1617,7 @@ namespace ObjectScript
 					EXP_TYPE_TAIL_CALL,
 					EXP_TYPE_TAIL_CALL_METHOD,
 
-					// EXP_TYPE_SET_LOCAL_VAR_DIM,
-					// EXP_TYPE_SET_ENV_VAR_DIM,
-
-					// EXP_CONST_STRING,
-					// EXP_CONST_FLOAT,
-					// EXP_VAR_ASSING,
-
 					EXP_TYPE_CONST_NULL,
-					// EXP_TYPE_CONST_VALUE,
 					EXP_TYPE_CONST_NUMBER,
 					EXP_TYPE_CONST_STRING,
 					EXP_TYPE_CONST_TRUE,
@@ -1801,8 +1632,6 @@ namespace ObjectScript
 					EXP_TYPE_IN,			// in
 					EXP_TYPE_ISPROTOTYPEOF,		// is
 					EXP_TYPE_IS,	// is
-
-					// EXP_TYPE_PARAM_SEPARTOR, // ,
 
 					EXP_TYPE_BIN_OPERATOR_BY_LOCALS,
 					EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER,
@@ -1821,16 +1650,12 @@ namespace ObjectScript
 					EXP_TYPE_LOGIC_GREATER, // >
 					EXP_TYPE_LOGIC_LESS,    // <
 
-					// EXP_TYPE_INC,     // ++
-					// EXP_TYPE_DEC,     // --
-
 					EXP_TYPE_PRE_INC,     // ++
 					EXP_TYPE_PRE_DEC,     // --
 
 					EXP_TYPE_POST_INC,    // ++
 					EXP_TYPE_POST_DEC,    // --
 
-					// EXP_TYPE_QUESTION,
 					EXP_TYPE_BIT_AND, // &
 					EXP_TYPE_BIT_OR,  // |
 					EXP_TYPE_BIT_XOR, // ^
@@ -2091,7 +1916,6 @@ namespace ObjectScript
 				Vector<String> prog_debug_strings;
 				Vector<Scope*> prog_functions;
 				Vector<OS_U32> prog_opcodes;
-				MemStreamWriter * prog_opcodes_old;
 				MemStreamWriter * prog_debug_info;
 				int prog_num_debug_infos;
 				int prog_max_up_count;
@@ -2511,18 +2335,6 @@ namespace ObjectScript
 				String syntax_super;
 				String syntax_is;
 				String syntax_isprototypeof;
-				/*
-				String syntax_typeof;
-				String syntax_valueof;
-				String syntax_booleanof;
-				String syntax_numberof;
-				String syntax_stringof;
-				String syntax_arrayof;
-				String syntax_objectof;
-				String syntax_userdataof;
-				String syntax_functionof;
-				String syntax_clone;
-				*/
 				String syntax_extends;
 				String syntax_delete;
 				String syntax_prototype;
@@ -2892,79 +2704,8 @@ namespace ObjectScript
 			void pushArgumentsWithNames(StackFunction*);
 			void pushRestArguments(StackFunction*);
 
-			void enterFunction(GCFunctionValue * func_value, Value self, GCValue * self_for_proto, int params, int extra_remove_from_stack, int need_ret_values);
-			// void enterFunction(GCFunctionValue * func_value, Value self, GCValue * self_for_proto, int start_params, int params,
 			int execute();
 			void reloadStackFunctionCache();
-
-			/*
-			int opBreakFunction();
-			void opDebugger();
-			// void opPushNumber();
-			void opPushString();
-			void opPushFunction();
-			void opPushArray();
-			void opPushObject();
-			void opObjectSetByAutoIndex();
-			void opObjectSetByExp();
-			void opObjectSetByIndex();
-			void opObjectSetByName();
-			void opPushEnvVar(bool auto_create);
-			void opSetEnvVar();
-			void opPushThis();
-			void opPushArguments();
-			void opPushRestArguments();
-			void opPushLocalVar();
-			void opPushLocalVarAutoCreate();
-			void opSetLocalVar();
-			void opPushUpvalue();
-			void opPushUpvalueAutoCreate();
-			void opSetUpvalue();
-			void opIfJump1(bool boolean);
-			void opIfJump2(bool boolean);
-			void opIfJump4(bool boolean);
-			void opJump4();
-			void opCall();
-			void opSuperCall(int& ret_values);
-			void opTailCall(int& ret_values);
-			void opCallMethod();
-			void opTailCallMethod(int& ret_values);
-			int opReturn();
-			int opReturnAuto();
-			void opGetProperty(bool auto_create);
-			void opGetThisPropertyByString();
-			void opGetPropertyByLocals(bool auto_create);
-			void opGetPropertyByLocalAndNumber(bool auto_create);
-			void opSetProperty();
-			void opSetPropertyByLocals(bool auto_create);
-			void opGetSetPropertyByLocals(bool auto_create);
-			void opSetDim();
-			void opExtends();
-			void opClone();
-			void opDeleteProperty();
-			void opLogicAndOr1(bool is_and);
-			void opLogicAndOr2(bool is_and);
-			void opLogicAndOr4(bool is_and);
-			void opLogicOr();
-			void opSuper();
-			void opTypeOf();
-			void opValueOf();
-			void opNumberOf();
-			void opStringOf();
-			void opArrayOf();
-			void opObjectOf();
-			void opUserdataOf();
-			void opFunctionOf();
-			void opBooleanOf(bool b);
-			void opIn();
-			void opIsPrototypeOf();
-			void opIs();
-			void opLength();
-			void opUnaryOperator(int opcode);
-			// void opBinaryOperator(int opcode);
-			void opBinaryOperatorByLocals();
-			void opBinaryOperatorByLocalAndNumber();
-			*/
 
 			int call(int params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
 			int call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);

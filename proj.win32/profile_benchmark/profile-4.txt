@@ -1,0 +1,69 @@
+{-1:"..\\Release\\profile_benchmark.exe","scripts\\test_fannkuch.os","9"}
+8629
+Pfannkuchen(9) = 30
+time = 3.9580518694130569
+OS script full time: 3.963187 secs
+            gc time: 0.000226 secs (0.01%)
+
+=== SET_PROPERTY, executed count: 9762270
+sum time: 0.476591 secs (12.03%), avg time of 100000 times: 0.004882
+
+=== MOVE, executed count: 12560269
+sum time: 0.419370 secs (10.58%), avg time of 100000 times: 0.003339
+
+=== GET_PROPERTY, executed count: 10447693
+sum time: 0.401197 secs (10.12%), avg time of 100000 times: 0.003840
+
+=== MOVE2, executed count: 8131552
+sum time: 0.297317 secs (7.50%), avg time of 100000 times: 0.003656
+
+=== JUMP, executed count: 8092648
+sum time: 0.283061 secs (7.14%), avg time of 100000 times: 0.003498
+
+=== ADD, executed count: 7304969
+sum time: 0.270350 secs (6.82%), avg time of 100000 times: 0.003701
+
+=== LOGIC_GE, executed count: 3722222
+sum time: 0.202921 secs (5.12%), avg time of 100000 times: 0.005452
+
+=== LOGIC_GREATER, executed count: 3565459
+sum time: 0.167799 secs (4.23%), avg time of 100000 times: 0.004706
+
+=== LOGIC_EQ, executed count: 2977124
+sum time: 0.161377 secs (4.07%), avg time of 100000 times: 0.005421
+
+=== SUB, executed count: 3443808
+sum time: 0.122251 secs (3.08%), avg time of 100000 times: 0.003550
+
+=== MUL, executed count: 322560
+sum time: 0.010892 secs (0.27%), avg time of 100000 times: 0.003377
+
+=== NEG, executed count: 181440
+sum time: 0.010280 secs (0.26%), avg time of 100000 times: 0.005666
+
+=== NEW_FUNCTION, executed count: 4
+sum time: 0.000008 secs (0.00%), avg time of 100000 times: 0.192432
+
+=== RETURN, executed count: 6
+sum time: 0.000003 secs (0.00%), avg time of 100000 times: 0.051315
+
+=== NEW_OBJECT, executed count: 2
+sum time: 0.000002 secs (0.00%), avg time of 100000 times: 0.102630
+
+=== NEW_ARRAY, executed count: 3
+sum time: 0.000002 secs (0.00%), avg time of 100000 times: 0.051315
+
+=== LOGIC_BOOL, executed count: 4
+sum time: 0.000001 secs (0.00%), avg time of 100000 times: 0.012829
+
+=== CALL_METHOD, executed count: 8
+sum time: 0.000001 secs (0.00%), avg time of 100000 times: 0.006414
+
+=== SET_UPVALUE, executed count: 0
+sum time: 0.000000 secs (0.00%), avg time of 100000 times: -1.#IND00
+
+=== LOGIC_PTR_EQ, executed count: 0
+sum time: 0.000000 secs (0.00%), avg time of 100000 times: -1.#IND00
+
+=== ALL OPCODES, executed count: 70512049
+sum time: 2.823422 secs (71.24%), avg time of 100000 times: 0.004004
