@@ -36,6 +36,22 @@ using namespace ObjectScript;
 #define MAXARG_B        ((1<<SIZE_B)-1)
 #define MAXARG_C        ((1<<SIZE_C)-1)
 
+#define IS_CONST_B(i) ((i) & (1<<(SIZE_B-1)))
+#define CONST_B_TO_INDEX(i) ((i) & ~(1<<(SIZE_B-1)))
+#define SET_CONST_B(i) ((i) |= (1<<(SIZE_B-1)))
+
+#define IS_CONST_C(i) ((i) & (1<<(SIZE_C-1)))
+#define CONST_C_TO_INDEX(i) ((i) & ~(1<<(SIZE_C-1)))
+#define SET_CONST_C(i) ((i) |= (1<<(SIZE_C-1)))
+
+#define ARG_B_VALUE(i) (IS_CONST_B(i) ? \
+	(OS_ASSERT(CONST_B_TO_INDEX(i) >= 0 && CONST_B_TO_INDEX(i) < stack_func->func->prog->num_numbers + stack_func->func->prog->num_strings + CONST_STD_VALUES), stack_func_prog_values[CONST_B_TO_INDEX(i)]) \
+	: (OS_ASSERT(i >= 0 && i < stack_func->func->func_decl->stack_size), stack_func_locals[i]))
+
+#define ARG_C_VALUE(i) (IS_CONST_C(i) ? \
+	(OS_ASSERT(CONST_C_TO_INDEX(i) >= 0 && CONST_C_TO_INDEX(i) < stack_func->func->prog->num_numbers + stack_func->func->prog->num_strings + CONST_STD_VALUES), stack_func_prog_values[CONST_C_TO_INDEX(i)]) \
+	: (OS_ASSERT(i >= 0 && i < stack_func->func->func_decl->stack_size), stack_func_locals[i]))
+
 /* creates a mask with `n' 1 bits at position `p' */
 #define MASK1(n,p)	((~((~(Instruction)0)<<(n)))<<(p))
 
@@ -2283,19 +2299,19 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			}
 			// out += String::format(allocator, OS_TEXT("%send return values %d\n"), spaces, ret_values);
 		}
-		OS_ASSERT((slots.a > 0 && slots.b > 0) || (!slots.a && !slots.b));
+		// OS_ASSERT((slots.a > 0 && slots.b > 0) || (!slots.a && !slots.b));
 		out += String::format(allocator, OS_TEXT("%sreturn: %s (%d), count %d\n"), spaces, 
 			slots.a ? getSlotStr(compiler, scope, slots.a).toChar() : OS_TEXT("<<->>"), 
 			slots.a, slots.b);
 		break;
 
-	case EXP_TYPE_GET_UPVALUE_VAR:
+	case EXP_TYPE_GET_UPVALUE:
 		out += String::format(allocator, OS_TEXT("%sget upvalue: %s (%d) = %s (%d %d)\n"), spaces,
 			getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
 			getSlotStr(compiler, scope, slots.b, slots.c).toChar(), slots.b, slots.c);
 		break;
 
-	case EXP_TYPE_SET_UPVALUE_VAR:
+	case EXP_TYPE_SET_UPVALUE:
 		OS_ASSERT(list.count == 1);
 		list[0]->debugPrint(out, compiler, scope, depth);
 		out += String::format(allocator, OS_TEXT("%sset upvalue: %s (%d %d) = %s (%d)\n"), spaces,
@@ -2540,13 +2556,13 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
 			// out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			list[0]->debugPrint(out, compiler, scope, depth);
-			list[1]->debugPrint(out, compiler, scope, depth);
 			/* out += String::format(allocator, OS_TEXT("%send %s: %d (%s), %d (%s) => %d (%s)\n"), spaces, exp_name, 
 				slots.a, getSlotStr(compiler, scope, slots.a).toChar(), 
 				slots.b, getSlotStr(compiler, scope, slots.b).toChar(), 
 				slots.c, getSlotStr(compiler, scope, slots.c).toChar()); */
 			out += String::format(allocator, OS_TEXT("%s%s: %s (%d)\n"), spaces, exp_name,
 				getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
+			list[1]->debugPrint(out, compiler, scope, depth + 1);
 			break;
 		}
 
@@ -2789,17 +2805,17 @@ int OS::Core::Compiler::writeOpcodeABC(OpcodeType opcode, int a, int b, int c)
 	OS_ASSERT(a >= 0 && a <= MAXARG_A);
 	if(b < 0){
 		b = -1-b;
-		OS_ASSERT(b <= MAXARG_B && !(b & 1 << SIZE_B));
-		b |= 1 << SIZE_B;
+		OS_ASSERT(b <= MAXARG_B && !IS_CONST_B(b));
+		SET_CONST_B(b);
 	}else{
-		OS_ASSERT(b <= MAXARG_B && !(b & 1 << SIZE_B));
+		OS_ASSERT(b <= MAXARG_B && !IS_CONST_B(b));
 	}
 	if(c < 0){
 		c = -1-c;
-		OS_ASSERT(c <= MAXARG_C && !(c & 1 << SIZE_C));
-		c |= 1 << SIZE_C;
+		OS_ASSERT(c <= MAXARG_C && !IS_CONST_C(c));
+		SET_CONST_C(c);
 	}else{
-		OS_ASSERT(c <= MAXARG_C && !(c & 1 << SIZE_C));
+		OS_ASSERT(c <= MAXARG_C && !IS_CONST_C(c));
 	}
 	return writeOpcode(OS_OPCODE_ABC(opcode, a, b, c));
 }
@@ -2847,7 +2863,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			int prog_func_index = scope->prog_func_index; // prog_functions.indexOf(scope);
 			OS_ASSERT(prog_func_index >= 0);
 			
-			int pos = writeOpcodeABC(OP_NEW_FUNCTION, prog_func_index, 0, 0);
+			int pos = writeOpcodeABC(OP_NEW_FUNCTION, exp->slots.a, prog_func_index, 0);
 
 			allocator->vectorReserveCapacity(scope->locals_compiled, scope->num_locals OS_DBG_FILEPOS);
 			scope->locals_compiled.count = scope->num_locals;
@@ -2994,7 +3010,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			writeDebugInfo(exp);
 
 			// Expression * exp_compare = exp->list[0];
-			bool inverse = exp->type == EXP_TYPE_LOGIC_AND;
+			bool inverse = exp->type == EXP_TYPE_LOGIC_OR;
 			writeOpcodeABC(OP_LOGIC_BOOL, exp->slots.a, inverse, 1);
 			int op_jump_pos = writeOpcode(OP_JUMP);
 
@@ -3088,8 +3104,8 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_GET_PROPERTY:
 	case EXP_TYPE_SET_PROPERTY:
 
-	case EXP_TYPE_GET_UPVALUE_VAR:
-	case EXP_TYPE_SET_UPVALUE_VAR:
+	case EXP_TYPE_GET_UPVALUE:
+	case EXP_TYPE_SET_UPVALUE:
 
 	case EXP_TYPE_MOVE:
 	case EXP_TYPE_RETURN:
@@ -4072,11 +4088,10 @@ void OS::Core::Compiler::Scope::addStdVars()
 {
 	Core::Strings * strings = getAllocator()->core->strings;
 	// don't change following order
-	OS_ASSERT(VAR_THIS == 0 && VAR_ENV == 1);
-	addLocalVar(strings->syntax_this);
+	OS_ASSERT(VAR_ENV == 0);
 	addLocalVar(strings->var_env);
 #ifdef OS_GLOBAL_VAR_ENABLED
-	OS_ASSERT(VAR_GLOBALS == 2);
+	OS_ASSERT(VAR_GLOBALS == 1);
 	addLocalVar(strings->var_globals);
 #endif
 }
@@ -4190,6 +4205,7 @@ OS::Core::Compiler::~Compiler()
 	allocator->vectorClear(prog_strings);
 	allocator->vectorClear(prog_debug_strings);
 	allocator->vectorClear(prog_functions);
+	allocator->vectorClear(prog_opcodes);
 	allocator->deleteObj(prog_opcodes_old);
 	allocator->deleteObj(prog_debug_info);
 	// allocator->deleteObj(tokenizer);
@@ -4220,7 +4236,9 @@ bool OS::Core::Compiler::compile()
 		OS::String filename(allocator, tokenizer->getTextData()->filename);
 		bool is_eval = filename.getDataSize() == 0;
 
-		if(!is_eval && allocator->core->settings.create_debug_opcodes){
+		if(// !is_eval && 
+			allocator->core->settings.create_debug_opcodes)
+		{
 			Core::StringBuffer dump(allocator);
 			OS_ASSERT(dynamic_cast<Scope*>(exp));
 			exp->debugPrint(dump, this, dynamic_cast<Scope*>(exp), 0);
@@ -5560,7 +5578,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			case EXP_TYPE_LSHIFT: // <<
 			case EXP_TYPE_RSHIFT: // >>
 			case EXP_TYPE_POW: // **
-			case EXP_TYPE_GET_UPVALUE_VAR:
+			case EXP_TYPE_GET_UPVALUE:
 				return true;
 			}
 			return false;
@@ -5847,7 +5865,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_GET_THIS:
 		OS_ASSERT(exp->list.count == 0);
 		exp->slots.a = scope->allocTempVar();
-		exp->slots.b = scope->function->num_params + VAR_THIS;
+		exp->slots.b = 0; // 0 - is this scope->function->num_params + VAR_THIS;
 		exp->type = EXP_TYPE_MOVE;
 		return exp;
 
@@ -6137,7 +6155,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE:
 		OS_ASSERT(exp->list.count == 0);
 		if(exp->local_var.up_count){
-			exp->type = EXP_TYPE_GET_UPVALUE_VAR;
+			exp->type = EXP_TYPE_GET_UPVALUE;
 			exp->slots.a = scope->allocTempVar();
 			exp->slots.b = exp->local_var.index;
 			exp->slots.c = exp->local_var.up_count;
@@ -6154,7 +6172,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp = Lib::processList(this, scope, exp);
 		OS_ASSERT(stack_pos < scope->function->stack_cur_size);
 		if(exp->local_var.up_count){
-			exp->type = EXP_TYPE_SET_UPVALUE_VAR;
+			exp->type = EXP_TYPE_SET_UPVALUE;
 			exp->slots.a = exp->local_var.index;
 			exp->slots.b = --scope->function->stack_cur_size;
 			exp->slots.c = exp->local_var.up_count;
@@ -6433,6 +6451,8 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 	// scope->function = scope;
 	scope->parser_started = true;
 	scope->ret_values = 1;
+	scope->addLocalVar(allocator->core->strings->syntax_this);
+	scope->num_params = 1;
 	scope->addStdVars();
 
 	Params p = Params()
@@ -7117,6 +7137,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Sc
 		allocator->deleteObj(scope);
 		return NULL;
 	}
+	scope->addLocalVar(allocator->core->strings->syntax_this);
 	for(;;){
 		if(!readToken()){
 			setError(ERROR_SYNTAX, recent_token);
@@ -7130,7 +7151,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Sc
 		case Tokenizer::NAME:
 			// scope->list.add(new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, recent_token));
 			scope->addLocalVar(recent_token->str);
-			scope->num_params++;
 			if(!readToken()){
 				setError(ERROR_SYNTAX, recent_token);
 				allocator->deleteObj(scope);
@@ -7158,6 +7178,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Sc
 		}
 		break;
 	}
+	scope->num_params = scope->num_locals;
 	OS_ASSERT(recent_token && recent_token->type == Tokenizer::END_BRACKET_BLOCK);
 	if(!expectToken(Tokenizer::BEGIN_CODE_BLOCK)){
 		allocator->deleteObj(scope);
@@ -7177,6 +7198,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 	Scope * scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(parent, EXP_TYPE_FUNCTION, recent_token);
 	scope->function = scope;
 	scope->ret_values = 1;
+	scope->addLocalVar(allocator->core->strings->syntax_this);
 	for(;;){
 		if(!readToken()){
 			setError(ERROR_SYNTAX, recent_token);
@@ -7190,7 +7212,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 		case Tokenizer::NAME:
 			// scope->list.add(new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, recent_token));
 			scope->addLocalVar(recent_token->str);
-			scope->num_params++;
 			if(!readToken()){
 				setError(ERROR_SYNTAX, recent_token);
 				allocator->deleteObj(scope);
@@ -7218,6 +7239,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 		}
 		break;
 	}
+	scope->num_params = scope->num_locals;
 	OS_ASSERT(recent_token && recent_token->type == Tokenizer::OPERATOR_BIT_OR);
 	scope->addStdVars();
 	// scope = expectCodeExpression(scope);
@@ -9559,8 +9581,9 @@ OS::Core::Program::Program(OS * allocator): filename(allocator)
 	this->allocator = allocator;
 	ref_count = 1;
 	// opcodes = NULL;
-	const_numbers = NULL;
-	const_strings = NULL;
+	// const_numbers = NULL;
+	// const_strings = NULL;
+	const_values = NULL;
 	num_numbers = 0;
 	num_strings = 0;
 	// gc_time = -1;
@@ -9571,18 +9594,24 @@ OS::Core::Program::~Program()
 	OS_ASSERT(ref_count == 0);
 	int i;
 	// values could be already destroyed by gc or will be destroyed soon
-	allocator->free(const_numbers);
-	const_numbers = NULL;
+	// allocator->free(const_numbers);
+	// const_numbers = NULL;
 
 	for(i = 0; i < num_strings; i++){
-		OS_ASSERT(const_strings[i]->external_ref_count > 0);
-		const_strings[i]->external_ref_count--;
-		if(const_strings[i]->gc_color == GC_WHITE){
-			const_strings[i]->gc_color = GC_BLACK;
+		int j = i + num_numbers + CONST_STD_VALUES;
+		OS_ASSERT(const_values[j].type == OS_VALUE_TYPE_STRING && dynamic_cast<GCStringValue*>(const_values[j].v.string));
+		GCStringValue * string = const_values[j].v.string;
+		OS_ASSERT(string->external_ref_count > 0);
+		string->external_ref_count--;
+		if(string->gc_color == GC_WHITE){
+			string->gc_color = GC_BLACK;
 		}
 	}
-	allocator->free(const_strings);
-	const_strings = NULL;
+	// allocator->free(const_strings);
+	// const_strings = NULL;
+
+	allocator->free(const_values);
+	const_values = NULL;
 
 	for(i = 0; i < num_functions; i++){
 		FunctionDecl * func = functions + i;
@@ -9704,8 +9733,7 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 
 bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * debuginfo_reader)
 {
-	OS_ASSERT(!opcodes.count && !const_numbers && !num_numbers 
-		&& !const_strings && !num_strings && !debug_info.count);
+	OS_ASSERT(!opcodes.count && !const_values && !num_numbers && !num_strings && !debug_info.count);
 
 	int i, len = OS_STRLEN(OS_COMPILED_HEADER);
 	if(!reader->checkBytes(OS_COMPILED_HEADER, len)){
@@ -9726,27 +9754,32 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 	num_functions = reader->readUVariable();
 	int opcodes_size = reader->readUVariable();
 
-	const_numbers = (OS_NUMBER*)allocator->malloc(sizeof(OS_NUMBER) * num_numbers OS_DBG_FILEPOS);
-	const_strings = (GCStringValue**)allocator->malloc(sizeof(GCStringValue*) * num_strings OS_DBG_FILEPOS);
+	const_values = (Value*)allocator->malloc(sizeof(Value) * (num_numbers + num_strings + CONST_STD_VALUES) OS_DBG_FILEPOS);
+	// const_numbers = (OS_NUMBER*)allocator->malloc(sizeof(OS_NUMBER) * num_numbers OS_DBG_FILEPOS);
+	// const_strings = (GCStringValue**)allocator->malloc(sizeof(GCStringValue*) * num_strings OS_DBG_FILEPOS);
+
+	const_values[CONST_NULL] = Value();
+	const_values[CONST_TRUE] = Value(true);
+	const_values[CONST_FALSE] = Value(false);
 
 	int num_index = 0;
 	for(i = 0; i < int_count; i++){
 		num_index += reader->readUVariable();
 		OS_ASSERT(num_index >= 0 && num_index < num_numbers);
 		OS_NUMBER number = (OS_NUMBER)reader->readUVariable();
-		const_numbers[num_index] = number;
+		const_values[num_index + CONST_STD_VALUES] = number;
 	}
 	for(num_index = 0, i = 0; i < float_count; i++){
 		num_index += reader->readUVariable();
 		OS_ASSERT(num_index >= 0 && num_index < num_numbers);
 		OS_NUMBER number = (OS_NUMBER)reader->readFloat();
-		const_numbers[num_index] = number;
+		const_values[num_index + CONST_STD_VALUES] = number;
 	}
 	for(num_index = 0, i = 0; i < double_count; i++){
 		num_index += reader->readUVariable();
 		OS_ASSERT(num_index >= 0 && num_index < num_numbers);
 		OS_NUMBER number = (OS_NUMBER)reader->readDouble();
-		const_numbers[num_index] = number;
+		const_values[num_index + CONST_STD_VALUES] = number;
 	}
 	StringBuffer buf(allocator);
 	for(i = 0; i < num_strings; i++){
@@ -9754,8 +9787,9 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		allocator->vectorReserveCapacity(buf, data_size/sizeof(OS_CHAR) + 1 OS_DBG_FILEPOS);
 		reader->readBytes((void*)buf.buf, data_size);
 		buf.count = data_size/sizeof(OS_CHAR);
-		const_strings[i] = buf.toGCStringValue();
-		const_strings[i]->external_ref_count++;
+		GCStringValue * string = buf.toGCStringValue();
+		string->external_ref_count++;
+		const_values[i + num_numbers + CONST_STD_VALUES] = string;
 	}
 
 	functions = (FunctionDecl*)allocator->malloc(sizeof(FunctionDecl) * num_functions OS_DBG_FILEPOS);
@@ -9781,7 +9815,8 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 			int cached_name_index = reader->readUVariable();
 			OS_ASSERT(cached_name_index >= 0 && cached_name_index < num_strings);
 			FunctionDecl::LocalVar * local_var = func->locals + j;
-			String var_name(const_strings[cached_name_index]);
+			OS_ASSERT(dynamic_cast<GCStringValue*>(const_values[cached_name_index + num_numbers + CONST_STD_VALUES].v.string));
+			String var_name(const_values[cached_name_index + num_numbers + CONST_STD_VALUES].v.string);
 			new (local_var) FunctionDecl::LocalVar(var_name);
 			local_var->start_code_pos = reader->readUVariable() + func->opcodes_pos;
 			local_var->end_code_pos = reader->readUVariable() + func->opcodes_pos;
@@ -9792,6 +9827,7 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 	// reader->readBytes(opcodes->buffer, opcodes_size);
 
 	allocator->vectorReserveCapacity(opcodes, opcodes_size OS_DBG_FILEPOS);
+	opcodes.count = opcodes_size;
 	for(i = 0; i < opcodes_size; i++){
 		opcodes[i] = (OS_U32)reader->readInt32();
 	}
@@ -9861,14 +9897,14 @@ OS::Core::Program::DebugInfoItem::DebugInfoItem(int p_opcode_pos, int p_line, in
 void OS::Core::Program::pushStartFunction()
 {
 	int opcode = opcodes[0];
-	if(GET_OPCODE(opcode) != OP_PUSH_FUNCTION){
+	if(GET_OPCODE(opcode) != OP_NEW_FUNCTION){
 		OS_ASSERT(false);
 		allocator->pushNull();
 		return;
 	}
 
-	int prog_func_index = GETARG_A(opcode);
-	OS_ASSERT(prog_func_index == 0); // func_index >= 0 && func_index < num_functions);
+	int prog_func_index = GETARG_B(opcode);
+	OS_ASSERT(prog_func_index == 0 && !GETARG_A(opcode)); // func_index >= 0 && func_index < num_functions);
 	FunctionDecl * func_decl = functions + prog_func_index;
 	OS_ASSERT(func_decl->max_up_count == 0);
 
@@ -9920,8 +9956,8 @@ OS::Core::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType e
 	case Compiler::EXP_TYPE_GET_PROPERTY: return OP_GET_PROPERTY;
 	case Compiler::EXP_TYPE_SET_PROPERTY:return OP_SET_PROPERTY;
 
-	case Compiler::EXP_TYPE_GET_UPVALUE_VAR: return OP_GET_UPVALUE;
-	case Compiler::EXP_TYPE_SET_UPVALUE_VAR: return OP_SET_UPVALUE;
+	case Compiler::EXP_TYPE_GET_UPVALUE: return OP_GET_UPVALUE;
+	case Compiler::EXP_TYPE_SET_UPVALUE: return OP_SET_UPVALUE;
 
 	case Compiler::EXP_TYPE_MOVE: return OP_MOVE;
 	case Compiler::EXP_TYPE_RETURN: return OP_RETURN;
@@ -11940,7 +11976,7 @@ OS_NUMBER OS::Core::valueToNumber(const Value& val, bool valueof_enabled)
 	}
 	if(valueof_enabled){
 		pushValueOf(val);
-		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this};
+		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this}; (void)pop;
 		return valueToNumber(stack_values.lastElement(), false);
 	}
 	return 0;
@@ -12030,12 +12066,12 @@ OS::Core::String OS::Core::valueToString(Value val, bool valueof_enabled)
 		pushValue(val);
 		call(0, 1);
 		OS_ASSERT(stack_values.count > 0);
-		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this};
+		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this}; (void)pop;
 		return valueToString(stack_values.lastElement(), false);
 		}
 		*/
 		pushValueOf(val);
-		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this};
+		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this}; (void)pop;
 		return valueToString(stack_values.lastElement(), false);
 	}
 	return String(allocator);
@@ -13218,10 +13254,9 @@ OS::Core::Core(OS * p_allocator)
 
 	stack_func = NULL;
 	stack_func_locals = NULL;
-	num_stack_func_locals = 0;
+	// num_stack_func_locals = 0;
 	stack_func_env_index = 0;
-	stack_func_prog_numbers = NULL;
-	stack_func_prog_strings = NULL;
+	stack_func_prog_values = NULL;
 
 	settings.create_compiled_file = true;
 	settings.create_debug_info = true;
@@ -13274,7 +13309,7 @@ bool OS::init(MemoryManager * p_manager)
 	core = new (malloc(sizeof(Core) OS_DBG_FILEPOS)) Core(this);
 
 	if(core->init()){
-#if 0
+#if 1
 		initPreScript();
 		initGlobalFunctions();
 		initObjectClass();
@@ -13743,7 +13778,7 @@ void OS::Core::gcMarkUpvalues(Upvalues * upvalues)
 	upvalues->gc_time = gc_time;
 
 	int i;
-	for(i = 0; i < upvalues->num_locals; i++){
+	for(i = 0; i < upvalues->func_decl->num_locals; i++){
 		gcAddToGreyList(upvalues->locals[i]);
 	}
 	for(i = 0; i < upvalues->num_parents; i++){
@@ -13756,7 +13791,7 @@ void OS::Core::gcMarkStackFunction(StackFunction * stack_func)
 	OS_ASSERT(stack_func->func && stack_func->func->type == OS_VALUE_TYPE_FUNCTION);
 
 	gcAddToGreyList(stack_func->func);
-	gcAddToGreyList(stack_func->self);
+	// gcAddToGreyList(stack_func->self);
 	if(stack_func->self_for_proto){
 		gcAddToGreyList(stack_func->self_for_proto);
 	}
@@ -14209,7 +14244,7 @@ bool OS::Core::isValueUsed(GCValue * val)
 		bool findAt(Upvalues * upvalues)
 		{
 			int i;
-			for(i = 0; i < upvalues->num_locals; i++){
+			for(i = 0; i < upvalues->func_decl->num_locals; i++){
 				if(findAt(upvalues->locals[i])){
 					return true;
 				}
@@ -14228,9 +14263,9 @@ bool OS::Core::isValueUsed(GCValue * val)
 			if(findAt(stack_func->func)){
 				return true;
 			}
-			if(findAt(stack_func->self)){
+			/* if(findAt(stack_func->self)){
 				return true;
-			}
+			} */
 			if(stack_func->self_for_proto && findAt(stack_func->self_for_proto)){
 				return true;
 			}
@@ -14318,8 +14353,8 @@ bool OS::Core::isValueUsed(GCValue * val)
 					if(func_value->name && findAt(func_value->name)){
 						return true;
 					}
-					for(int i = 0; i < func_value->prog->num_strings; i++){
-						if(findAt(func_value->prog->const_strings[i])){
+					for(int i = 0; i < func_value->prog->num_strings + func_value->prog->num_numbers + CONST_STD_VALUES; i++){
+						if(findAt(func_value->prog->const_values[i])){
 							return true;
 						}
 					}
@@ -15541,7 +15576,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 							core->pushValue(right_value);
 							core->call(1, 1);
 							OS_ASSERT(core->stack_values.count >= 1);
-							struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {core};
+							struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {core}; (void)pop;
 							Value value = core->stack_values.lastElement();
 							if(value.type == OS_VALUE_TYPE_NUMBER){
 								return (int)value.v.number;
@@ -15565,7 +15600,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 										core->pushValue(left);
 										core->call(1, 1);
 										OS_ASSERT(core->stack_values.count >= 1);
-										struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {core};
+										struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {core}; (void)pop;
 										Value value = core->stack_values.lastElement();
 										if(value.type == OS_VALUE_TYPE_NUMBER){
 											return -(int)value.v.number;
@@ -15576,7 +15611,7 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 						}
 						core->pushValueOf(Value(left));
 						Value left_value = core->stack_values.lastElement();
-						struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {core};
+						struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {core}; (void)pop;
 						return compareValues(left_value, right_value);
 					}
 				}
@@ -17145,7 +17180,7 @@ void OS::Core::clearStackFunction(StackFunction * stack_func)
 	// OS_ASSERT(stack_func->func->value.func->parent_inctance != stack_func);
 
 	if(--stack_func->locals->ref_count > 0){
-		int count = stack_func->locals->num_locals; // >opcode_stack_pos - stack_func->locals_stack_pos;
+		int count = stack_func->locals->func_decl->num_locals; // >opcode_stack_pos - stack_func->locals_stack_pos;
 		if(count > 0){
 			Value * locals = (Value*)malloc(sizeof(Value) * count OS_DBG_FILEPOS);
 			OS_MEMCPY(locals, stack_func->locals->locals, sizeof(Value) * count);
@@ -17159,7 +17194,7 @@ void OS::Core::clearStackFunction(StackFunction * stack_func)
 	}
 
 	stack_func->func = NULL;
-	stack_func->self = NULL;
+	// stack_func->self = NULL;
 	stack_func->self_for_proto = NULL;
 	stack_func->locals = NULL;
 	stack_func->arguments = NULL;
@@ -17171,6 +17206,7 @@ void OS::Core::clearStackFunction(StackFunction * stack_func)
 
 void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue * self_for_proto, int params, int extra_remove_from_stack, int need_ret_values)
 {
+#if 0
 	OS_ASSERT(call_stack_funcs.count < OS_CALL_STACK_MAX_SIZE);
 	OS_ASSERT(func_value->type == OS_VALUE_TYPE_FUNCTION);
 	OS_ASSERT(stack_values.count >= params + extra_remove_from_stack);
@@ -17182,7 +17218,7 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue *
 	// int parents_mem_size = sizeof(FunctionRunningInstance*) * func_decl->max_up_count;
 
 	// stack has to be reserved here!!! don't move it
-	reserveStackValues(stack_values.count - params + func_decl->num_locals + num_extra_params);
+	reserveStackValues(stack_values.count - params + func_decl->stack_size + num_extra_params);
 
 	// allocator->vectorReserveCapacity(call_stack_funcs, call_stack_funcs.count+1 OS_DBG_FILEPOS);
 	if(call_stack_funcs.capacity < call_stack_funcs.count+1){
@@ -17199,7 +17235,7 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue *
 	// StackFunction * stack_func = new (call_stack_funcs.buf + call_stack_funcs.count++) StackFunction();
 	StackFunction * stack_func = (StackFunction*)(call_stack_funcs.buf + call_stack_funcs.count++);
 	stack_func->func = func_value;
-	stack_func->self = self;
+	// stack_func->self = self;
 	stack_func->self_for_proto = self_for_proto ? self_for_proto : self.getGCValue();
 	if(!stack_func->self_for_proto){
 		switch(self.type){
@@ -17215,7 +17251,7 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue *
 
 	stack_func->caller_stack_pos = stack_values.count - params - extra_remove_from_stack;
 	stack_func->locals_stack_pos = stack_func->caller_stack_pos + extra_remove_from_stack;
-	stack_func->stack_pos = stack_func->locals_stack_pos + func_decl->num_locals + num_extra_params;
+	stack_func->stack_pos = stack_func->locals_stack_pos + func_decl->stack_size + num_extra_params;
 
 	// reserveStackValues(stack_func->bottom_stack_pos);
 	OS_ASSERT(stack_values.capacity >= stack_func->stack_pos);
@@ -17259,6 +17295,7 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue *
 	// new (&stack_func->opcodes) MemStreamReader(NULL, func_value->prog->opcodes->buffer + func_decl->opcodes_pos, func_decl->opcodes_size);
 	stack_func->opcodes = func_value->prog->opcodes.buf + func_decl->opcodes_pos;
 
+	func_locals->locals[func_decl->num_params + VAR_THIS] = self;
 	func_locals->locals[func_decl->num_params + VAR_ENV] = func_value->env;
 #ifdef OS_GLOBAL_VAR_ENABLED
 	func_locals->locals[func_decl->num_params + VAR_GLOBALS] = global_vars;
@@ -17267,6 +17304,7 @@ void OS::Core::enterFunction(GCFunctionValue * func_value, Value self, GCValue *
 	reloadStackFunctionCache();
 
 	// gcMarkStackFunction(stack_func);
+#endif
 }
 
 #if 0
@@ -18664,19 +18702,461 @@ void OS::Core::reloadStackFunctionCache()
 {
 	if(call_stack_funcs.count > 0){
 		stack_func = &call_stack_funcs.lastElement();
+		FunctionDecl * func_decl = stack_func->func->func_decl;
+		stack_values.count = stack_func->locals_stack_pos + func_decl->stack_size + stack_func->num_extra_params;
+		OS_ASSERT(stack_values.count <= stack_values.capacity);
 		stack_func_locals = stack_func->locals->locals;
-		num_stack_func_locals = stack_func->locals->num_locals;
-		stack_func_env_index = stack_func->func->func_decl->num_params + VAR_ENV;
-		stack_func_prog_numbers = stack_func->func->prog->const_numbers;
-		stack_func_prog_strings = stack_func->func->prog->const_strings;
+		// num_stack_func_locals = func_decl->num_locals;
+		stack_func_env_index = func_decl->num_params + VAR_ENV;
+		stack_func_prog_values = stack_func->func->prog->const_values;
 	}else{
 		stack_func = NULL;
 		stack_func_locals = NULL;
-		num_stack_func_locals = 0;
+		// num_stack_func_locals = 0;
 		stack_func_env_index = 0;
-		stack_func_prog_numbers = NULL;
-		stack_func_prog_strings = NULL;
+		stack_func_prog_values = NULL;
+		// stack_values.count = OS_TOP_STACK_NULL_VALUES;
 	}
+}
+
+int OS::Core::execute()
+{
+#ifdef OS_DEBUG
+	allocator->checkNativeStackUsage(OS_TEXT("OS::Core::execute"));
+#endif
+	StackFunction * stack_func;
+	int a, b, c, up_count, ret_stack_funcs = call_stack_funcs.count-1;
+	Program * prog;
+	// StackValues * stack_values;
+	// OS_NUMBER right_num;
+	// int i, ret_values;
+#ifdef OS_INFINITE_LOOP_OPCODES
+	for(int opcodes_executed = 0;; opcodes_executed++){
+#else
+	for(;;){
+#endif
+		OS_ASSERT(this->stack_values.count >= this->stack_func->stack_pos);
+		if(terminated
+#ifdef OS_INFINITE_LOOP_OPCODES
+			|| opcodes_executed >= OS_INFINITE_LOOP_OPCODES
+#endif
+			)
+		{
+			break;
+		}
+		// OS_ASSERT(this->stack_func->opcodes.getPos()+1 <= this->stack_func->opcodes.getSize());
+		Instruction instruction = *(stack_func = this->stack_func)->opcodes++;
+		Value * stack_func_locals = this->stack_func_locals, * left_value, * right_value;
+#ifdef OS_DEBUG
+		OpcodeType opcode = (OpcodeType)GET_OPCODE(instruction);
+#else
+		int opcode = GET_OPCODE(instruction);
+#endif
+		OS_PROFILE_BEGIN_OPCODE(opcode);
+		switch(opcode){
+		default:
+			error(OS_E_ERROR, "Unknown opcode, program is corrupted!!!");
+			allocator->setTerminated();
+			break;
+
+		case OP_LOGIC_BOOL:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction); // inverse
+				c = GETARG_C(instruction); // if opcode
+				bool valid = valueToBool(stack_func_locals[a]) ^ (b ? true : false);
+				if(!c){
+					stack_func_locals[a] = valid;
+					break;
+				}
+#ifdef OS_DEBUG
+				instruction = stack_func->opcodes[0];
+				opcode = (OpcodeType)GET_OPCODE(instruction);
+				OS_ASSERT(opcode == OP_JUMP);
+#endif
+				if(valid){
+					stack_func->opcodes++;
+				}else{
+					instruction = stack_func->opcodes[0];
+					b = GETARG_sBx(instruction);
+					stack_func->opcodes += b + 1;
+				}
+				break;
+			}
+
+		case OP_BIT_AND:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					stack_func_locals[a] = (OS_INT)left_value->v.number & (OS_INT)right_value->v.number;
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_BIT_OR:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					stack_func_locals[a] = (OS_INT)left_value->v.number | (OS_INT)right_value->v.number;
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_BIT_XOR:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					stack_func_locals[a] = (OS_INT)left_value->v.number ^ (OS_INT)right_value->v.number;
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_ADD: // +
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					stack_func_locals[a] = left_value->v.number + right_value->v.number;
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_SUB: // -
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					stack_func_locals[a] = left_value->v.number - right_value->v.number;
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_MUL: // *
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					stack_func_locals[a] = left_value->v.number * right_value->v.number;
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_DIV: // /
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					if(!right_value->v.number){
+						errorDivisionByZero();
+						stack_func_locals[a] = (OS_NUMBER)0.0; // TODO: NaN ???
+					}else{
+						stack_func_locals[a] = left_value->v.number / right_value->v.number;
+					}
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_MOD: // %
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					if(!right_value->v.number){
+						errorDivisionByZero();
+						stack_func_locals[a] = (OS_NUMBER)0.0; // TODO: NaN ???
+					}else{
+						stack_func_locals[a] = OS_MATH_MOD_OPERATOR(left_value->v.number, right_value->v.number);
+					}
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_LSHIFT: // <<
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					stack_func_locals[a] = (OS_INT)left_value->v.number << (OS_INT)right_value->v.number;
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_RSHIFT: // >>
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					stack_func_locals[a] = (OS_INT)left_value->v.number >> (OS_INT)right_value->v.number;
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_POW: // **
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				left_value = & ARG_B_VALUE(b);
+				right_value = & ARG_C_VALUE(c);
+				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
+					stack_func_locals[a] = OS_MATH_POW_OPERATOR(left_value->v.number, right_value->v.number);
+				}else{
+					pushOpResultValue(opcode, *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		case OP_NEW_FUNCTION:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				prog = stack_func->func->prog;
+				OS_ASSERT(b > 0 && b < prog->num_functions);
+				FunctionDecl * func_decl = prog->functions + b;
+				// int env_index = stack_func->func->func_decl->num_params + VAR_ENV;
+				stack_func_locals[a] = newFunctionValue(stack_func, prog, func_decl, stack_func_locals[stack_func_env_index]);
+				stack_func->opcodes += func_decl->opcodes_size;
+				break;
+			}
+
+		case OP_CALL:
+		case OP_TAIL_CALL:
+			{
+				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
+				c = GETARG_C(instruction);
+				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
+				call(stack_func->locals_stack_pos + a, b, c, NULL, true);
+				continue;
+			}
+
+		case OP_CALL_METHOD:
+		case OP_TAIL_CALL_METHOD:
+			{
+				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
+				c = GETARG_C(instruction);
+				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
+				pushPropertyValue(stack_func_locals[a], PropertyIndex(stack_func_locals[a + 1]), true, true, true, false);
+				stack_func_locals[a + 1] = stack_func_locals[a]; // this
+				stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
+				call(stack_func->locals_stack_pos + a, b, c, NULL, true);
+				continue;
+			}
+
+		case OP_MOVE:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				stack_func_locals[a] = ARG_B_VALUE(b);
+				break;
+			}
+
+		case OP_GET_XCONST:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_Bx(instruction);
+				OS_ASSERT(b >= 0 && b < stack_func->func->prog->num_numbers + stack_func->func->prog->num_strings + CONST_STD_VALUES);
+				stack_func_locals[a] = stack_func_prog_values[b];
+				break;
+			}
+
+		case OP_GET_UPVALUE:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction); // local
+				up_count = GETARG_C(instruction);
+				OS_ASSERT(up_count <= stack_func->func->func_decl->max_up_count);
+				Upvalues * func_upvalues = stack_func->locals;
+				OS_ASSERT(up_count <= func_upvalues->num_parents);
+				Upvalues * scope = func_upvalues->getParent(up_count-1);
+				OS_ASSERT(b >= 0 && b < scope->func_decl->num_locals);
+				stack_func_locals[a] = scope->locals[b];
+				break;
+			}
+
+		case OP_SET_UPVALUE:
+			{
+				a = GETARG_A(instruction); // local
+				b = GETARG_B(instruction);
+				OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
+				up_count = GETARG_C(instruction);
+				OS_ASSERT(up_count <= stack_func->func->func_decl->max_up_count);
+				Upvalues * func_upvalues = stack_func->locals;
+				OS_ASSERT(up_count <= func_upvalues->num_parents);
+				Upvalues * scope = func_upvalues->getParent(up_count-1);
+				OS_ASSERT(a >= 0 && a < scope->func_decl->num_locals);
+				scope->locals[a] = stack_func_locals[b];
+				break;
+			}
+
+		case OP_GET_PROPERTY:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
+				c = GETARG_C(instruction);
+				pushPropertyValue(stack_func_locals[b], PropertyIndex(ARG_C_VALUE(c)), true, true, true, false);
+				stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				break;
+			}
+
+		case OP_SET_PROPERTY:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				c = GETARG_C(instruction);
+				setPropertyValue(stack_func_locals[a], PropertyIndex(ARG_B_VALUE(b)), ARG_C_VALUE(c), true, true);
+				break;
+			}
+
+		case OP_NEW_OBJECT:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				stack_func_locals[a] = newObjectValue();
+				break;
+			}
+
+		case OP_NEW_ARRAY:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				stack_func_locals[a] = newArrayValue(b);
+				break;
+			}
+
+		case OP_RETURN:
+			{
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				OS_ASSERT(b >= 0 && a+b <= stack_func->func->func_decl->stack_size);
+				// c = GETARG_C(instruction);
+				// OS_ASSERT(c == 0 || c == 1);
+
+				int cur_ret_values = b;
+				int need_ret_values = stack_func->need_ret_values;
+				if(need_ret_values > 0){
+					if(need_ret_values <= cur_ret_values){
+						if(need_ret_values == 1){
+							stack_values.buf[stack_func->locals_stack_pos - 1] = stack_func_locals[a];
+						}else{
+							OS_MEMMOVE(stack_values.buf + stack_func->locals_stack_pos - 1, stack_func_locals + a, sizeof(Value) * need_ret_values);
+						}
+					}else{
+						if(cur_ret_values > 0){
+							OS_MEMMOVE(stack_values.buf + stack_func->locals_stack_pos - 1, stack_func_locals + a, sizeof(Value) * cur_ret_values);
+						}
+						OS_MEMSET(stack_values.buf + stack_func->locals_stack_pos - 1 + cur_ret_values, 0, sizeof(Value) * (need_ret_values - cur_ret_values));
+					}
+				}
+				OS_ASSERT(call_stack_funcs.count > 0 && &call_stack_funcs[call_stack_funcs.count-1] == stack_func);
+				call_stack_funcs.count--;
+				// int caller_stack_pos = stack_func->caller_stack_pos;
+				clearStackFunction(stack_func);
+				// removeStackValues(caller_stack_pos+1, stack_values.count - ret_values - caller_stack_pos);
+				reloadStackFunctionCache();
+				if(ret_stack_funcs >= call_stack_funcs.count){
+					OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
+					OS_PROFILE_END_OPCODE(opcode);
+					return need_ret_values;
+				}
+				break;
+			}
+		}
+		OS_PROFILE_END_OPCODE(opcode);
+	}
+	return 0;
 }
 
 #if 0
@@ -21536,16 +22016,16 @@ void OS::initPreScript()
 		// it's ObjectScript code here
 		Object.__get@length = function(){ return #this }
 
-	modules_loaded = {}
-	function require(filename, required){
-		filename = resolvePath(filename)
-			return filename && (modules_loaded.rawget(filename) 
-			|| function(){
-				modules_loaded[filename] = {} // block recursive require
-				modules_loaded[filename] = compileFile(filename, required)()
-					return modules_loaded[filename]
-		}())
-	}
+		modules_loaded = {}
+		function require(filename, required){
+			filename = resolvePath(filename)
+				return filename && (modules_loaded.rawget(filename) 
+					|| function(){
+						modules_loaded[filename] = {} // block recursive require
+						modules_loaded[filename] = compileFile(filename, required)()
+						return modules_loaded[filename]
+					}())
+		}
 	));
 }
 
@@ -21555,7 +22035,7 @@ void OS::initPostScript()
 		// it's ObjectScript code here
 		Object.__setempty = Object.push
 		Object.__getempty = Object.pop
-		));
+	));
 }
 
 int OS::Core::syncRetValues(int need_ret_values, int cur_ret_values)
@@ -21606,11 +22086,11 @@ void OS::Core::pushArguments(StackFunction * stack_func)
 		int i;
 		GCArrayValue * args = pushArrayValue();
 		Upvalues * func_upvalues = stack_func->locals;
-		int num_params = stack_func->num_params - stack_func->num_extra_params;
+		int num_params = stack_func->num_real_params - stack_func->num_extra_params;
 		for(i = 0; i < num_params; i++){
 			allocator->vectorAddItem(args->values, func_upvalues->locals[i] OS_DBG_FILEPOS);
 		}
-		int num_locals = func_upvalues->num_locals;
+		int num_locals = func_upvalues->func_decl->num_locals;
 		for(i = 0; i < stack_func->num_extra_params; i++){
 			allocator->vectorAddItem(args->values, func_upvalues->locals[i + num_locals] OS_DBG_FILEPOS);
 		}
@@ -21626,11 +22106,11 @@ void OS::Core::pushArgumentsWithNames(StackFunction * stack_func)
 	GCObjectValue * args = pushObjectValue();
 	Upvalues * func_upvalues = stack_func->locals;
 	FunctionDecl * func_decl = stack_func->func->func_decl;
-	int num_params = stack_func->num_params - stack_func->num_extra_params;
+	int num_params = stack_func->num_real_params - stack_func->num_extra_params;
 	for(i = 0; i < num_params; i++){
 		setPropertyValue(args, PropertyIndex(func_decl->locals[i].name.string, PropertyIndex::KeepStringIndex()), func_upvalues->locals[i], false, false);
 	}
-	int num_locals = func_upvalues->num_locals;
+	int num_locals = func_upvalues->func_decl->num_locals;
 	if(num_params < func_decl->num_params){
 		for(; i < func_decl->num_params; i++){
 			setPropertyValue(args, PropertyIndex(func_decl->locals[i].name.string, PropertyIndex::KeepStringIndex()), Value(), false, false);
@@ -21647,7 +22127,7 @@ void OS::Core::pushRestArguments(StackFunction * stack_func)
 	if(!stack_func->rest_arguments){
 		GCArrayValue * args = pushArrayValue();
 		Upvalues * func_upvalues = stack_func->locals;
-		int num_locals = func_upvalues->num_locals;
+		int num_locals = func_upvalues->func_decl->num_locals;
 		for(int i = 0; i < stack_func->num_extra_params; i++){
 			allocator->vectorAddItem(args->values, func_upvalues->locals[i + num_locals] OS_DBG_FILEPOS);
 		}
@@ -21696,7 +22176,8 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 		setPropertyValue(obj, PropertyIndex(pos_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->pos : Value(), false, false);
 		setPropertyValue(obj, PropertyIndex(token_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->token.string : Value(), false, false);
 
-		setPropertyValue(obj, PropertyIndex(object_str, PropertyIndex::KeepStringIndex()), stack_func->self, false, false);
+		Value self = stack_func->locals->locals[0]; // [stack_func->locals->func_decl->num_params + VAR_THIS];
+		setPropertyValue(obj, PropertyIndex(object_str, PropertyIndex::KeepStringIndex()), self, false, false);
 
 		pushArgumentsWithNames(stack_func);
 		setPropertyValue(obj, PropertyIndex(arguments_str, PropertyIndex::KeepStringIndex()), stack_values.lastElement(), false, false);
@@ -21707,8 +22188,172 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 	}
 }
 
+int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func)
+{
+	/* if(terminated){
+		error(OS_E_ERROR, OS_TEXT("ObjectScript is terminated, you could reset terminate state using OS::resetTerminated if necessary"));
+		// pop(params + 2);
+		// return syncRetValues(ret_values, 0);
+	} */
+	OS_ASSERT(start_pos >= OS_TOP_STACK_NULL_VALUES && start_pos + call_params <= stack_values.count);
+	Value& func = stack_values[start_pos];
+	switch(func.type){
+	case OS_VALUE_TYPE_FUNCTION:
+		{
+			OS_ASSERT(dynamic_cast<GCFunctionValue*>(func.v.func));
+			GCFunctionValue * func_value = func.v.func;
+			FunctionDecl * func_decl = func_value->func_decl;
+			int params = call_params - 1; // skip func
+			int num_extra_params = params > func_decl->num_params ? params - func_decl->num_params : 0;
+			
+			// stack has to be reserved here!!! don't move it
+			int max_stack_usage = start_pos 
+				+ 1 // func
+				+ 1 // this
+				+ func_decl->stack_size
+				+ num_extra_params
+				+ 10 // user used stack, it's just for optimization
+				;
+			if(max_stack_usage < start_pos + ret_values){
+				max_stack_usage = start_pos + ret_values;
+			}
+			reserveStackValues(max_stack_usage);
+			
+			if(call_stack_funcs.capacity < call_stack_funcs.count+1){
+				call_stack_funcs.capacity = call_stack_funcs.capacity > 0 ? call_stack_funcs.capacity*2 : 8;
+				OS_ASSERT(call_stack_funcs.capacity >= call_stack_funcs.count+1);
+
+				StackFunction * new_buf = (StackFunction*)malloc(sizeof(StackFunction)*call_stack_funcs.capacity OS_DBG_FILEPOS);
+				OS_MEMCPY(new_buf, call_stack_funcs.buf, sizeof(StackFunction) * call_stack_funcs.count);
+				free(call_stack_funcs.buf);
+				call_stack_funcs.buf = new_buf;
+			}
+
+			StackFunction * stack_func = (StackFunction*)(call_stack_funcs.buf + call_stack_funcs.count++);
+			stack_func->func = func_value;
+
+			// stack_func->caller_stack_pos = stack_values.count - params - extra_remove_from_stack;
+			stack_func->locals_stack_pos = start_pos + 1; // point to this as the first local value
+			//stack_func->stack_pos = stack_func->locals_stack_pos + func_decl->stack_size + num_extra_params;
+
+			// OS_ASSERT(stack_values.capacity >= stack_func->stack_pos);
+			// stack_values.count = stack_func->stack_pos;
+
+			stack_func->num_real_params = params; // the first value is this
+			stack_func->num_extra_params = num_extra_params;
+
+			Upvalues * func_locals = (Upvalues*)(malloc(sizeof(Upvalues) + sizeof(Upvalues*) * func_decl->func_depth OS_DBG_FILEPOS));
+			func_locals->prog = func_value->prog->retain();
+			func_locals->func_decl = func_decl;
+			func_locals->locals = stack_values.buf + stack_func->locals_stack_pos;
+			// func_locals->num_locals = func_decl->num_locals;
+			func_locals->is_stack_locals = true;
+			func_locals->num_parents = func_decl->func_depth;
+			func_locals->ref_count = 1;
+			func_locals->gc_time = -1;
+			if(func_decl->func_depth > 0){
+				OS_ASSERT(func_value->upvalues && func_value->upvalues->num_parents == func_decl->func_depth-1);
+				Upvalues ** parents = func_locals->getParents();
+				parents[0] = func_value->upvalues->retain();
+				if(func_decl->func_depth > 1){
+					OS_MEMCPY(parents+1, func_value->upvalues->getParents(), sizeof(Upvalues*) * (func_decl->func_depth-1));
+				}
+			}
+			stack_func->locals = func_locals;
+
+			if(num_extra_params > 0){ // && func_decl->stack_size != params - num_extra_params){
+				Value * extra_params = func_locals->locals + func_decl->stack_size;
+				OS_MEMMOVE(extra_params, func_locals->locals + (params - num_extra_params), sizeof(Value) * num_extra_params);
+			}
+			// int clear_values = func_decl->num_locals - (params - num_extra_params) - 2; // env + globals
+			int clear_values = func_decl->stack_size - (params - num_extra_params);
+			if(clear_values > 0){
+				OS_MEMSET(func_locals->locals + params - num_extra_params, 0, sizeof(Value) * clear_values); 
+			}
+
+			stack_func->need_ret_values = ret_values;
+			// stack_func->opcode_offs = 0; // func_decl->opcodes_pos;
+
+			// new (&stack_func->opcodes) MemStreamReader(NULL, func_value->prog->opcodes->buffer + func_decl->opcodes_pos, func_decl->opcodes_size);
+			stack_func->opcodes = func_value->prog->opcodes.buf + func_decl->opcodes_pos;
+
+			// stack_func->self = self;
+			if(self_for_proto){
+				stack_func->self_for_proto = self_for_proto;
+			}else if(!(stack_func->self_for_proto = func_locals->locals->getGCValue())){
+				switch(func_locals->locals->type){
+				case OS_VALUE_TYPE_BOOL:
+					stack_func->self_for_proto = prototypes[PROTOTYPE_BOOL];
+					break;
+
+				case OS_VALUE_TYPE_NUMBER:
+					stack_func->self_for_proto = prototypes[PROTOTYPE_NUMBER];
+					break;
+				}
+			}
+
+			// func_locals->locals[func_decl->num_params + VAR_THIS] = self;
+			func_locals->locals[func_decl->num_params + VAR_ENV] = func_value->env;
+		#ifdef OS_GLOBAL_VAR_ENABLED
+			func_locals->locals[func_decl->num_params + VAR_GLOBALS] = global_vars;
+		#endif
+
+			reloadStackFunctionCache();
+
+			if(allow_only_enter_func){
+				return 0;
+			}
+			return execute();
+		}
+	case OS_VALUE_TYPE_CFUNCTION:
+		{
+			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(func.v.cfunc));
+			int save_stack_size = stack_values.count;
+			GCCFunctionValue * cfunc_value = func.v.cfunc;
+			if(cfunc_value->num_closure_values > 0){
+				reserveStackValues(start_pos + call_params + cfunc_value->num_closure_values);
+				Value * closure_values = (Value*)(cfunc_value + 1);
+				OS_MEMCPY(stack_values.buf + start_pos + call_params, closure_values, sizeof(Value)*cfunc_value->num_closure_values);
+				stack_values.count += cfunc_value->num_closure_values;
+			}
+			stack_values.count = start_pos + call_params + cfunc_value->num_closure_values;
+			int cur_ret_values = cfunc_value->func(allocator, call_params - 2, cfunc_value->num_closure_values, ret_values, cfunc_value->user_param);
+#if 0
+			if(cfunc_value->num_closure_values > 0){
+				Value * closure_values = (Value*)(cfunc_value + 1);
+				OS_MEMCPY(closure_values, stack_values.buf + start_pos + call_params, sizeof(Value)*cfunc_value->num_closure_values);
+			}
+#endif
+			if(ret_values > 0){
+				Value * stack_func_locals = stack_values.buf + stack_values.count - cur_ret_values;
+				if(ret_values <= cur_ret_values){
+					if(ret_values == 1){
+						stack_values.buf[start_pos] = stack_func_locals[0];
+					}else{
+						OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * ret_values);
+					}
+				}else{
+					if(cur_ret_values > 0){
+						OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * cur_ret_values);
+					}
+					OS_MEMSET(stack_values.buf + start_pos + cur_ret_values, 0, sizeof(Value) * (ret_values - cur_ret_values));
+				}
+			}
+			stack_values.count = save_stack_size;
+			return ret_values;
+		}
+	}
+	OS_ASSERT(false);
+	return 0;
+}
+
 int OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func)
 {
+	int start_pos = stack_values.count - params - 2;
+	ret_values = call(start_pos, params + 2, ret_values, self_for_proto, allow_only_enter_func);
+	stack_values.count = start_pos + ret_values;
+	return ret_values;
+#if 0
 	if(terminated){
 		error(OS_E_ERROR, OS_TEXT("ObjectScript is terminated, you could reset terminate state using OS::resetTerminated if necessary"));
 		pop(params + 2);
@@ -21804,6 +22449,7 @@ int OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool al
 	// OS_ASSERT(false);
 	pop(params + 2);
 	return syncRetValues(ret_values, 0);
+#endif // 0
 }
 
 bool OS::compileFile(const String& p_filename, bool required)
@@ -21893,7 +22539,10 @@ bool OS::compile()
 
 int OS::call(int params, int ret_values)
 {
-	return core->call(params, ret_values);
+	int start_pos = core->stack_values.count - params - 2;
+	ret_values = core->call(start_pos, params + 2, ret_values);
+	core->stack_values.count = start_pos + ret_values;
+	return ret_values;
 }
 
 int OS::eval(const OS_CHAR * str, int params, int ret_values)
@@ -21906,7 +22555,10 @@ int OS::eval(const String& str, int params, int ret_values)
 	compile(str);
 	pushNull();
 	move(-2, 2, -2-params);
-	return core->call(params, ret_values);
+	int start_pos = core->stack_values.count - params - 2;
+	ret_values = core->call(start_pos, params + 2, ret_values);
+	core->stack_values.count = start_pos + ret_values;
+	return ret_values;
 }
 
 int OS::require(const OS_CHAR * filename, bool required, int ret_values)

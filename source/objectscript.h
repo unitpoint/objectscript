@@ -1860,8 +1860,8 @@ namespace ObjectScript
 
 					EXP_TYPE_ASSIGN,
 
-					EXP_TYPE_GET_UPVALUE_VAR,
-					EXP_TYPE_SET_UPVALUE_VAR,
+					EXP_TYPE_GET_UPVALUE,
+					EXP_TYPE_SET_UPVALUE,
 
 					EXP_TYPE_MOVE,
 					EXP_TYPE_GET_XCONST,
@@ -2261,7 +2261,7 @@ namespace ObjectScript
 				LocalVar * locals;
 				int stack_size;
 				int num_locals;
-				int num_params;
+				int num_params; // this included
 				int max_up_count;
 				int func_depth;
 				int func_index; // in parent space
@@ -2288,11 +2288,13 @@ namespace ObjectScript
 				OS * allocator;
 				String filename;
 
-				GCStringValue ** const_strings;
+				// GCStringValue ** const_strings;
 				int num_strings;
 				
-				OS_NUMBER * const_numbers;
+				// OS_NUMBER * const_numbers;
 				int num_numbers;
+
+				Value * const_values;
 
 				FunctionDecl * functions;
 				int num_functions;
@@ -2328,7 +2330,7 @@ namespace ObjectScript
 
 			enum {
 				// VAR_UNUSED,
-				VAR_THIS,
+				// VAR_THIS,
 				VAR_ENV,
 #ifdef OS_GLOBAL_VAR_ENABLED
 				VAR_GLOBALS,
@@ -2352,7 +2354,7 @@ namespace ObjectScript
 				FunctionDecl * func_decl;
 
 				Value * locals;
-				int num_locals;
+				// int num_locals;
 
 				bool is_stack_locals;
 				
@@ -2372,17 +2374,17 @@ namespace ObjectScript
 			struct StackFunction
 			{
 				GCFunctionValue * func;
-				Value self; // allow primitive type for self 
+				// Value self; // allow primitive type for self 
 				GCValue * self_for_proto;
 
 				Upvalues * locals;
-				int num_params;
+				int num_real_params;
 				int num_extra_params;
 
 				GCValue * arguments;
 				GCValue * rest_arguments;
 				
-				int caller_stack_pos;
+				// int caller_stack_pos;
 				int locals_stack_pos;
 				int stack_pos;
 				
@@ -2636,10 +2638,11 @@ namespace ObjectScript
 			Vector<StackFunction> call_stack_funcs;
 			StackFunction * stack_func;
 			Value * stack_func_locals;
-			int num_stack_func_locals;
+			// int num_stack_func_locals;
 			int stack_func_env_index;
-			OS_NUMBER * stack_func_prog_numbers;
-			GCStringValue ** stack_func_prog_strings;
+			Value * stack_func_prog_values;
+			// OS_NUMBER * stack_func_prog_numbers;
+			// GCStringValue ** stack_func_prog_strings;
 
 			GCValue * gc_grey_list_first;
 			bool gc_grey_root_initialized;
@@ -2901,9 +2904,11 @@ namespace ObjectScript
 			void pushRestArguments(StackFunction*);
 
 			void enterFunction(GCFunctionValue * func_value, Value self, GCValue * self_for_proto, int params, int extra_remove_from_stack, int need_ret_values);
+			// void enterFunction(GCFunctionValue * func_value, Value self, GCValue * self_for_proto, int start_params, int params,
 			int execute();
 			void reloadStackFunctionCache();
 
+			/*
 			int opBreakFunction();
 			void opDebugger();
 			// void opPushNumber();
@@ -2970,8 +2975,10 @@ namespace ObjectScript
 			// void opBinaryOperator(int opcode);
 			void opBinaryOperatorByLocals();
 			void opBinaryOperatorByLocalAndNumber();
+			*/
 
 			int call(int params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
+			int call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
 
 			Core(OS*);
 			~Core();
