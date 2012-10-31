@@ -3088,7 +3088,7 @@ OS::Core::Compiler::~Compiler()
 
 bool OS::Core::Compiler::compile()
 {
-	OS_ASSERT(!prog_opcodes_old && !prog_strings_table && !prog_debug_strings_table && !prog_numbers_table);
+	OS_ASSERT(!prog_strings_table && !prog_debug_strings_table && !prog_numbers_table);
 	OS_ASSERT(!prog_functions.count && !prog_numbers.count && !prog_strings.count);
 
 	Scope * scope = NULL;
@@ -4282,7 +4282,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 
 	case EXP_TYPE_DELETE:
 		OS_ASSERT(exp->list.count == 2);
-		exp->slots.b = cacheString(allocator->core->strings->__del);
+		exp->slots.b = cacheString(allocator->core->strings->func_delete);
 		break;
 
 	case EXP_TYPE_SET_DIM:
@@ -4754,7 +4754,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_IN:
 	case EXP_TYPE_IS:
 	case EXP_TYPE_ISPROTOTYPEOF:
-		OS_ASSERT(exp->list.count == 2 && exp->ret_values == 1);
+	case EXP_TYPE_DELETE:
+		OS_ASSERT(exp->list.count == 2 && (exp->ret_values == 1 || (exp->ret_values == 0 && exp->type == EXP_TYPE_DELETE)));
 		stack_pos = scope->function->stack_cur_size;
 
 		exp1 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, exp->token);
@@ -4791,6 +4792,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		scope->function->stack_cur_size = stack_pos + exp->ret_values;
 		return exp;
 
+	/*
 	case EXP_TYPE_DELETE:
 		OS_ASSERT(exp->list.count == 2 && exp->ret_values == 0);
 		stack_pos = scope->function->stack_cur_size;
@@ -4822,6 +4824,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = 0;
 		scope->function->stack_cur_size = stack_pos;
 		return exp;
+	*/
 
 	case EXP_TYPE_SET_DIM:
 		{
@@ -10740,6 +10743,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	__rshift(allocator, OS_TEXT("__rshift")),
 	__pow(allocator, OS_TEXT("__pow")),
 	func_extends(allocator, OS_TEXT("__extends")),
+	func_delete(allocator, OS_TEXT("__delete")),
 	func_in(allocator, OS_TEXT("__in")),
 	func_is(allocator, OS_TEXT("__is")),
 	func_isprototypeof(allocator, OS_TEXT("__isprototypeof")),
@@ -10761,18 +10765,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_super(allocator, OS_TEXT("super")),
 	syntax_is(allocator, OS_TEXT("is")),
 	syntax_isprototypeof(allocator, OS_TEXT("isprototypeof")),
-	/*
-	syntax_typeof(allocator, OS_TEXT("typeof")),
-	syntax_valueof(allocator, OS_TEXT("valueof")),
-	syntax_booleanof(allocator, OS_TEXT("booleanof")),
-	syntax_numberof(allocator, OS_TEXT("numberof")),
-	syntax_stringof(allocator, OS_TEXT("stringof")),
-	syntax_arrayof(allocator, OS_TEXT("arrayof")),
-	syntax_objectof(allocator, OS_TEXT("objectof")),
-	syntax_userdataof(allocator, OS_TEXT("userdataof")),
-	syntax_functionof(allocator, OS_TEXT("functionof")),
-	syntax_clone(allocator, OS_TEXT("clone")),
-	*/
+
 	syntax_extends(allocator, OS_TEXT("extends")),
 	syntax_delete(allocator, OS_TEXT("delete")),
 	syntax_prototype(allocator, OS_TEXT("prototype")),
@@ -16380,6 +16373,13 @@ void OS::initGlobalFunctions()
 			return 0;
 		}
 
+		static int deleteOp(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params == 2);
+			os->core->deleteValueProperty(os->core->getStackValue(-params), os->core->getStackValue(-params+1), true, true, false);
+			return 0;
+		}
+
 		static int extends(OS * os, int params, int, int, void*)
 		{
 			OS_ASSERT(params == 2);
@@ -16505,6 +16505,7 @@ void OS::initGlobalFunctions()
 	};
 	FuncDef list[] = {
 		{core->strings->func_extends, Lib::extends},
+		{core->strings->func_delete, Lib::deleteOp},
 		{core->strings->func_in, Lib::in},
 		{core->strings->func_is, Lib::is},
 		{core->strings->func_isprototypeof, Lib::isprototypeof},

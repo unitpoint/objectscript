@@ -629,11 +629,12 @@ target " (-27)
 
         begin scope
           begin call method
-            get upvalue: # (5) = var events (3 1)
-            get property: # (5) = # (5) [param eventName (1)]
-            move: # (6) = const string "__del" (-69)
-            move: # (7) = param func (2)
-          end call method: start 5, params 3, ret values 0
+            move: # (5) = var _E (3)
+            move: # (6) = const string "__delete" (-69)
+            get upvalue: # (7) = var events (3 1)
+            get property: # (7) = # (7) [param eventName (1)]
+            move: # (8) = param func (2)
+          end call method: start 5, params 4, ret values 0
         end scope ret values 0
       end then
     end if ret values 0
@@ -850,7 +851,7 @@ target " (-27)
 [111] function clearTimeout(t){
 
   begin function
-    begin locals 4, stack 3
+    begin locals 4, stack 4
       0 this (param)
       1 t (param)
       2 _E
@@ -860,10 +861,11 @@ target " (-27)
 [112] delete timers[t]
 
     begin call method
-      get upvalue: # (4) = var timers (4 1)
-      move: # (5) = const string "__del" (-69)
-      move: # (6) = param t (1)
-    end call method: start 4, params 3, ret values 0
+      move: # (4) = var _E (2)
+      move: # (5) = const string "__delete" (-69)
+      get upvalue: # (6) = var timers (4 1)
+      move: # (7) = param t (1)
+    end call method: start 4, params 4, ret values 0
   end function: # (5), index 13
   set property: var _E (1) [const string "clearTimeout" (-83)] = # (5)
 
@@ -883,7 +885,7 @@ target " (-27)
       move: # (7) = const string "enterFrame" (-85)
       move: # (8) = const null (-1)
       begin function
-        begin locals 8, stack 3
+        begin locals 8, stack 4
           0 this (param)
           1 _E
           2 _G
@@ -989,10 +991,11 @@ target " (-27)
 
                               begin scope
                                 begin call method
-                                  get upvalue: # (8) = var timers (4 1)
-                                  move: # (9) = const string "__del" (-69)
-                                  move: # (10) = var i (4)
-                                end call method: start 8, params 3, ret values 0
+                                  move: # (8) = var _E (1)
+                                  move: # (9) = const string "__delete" (-69)
+                                  get upvalue: # (10) = var timers (4 1)
+                                  move: # (11) = var i (4)
+                                end call method: start 8, params 4, ret values 0
                               end scope ret values 0
                             end then
                             begin else

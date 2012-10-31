@@ -2314,6 +2314,7 @@ namespace ObjectScript
 				String __pow;
 				
 				String func_extends;
+				String func_delete;
 				String func_in;
 				String func_is;
 				String func_isprototypeof;
