@@ -13831,7 +13831,9 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 			switch(opcode){
 			case OP_CONCAT:
 				// return pushObjectMethodOpcodeValue(opcode, core->strings->__concat, left_value, right_value, object, is_left_side);
-				return pushSimpleOpcodeValue(opcode, left_value, right_value);
+				// return pushSimpleOpcodeValue(opcode, left_value, right_value);
+				core->pushStringValue(core->newStringValue(core->valueToString(left_value, true), core->valueToString(right_value, true)));
+				return;
 
 			case OP_BIT_AND:
 				return pushObjectMethodOpcodeValue(opcode, core->strings->__bitand, left_value, right_value, object, is_left_side);
@@ -15229,7 +15231,7 @@ void OS::Core::clearStackFunction(StackFunction * stack_func)
 	}else{
 		deleteUpvalues(stack_func->locals);
 	}
-
+#if 0
 	stack_func->func = NULL;
 	// stack_func->self = NULL;
 	stack_func->self_for_proto = NULL;
@@ -15239,6 +15241,7 @@ void OS::Core::clearStackFunction(StackFunction * stack_func)
 
 	stack_func->~StackFunction();
 	// free(stack_func);
+#endif
 }
 
 void OS::Core::reloadStackFunctionCache()
@@ -15615,7 +15618,6 @@ int OS::Core::execute()
 			}
 
 		case OP_CALL:
-		case OP_TAIL_CALL:
 			{
 				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 				a = GETARG_A(instruction);
@@ -15628,8 +15630,33 @@ int OS::Core::execute()
 				continue;
 			}
 
+		case OP_TAIL_CALL:
+			{
+				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
+				c = GETARG_C(instruction);
+				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
+
+				OS_MEMMOVE(stack_values.buf + stack_func->locals_stack_pos - 1, stack_func_locals + a, sizeof(Value) * b);
+				a = stack_func->locals_stack_pos - 1;
+				OS_ASSERT(call_stack_funcs.count > 0 && &call_stack_funcs[call_stack_funcs.count-1] == stack_func);
+				stack_values.count = stack_func->caller_stack_size;
+				call_stack_funcs.count--;
+				clearStackFunction(stack_func);
+				reloadStackFunctionCache();
+
+				call(a, b, c, NULL, true);
+				if(ret_stack_funcs >= call_stack_funcs.count){
+					OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
+					return c;
+				}				
+				continue;
+			}
+
 		case OP_CALL_METHOD:
-		case OP_TAIL_CALL_METHOD:
 			{
 				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 				a = GETARG_A(instruction);
@@ -15642,6 +15669,35 @@ int OS::Core::execute()
 				stack_func_locals[a + 1] = stack_func_locals[a]; // this
 				stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
 				call(stack_func->locals_stack_pos + a, b, c, NULL, true);
+				continue;
+			}
+
+		case OP_TAIL_CALL_METHOD:
+			{
+				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
+				a = GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = GETARG_B(instruction);
+				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
+				c = GETARG_C(instruction);
+				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
+				pushPropertyValue(stack_func_locals[a], PropertyIndex(stack_func_locals[a + 1]), true, true, true, false);
+				stack_func_locals[a + 1] = stack_func_locals[a]; // this
+				stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
+
+				OS_MEMMOVE(stack_values.buf + stack_func->locals_stack_pos - 1, stack_func_locals + a, sizeof(Value) * b);
+				a = stack_func->locals_stack_pos - 1;
+				OS_ASSERT(call_stack_funcs.count > 0 && &call_stack_funcs[call_stack_funcs.count-1] == stack_func);
+				stack_values.count = stack_func->caller_stack_size;
+				call_stack_funcs.count--;
+				clearStackFunction(stack_func);
+				reloadStackFunctionCache();
+
+				call(a, b, c, NULL, true);
+				if(ret_stack_funcs >= call_stack_funcs.count){
+					OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
+					return c;
+				}				
 				continue;
 			}
 
