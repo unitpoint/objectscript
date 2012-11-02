@@ -1,4 +1,3 @@
-/*
 // call function with arguments without comma
 print(5 " differences")
 
@@ -104,11 +103,10 @@ print "7 || 9 = "..(7 || 9)
 	print( a[v1] a.v2 )
 }
 // ========================================================
-*/
 
 // class declaration
 var Person = {
-    __construct: function(firstname, lastname){
+    __construct = function(firstname, lastname){
         this.firstname = firstname
         this.lastname = lastname
     }
@@ -134,6 +132,7 @@ var IvanPerson = extends Person {
 		super()
 	}
 }
+
 // create new instance of IvanPerson class
 var p = IvanPerson()
 p.walk()

@@ -44,7 +44,7 @@ var fannkuch = function(n)
     }
   }
 }
-var n = numberof(arg && arg[1]) || 5
+var n = numberOf(arg && arg[1]) || 5
 var start_time = getTimeSec()
 var sum, flips = fannkuch(n)
 echo(
