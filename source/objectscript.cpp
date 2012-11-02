@@ -2728,8 +2728,14 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				break;
 
 			default:
-				if(!writeOpcodes(scope, exp_compare->list)){
-					return false;
+				if(exp_compare->type == EXP_TYPE_LOGIC_NOT || exp_compare->type == OP_LOGIC_BOOL){
+					if(!writeOpcodes(scope, exp_compare->list)){
+						return false;
+					}
+				}else{
+					if(!writeOpcodes(scope, exp_compare)){
+						return false;
+					}
 				}
 				opcode = OP_LOGIC_BOOL;
 				break;
@@ -4775,7 +4781,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
 		exp2->slots.a = scope->allocTempVar();
-		exp2->slots.b = scope->function->num_params + POST_VAR_ENV;
+		exp2->slots.b = scope->function->num_params + POST_VAR_GLOBALS;
 		exp2->ret_values = 1;
 		exp->list.add(exp2 OS_DBG_FILEPOS);
 
@@ -13420,7 +13426,8 @@ OS::Core::GCArrayValue * OS::Core::pushArrayOf(const Value& val)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_ARRAY:
-		return pushValue(val.v.arr);
+		pushValue(val);
+		return val.v.arr;
 	}
 	pushNull();
 	return NULL;
@@ -13430,7 +13437,8 @@ OS::Core::GCObjectValue * OS::Core::pushObjectOf(const Value& val)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_OBJECT:
-		return pushValue(val.v.object);
+		pushValue(val);
+		return val.v.object;
 	}
 	pushNull();
 	return NULL;
@@ -13441,7 +13449,8 @@ OS::Core::GCUserdataValue * OS::Core::pushUserdataOf(const Value& val)
 	switch(val.type){
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		return pushValue(val.v.userdata);
+		pushValue(val);
+		return val.v.userdata;
 	}
 	pushNull();
 	return NULL;
@@ -16683,7 +16692,7 @@ void OS::initGlobalFunctions()
 
 		static int in(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 2);
+			if(params != 2) return 0;
 			Core::GCValue * self = os->core->getStackValue(-params+1).getGCValue();
 			bool has_property = self && os->core->hasProperty(self, os->core->getStackValue(-params), true, true, true);
 			os->pushBool(has_property);
@@ -16692,21 +16701,21 @@ void OS::initGlobalFunctions()
 
 		static int is(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 2);
+			if(params != 2) return 0;
 			os->pushBool(os->is());
 			return 1;
 		}
 
-		static int isprototypeof(OS * os, int params, int, int, void*)
+		static int isPrototypeOf(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 2);
+			if(params != 2) return 0;
 			os->pushBool(os->isPrototypeOf());
 			return 1;
 		}
 
 		static int typeOf(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 1);
+			if(params < 1) return 0;
 			os->core->pushTypeOf(os->core->getStackValue(-params));
 			return 1;
 		}
@@ -16720,56 +16729,56 @@ void OS::initGlobalFunctions()
 
 		static int numberOf(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 1);
+			if(params < 1) return 0;
 			os->core->pushNumberOf(os->core->getStackValue(-params));
 			return 1;
 		}
 
 		static int stringOf(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 1);
+			if(params < 1) return 0;
 			os->core->pushStringOf(os->core->getStackValue(-params));
 			return 1;
 		}
 
 		static int arrayOf(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 1);
+			if(params < 1) return 0;
 			os->core->pushArrayOf(os->core->getStackValue(-params));
 			return 1;
 		}
 
 		static int objectOf(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 1);
+			if(params < 1) return 0;
 			os->core->pushObjectOf(os->core->getStackValue(-params));
 			return 1;
 		}
 
 		static int functionOf(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 1);
+			if(params < 1) return 0;
 			os->core->pushFunctionOf(os->core->getStackValue(-params));
 			return 1;
 		}
 
 		static int toBool(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params == 1);
+			if(params < 1) return 0;
 			os->toBool(-params);
 			return 1;
 		}
 
 		static int toNumber(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params >= 1);
+			if(params < 1) return 0;
 			os->pushNumber(os->toNumber(-params, params < 2 || os->toBool(-params+1)));
 			return 1;
 		}
 
 		static int toString(OS * os, int params, int, int, void*)
 		{
-			OS_ASSERT(params >= 1);
+			if(params < 1) return 0;
 			os->pushString(os->toString(-params, params < 2 || os->toBool(-params+1)));
 			return 1;
 		}
@@ -16779,7 +16788,7 @@ void OS::initGlobalFunctions()
 		{core->strings->func_delete, Lib::deleteOp},
 		{core->strings->func_in, Lib::in},
 		{core->strings->func_is, Lib::is},
-		{core->strings->func_isprototypeof, Lib::isprototypeof},
+		{core->strings->func_isprototypeof, Lib::isPrototypeOf},
 		{OS_TEXT("typeOf"), Lib::typeOf},
 		// {OS_TEXT("valueOf"), Lib::valueOf},
 		{OS_TEXT("numberOf"), Lib::numberOf},

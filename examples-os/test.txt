@@ -967,7 +967,7 @@ begin function
 [126] var IvanPerson = extends Person {
 
   begin call method
-    move: # (50) = var _E (2)
+    move: # (50) = var _G (3)
     move: # (51) = const string "__extends" (-86)
     move: # (52) = var Person (34)
     new object 2: # (53)
@@ -1428,7 +1428,7 @@ begin function
 [195] delete this._color
 
           begin call method
-            move: # (5) = var _E (3)
+            move: # (5) = var _G (4)
             move: # (6) = const string "__delete" (-112)
             move: # (7) = param this (1)
             move: # (8) = const string "_color" (-100)
@@ -1478,7 +1478,7 @@ begin function
 [206] delete a.color
 
     begin call method
-      move: # (50) = var _E (2)
+      move: # (50) = var _G (3)
       move: # (51) = const string "__delete" (-112)
       move: # (52) = var a (42)
       move: # (53) = const string "color" (-105)
@@ -1572,7 +1572,7 @@ begin function
 [219] delete this._matrix[y*4 + x]
 
       begin call method
-        move: # (6) = var _E (4)
+        move: # (6) = var _G (5)
         move: # (7) = const string "__delete" (-112)
         get property: # (8) = param this (1) [const string "_matrix" (-119)]
         # (9) = param y (3) [operator *] const number 4 (-5)
@@ -1901,7 +1901,7 @@ begin function
 [262] delete Array.__iter // delete our iterator, use default one
 
   begin call method
-    move: # (50) = var _E (2)
+    move: # (50) = var _G (3)
     move: # (51) = const string "__delete" (-112)
     get property: # (52) = var _E (2) [const string "Array" (-67)]
     move: # (53) = const string "__iter" (-60)
@@ -2885,7 +2885,7 @@ so eval(round(13.5))" (-168)
           move: # (7) = const string "printBackTrace" (-193)
         end call method: start 6, params 2, ret values 0
 
-[332] var i = 0 // add some code at the end of function to block tail call
+[332] var i = 0 // add some code at the end of function to prevent tail call
 
         move: var i (5) = const number 0 (-15)
       end function: var testFunc3 (7), index 38
@@ -2899,7 +2899,7 @@ so eval(round(13.5))" (-168)
         move: # (12) = const number 2 (-7)
       end call: start 9, params 4, ret values 0
 
-[335] var i = 0 // add some code at the end of function to block tail call
+[335] var i = 0 // add some code at the end of function to prevent tail call
 
       move: var i (8) = const number 0 (-15)
     end function: var testFunc2 (6), index 37
@@ -2913,7 +2913,7 @@ so eval(round(13.5))" (-168)
       move: # (11) = const number 2 (-7)
     end call: start 8, params 4, ret values 0
 
-[338] var i = 0 // add some code at the end of function to block tail call
+[338] var i = 0 // add some code at the end of function to prevent tail call
 
     move: var i (7) = const number 0 (-15)
   end function: var testFunc (49), index 36
@@ -2966,7 +2966,7 @@ so eval(round(13.5))" (-168)
     move: # (50) = var _E (2)
     move: # (51) = const string "print" (-26)
     begin call method
-      move: # (53) = var _E (2)
+      move: # (53) = var _G (3)
       move: # (54) = const string "__in" (-197)
       move: # (55) = const string "name" (-198)
       new object 4: # (56)

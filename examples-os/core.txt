@@ -627,7 +627,7 @@ target " (-27)
     begin if
       begin bool exp
         begin call method
-          move: # (6) = var _E (4)
+          move: # (6) = var _G (5)
           move: # (7) = const string "__in" (-68)
           move: # (8) = param eventName (2)
           get upvalue: # (9) = var events (4 1)
@@ -639,7 +639,7 @@ target " (-27)
 
         begin scope
           begin call method
-            move: # (6) = var _E (4)
+            move: # (6) = var _G (5)
             move: # (7) = const string "__delete" (-69)
             get upvalue: # (8) = var events (4 1)
             get property: # (8) = # (8) [param eventName (2)]
@@ -875,7 +875,7 @@ target " (-27)
 [112] delete timers[t]
 
     begin call method
-      move: # (5) = var _E (3)
+      move: # (5) = var _G (4)
       move: # (6) = const string "__delete" (-69)
       get upvalue: # (7) = var timers (5 1)
       move: # (8) = param t (2)
@@ -1006,7 +1006,7 @@ target " (-27)
 
                               begin scope
                                 begin call method
-                                  move: # (9) = var _E (2)
+                                  move: # (9) = var _G (3)
                                   move: # (10) = const string "__delete" (-69)
                                   get upvalue: # (11) = var timers (5 1)
                                   move: # (12) = var i (5)
@@ -1430,7 +1430,131 @@ target " (-27)
   set property: # (7) [const string "deepClone" (-93)] = # (6)
 
 
-[174] }
+[176] function Object.flip(){
+
+  begin function
+    begin locals 9, stack 12
+      0 _F (param)
+      1 this (param)
+      2 _E
+      3 _G
+      4 r
+    end locals
+
+[177] var r = {}
+
+    new object 0: # (9)
+    move: var r (4) = # (9)
+
+
+[178] for(var i, v in this){
+
+    begin scope
+      begin locals 4
+        5 i
+        6 v
+        7 #func
+        8 #valid
+      end locals
+
+
+
+
+      begin call method
+        move: # (9) = param this (1)
+        move: # (10) = const string "__iter" (-47)
+      end call method: start 9, params 2, ret values 1
+      move: var #func (7) = # (9)
+      begin loop
+        begin call
+          move: # (9) = var #func (7)
+          move: # (10) = const null (-1)
+        end call: start 9, params 2, ret values 3
+        move: var v (6) = # (11)
+        move: var i (5) = # (10)
+        move: var #valid (8) = # (9)
+
+        begin if
+          begin bool exp
+            move: # (9) = var #valid (8)
+            # (9) = [logic not] # (9)
+          end bool exp
+          begin then
+            break
+          end then
+        end if ret values 0
+
+
+[179] r[v] = i
+
+        begin scope
+          set property: var r (4) [var v (6)] = var i (5)
+        end scope ret values 0
+      end loop ret values 0
+    end scope ret values 0
+
+
+[181] return r
+
+    return: var r (4), count 1
+  end function: # (6), index 18
+
+[176] function Object.flip(){
+
+  get property: # (7) = var _E (2) [const string "Object" (-29)]
+  set property: # (7) [const string "flip" (-94)] = # (6)
+
+
+[184] function math.clamp(a, min, max){
+
+  begin function
+    begin locals 7, stack 9
+      0 _F (param)
+      1 this (param)
+      2 a (param)
+      3 min (param)
+      4 max (param)
+      5 _E
+      6 _G
+    end locals
+
+[185] return a < min ? min : a > max ? max : a
+
+      begin question
+        begin bool exp
+          move: # (7) = param a (2)
+          move: # (8) = param min (3)
+          # (7) = # (7) [logic <] # (8)
+        end bool exp
+        begin then value
+          move: # (7) = param min (3)
+        end then value
+        begin else value
+          begin question
+            begin bool exp
+              move: # (7) = param a (2)
+              move: # (8) = param max (4)
+              # (7) = # (7) [logic >] # (8)
+            end bool exp
+            begin then value
+              move: # (7) = param max (4)
+            end then value
+            begin else value
+              move: # (7) = param a (2)
+            end else value
+          end question ret values 1
+        end else value
+      end question ret values 1
+    return: # (7), count 1
+  end function: # (6), index 19
+
+[184] function math.clamp(a, min, max){
+
+  get property: # (7) = var _E (2) [const string "math" (-95)]
+  set property: # (7) [const string "clamp" (-96)] = # (6)
+
+
+[186] }
 
   return: var _E (2), count 1
 end function: <<->> (0), index 0
