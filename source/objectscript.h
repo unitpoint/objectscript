@@ -69,6 +69,8 @@ inline void operator delete(void *, void *){}
 #define OS_GLOBAL_VAR_ENABLED
 #endif
 
+#define OS_FUNC_VAR_NAME OS_TEXT("_F")
+#define OS_THIS_VAR_NAME OS_TEXT("this")
 #define OS_ENV_VAR_NAME OS_TEXT("_E")
 #define OS_GLOBALS_VAR_NAME OS_TEXT("_G")
 
@@ -184,6 +186,11 @@ inline void operator delete(void *, void *){}
 #ifndef OS_PROFILE_BEGIN_OPCODE
 #define OS_PROFILE_BEGIN_OPCODE
 #define OS_PROFILE_END_OPCODE
+#endif
+
+#ifndef OS_PROFILE_BEGIN_GC
+#define OS_PROFILE_BEGIN_GC
+#define OS_PROFILE_END_GC
 #endif
 
 namespace ObjectScript
@@ -1420,13 +1427,13 @@ namespace ObjectScript
 
 			class Program;
 			struct FunctionDecl;
-			struct Upvalues;
+			struct Locals;
 			struct GCFunctionValue: public GCValue
 			{
 				Program * prog; // retained
 				FunctionDecl * func_decl;
 				Value env;
-				Upvalues * upvalues; // retained
+				Locals * locals; // retained
 				GCStringValue * name;
 
 				GCFunctionValue();
@@ -1834,7 +1841,8 @@ namespace ObjectScript
 					bool addLoopBreak(int pos, ELoopBreakType);
 					void fixLoopBreaks(Compiler*, int scope_start_pos, int scope_end_pos);
 
-					void addStdVars();
+					void addPreVars();
+					void addPostVars();
 					void addLocalVar(const String& name);
 					void addLocalVar(const String& name, LocalVarDesc&);
 
@@ -2153,11 +2161,16 @@ namespace ObjectScript
 			};
 
 			enum {
-				// VAR_UNUSED,
-				// VAR_THIS,
-				VAR_ENV,
+				PRE_VAR_FUNC,
+				PRE_VAR_THIS,
+				// -----------------
+				PRE_VARS
+			};
+
+			enum {
+				POST_VAR_ENV,
 #ifdef OS_GLOBAL_VAR_ENABLED
-				VAR_GLOBALS,
+				POST_VAR_GLOBALS,
 #endif
 			};
 
@@ -2169,7 +2182,7 @@ namespace ObjectScript
 				CONST_STD_VALUES
 			};
 
-			struct Upvalues
+			struct Locals
 			{
 				int ref_count;
 				int gc_time;
@@ -2177,22 +2190,22 @@ namespace ObjectScript
 				Program * prog; // retained
 				FunctionDecl * func_decl;
 
-				Value * locals;
+				Value * values;
 				// int num_locals;
 
 				bool is_stack_locals;
 				
 				int num_parents;
-				// Upvalues * parent;
+				// Locals * parent;
 
-				// Upvalues();
-				// ~Upvalues();
+				// Locals();
+				// ~Locals();
 
-				Upvalues ** getParents();
-				Upvalues * getParent(int i);
-				void setParent(int i, Upvalues*);
+				Locals ** getParents();
+				Locals * getParent(int i);
+				void setParent(int i, Locals*);
 
-				Upvalues * retain();
+				Locals * retain();
 			};
 
 			struct StackFunction
@@ -2201,12 +2214,12 @@ namespace ObjectScript
 				// Value self; // allow primitive type for self 
 				GCValue * self_for_proto;
 
-				Upvalues * locals;
-				int num_real_params;
-				int num_extra_params;
+				Locals * locals;
+				int num_params; // func + this + params
+				// int num_extra_params;
 
-				GCValue * arguments;
-				GCValue * rest_arguments;
+				GCArrayValue * arguments;
+				GCArrayValue * rest_arguments;
 				
 				int caller_stack_size;
 				int locals_stack_pos;
@@ -2340,7 +2353,6 @@ namespace ObjectScript
 				String syntax_delete;
 				String syntax_prototype;
 				String syntax_var;
-				String syntax_this;
 				String syntax_arguments;
 				String syntax_function;
 				String syntax_null;
@@ -2378,6 +2390,8 @@ namespace ObjectScript
 #ifdef OS_GLOBAL_VAR_ENABLED
 				String var_globals;
 #endif
+				String var_func;
+				String var_this;
 				String var_env;
 				String var_temp_prefix;
 
@@ -2503,7 +2517,7 @@ namespace ObjectScript
 			void gcRemoveFromGreyList(GCValue*);
 			void gcMarkProgram(Program * prog);
 			void gcMarkTable(Table * table);
-			void gcMarkUpvalues(Upvalues*);
+			void gcMarkLocals(Locals*);
 			void gcMarkStackFunction(StackFunction*);
 			void gcMarkList(int step_size);
 			void gcMarkValue(GCValue * value);
@@ -2526,9 +2540,9 @@ namespace ObjectScript
 			GCFunctionValue * newFunctionValue(StackFunction*, Program*, FunctionDecl*, Value env);
 			void clearFunctionValue(GCFunctionValue*);
 
-			// Upvalues * newUpvalues(int num_parents);
-			void releaseUpvalues(Upvalues*);
-			void deleteUpvalues(Upvalues*);
+			// Locals * newLocals(int num_parents);
+			void releaseLocals(Locals*);
+			void deleteLocals(Locals*);
 			void clearStackFunction(StackFunction*);
 
 			// GCValue * newValue();
@@ -2603,6 +2617,7 @@ namespace ObjectScript
 
 			// binary operator
 			void pushOpResultValue(int opcode, Value left_value, Value right_value);
+			bool isEqualExactly(const Value& left_value, const Value& right_value);
 
 			void setGlobalValue(const String& name, Value value, bool anonymous_setter_enabled, bool named_setter_enabled);
 			void setGlobalValue(const OS_CHAR * name, Value value, bool anonymous_setter_enabled, bool named_setter_enabled);
@@ -3033,8 +3048,8 @@ namespace ObjectScript
 
 		virtual void printf(const OS_CHAR * fmt, ...);
 
-		virtual void onEnterGC();
-		virtual void onExitGC();
+		// virtual void onEnterGC();
+		// virtual void onExitGC();
 	};
 
 } // namespace ObjectScript

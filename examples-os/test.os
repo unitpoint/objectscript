@@ -124,11 +124,11 @@ print p
 
 // inherit class
 var IvanPerson = extends Person {
-    __construct: function(){
+    __construct = function(){
         super("Ivan", "Petrov")
     }
 	walk = function(){
-		echo "Soneone named "
+		echo "Someone named "
 		super()
 	}
 }
@@ -156,12 +156,8 @@ var vec3 = {
 		this.y = y
 		this.z = z
 	}
-	__add = function(a, b){
-		return vec3(a.x + b.x, a.y + b.y, a.z + b.z)
-	}
-	__mul = function(a, b){
-		return vec3(a.x * b.x, a.y * b.y, a.z * b.z)
-	}
+	__add = {|a b| vec3(a.x + b.x, a.y + b.y, a.z + b.z)}
+	__mul = {|a b| vec3(a.x * b.x, a.y * b.y, a.z * b.z)}
 }
 
 var v1 = vec3(10 20 30)
@@ -272,27 +268,27 @@ var transform = function(a f){
 	}
 	return r
 }
-a = transform(a function(a){ return a*100 })
+a = transform(a, {|a| a*100})
 print("mult 100" a)
-print("math.ceil" transform(a math.ceil))
-print("math.floor" transform(a math.floor))
-print("math.round(-1)" transform(a function(a){ return math.round(a, -1) }))
-print("math.round(2)" transform(a function(a){ return math.round(a, 2) }))
-print("math.sin" transform(a math.sin))
-print("math.cos" transform(a math.cos))
-print("math.tan" transform(a math.tan))
+print("math.ceil" transform(a, math.ceil))
+print("math.floor" transform(a, math.floor))
+print("math.round(-1)" transform(a, {|a| math.round(a, -1)}))
+print("math.round(2)" transform(a, {|a| math.round(a, 2)}))
+print("math.sin" transform(a, math.sin))
+print("math.cos" transform(a, math.cos))
+print("math.tan" transform(a, math.tan))
 
-_E = extends _E math
+_E = math
 print "Extend local environment to be able to use math module without namespace"
-print("round(3)" transform(a function(a){ return round(a, 3) }))
+print("round(3)" transform(a, {|a| round(a, 3)}))
 print("PI" PI)
 
 var core = require("core")
-print("core.eval(math.round(13.5))" core.eval("return math.round(13.5)"))
-print("eval(math.round(13.5))" eval("return math.round(13.5)"))
+print("core.eval(math.round(13.5))" core.eval("math.round(13.5)"))
+print("eval(math.round(13.5))" eval("math.round(13.5)"))
 print("==============")
-print("Next: math namespace is not used\nbut eval executes code in global environment by default\nso eval(round(13.5))" eval("return round(13.5)"))
-print("run eval in space of the current environment (round(13.5))" eval("return round(13.5)", _E))
+print("Next: math namespace is not used\nbut eval executes code in global environment by default\nso eval(round(13.5))" eval("round(13.5)"))
+print("run eval in space of the current environment (round(13.5))" eval("round(13.5)", _E))
 
 var __planet = "Mars"
 function get planet(){ return __planet }
@@ -306,13 +302,13 @@ print "Sorted array"
 print([9 4 0 276 15 39 3].sort())
 
 print "User sorted array by keys"
-print([0 1 2 3 4 5 6 7 8 9].ksort(function(a b){return (a%3) - (b%3)}))
+print([0 1 2 3 4 5 6 7 8 9].ksort{|a b| (a%3) - (b%3)})
 
 print "Sorted array (reverse)"
 print([9 4 0 276 15 39 3].rsort())
 
 print "User sorted array"
-print([9 4 0 276 15 39 3].sort(function(a b){return (a % 10) - (b % 10)}))
+print([9 4 0 276 15 39 3].sort{|a b| (a % 10) - (b % 10)})
 
 print "Sorted object by values"
 print({b=9 4 d=0 c=276 15 a=39 3}.sort())
@@ -327,22 +323,34 @@ print "Sorted object by keys (reverse)"
 print({b=9 4 d=0 c=276 15 a=39 3}.krsort())
 
 print "User sorted object by keys (reverse)"
-print({b=9 4 d=0 c=276 15 a=39 3}.krsort(function(a b){return (a % 10) - (b % 10)}))
+print({b=9 4 d=0 c=276 15 a=39 3}.krsort{|a b| (a % 10) - (b % 10)})
 
 var function testFunc(arg1, arg2){
-	var function testFunc2(arg1, arg2, arg3){
-		var function testFunc3(arg1){
+	var testFunc2 = {|arg1 arg2 arg3|
+		var testFunc3 = {|arg1|
 			printBackTrace()
+			var i = 0 // add some code at the end of function to prevent tail call
 		}
 		testFunc3(1, 2)
+		var i = 0 // add some code at the end of function to prevent tail call
 	}
 	testFunc2(1, 2)
+	var i = 0 // add some code at the end of function to prevent tail call
 }
 print "Test back trace"
 testFunc(1, 2)
 
 print "Test 5 < 10 ? 7 : 3 --> "..(5 < 10 ? 7 : 3)
 print "Test in operator (should be true) "..("name" in {x = 0 y = 0 name = 0 index = 0})
+
+print "Test _F and recursion"
+print "factorial(20) = " .. {|a| a <= 1 ? 1 : a*_F(a-1)}(20)
+print "tail factorial(20) = " .. {|a| 
+	{|r a| 
+		if(a <= 1) return r;
+		return _F(r*a, a-1) // this call doesn't use call stack because of result is returned
+	}(1 a)
+}(20)
 
 terminate()
 print "This is never printed"

@@ -62,7 +62,7 @@ double getTimeSec()
 using namespace ObjectScript;
 
 int gc_step_count = 0;
-double gc_step_start_time = 0, gc_time = 0;
+double gc_step_start_time = 0, gc_step_time = 0, gc_sum_time = 0;
 
 class ProfileOS: public OS
 {
@@ -70,17 +70,6 @@ public:
 
 	ProfileOS(){}
 	
-	void onEnterGC()
-	{
-		gc_step_start_time = getTimeSec();
-	}
-
-	void onExitGC()
-	{
-		gc_step_count++;
-		gc_time += getTimeSec() - gc_step_start_time;
-	}
-
 	static const char * opcodeName(int opcode)
 	{
 #define OPCODE_NAME(name) case Core::name: return (#name)+3 // skip OP_
@@ -181,16 +170,17 @@ int _tmain(int argc, _TCHAR* argv[])
 
 #if defined _DEBUG || defined OS_DEBUG
 	printf("=============================\n");
-	printf(" WARNING: debug mode enabled\n");
+	printf(" WARNING: it's debug build\n");
 	printf("=============================\n");
 #endif
 
 	printf("OS script full time: %f secs\n", full_time);
-	printf("            gc time: %f secs (%.2f%%)\n", gc_time, gc_time*100/full_time);
+	printf("            gc time: %f secs (%.2f%%)\n", gc_sum_time, gc_sum_time*100/full_time);
 
 	sortOpcodeProfile();
 	int i;
 	for(i = 0; i < 20; i++){
+		if(!opcodes_usage[i].count) break;
 		printf("\n=== %s, executed count: %d\n", ProfileOS::opcodeName(opcodes_usage[i].opcode), opcodes_usage[i].count);
 		printf("sum time: %f secs (%.2f%%), avg time of 100000 times: %f\n", 
 			opcodes_usage[i].time, opcodes_usage[i].time*100/full_time, 
