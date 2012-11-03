@@ -107,14 +107,14 @@ print "7 || 9 = "..(7 || 9)
 // class declaration
 var Person = {
     __construct = function(firstname, lastname){
-        this.firstname = firstname
-        this.lastname = lastname
+        @firstname = firstname // equal to this.firstname = firstname
+        @lastname = lastname // equal to this.lastname = lastname
     }
     walk = function(){
-        print this.fullname .. " is walking!"
+        print @fullname .. " is walking!"
     }
     __get@fullname = function(){
-        return this.firstname .. " " .. this.lastname
+        return @firstname .. " " .. @lastname
     }
 }
 // create new instance of Person class
@@ -157,6 +157,9 @@ var vec3 = {
 		this.z = z
 	}
 	__add = {|a b| vec3(a.x + b.x, a.y + b.y, a.z + b.z)}
+	/* it's equal to
+	__add = function(a, b){ return vec3(a.x + b.x, a.y + b.y, a.z + b.z)}
+	*/
 	__mul = {|a b| vec3(a.x * b.x, a.y * b.y, a.z * b.z)}
 }
 
@@ -170,8 +173,8 @@ print "should be {x:11,y:24,z:39} " .. v3
 
 	var a = {
 		_color = "red"
-		__get@color = function(){ return this._color }
-		__set@color = function(v){ this._color = v }
+		__get@color = {|| @_color }
+		__set@color = {|v| @_color = v }
 	}
 	
 	// get property
@@ -192,7 +195,7 @@ print "should be {x:11,y:24,z:39} " .. v3
 		}
 		__del = function(name){
 			if(name == "color")
-				delete this._color
+				delete @_color
 		}
 	}
 	
@@ -345,12 +348,6 @@ print "Test in operator (should be true) "..("name" in {x = 0 y = 0 name = 0 ind
 
 print "Test _F and recursion"
 print "factorial(20) = " .. {|a| a <= 1 ? 1 : a*_F(a-1)}(20)
-print "tail factorial(20) = " .. {|a| 
-	{|r a| 
-		if(a <= 1) return r;
-		return _F(r*a, a-1) // this call doesn't use call stack because of result is returned
-	}(1 a)
-}(20)
 
 terminate()
-print "This is never printed"
+print "This text is never printed"

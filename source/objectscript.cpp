@@ -1109,6 +1109,7 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 	case OPERATOR_INDIRECT: return OS_TEXT("OPERATOR_INDIRECT");
 	case OPERATOR_CONCAT:  return OS_TEXT("OPERATOR_CONCAT");
 
+	case OPERATOR_THIS: return OS_TEXT("OPERATOR_THIS");
 	case OPERATOR_LOGIC_AND:  return OS_TEXT("OPERATOR_LOGIC_AND");
 	case OPERATOR_LOGIC_OR:   return OS_TEXT("OPERATOR_LOGIC_OR");
 	case OPERATOR_LOGIC_PTR_EQ:   return OS_TEXT("OPERATOR_LOGIC_PTR_EQ");
@@ -1295,6 +1296,8 @@ OS::Core::Tokenizer::OperatorDesc OS::Core::Tokenizer::operator_desc[] =
 
 	{ OPERATOR_RESERVED, OS_TEXT("->") },
 	{ OPERATOR_RESERVED, OS_TEXT("::") },
+
+	{ OPERATOR_THIS, OS_TEXT("@") },
 
 	{ OPERATOR_LOGIC_AND, OS_TEXT("&&") },
 	{ OPERATOR_LOGIC_OR,  OS_TEXT("||") },
@@ -2887,7 +2890,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_BIT_OR:
 	case EXP_TYPE_BIT_XOR:
 
-	case EXP_TYPE_CONCAT:
+	// case EXP_TYPE_CONCAT:
 	case EXP_TYPE_ADD:
 	case EXP_TYPE_SUB:
 	case EXP_TYPE_MUL:
@@ -4304,6 +4307,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 		exp->slots.b = cacheString(allocator->core->strings->func_delete);
 		break;
 
+	case EXP_TYPE_CONCAT:
+		OS_ASSERT(exp->list.count == 2);
+		exp->slots.b = cacheString(allocator->core->strings->func_concat);
+		break;
+
 	case EXP_TYPE_SET_DIM:
 		OS_ASSERT(exp->list.count == 3);
 		OS_ASSERT(exp->list[2]->type == EXP_TYPE_PARAMS);
@@ -4769,6 +4777,27 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = stack_pos;
 		return exp;
 
+	case EXP_TYPE_CONCAT:
+		OS_ASSERT(exp->list.count == 2 && exp->ret_values == 1);
+		if(exp->list[0]->type == EXP_TYPE_CONCAT){
+			stack_pos = scope->function->stack_cur_size;
+			exp1 = postCompileNewVM(scope, exp->list[0]);
+			OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+			OS_ASSERT(exp1->type == EXP_TYPE_CALL_METHOD);
+			OS_ASSERT(exp1->list.count == 2);
+			scope->function->stack_cur_size = exp1->slots.a + exp1->slots.b;
+  			exp2 = postCompileNewVM(scope, exp->list[1]);
+			OS_ASSERT(exp2->ret_values == 1);
+			OS_ASSERT(exp1->list[1]->type == EXP_TYPE_PARAMS);
+			exp1->list[1]->list.add(exp2 OS_DBG_FILEPOS);
+			exp1->slots.b += exp2->ret_values;
+			scope->function->stack_cur_size = stack_pos+1;
+			allocator->vectorClear(exp->list);
+			allocator->deleteObj(exp);
+			return exp1;
+		}
+		// no break
+
 	case EXP_TYPE_EXTENDS:
 	case EXP_TYPE_IN:
 	case EXP_TYPE_IS:
@@ -4950,7 +4979,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.a = stack_pos;
 		return exp;
 
-	case EXP_TYPE_CONCAT:
+	// case EXP_TYPE_CONCAT:
 	case EXP_TYPE_BIT_AND:
 	case EXP_TYPE_BIT_OR:
 	case EXP_TYPE_BIT_XOR:
@@ -7409,6 +7438,21 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		return finishValueExpressionNoAutoCall(scope, exp, p);
 		// end unary operators
 
+	case Tokenizer::OPERATOR_THIS:
+		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_THIS, token);
+		exp->ret_values = 1;
+		readToken();
+		if(recent_token && recent_token->type == Tokenizer::NAME){
+			Expression * exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, recent_token);
+			exp2->ret_values = 1;
+			OS_ASSERT(scope->function);
+			exp2->active_locals = scope->function->num_locals; // TODO: remove it?
+			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_INDIRECT, exp2->token, exp, exp2 OS_DBG_FILEPOS);
+			exp->ret_values = 1;
+			readToken();
+		}
+		return finishValueExpression(scope, exp, p);
+
 	case Tokenizer::BEGIN_CODE_BLOCK:
 		if(p.allow_root_blocks && !isNextToken(Tokenizer::OPERATOR_BIT_OR) && !isNextToken(Tokenizer::OPERATOR_LOGIC_OR)){
 			if(!p.allow_inline_nested_block){
@@ -8412,7 +8456,7 @@ OS::Core::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType e
 	case Compiler::EXP_TYPE_BIT_OR: return OP_BIT_OR;
 	case Compiler::EXP_TYPE_BIT_XOR: return OP_BIT_XOR;
 
-	case Compiler::EXP_TYPE_CONCAT: return OP_CONCAT;
+	// case Compiler::EXP_TYPE_CONCAT: return OP_CONCAT;
 	case Compiler::EXP_TYPE_ADD: return OP_ADD;
 	case Compiler::EXP_TYPE_SUB: return OP_SUB;
 	case Compiler::EXP_TYPE_MUL: return OP_MUL;
@@ -9523,7 +9567,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 	}
 }
 
-void OS::Core::deleteValueProperty(Value table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled)
+void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled)
 {
 	switch(table_value.type){
 	case OS_VALUE_TYPE_NULL:
@@ -10269,7 +10313,7 @@ OS_NUMBER OS::Core::valueToNumber(const Value& val, bool valueof_enabled)
 	return 0;
 }
 
-bool OS::Core::isValueNumber(Value val, OS_NUMBER * out)
+bool OS::Core::isValueNumber(const Value& val, OS_NUMBER * out)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_BOOL:
@@ -10285,6 +10329,7 @@ bool OS::Core::isValueNumber(Value val, OS_NUMBER * out)
 		return true;
 
 	case OS_VALUE_TYPE_STRING:
+		OS_ASSERT(dynamic_cast<GCStringValue*>(val.v.string));
 		return val.v.string->isNumber(out);
 	}
 	if(out){
@@ -10320,7 +10365,7 @@ OS::Core::String OS::Core::Compiler::Expression::toString()
 	return String(getAllocator());
 }
 
-OS::Core::String OS::Core::valueToString(Value val, bool valueof_enabled)
+OS::Core::String OS::Core::valueToString(const Value& val, bool valueof_enabled)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_NULL:
@@ -10345,7 +10390,7 @@ OS::Core::String OS::Core::valueToString(Value val, bool valueof_enabled)
 	return String(allocator);
 }
 
-bool OS::Core::isValueString(Value val, String * out)
+bool OS::Core::isValueString(const Value& val, String * out)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_NULL:
@@ -10370,6 +10415,7 @@ bool OS::Core::isValueString(Value val, String * out)
 
 	case OS_VALUE_TYPE_STRING:
 		if(out){
+			OS_ASSERT(dynamic_cast<GCStringValue*>(val.v.string));
 			*out = String(val.v.string);
 		}
 		return true;
@@ -10380,7 +10426,7 @@ bool OS::Core::isValueString(Value val, String * out)
 	return false;
 }
 
-bool OS::Core::isValueString(Value val, OS::String * out)
+bool OS::Core::isValueString(const Value& val, OS::String * out)
 {
 	switch(val.type){
 	case OS_VALUE_TYPE_NULL:
@@ -10405,6 +10451,7 @@ bool OS::Core::isValueString(Value val, OS::String * out)
 
 	case OS_VALUE_TYPE_STRING:
 		if(out){
+			OS_ASSERT(dynamic_cast<GCStringValue*>(val.v.string));
 			*out = String(val.v.string);
 		}
 		return true;
@@ -10793,6 +10840,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	func_push(allocator, OS_TEXT("push")),
 	func_valueOf(allocator, OS_TEXT("valueOf")),
 	func_clone(allocator, OS_TEXT("clone")),
+	func_concat(allocator, OS_TEXT("concat")),
 
 	typeof_null(allocator, OS_TEXT("null")),
 	typeof_boolean(allocator, OS_TEXT("boolean")),
@@ -14048,12 +14096,14 @@ void OS::Core::pushOpResultValue(int opcode, Value left_value, Value right_value
 		stack_values->buf[stack_values->count++] = lib.compareValues(left_value, right_value) < 0;
 		return;
 
+	/*
 	case OP_CONCAT:
 		if(left_value.type == OS_VALUE_TYPE_STRING && right_value.type == OS_VALUE_TYPE_STRING){
 			pushStringValue(newStringValue(left_value.v.string, right_value.v.string));
 			return;
 		}
 		break;
+	*/
 
 	case OP_BIT_AND:
 		if(left_value.type == OS_VALUE_TYPE_NUMBER && right_value.type == OS_VALUE_TYPE_NUMBER){
@@ -14783,14 +14833,14 @@ bool OS::Core::isValueInstanceOf(GCValue * val, GCValue * prototype_val)
 	return val->prototype ? isValuePrototypeOf(val->prototype, prototype_val) : false;
 }
 
-bool OS::Core::isValuePrototypeOf(Value val, Value prototype_val)
+bool OS::Core::isValuePrototypeOf(const Value& val, const Value& prototype_val)
 {
 	GCValue * object = val.getGCValue();
 	GCValue * proto = prototype_val.getGCValue();
 	return object && proto && isValuePrototypeOf(object, proto);
 }
 
-bool OS::Core::isValueInstanceOf(Value val, Value prototype_val)
+bool OS::Core::isValueInstanceOf(const Value& val, const Value& prototype_val)
 {
 	GCValue * object = val.getGCValue();
 	GCValue * proto = prototype_val.getGCValue();
@@ -15595,6 +15645,7 @@ int OS::Core::execute()
 				break;
 			}
 
+		/*
 		case OP_CONCAT:
 			{
 				a = GETARG_A(instruction);
@@ -15611,6 +15662,7 @@ int OS::Core::execute()
 				}
 				break;
 			}
+		*/
 
 		case OP_BIT_AND:
 			{
@@ -16357,7 +16409,9 @@ void OS::runOp(OS_EOpcode opcode)
 		return lib.runBinaryOpcode(Core::OP_POW);
 
 	case OP_CONCAT: // ..
-		return lib.runBinaryOpcode(Core::OP_CONCAT);
+		// return lib.runBinaryOpcode(Core::OP_CONCAT);
+		pushString(toString(-2) + toString(-1));
+		return;
 
 	case OP_BIT_NOT: // ~
 		return lib.runUnaryOpcode(Core::OP_BIT_NOT);
@@ -16560,9 +16614,8 @@ void OS::initGlobalFunctions()
 	{
 		static int print(OS * os, int params, int, int, void*)
 		{
-			int params_offs = os->getAbsoluteOffs(-params);
 			for(int i = 0; i < params; i++){
-				String str = os->toString(params_offs + i);
+				String str = os->toString(-params + i);
 				os->printf("%s", str.toChar());
 				if(i+1 < params){
 					os->printf("\t");
@@ -16576,9 +16629,8 @@ void OS::initGlobalFunctions()
 
 		static int echo(OS * os, int params, int, int, void*)
 		{
-			int params_offs = os->getAbsoluteOffs(-params);
 			for(int i = 0; i < params; i++){
-				String str = os->toString(params_offs + i);
+				String str = os->toString(-params + i);
 				os->printf("%s", str.toChar());
 			}
 			return 0;
@@ -16590,11 +16642,10 @@ void OS::initGlobalFunctions()
 				return 0;
 			}
 			OS::Core::StringBuffer buf(os);
-			int params_offs = os->getAbsoluteOffs(-params);
 			for(int i = 0; i < params; i++){
-				buf += os->toString(params_offs + i);
+				buf += os->toString(-params + i);
 			}
-			os->core->pushValue(buf.toGCStringValue());
+			os->pushString(buf.toString());
 			return 1;
 		}
 
@@ -16619,7 +16670,10 @@ void OS::initGlobalFunctions()
 
 		static int resolvePath(OS * os, int params, int, int, void*)
 		{
-			String filename = os->resolvePath(os->toString(-1));
+			if(params < 1){
+				return 0;
+			}
+			String filename = os->resolvePath(os->toString(-params));
 			if(filename.getDataSize()){
 				os->pushString(filename);
 				return 1;
@@ -16823,7 +16877,7 @@ void OS::initGlobalFunctions()
 		{OS_TEXT("toString"), Lib::toString},
 		{OS_TEXT("print"), Lib::print},
 		{OS_TEXT("echo"), Lib::echo},
-		{OS_TEXT("concat"), Lib::concat},
+		{core->strings->func_concat, Lib::concat},
 		{OS_TEXT("compileText"), Lib::compileText},
 		{OS_TEXT("compileFile"), Lib::compileFile},
 		{OS_TEXT("resolvePath"), Lib::resolvePath},

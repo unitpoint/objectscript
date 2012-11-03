@@ -990,6 +990,8 @@ namespace ObjectScript
 					OPERATOR_CONCAT,    // ..
 					REST_ARGUMENTS,  // ...
 
+					OPERATOR_THIS, // @
+
 					OPERATOR_LOGIC_AND, // &&
 					OPERATOR_LOGIC_OR,  // ||
 
@@ -1539,7 +1541,7 @@ namespace ObjectScript
 				OP_RSHIFT, // >>
 				OP_POW, // **
 
-				OP_CONCAT,	// ..
+				// OP_CONCAT,	// ..
 
 				OP_BIT_NOT,
 				OP_PLUS,
@@ -2337,6 +2339,7 @@ namespace ObjectScript
 				String func_push;
 				String func_valueOf;
 				String func_clone;
+				String func_concat;
 
 				String typeof_null;
 				String typeof_boolean;
@@ -2654,16 +2657,16 @@ namespace ObjectScript
 			bool valueToBool(const Value& val);
 			OS_INT valueToInt(const Value& val, bool valueof_enabled = false);
 			OS_NUMBER valueToNumber(const Value& val, bool valueof_enabled = false);
-			String valueToString(Value val, bool valueof_enabled = false);
+			String valueToString(const Value& val, bool valueof_enabled = false);
 
-			bool isValueNumber(Value val, OS_NUMBER * out = NULL);
-			bool isValueString(Value val, String * out = NULL);
-			bool isValueString(Value val, OS::String * out = NULL);
+			bool isValueNumber(const Value& val, OS_NUMBER * out = NULL);
+			bool isValueString(const Value& val, String * out = NULL);
+			bool isValueString(const Value& val, OS::String * out = NULL);
 			bool isValueInstanceOf(GCValue * val, GCValue * prototype_val);
-			bool isValueInstanceOf(Value val, Value prototype_val);
+			bool isValueInstanceOf(const Value& val, const Value& prototype_val);
 			bool isValuePrototypeOf(GCValue * val, GCValue * prototype_val);
 			bool isValuePrototypeOfUserdata(GCValue * val, int prototype_crc);
-			bool isValuePrototypeOf(Value val, Value prototype_val);
+			bool isValuePrototypeOf(const Value& val, const Value& prototype_val);
 
 			Table * newTable(OS_DBG_FILEPOS_START_DECL);
 			void clearTable(Table*);
@@ -2673,7 +2676,7 @@ namespace ObjectScript
 			void changePropertyIndex(Table * table, Property * prop, const PropertyIndex& new_index);
 			bool deleteTableProperty(Table * table, const PropertyIndex& index);
 			void deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled);
-			void deleteValueProperty(Value table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled);
+			void deleteValueProperty(const Value& table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled);
 			
 			void copyTableProperties(Table * dst, Table * src);
 			void copyTableProperties(GCValue * dst_value, GCValue * src_value, bool anonymous_setter_enabled, bool named_setter_enabled);
