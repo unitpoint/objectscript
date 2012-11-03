@@ -1507,9 +1507,12 @@ namespace ObjectScript
 
 				OP_SUPER_CALL,
 				OP_CALL,
-				OP_TAIL_CALL,
 				OP_CALL_METHOD,
+
+#ifdef OS_TAIL_CALL_ENABLED
+				OP_TAIL_CALL,
 				OP_TAIL_CALL_METHOD,
+#endif
 
 				OP_GET_PROPERTY,
 				OP_SET_PROPERTY,

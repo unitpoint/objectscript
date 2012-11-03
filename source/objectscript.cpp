@@ -4027,6 +4027,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 		break;
 
 	case EXP_TYPE_RETURN:
+#ifdef OS_TAIL_CALL_ENABLED
 		if(exp->list.count == 1){
 			Expression * sub_exp = exp->list[0] = postCompilePass2(scope, exp->list[0]);
 			switch(sub_exp->type){
@@ -4045,6 +4046,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 			}
 			return exp;
 		}
+#endif
 		break;
 
 	case EXP_TYPE_CALL:
@@ -8386,8 +8388,10 @@ OS::Core::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType e
 	case Compiler::EXP_TYPE_CALL: return OP_CALL;
 	case Compiler::EXP_TYPE_CALL_AUTO_PARAM: return OP_CALL;
 	case Compiler::EXP_TYPE_CALL_METHOD: return OP_CALL_METHOD;
+#ifdef OS_TAIL_CALL_ENABLED
 	case Compiler::EXP_TYPE_TAIL_CALL: return OP_TAIL_CALL;
 	case Compiler::EXP_TYPE_TAIL_CALL_METHOD: return OP_TAIL_CALL_METHOD;
+#endif
 	case Compiler::EXP_TYPE_SUPER_CALL: return OP_SUPER_CALL;
 	// case Compiler::EXP_TYPE_SUPER: return OP_SUPER;
 
@@ -15352,6 +15356,14 @@ int OS::Core::execute()
 #else
 		unsigned int opcode = GET_OPCODE(instruction);
 #endif
+#if 0
+		{
+			prog = stack_func->func->prog;
+			int opcode_pos = stack_func->opcodes - prog->opcodes.buf;
+			Program::DebugInfoItem * debug_info = prog->getDebugInfo(opcode_pos);
+			int i = 0;
+		}
+#endif
 		OS_PROFILE_BEGIN_OPCODE(opcode);
 		switch(opcode){
 		default:
@@ -15825,6 +15837,7 @@ int OS::Core::execute()
 				continue;
 			}
 
+#ifdef OS_TAIL_CALL_ENABLED
 		case OP_TAIL_CALL:
 			{
 				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
@@ -15857,10 +15870,12 @@ int OS::Core::execute()
 					return c;
 				}				
 				if(call_stack_funcs.count > call_stack_funcs_size){
-					stack_func->caller_stack_size = caller_stack_size;				
+					stack_func->caller_stack_size = caller_stack_size;
+					// error(OS_E_WARNING, "check point");
 				}
 				continue;
 			}
+#endif
 
 		case OP_CALL_METHOD:
 			{
@@ -15878,6 +15893,7 @@ int OS::Core::execute()
 				continue;
 			}
 
+#ifdef OS_TAIL_CALL_ENABLED
 		case OP_TAIL_CALL_METHOD:
 			{
 				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
@@ -15917,6 +15933,7 @@ int OS::Core::execute()
 				}
 				continue;
 			}
+#endif
 
 		case OP_SUPER_CALL:
 			{
@@ -16352,8 +16369,10 @@ void OS::runOp(OS_EOpcode opcode)
 		return lib.runUnaryOpcode(Core::OP_NEG);
 
 	case OP_LENGTH: // #
-		pushString(core->strings->__len);
+		getProperty(-1, core->strings->__len);
+		pushStackValue(-2);
 		call(0, 1);
+		remove(-2);
 		return;
 	}
 	pushNull();
@@ -16361,8 +16380,11 @@ void OS::runOp(OS_EOpcode opcode)
 
 int OS::getLen(int offs)
 {
+	offs = getAbsoluteOffs(offs);
+	getProperty(offs, core->strings->__len);
 	pushStackValue(offs);
-	runOp(OP_LENGTH);
+	call(0, 1);
+	// runOp(OP_LENGTH);
 	return popInt();
 }
 
@@ -17570,14 +17592,16 @@ void OS::initObjectClass()
 				{
 					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(val.v.value));
 					value = val.v.value;
-					new_value = os->core->pushArrayValue();
-					new_value->prototype = value->prototype;
 					Core::GCArrayValue * arr = (Core::GCArrayValue*)value;
+					new_value = os->core->pushArrayValue(arr->values.count);
+					new_value->prototype = value->prototype;
 					Core::GCArrayValue * new_arr = (Core::GCArrayValue*)new_value;
-					os->vectorReserveCapacity(new_arr->values, arr->values.count OS_DBG_FILEPOS);
+					/* os->vectorReserveCapacity(new_arr->values, arr->values.count OS_DBG_FILEPOS);
 					for(int i = 0; i < arr->values.count; i++){
 						os->vectorAddItem(new_arr->values, arr->values[i] OS_DBG_FILEPOS);
-					}
+					} */
+					OS_MEMCPY(new_arr->values.buf, arr->values.buf, sizeof(Core::Value)*arr->values.count);
+					new_arr->values.count = arr->values.count;
 					break;
 				}
 

@@ -905,12 +905,13 @@ begin function
 
 [114] print this.fullname .. " is walking!"
 
-    begin tail call method
-      move: # (4) = var _E (2)
-      move: # (5) = const string "print" (-26)
-      get property: # (6) = param this (1) [const string "fullname" (-80)]
-      # (6) = # (6) [operator ..] const string " is walking!" (-81)
-    end tail call method
+      begin call method
+        move: # (4) = var _E (2)
+        move: # (5) = const string "print" (-26)
+        get property: # (6) = param this (1) [const string "fullname" (-80)]
+        # (6) = # (6) [operator ..] const string " is walking!" (-81)
+      end call method: start 4, params 3, ret values 1
+    return: # (4), count 1
   end function: # (52), index 7
   set property: # (50) [const string "walk" (-79)] = # (52)
 
@@ -984,12 +985,13 @@ begin function
 
 [128] super("Ivan", "Petrov")
 
-      begin super call
-        move: # (4) = const null (-1)
-        move: # (5) = const null (-1)
-        move: # (6) = const string "Ivan" (-34)
-        move: # (7) = const string "Petrov" (-36)
-      end super call: start 4, params 4, ret values 1
+        begin super call
+          move: # (4) = const null (-1)
+          move: # (5) = const null (-1)
+          move: # (6) = const string "Ivan" (-34)
+          move: # (7) = const string "Petrov" (-36)
+        end super call: start 4, params 4, ret values 1
+      return: # (4), count 1
     end function: # (55), index 9
     set property: # (53) [const string "__construct" (-78)] = # (55)
 
@@ -1014,10 +1016,11 @@ begin function
 
 [132] super()
 
-      begin super call
-        move: # (4) = const null (-1)
-        move: # (5) = const null (-1)
-      end super call: start 4, params 2, ret values 1
+        begin super call
+          move: # (4) = const null (-1)
+          move: # (5) = const null (-1)
+        end super call: start 4, params 2, ret values 1
+      return: # (4), count 1
     end function: # (55), index 10
     set property: # (53) [const string "walk" (-79)] = # (55)
   end call method: start 50, params 4, ret values 1
@@ -1094,12 +1097,13 @@ begin function
       2 _E
       3 _G
     end locals
-    begin tail call method
-      get property: # (4) = var _E (2) [const string "foo" (-90)]
-      move: # (5) = const string "apply" (-92)
-      move: # (6) = const null (-1)
-      get arguments: # (7)
-    end tail call method
+      begin call method
+        get property: # (4) = var _E (2) [const string "foo" (-90)]
+        move: # (5) = const string "apply" (-92)
+        move: # (6) = const null (-1)
+        get arguments: # (7)
+      end call method: start 4, params 4, ret values 1
+    return: # (4), count 1
   end function: # (50), index 12
   set property: var _E (2) [const string "bar" (-91)] = # (50)
 
@@ -1176,19 +1180,20 @@ begin function
       4 _E
       5 _G
     end locals
-    begin tail call
-      get upvalue: # (6) = var vec3 (38 1)
-      move: # (7) = const null (-1)
-      get property: # (8) = param a (2) [const string "x" (-37)]
-      get property: # (9) = param b (3) [const string "x" (-37)]
-      # (8) = # (8) [operator +] # (9)
-      get property: # (9) = param a (2) [const string "y" (-38)]
-      get property: # (10) = param b (3) [const string "y" (-38)]
-      # (9) = # (9) [operator +] # (10)
-      get property: # (10) = param a (2) [const string "z" (-95)]
-      get property: # (11) = param b (3) [const string "z" (-95)]
-      # (10) = # (10) [operator +] # (11)
-    end tail call
+      begin call
+        get upvalue: # (6) = var vec3 (38 1)
+        move: # (7) = const null (-1)
+        get property: # (8) = param a (2) [const string "x" (-37)]
+        get property: # (9) = param b (3) [const string "x" (-37)]
+        # (8) = # (8) [operator +] # (9)
+        get property: # (9) = param a (2) [const string "y" (-38)]
+        get property: # (10) = param b (3) [const string "y" (-38)]
+        # (9) = # (9) [operator +] # (10)
+        get property: # (10) = param a (2) [const string "z" (-95)]
+        get property: # (11) = param b (3) [const string "z" (-95)]
+        # (10) = # (10) [operator +] # (11)
+      end call: start 6, params 5, ret values 1
+    return: # (6), count 1
   end function: # (52), index 14
   set property: # (50) [const string "__add" (-96)] = # (52)
 
@@ -1203,19 +1208,20 @@ begin function
       4 _E
       5 _G
     end locals
-    begin tail call
-      get upvalue: # (6) = var vec3 (38 1)
-      move: # (7) = const null (-1)
-      get property: # (8) = param a (2) [const string "x" (-37)]
-      get property: # (9) = param b (3) [const string "x" (-37)]
-      # (8) = # (8) [operator *] # (9)
-      get property: # (9) = param a (2) [const string "y" (-38)]
-      get property: # (10) = param b (3) [const string "y" (-38)]
-      # (9) = # (9) [operator *] # (10)
-      get property: # (10) = param a (2) [const string "z" (-95)]
-      get property: # (11) = param b (3) [const string "z" (-95)]
-      # (10) = # (10) [operator *] # (11)
-    end tail call
+      begin call
+        get upvalue: # (6) = var vec3 (38 1)
+        move: # (7) = const null (-1)
+        get property: # (8) = param a (2) [const string "x" (-37)]
+        get property: # (9) = param b (3) [const string "x" (-37)]
+        # (8) = # (8) [operator *] # (9)
+        get property: # (9) = param a (2) [const string "y" (-38)]
+        get property: # (10) = param b (3) [const string "y" (-38)]
+        # (9) = # (9) [operator *] # (10)
+        get property: # (10) = param a (2) [const string "z" (-95)]
+        get property: # (11) = param b (3) [const string "z" (-95)]
+        # (10) = # (10) [operator *] # (11)
+      end call: start 6, params 5, ret values 1
+    return: # (6), count 1
   end function: # (52), index 15
   set property: # (50) [const string "__mul" (-97)] = # (52)
   move: var vec3 (38) = # (50)
@@ -2076,12 +2082,13 @@ begin function
           3 _E
           4 _G
         end locals
-        begin tail call method
-          get property: # (5) = var _E (3) [const string "math" (-141)]
-          move: # (6) = const string "round" (-151)
-          move: # (7) = param a (2)
-          # (8) = [neg] const number 1 (-9)
-        end tail call method
+          begin call method
+            get property: # (5) = var _E (3) [const string "math" (-141)]
+            move: # (6) = const string "round" (-151)
+            move: # (7) = param a (2)
+            # (8) = [neg] const number 1 (-9)
+          end call method: start 5, params 4, ret values 1
+        return: # (5), count 1
       end function: # (56), index 28
     end call: start 53, params 4, ret values 1
   end call method: start 50, params 4, ret values 0
@@ -2105,12 +2112,13 @@ begin function
           3 _E
           4 _G
         end locals
-        begin tail call method
-          get property: # (5) = var _E (3) [const string "math" (-141)]
-          move: # (6) = const string "round" (-151)
-          move: # (7) = param a (2)
-          move: # (8) = const number 2 (-7)
-        end tail call method
+          begin call method
+            get property: # (5) = var _E (3) [const string "math" (-141)]
+            move: # (6) = const string "round" (-151)
+            move: # (7) = param a (2)
+            move: # (8) = const number 2 (-7)
+          end call method: start 5, params 4, ret values 1
+        return: # (5), count 1
       end function: # (56), index 29
     end call: start 53, params 4, ret values 1
   end call method: start 50, params 4, ret values 0
@@ -2196,12 +2204,13 @@ begin function
           3 _E
           4 _G
         end locals
-        begin tail call method
-          move: # (5) = var _E (3)
-          move: # (6) = const string "round" (-151)
-          move: # (7) = param a (2)
-          move: # (8) = const number 3 (-6)
-        end tail call method
+          begin call method
+            move: # (5) = var _E (3)
+            move: # (6) = const string "round" (-151)
+            move: # (7) = param a (2)
+            move: # (8) = const number 3 (-6)
+          end call method: start 5, params 4, ret values 1
+        return: # (5), count 1
       end function: # (56), index 30
     end call: start 53, params 4, ret values 1
   end call method: start 50, params 4, ret values 0
@@ -3052,50 +3061,52 @@ so eval(round(13.5))" (-168)
 
 [352] }(1 a)
 
-        begin tail call
+          begin call
 
 [349] {|r a|
 
-          begin function
-            begin locals 6, stack 11
-              0 _F (param)
-              1 this (param)
-              2 r (param)
-              3 a (param)
-              4 _E
-              5 _G
-            end locals
+            begin function
+              begin locals 6, stack 11
+                0 _F (param)
+                1 this (param)
+                2 r (param)
+                3 a (param)
+                4 _E
+                5 _G
+              end locals
 
 [350] if(a <= 1) return r;
 
-            begin if
-              begin bool exp
-                move: # (6) = param a (3)
-                move: # (7) = const number 1 (-9)
-                # (6) = # (6) [logic <=] # (7)
-              end bool exp
-              begin then
-                return: param r (2), count 1
-              end then
-            end if ret values 0
+              begin if
+                begin bool exp
+                  move: # (6) = param a (3)
+                  move: # (7) = const number 1 (-9)
+                  # (6) = # (6) [logic <=] # (7)
+                end bool exp
+                begin then
+                  return: param r (2), count 1
+                end then
+              end if ret values 0
 
 
 [351] return _F(r*a, a-1) // this call doesn't use call stack because of result is returned
 
-            begin tail call
-              move: # (6) = param _F (0)
-              move: # (7) = const null (-1)
-              # (8) = param r (2) [operator *] param a (3)
-              # (9) = param a (3) [operator -] const number 1 (-9)
-            end tail call
-          end function: # (5), index 41
+                begin call
+                  move: # (6) = param _F (0)
+                  move: # (7) = const null (-1)
+                  # (8) = param r (2) [operator *] param a (3)
+                  # (9) = param a (3) [operator -] const number 1 (-9)
+                end call: start 6, params 4, ret values 1
+              return: # (6), count 1
+            end function: # (5), index 41
 
 [352] }(1 a)
 
-          move: # (6) = const null (-1)
-          move: # (7) = const number 1 (-9)
-          move: # (8) = param a (2)
-        end tail call
+            move: # (6) = const null (-1)
+            move: # (7) = const number 1 (-9)
+            move: # (8) = param a (2)
+          end call: start 5, params 4, ret values 1
+        return: # (5), count 1
       end function: # (53), index 40
 
 [353] }(20)

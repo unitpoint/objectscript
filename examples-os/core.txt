@@ -89,12 +89,13 @@ begin function
 
 [12] echo "\n"
 
-    begin tail call method
-      move: # (5) = var _E (3)
-      move: # (6) = const string "echo" (-20)
-      move: # (7) = const string "
+      begin call method
+        move: # (5) = var _E (3)
+        move: # (6) = const string "echo" (-20)
+        move: # (7) = const string "
 " (-25)
-    end tail call method
+      end call method: start 5, params 3, ret values 1
+    return: # (5), count 1
   end function: # (6), index 1
   set property: var _E (2) [const string "__get" (-19)] = # (6)
 
@@ -156,16 +157,17 @@ begin function
 
 [20] echo("=======\ntarget "this"\n\n")
 
-    begin tail call method
-      move: # (6) = var _E (4)
-      move: # (7) = const string "echo" (-20)
-      move: # (8) = const string "=======
+      begin call method
+        move: # (6) = var _E (4)
+        move: # (7) = const string "echo" (-20)
+        move: # (8) = const string "=======
 target " (-27)
-      move: # (9) = param this (1)
-      move: # (10) = const string "
+        move: # (9) = param this (1)
+        move: # (10) = const string "
 
 " (-28)
-    end tail call method
+      end call method: start 6, params 5, ret values 1
+    return: # (6), count 1
   end function: # (6), index 2
 
 [15] function Object.__get(name, autoCreate){
@@ -221,16 +223,17 @@ target " (-27)
 
 [27] echo("=======\ntarget "this"\n\n")
 
-    begin tail call method
-      move: # (6) = var _E (4)
-      move: # (7) = const string "echo" (-20)
-      move: # (8) = const string "=======
+      begin call method
+        move: # (6) = var _E (4)
+        move: # (7) = const string "echo" (-20)
+        move: # (8) = const string "=======
 target " (-27)
-      move: # (9) = param this (1)
-      move: # (10) = const string "
+        move: # (9) = param this (1)
+        move: # (10) = const string "
 
 " (-28)
-    end tail call method
+      end call method: start 6, params 5, ret values 1
+    return: # (6), count 1
   end function: # (6), index 3
 
 [23] function Userdata.__set(name, value){
@@ -378,11 +381,12 @@ target " (-27)
 
 [46] printBackTrace(1) // skip current function
 
-      begin tail call method
-        move: # (9) = var _E (6)
-        move: # (10) = const string "printBackTrace" (-24)
-        move: # (11) = const number 1 (-4)
-      end tail call method
+        begin call method
+          move: # (9) = var _E (6)
+          move: # (10) = const string "printBackTrace" (-24)
+          move: # (11) = const number 1 (-4)
+        end call method: start 9, params 3, ret values 1
+      return: # (9), count 1
     end function: # (8), index 5
   end call method: start 6, params 3, ret values 0
 
@@ -502,19 +506,20 @@ target " (-27)
 
 [60] return compileText(str).applyEnv(env || _G, null, ...)
 
-    begin tail call method
       begin call method
-        move: # (6) = var _E (4)
-        move: # (7) = const string "compileText" (-61)
-        move: # (8) = param str (2)
-      end call method: start 6, params 3, ret values 1
-      move: # (7) = const string "applyEnv" (-62)
-      move: # (8) = param env (3)
-      logic ||: # (8)
-        move: # (8) = var _G (5)
-      move: # (9) = const null (-1)
-      get rest arguments: # (10)
-    end tail call method
+        begin call method
+          move: # (6) = var _E (4)
+          move: # (7) = const string "compileText" (-61)
+          move: # (8) = param str (2)
+        end call method: start 6, params 3, ret values 1
+        move: # (7) = const string "applyEnv" (-62)
+        move: # (8) = param env (3)
+        logic ||: # (8)
+          move: # (8) = var _G (5)
+        move: # (9) = const null (-1)
+        get rest arguments: # (10)
+      end call method: start 6, params 5, ret values 1
+    return: # (6), count 1
   end function: # (6), index 7
   set property: var _E (2) [const string "eval" (-60)] = # (6)
 
@@ -551,7 +556,32 @@ target " (-27)
     end pop ret values 0
 
 
-[67] events[eventName][func] = zOrder || 0
+[67] if(!(eventName in events)){
+
+    begin if
+      begin bool exp
+        begin call method
+          move: # (7) = var _G (6)
+          move: # (8) = const string "__in" (-65)
+          move: # (9) = param eventName (2)
+          get upvalue: # (10) = var events (4 1)
+        end call method: start 7, params 4, ret values 1
+        # (7) = [logic not] # (7)
+      end bool exp
+      begin then
+
+[68] events[eventName] = {}
+
+        begin scope
+          new object 0: # (7)
+          get upvalue: # (8) = var events (4 1)
+          set property: # (8) [param eventName (2)] = # (7)
+        end scope ret values 0
+      end then
+    end if ret values 0
+
+
+[70] events[eventName][func] = zOrder || 0
 
     move: # (7) = param zOrder (4)
     logic ||: # (7)
@@ -561,26 +591,26 @@ target " (-27)
     set property: # (8) [param func (3)] = # (7)
 
 
-[68] events[eventName].rsort()
+[71] events[eventName].rsort()
 
     begin call method
       get upvalue: # (7) = var events (4 1)
       get property: # (7) = # (7) [param eventName (2)]
-      move: # (8) = const string "rsort" (-65)
+      move: # (8) = const string "rsort" (-66)
     end call method: start 7, params 2, ret values 0
 
 
-[69] return [eventName func]
+[72] return [eventName func]
 
       new array 2: # (7)
       begin call method
         move: # (8) = # (7)
-        move: # (9) = const string "push" (-66)
+        move: # (9) = const string "push" (-67)
         move: # (10) = param eventName (2)
       end call method: start 8, params 3, ret values 0
       begin call method
         move: # (8) = # (7)
-        move: # (9) = const string "push" (-66)
+        move: # (9) = const string "push" (-67)
         move: # (10) = param func (3)
       end call method: start 8, params 3, ret values 0
     return: # (7), count 1
@@ -588,7 +618,7 @@ target " (-27)
   set property: var _E (2) [const string "addEventListener" (-63)] = # (6)
 
 
-[72] function removeEventListener(eventName, func){
+[75] function removeEventListener(eventName, func){
 
   begin function
     begin locals 6, stack 10
@@ -600,7 +630,7 @@ target " (-27)
       5 _G
     end locals
 
-[73] if(arrayOf(eventName)){
+[76] if(arrayOf(eventName)){
 
     begin if
       begin bool exp
@@ -612,7 +642,7 @@ target " (-27)
       end bool exp
       begin then
 
-[74] eventName, func = eventName[0], eventName[1]
+[77] eventName, func = eventName[0], eventName[1]
 
         begin scope
           get property: # (6) = param eventName (2) [const number 0 (-5)]
@@ -622,20 +652,20 @@ target " (-27)
       end then
     end if ret values 0
 
-[76] if(eventName in events){
+[79] if(eventName in events){
 
     begin if
       begin bool exp
         begin call method
           move: # (6) = var _G (5)
-          move: # (7) = const string "__in" (-68)
+          move: # (7) = const string "__in" (-65)
           move: # (8) = param eventName (2)
           get upvalue: # (9) = var events (4 1)
         end call method: start 6, params 4, ret values 1
       end bool exp
       begin then
 
-[77] delete events[eventName][func]
+[80] delete events[eventName][func]
 
         begin scope
           begin call method
@@ -649,10 +679,10 @@ target " (-27)
       end then
     end if ret values 0
   end function: # (6), index 9
-  set property: var _E (2) [const string "removeEventListener" (-67)] = # (6)
+  set property: var _E (2) [const string "removeEventListener" (-68)] = # (6)
 
 
-[81] function triggerEvent(eventName, params){
+[84] function triggerEvent(eventName, params){
 
   begin function
     begin locals 10, stack 13
@@ -664,7 +694,7 @@ target " (-27)
       5 _G
     end locals
 
-[83] for(var func, zOrder in events[eventName]){
+[86] for(var func, zOrder in events[eventName]){
 
     begin scope
       begin locals 4
@@ -703,7 +733,7 @@ target " (-27)
         end if ret values 0
 
 
-[84] func(params)
+[87] func(params)
 
         begin scope
           begin call
@@ -718,13 +748,13 @@ target " (-27)
   set property: var _E (2) [const string "triggerEvent" (-70)] = # (6)
 
 
-[88] var timers = {}
+[91] var timers = {}
 
   new object 0: # (6)
   move: var timers (5) = # (6)
 
 
-[90] function isCallable(f){
+[93] function isCallable(f){
 
   begin function
     begin locals 6, stack 9
@@ -736,7 +766,7 @@ target " (-27)
       5 type
     end locals
 
-[91] var type = typeOf(f)
+[94] var type = typeOf(f)
 
     begin call method
       move: # (6) = var _E (3)
@@ -746,7 +776,7 @@ target " (-27)
     move: var type (5) = # (6)
 
 
-[92] return type === "function" || type === "object" || type === "userdata"
+[95] return type === "function" || type === "object" || type === "userdata"
 
       move: # (6) = var type (5)
       move: # (7) = const string "function" (-72)
@@ -764,7 +794,7 @@ target " (-27)
   set property: var _E (2) [const string "isCallable" (-71)] = # (6)
 
 
-[95] function setTimeout(func, delay, count, priority){
+[98] function setTimeout(func, delay, count, priority){
 
   begin function
     begin locals 9, stack 13
@@ -779,7 +809,7 @@ target " (-27)
       8 i
     end locals
 
-[96] count = count || 1
+[99] count = count || 1
 
     move: # (9) = param count (4)
     logic ||: # (9)
@@ -787,7 +817,7 @@ target " (-27)
     move: param count (4) = # (9)
 
 
-[97] count > 0 && functionOf(func) || return;
+[100] count > 0 && functionOf(func) || return;
 
     begin pop
       move: # (9) = param count (4)
@@ -804,64 +834,64 @@ target " (-27)
     end pop ret values 0
 
 
-[98] var i = func // #timers
+[101] var i = func // #timers
 
     move: var i (8) = param func (2)
 
 
-[99] timers[i] = {
+[102] timers[i] = {
 
     new object 5: # (9)
 
-[100] nextTime = app.timeSec + delay
+[103] nextTime = app.timeSec + delay
 
     get property: # (11) = var _E (6) [const string "app" (-77)]
     get property: # (11) = # (11) [const string "timeSec" (-78)]
     # (11) = # (11) [operator +] param delay (3)
     set property: # (9) [const string "nextTime" (-76)] = # (11)
 
-[101] delay = delay
+[104] delay = delay
 
     set property: # (9) [const string "delay" (-79)] = param delay (3)
 
-[102] func = func
+[105] func = func
 
     set property: # (9) [const string "func" (-80)] = param func (2)
 
-[103] count = count
+[106] count = count
 
     set property: # (9) [const string "count" (-81)] = param count (4)
 
-[104] priority = priority || 0
+[107] priority = priority || 0
 
     move: # (11) = param priority (5)
     logic ||: # (11)
       move: # (11) = const number 0 (-5)
     set property: # (9) [const string "priority" (-82)] = # (11)
 
-[99] timers[i] = {
+[102] timers[i] = {
 
     get upvalue: # (10) = var timers (5 1)
     set property: # (10) [var i (8)] = # (9)
 
 
-[107] timers.rsort "priority"
+[110] timers.rsort "priority"
 
     begin call method
       get upvalue: # (9) = var timers (5 1)
-      move: # (10) = const string "rsort" (-65)
+      move: # (10) = const string "rsort" (-66)
       move: # (11) = const string "priority" (-82)
     end call method: start 9, params 3, ret values 0
 
 
-[108] return i
+[111] return i
 
     return: var i (8), count 1
   end function: # (6), index 12
   set property: var _E (2) [const string "setTimeout" (-75)] = # (6)
 
 
-[111] function clearTimeout(t){
+[114] function clearTimeout(t){
 
   begin function
     begin locals 5, stack 9
@@ -872,7 +902,7 @@ target " (-27)
       4 _G
     end locals
 
-[112] delete timers[t]
+[115] delete timers[t]
 
     begin call method
       move: # (5) = var _G (4)
@@ -884,13 +914,13 @@ target " (-27)
   set property: var _E (2) [const string "clearTimeout" (-83)] = # (6)
 
 
-[115] HIGH_PRIORITY = 999999
+[118] HIGH_PRIORITY = 999999
 
   move: # (6) = const number 999999 (-6)
   set property: var _E (2) [const string "HIGH_PRIORITY" (-84)] = # (6)
 
 
-[117] addEventListener("enterFrame" {||
+[120] addEventListener("enterFrame" {||
 
   begin call method
     move: # (6) = var _E (2)
@@ -907,12 +937,12 @@ target " (-27)
           4 time
         end locals
 
-[118] var time = app.timeSec
+[121] var time = app.timeSec
 
         get property: # (9) = var _E (2) [const string "app" (-77)]
         get property: var time (4) = # (9) [const string "timeSec" (-78)]
 
-[119] for(var i, t in timers){
+[122] for(var i, t in timers){
 
         begin scope
           begin locals 4
@@ -950,7 +980,7 @@ target " (-27)
             end if ret values 0
 
 
-[120] if(t.nextTime <= time){
+[123] if(t.nextTime <= time){
 
             begin scope
               begin if
@@ -961,7 +991,7 @@ target " (-27)
                 end bool exp
                 begin then
 
-[121] t.nextTime = time + t.delay
+[124] t.nextTime = time + t.delay
 
                   begin scope
                     get property: # (10) = var t (6) [const string "delay" (-79)]
@@ -969,7 +999,7 @@ target " (-27)
                     set property: var t (6) [const string "nextTime" (-76)] = # (9)
 
 
-[122] if(t.count === true){
+[125] if(t.count === true){
 
                     begin if
                       begin bool exp
@@ -979,7 +1009,7 @@ target " (-27)
                       end bool exp
                       begin then
 
-[123] t.func.call(null)
+[126] t.func.call(null)
 
                         begin scope
                           begin call method
@@ -991,7 +1021,7 @@ target " (-27)
                       end then
                       begin else
 
-[125] if(t.count <= 1){
+[128] if(t.count <= 1){
 
                         begin scope
                           begin if
@@ -1002,7 +1032,7 @@ target " (-27)
                             end bool exp
                             begin then
 
-[126] delete timers[i]
+[129] delete timers[i]
 
                               begin scope
                                 begin call method
@@ -1015,7 +1045,7 @@ target " (-27)
                             end then
                             begin else
 
-[128] t.count = t.count - 1
+[131] t.count = t.count - 1
 
                               begin scope
                                 get property: # (9) = var t (6) [const string "count" (-81)]
@@ -1026,7 +1056,7 @@ target " (-27)
                           end if ret values 0
 
 
-[130] t.func.call(null)
+[133] t.func.call(null)
 
                           begin call method
                             get property: # (9) = var t (6) [const string "func" (-80)]
@@ -1045,14 +1075,14 @@ target " (-27)
       end function: # (10), index 14
     end call: start 8, params 3, ret values 1
 
-[134] } HIGH_PRIORITY+1)
+[137] } HIGH_PRIORITY+1)
 
     get property: # (9) = var _E (2) [const string "HIGH_PRIORITY" (-84)]
     # (9) = # (9) [operator +] const number 1 (-4)
   end call method: start 6, params 4, ret values 0
 
 
-[136] function toArray(a){
+[139] function toArray(a){
 
   begin function
     begin locals 11, stack 15
@@ -1064,7 +1094,7 @@ target " (-27)
       5 type
     end locals
 
-[137] arrayOf(a) && return arr;
+[140] arrayOf(a) && return arr;
 
     begin pop
       begin call method
@@ -1078,7 +1108,7 @@ target " (-27)
     end pop ret values 0
 
 
-[138] var type = typeOf(a)
+[141] var type = typeOf(a)
 
     begin call method
       move: # (11) = var _E (3)
@@ -1088,7 +1118,7 @@ target " (-27)
     move: var type (5) = # (11)
 
 
-[139] if(type == "object"){
+[142] if(type == "object"){
 
     begin if
       begin bool exp
@@ -1098,7 +1128,7 @@ target " (-27)
       end bool exp
       begin then
 
-[140] var arr = []
+[143] var arr = []
 
         begin scope
           begin locals 1
@@ -1108,7 +1138,7 @@ target " (-27)
           move: var arr (6) = # (11)
 
 
-[141] for(var i, v in a){
+[144] for(var i, v in a){
 
           begin scope
             begin locals 4
@@ -1146,12 +1176,12 @@ target " (-27)
               end if ret values 0
 
 
-[142] arr.push(v)
+[145] arr.push(v)
 
               begin scope
                 begin call method
                   move: # (11) = var arr (6)
-                  move: # (12) = const string "push" (-66)
+                  move: # (12) = const string "push" (-67)
                   move: # (13) = var v (8)
                 end call method: start 11, params 3, ret values 0
               end scope ret values 0
@@ -1159,7 +1189,7 @@ target " (-27)
           end scope ret values 0
 
 
-[144] return arr
+[147] return arr
 
           return: var arr (6), count 1
         end scope ret values 0
@@ -1167,7 +1197,7 @@ target " (-27)
     end if ret values 0
 
 
-[146] if(type == "null"){
+[149] if(type == "null"){
 
     begin if
       begin bool exp
@@ -1177,7 +1207,7 @@ target " (-27)
       end bool exp
       begin then
 
-[147] return null
+[150] return null
 
         begin scope
             move: # (11) = const null (-1)
@@ -1187,12 +1217,12 @@ target " (-27)
     end if ret values 0
 
 
-[149] return [a]
+[152] return [a]
 
       new array 1: # (11)
       begin call method
         move: # (12) = # (11)
-        move: # (13) = const string "push" (-66)
+        move: # (13) = const string "push" (-67)
         move: # (14) = param a (2)
       end call method: start 12, params 3, ret values 0
     return: # (11), count 1
@@ -1200,7 +1230,7 @@ target " (-27)
   set property: var _E (2) [const string "toArray" (-87)] = # (6)
 
 
-[152] function toObject(a){
+[155] function toObject(a){
 
   begin function
     begin locals 11, stack 15
@@ -1212,7 +1242,7 @@ target " (-27)
       5 type
     end locals
 
-[153] objectOf(a) && return object;
+[156] objectOf(a) && return object;
 
     begin pop
       begin call method
@@ -1226,7 +1256,7 @@ target " (-27)
     end pop ret values 0
 
 
-[154] var type = typeOf(a)
+[157] var type = typeOf(a)
 
     begin call method
       move: # (11) = var _E (3)
@@ -1236,7 +1266,7 @@ target " (-27)
     move: var type (5) = # (11)
 
 
-[155] if(type == "array"){
+[158] if(type == "array"){
 
     begin if
       begin bool exp
@@ -1246,7 +1276,7 @@ target " (-27)
       end bool exp
       begin then
 
-[156] var object = {}
+[159] var object = {}
 
         begin scope
           begin locals 1
@@ -1256,7 +1286,7 @@ target " (-27)
           move: var object (6) = # (11)
 
 
-[157] for(var i, v in a){
+[160] for(var i, v in a){
 
           begin scope
             begin locals 4
@@ -1294,12 +1324,12 @@ target " (-27)
               end if ret values 0
 
 
-[158] object.push(v)
+[161] object.push(v)
 
               begin scope
                 begin call method
                   move: # (11) = var object (6)
-                  move: # (12) = const string "push" (-66)
+                  move: # (12) = const string "push" (-67)
                   move: # (13) = var v (8)
                 end call method: start 11, params 3, ret values 0
               end scope ret values 0
@@ -1307,7 +1337,7 @@ target " (-27)
           end scope ret values 0
 
 
-[160] return object
+[163] return object
 
           return: var object (6), count 1
         end scope ret values 0
@@ -1315,7 +1345,7 @@ target " (-27)
     end if ret values 0
 
 
-[162] if(type == "null"){
+[165] if(type == "null"){
 
     begin if
       begin bool exp
@@ -1325,7 +1355,7 @@ target " (-27)
       end bool exp
       begin then
 
-[163] return null
+[166] return null
 
         begin scope
             move: # (11) = const null (-1)
@@ -1335,12 +1365,12 @@ target " (-27)
     end if ret values 0
 
 
-[165] return {a}
+[168] return {a}
 
       new object 1: # (11)
       begin call method
         move: # (12) = # (11)
-        move: # (13) = const string "push" (-66)
+        move: # (13) = const string "push" (-67)
         move: # (14) = param a (2)
       end call method: start 12, params 3, ret values 0
     return: # (11), count 1
@@ -1348,7 +1378,7 @@ target " (-27)
   set property: var _E (2) [const string "toObject" (-90)] = # (6)
 
 
-[168] function Object.deepClone(){
+[171] function Object.deepClone(){
 
   begin function
     begin locals 9, stack 12
@@ -1359,7 +1389,7 @@ target " (-27)
       4 t
     end locals
 
-[169] var t = this.clone()
+[172] var t = this.clone()
 
     begin call method
       move: # (9) = param this (1)
@@ -1368,7 +1398,7 @@ target " (-27)
     move: var t (4) = # (9)
 
 
-[170] for(var k, v in t){
+[173] for(var k, v in t){
 
     begin scope
       begin locals 4
@@ -1406,7 +1436,7 @@ target " (-27)
         end if ret values 0
 
 
-[171] t[k] = v.deepClone()
+[174] t[k] = v.deepClone()
 
         begin scope
           begin call method
@@ -1419,18 +1449,18 @@ target " (-27)
     end scope ret values 0
 
 
-[173] return t
+[176] return t
 
     return: var t (4), count 1
   end function: # (6), index 17
 
-[168] function Object.deepClone(){
+[171] function Object.deepClone(){
 
   get property: # (7) = var _E (2) [const string "Object" (-29)]
   set property: # (7) [const string "deepClone" (-93)] = # (6)
 
 
-[176] function Object.flip(){
+[179] function Object.flip(){
 
   begin function
     begin locals 9, stack 12
@@ -1441,13 +1471,13 @@ target " (-27)
       4 r
     end locals
 
-[177] var r = {}
+[180] var r = {}
 
     new object 0: # (9)
     move: var r (4) = # (9)
 
 
-[178] for(var i, v in this){
+[181] for(var i, v in this){
 
     begin scope
       begin locals 4
@@ -1485,7 +1515,7 @@ target " (-27)
         end if ret values 0
 
 
-[179] r[v] = i
+[182] r[v] = i
 
         begin scope
           set property: var r (4) [var v (6)] = var i (5)
@@ -1494,18 +1524,18 @@ target " (-27)
     end scope ret values 0
 
 
-[181] return r
+[184] return r
 
     return: var r (4), count 1
   end function: # (6), index 18
 
-[176] function Object.flip(){
+[179] function Object.flip(){
 
   get property: # (7) = var _E (2) [const string "Object" (-29)]
   set property: # (7) [const string "flip" (-94)] = # (6)
 
 
-[184] function math.clamp(a, min, max){
+[187] function math.clamp(a, min, max){
 
   begin function
     begin locals 7, stack 9
@@ -1518,7 +1548,7 @@ target " (-27)
       6 _G
     end locals
 
-[185] return a < min ? min : a > max ? max : a
+[188] return a < min ? min : a > max ? max : a
 
       begin question
         begin bool exp
@@ -1548,13 +1578,13 @@ target " (-27)
     return: # (7), count 1
   end function: # (6), index 19
 
-[184] function math.clamp(a, min, max){
+[187] function math.clamp(a, min, max){
 
   get property: # (7) = var _E (2) [const string "math" (-95)]
   set property: # (7) [const string "clamp" (-96)] = # (6)
 
 
-[186] }
+[189] }
 
   return: var _E (2), count 1
 end function: <<->> (0), index 0

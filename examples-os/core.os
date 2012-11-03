@@ -64,6 +64,9 @@ var events = {}
 
 function addEventListener(eventName, func, zOrder){
 	functionOf(func) || return;
+	if(!(eventName in events)){
+		events[eventName] = {}
+	}
 	events[eventName][func] = zOrder || 0
 	events[eventName].rsort()
 	return [eventName func]
