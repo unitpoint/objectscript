@@ -114,7 +114,7 @@ void registerTestClass(OS * os)
 		def("__set@i", &TestClass::setI),
 		def("__get@j", &TestClass::getJ),
 		def("__set@j", &TestClass::setJ),
-		def("__clone", &TestClass::clone),
+		def("clone", &TestClass::clone),
 		def("__add", &TestClass::add),
 		def("doSomething", &TestClass::doSomething),
 		def("print", &TestClass::print),

@@ -121,6 +121,7 @@ var Person = {
 var p = Person("James", "Bond")
 p.walk()
 print p
+print "p is Person = " .. (p is Person)
 
 // inherit class
 var IvanPerson = extends Person {
@@ -195,7 +196,7 @@ print "should be {x:11,y:24,z:39} " .. v3
 		}
 		__del = function(name){
 			if(name == "color")
-				delete @_color
+				delete this._color
 		}
 	}
 	
@@ -232,7 +233,7 @@ print "should be {x:11,y:24,z:39} " .. v3
 }
 
 print "Test function inline call"
-print "should be 7: " .. (function(a b c){ return a + b * c }(1 2 3))
+print "should be 7: " .. {|a b c| a + b * c }(1 2 3)
 
 ;{
 	print "Test local vars scope"
@@ -265,7 +266,7 @@ print("random" a)
 delete Array.__iter // delete our iterator, use default one
 
 var transform = function(a f){
-	var r = typeof(a) === "array" && [] || {}
+	var r = arrayOf(a) ? [] : {}
 	for(var i, v in a){
 		r[i] = f(v)
 	}
@@ -348,6 +349,16 @@ print "Test in operator (should be true) "..("name" in {x = 0 y = 0 name = 0 ind
 
 print "Test _F and recursion"
 print "factorial(20) = " .. {|a| a <= 1 ? 1 : a*_F(a-1)}(20)
+
+function Object.each(func){
+	for(var k, v in this){
+		func(v, k)
+	}
+}
+
+[10 20 30 40].each {|a|
+	print a
+}
 
 terminate()
 print "This text is never printed"

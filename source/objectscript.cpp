@@ -16645,7 +16645,7 @@ void OS::initGlobalFunctions()
 			for(int i = 0; i < params; i++){
 				buf += os->toString(-params + i);
 			}
-			os->pushString(buf.toString());
+			os->pushString(buf);
 			return 1;
 		}
 
@@ -17222,8 +17222,8 @@ void OS::initObjectClass()
 				}
 				if(*str < OS_TEXT(' ')){
 					buf += OS_TEXT("0x");
-					buf.append((OS_CHAR)'A' + ((int)*str >> 4));
-					buf.append((OS_CHAR)'A' + ((int)*str >> 0));
+					buf.append((OS_CHAR)'A' + (((int)*str >> 4) & 0xF));
+					buf.append((OS_CHAR)'A' + (((int)*str >> 0) & 0xF));
 					continue;
 				}
 				buf.append(*str);

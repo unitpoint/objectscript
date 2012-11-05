@@ -18,7 +18,7 @@ t2.print()
 
 print "t.doSomething(10, 100.001, 1000.1, t2): "..t.doSomething(10, 100.001, 1000.1, t2)
 
-var t2 = clone t
+var t2 = t.clone()
 t2.i = t2.i + 10
 t2.j = t2.j + 20.5
 

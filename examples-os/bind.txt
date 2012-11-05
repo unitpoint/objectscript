@@ -3,520 +3,380 @@
 [1] print "getcwd: "..getcwd()
 
 begin function
-  begin locals, total 8
-    0 _E
-    1 _G
-    2 data
-    3 t
-    4 t2
-    5 t2
-    6 t3
-    7 t3
+  begin locals 10, stack 21
+    0 _F (param)
+    1 this (param)
+    2 _E
+    3 _G
+    4 data
+    5 t
+    6 t2
+    7 t2
+    8 t3
+    9 t3
   end locals
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "getcwd: "
-        begin call method
-          get local var _E (0 0)
-          begin params 1
-            push const string "getcwd"
-          end params ret values 1
-        end call method ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "getcwd: " (-18)
+      begin call method
+        move: # (15) = var _E (2)
+        move: # (16) = const string "getcwd" (-19)
+      end call method: start 15, params 2, ret values 1
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
 
 [4] var data = {a=10 b=20}
 
-  begin set local var
-    begin object 2
-      begin set by name
-        push const number 10
-      end set by name: [a]
-      ,
-      begin set by name
-        push const number 20
-      end set by name: [b]
-    end object
-  end set local var data (2 0)
+  new object 2: # (10)
+  set property: # (10) [const string "a" (-20)] = const number 10 (-4)
+  set property: # (10) [const string "b" (-21)] = const number 20 (-5)
+  move: var data (4) = # (10)
 
 
 [5] printTestStruct(data)
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "printTestStruct"
-      ,
-      get local var data (2 0)
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "printTestStruct" (-22)
+    move: # (12) = var data (4)
+  end call method: start 10, params 3, ret values 0
 
 
 [6] data = changeTestStruct(data)
 
-  begin set local var
-    begin call method
-      get local var _E (0 0)
-      begin params 2
-        push const string "changeTestStruct"
-        ,
-        get local var data (2 0)
-      end params ret values 2
-    end call method ret values 1
-  end set local var data (2 0)
+  begin call method
+    move: # (10) = var _E (2)
+    move: # (11) = const string "changeTestStruct" (-23)
+    move: # (12) = var data (4)
+  end call method: start 10, params 3, ret values 1
+  move: var data (4) = # (10)
 
 
 [7] printTestStruct(data)
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "printTestStruct"
-      ,
-      get local var data (2 0)
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "printTestStruct" (-22)
+    move: # (12) = var data (4)
+  end call method: start 10, params 3, ret values 0
 
 
 [8] print data
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      get local var data (2 0)
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    move: # (12) = var data (4)
+  end call method: start 10, params 3, ret values 0
 
 
 [10] var t = TestClass(1, 0.25)
 
-  begin set local var
-    begin call method
-      get local var _E (0 0)
-      begin params 3
-        push const string "TestClass"
-        ,
-        push const number 1
-        ,
-        push const number 0.25
-      end params ret values 3
-    end call method ret values 1
-  end set local var t (3 0)
+  begin call method
+    move: # (10) = var _E (2)
+    move: # (11) = const string "TestClass" (-24)
+    move: # (12) = const number 1 (-6)
+    move: # (13) = const number 0.25 (-7)
+  end call method: start 10, params 4, ret values 1
+  move: var t (5) = # (10)
 
 
 [11] print "t.i: "..t.i
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "t.i: "
-        begin get property
-          get local var t (3 0)
-          push const string "i"
-        end get property ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "t.i: " (-25)
+      get property: # (15) = var t (5) [const string "i" (-26)]
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
 
 [12] print "t.j: "..t.j
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "t.j: "
-        begin get property
-          get local var t (3 0)
-          push const string "j"
-        end get property ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "t.j: " (-27)
+      get property: # (15) = var t (5) [const string "j" (-28)]
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
 
 [14] var t2 = TestClass(2, 0.5)
 
-  begin set local var
-    begin call method
-      get local var _E (0 0)
-      begin params 3
-        push const string "TestClass"
-        ,
-        push const number 2
-        ,
-        push const number 0.5
-      end params ret values 3
-    end call method ret values 1
-  end set local var t2 (4 0)
+  begin call method
+    move: # (10) = var _E (2)
+    move: # (11) = const string "TestClass" (-24)
+    move: # (12) = const number 2 (-8)
+    move: # (13) = const number 0.5 (-9)
+  end call method: start 10, params 4, ret values 1
+  move: var t2 (6) = # (10)
 
 
 [15] t2.i = t2.i + t.j
 
-  begin set property
-    begin operator +
-      begin get property
-        get local var t2 (4 0)
-        push const string "i"
-      end get property ret values 1
-      begin get property
-        get local var t (3 0)
-        push const string "j"
-      end get property ret values 1
-    end operator +
-    get local var auto create t2 (4 0)
-    push const string "i"
-  end set property ret values 0
+  get property: # (10) = var t2 (6) [const string "i" (-26)]
+  get property: # (11) = var t (5) [const string "j" (-28)]
+  # (10) = # (10) [operator +] # (11)
+  set property: var t2 (6) [const string "i" (-26)] = # (10)
 
 
 [16] print "t2"
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      push const string "t2"
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    move: # (12) = const string "t2" (-29)
+  end call method: start 10, params 3, ret values 0
 
 
 [17] t2.print()
 
   begin call method
-    get local var t2 (4 0)
-    begin params 1
-      push const string "print"
-    end params ret values 1
-  end call method ret values 0
+    move: # (10) = var t2 (6)
+    move: # (11) = const string "print" (-16)
+  end call method: start 10, params 2, ret values 0
 
 
 [19] print "t.doSomething(10, 100.001, 1000.1, t2): "..t.doSomething(10, 100.001, 1000.1, t2)
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "t.doSomething(10, 100.001, 1000.1, t2): "
-        begin call method
-          get local var t (3 0)
-          begin params 5
-            push const string "doSomething"
-            ,
-            push const number 10
-            ,
-            push const number 100.001
-            ,
-            push const number 1000.1
-            ,
-            get local var t2 (4 0)
-          end params ret values 5
-        end call method ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "t.doSomething(10, 100.001, 1000.1, t2): " (-30)
+      begin call method
+        move: # (15) = var t (5)
+        move: # (16) = const string "doSomething" (-31)
+        move: # (17) = const number 10 (-4)
+        move: # (18) = const number 100.001 (-10)
+        move: # (19) = const number 1000.1 (-11)
+        move: # (20) = var t2 (6)
+      end call method: start 15, params 6, ret values 1
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
 
-[21] var t2 = clone t
+[21] var t2 = t.clone()
 
-  begin set local var
-    begin clone
-      get local var t (3 0)
-    end clone
-  end set local var t2 (5 0)
+  begin call method
+    move: # (10) = var t (5)
+    move: # (11) = const string "clone" (-32)
+  end call method: start 10, params 2, ret values 1
+  move: var t2 (7) = # (10)
 
 
 [22] t2.i = t2.i + 10
 
-  begin set property
-    begin operator +
-      begin get property
-        get local var t2 (5 0)
-        push const string "i"
-      end get property ret values 1
-      push const number 10
-    end operator +
-    get local var auto create t2 (5 0)
-    push const string "i"
-  end set property ret values 0
+  get property: # (10) = var t2 (7) [const string "i" (-26)]
+  # (10) = # (10) [operator +] const number 10 (-4)
+  set property: var t2 (7) [const string "i" (-26)] = # (10)
 
 
 [23] t2.j = t2.j + 20.5
 
-  begin set property
-    begin operator +
-      begin get property
-        get local var t2 (5 0)
-        push const string "j"
-      end get property ret values 1
-      push const number 20.5
-    end operator +
-    get local var auto create t2 (5 0)
-    push const string "j"
-  end set property ret values 0
+  get property: # (10) = var t2 (7) [const string "j" (-28)]
+  # (10) = # (10) [operator +] const number 20.5 (-12)
+  set property: var t2 (7) [const string "j" (-28)] = # (10)
 
 
 [25] var t3 = t + t2
 
-  begin set local var by bin operator locals
-    begin binary operator by locals
-      begin operator +
-        get local var t (3 0)
-        get local var t2 (5 0)
-      end operator +
-    end binary operator by locals
-  end set local var by bin operator locals t3 (6 0)
+  var t3 (8) = var t (5) [operator +] var t2 (7)
 
 
 [26] t3.print()
 
   begin call method
-    get local var t3 (6 0)
-    begin params 1
-      push const string "print"
-    end params ret values 1
-  end call method ret values 0
+    move: # (10) = var t3 (8)
+    move: # (11) = const string "print" (-16)
+  end call method: start 10, params 2, ret values 0
 
 
 [28] var t3 = NewTestClass()
 
-  begin set local var
-    begin call method
-      get local var _E (0 0)
-      begin params 1
-        push const string "NewTestClass"
-      end params ret values 1
-    end call method ret values 1
-  end set local var t3 (7 0)
+  begin call method
+    move: # (10) = var _E (2)
+    move: # (11) = const string "NewTestClass" (-33)
+  end call method: start 10, params 2, ret values 1
+  move: var t3 (9) = # (10)
 
 
 [29] print "t3"
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      push const string "t3"
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    move: # (12) = const string "t3" (-34)
+  end call method: start 10, params 3, ret values 0
 
 
 [30] t3.print()
 
   begin call method
-    get local var t3 (7 0)
-    begin params 1
-      push const string "print"
-    end params ret values 1
-  end call method ret values 0
+    move: # (10) = var t3 (9)
+    move: # (11) = const string "print" (-16)
+  end call method: start 10, params 2, ret values 0
 
 
 [31] print "t3.doSomething(10, 100.001, 1000.1, t3): "..t3.doSomething(10, 100.001, 1000.1, t3)
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "t3.doSomething(10, 100.001, 1000.1, t3): "
-        begin call method
-          get local var t3 (7 0)
-          begin params 5
-            push const string "doSomething"
-            ,
-            push const number 10
-            ,
-            push const number 100.001
-            ,
-            push const number 1000.1
-            ,
-            get local var t3 (7 0)
-          end params ret values 5
-        end call method ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "t3.doSomething(10, 100.001, 1000.1, t3): " (-35)
+      begin call method
+        move: # (15) = var t3 (9)
+        move: # (16) = const string "doSomething" (-31)
+        move: # (17) = const number 10 (-4)
+        move: # (18) = const number 100.001 (-10)
+        move: # (19) = const number 1000.1 (-11)
+        move: # (20) = var t3 (9)
+      end call method: start 15, params 6, ret values 1
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
 
 [33] print "isdigit(123): "..my.isdigit("123")
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "isdigit(123): "
-        begin call method
-          get env var my
-          begin params 2
-            push const string "isdigit"
-            ,
-            push const string "123"
-          end params ret values 2
-        end call method ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "isdigit(123): " (-36)
+      begin call method
+        get property: # (15) = var _E (2) [const string "my" (-37)]
+        move: # (16) = const string "isdigit" (-38)
+        move: # (17) = const string "123" (-39)
+      end call method: start 15, params 3, ret values 1
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
 
 [34] print "isdigit(123q): "..my.isdigit("123q")
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "isdigit(123q): "
-        begin call method
-          get env var my
-          begin params 2
-            push const string "isdigit"
-            ,
-            push const string "123q"
-          end params ret values 2
-        end call method ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "isdigit(123q): " (-40)
+      begin call method
+        get property: # (15) = var _E (2) [const string "my" (-37)]
+        move: # (16) = const string "isdigit" (-38)
+        move: # (17) = const string "123q" (-41)
+      end call method: start 15, params 3, ret values 1
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
 
 [36] print "my.hash(123): "..my.hash(123)
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "my.hash(123): "
-        begin call method
-          get env var my
-          begin params 2
-            push const string "hash"
-            ,
-            push const number 123
-          end params ret values 2
-        end call method ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "my.hash(123): " (-42)
+      begin call method
+        get property: # (15) = var _E (2) [const string "my" (-37)]
+        move: # (16) = const string "hash" (-43)
+        move: # (17) = const number 123 (-13)
+      end call method: start 15, params 3, ret values 1
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
 
 [38] print "call my.print_num(123.5)"
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      push const string "call my.print_num(123.5)"
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    move: # (12) = const string "call my.print_num(123.5)" (-44)
+  end call method: start 10, params 3, ret values 0
 
 
 [39] my.print_num(123.5)
 
   begin call method
-    get env var my
-    begin params 2
-      push const string "print_num"
-      ,
-      push const number 123.5
-    end params ret values 2
-  end call method ret values 0
+    get property: # (10) = var _E (2) [const string "my" (-37)]
+    move: # (11) = const string "print_num" (-45)
+    move: # (12) = const number 123.5 (-14)
+  end call method: start 10, params 3, ret values 0
 
 
 [40] print "call my.print_void()"
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      push const string "call my.print_void()"
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    move: # (12) = const string "call my.print_void()" (-46)
+  end call method: start 10, params 3, ret values 0
 
 
 [41] my.print_void()
 
   begin call method
-    get env var my
-    begin params 1
-      push const string "print_void"
-    end params ret values 1
-  end call method ret values 0
+    get property: # (10) = var _E (2) [const string "my" (-37)]
+    move: # (11) = const string "print_void" (-47)
+  end call method: start 10, params 2, ret values 0
 
 
 [42] print "my.abs(-12): "..my.abs(-12)
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "my.abs(-12): "
-        begin call method
-          get env var my
-          begin params 2
-            push const string "abs"
-            ,
-            begin neg
-              push const number 12
-            end neg
-          end params ret values 2
-        end call method ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "my.abs(-12): " (-48)
+      begin call method
+        get property: # (15) = var _E (2) [const string "my" (-37)]
+        move: # (16) = const string "abs" (-49)
+        # (17) = [neg] const number 12 (-15)
+      end call method: start 15, params 3, ret values 1
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
 
 [43] print "my.fabs(-123.5): "..my.fabs(-123.5)
 
   begin call method
-    get local var _E (0 0)
-    begin params 2
-      push const string "print"
-      ,
-      begin operator ..
-        push const string "my.fabs(-123.5): "
-        begin call method
-          get env var my
-          begin params 2
-            push const string "fabs"
-            ,
-            begin neg
-              push const number 123.5
-            end neg
-          end params ret values 2
-        end call method ret values 1
-      end operator ..
-    end params ret values 2
-  end call method ret values 0
+    move: # (10) = var _E (2)
+    move: # (11) = const string "print" (-16)
+    begin call method
+      move: # (12) = var _G (3)
+      move: # (13) = const string "concat" (-17)
+      move: # (14) = const string "my.fabs(-123.5): " (-50)
+      begin call method
+        get property: # (15) = var _E (2) [const string "my" (-37)]
+        move: # (16) = const string "fabs" (-51)
+        # (17) = [neg] const number 123.5 (-14)
+      end call method: start 15, params 3, ret values 1
+    end call method: start 12, params 4, ret values 1
+  end call method: start 10, params 3, ret values 0
 
-  begin code list
-    begin return
-      get local var _E (0 0)
-    end return values 1
-  end code list ret values 0
-end function
+  return: var _E (2), count 1
+end function: <<->> (0), index 0
