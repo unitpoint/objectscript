@@ -524,11 +524,11 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
 {
 	if(precision <= 0) {
 		if(precision < 0) {
-			OS_FLOAT p = 10.0f;
+			OS_FLOAT p = 10.0;
 			for(int i = -precision-1; i > 0; i--){
-				p *= 10.0f;
+				p *= 10.0;
 			}
-			a = ::floor(a / p + 0.5f) * p;
+			a = ::floor(a / p + 0.5) * p;
 		}
 		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.f"), a);
 		return dst;
@@ -16608,8 +16608,587 @@ void OS::setGlobal(const FuncDef& func, bool anonymous_setter_enabled, bool name
 	setGlobal(func.name, anonymous_setter_enabled, named_setter_enabled);
 }
 
+static const OS_CHAR DIGITS[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+static const OS_CHAR UPPER_DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 void OS::initGlobalFunctions()
 {
+	struct Format
+	{
+		enum {
+			ZEROPAD = 1,               // Pad with zero
+			SIGN    = 2,               // Unsigned/signed long
+			PLUS    = 4,               // Show plus
+			SPACE   = 8,               // Space if plus
+			LEFT    = 16,              // Left justified
+			SPECIAL = 32,              // 0x
+			LARGE   = 64,              // Use 'ABCDEF' instead of 'abcdef'
+			PRECISION = 128,
+			CVTBUFSIZE = 352
+		};
+
+		static OS_CHAR toSingleChar(const String& s)
+		{
+			return s.getLen() > 0 ? s.toChar()[0] : OS_TEXT(' ');
+		}
+
+		static void number(OS::Core::StringBuffer& buf, long num, int base, int size, int precision, int type)
+		{
+			OS_CHAR c, sign, tmp[128];
+			const OS_CHAR *dig = DIGITS;
+			int i;
+
+			if(precision < 0){
+				double p = 10.0;
+				for(int i = -precision-1; i > 0; i--){
+					p *= 10.0;
+				}
+				num = (long)(::floor(num / p + 0.5) * p);
+				// precision = 0;
+				// type &= ~PRECISION;
+			}
+
+			if (type & LARGE)  dig = UPPER_DIGITS;
+			if (type & LEFT) type &= ~ZEROPAD;
+			if (base < 2 || base > 36) return;
+
+			c = (type & ZEROPAD) ? '0' : ' ';
+			sign = 0;
+			if(1){ // type & SIGN) {
+				if (num < 0) {
+					sign = '-';
+					num = -num;
+					size--;
+				} else if (type & PLUS) {
+					sign = '+';
+					size--;
+				} else if (type & SPACE) {
+					sign = ' ';
+					size--;
+				}
+			}
+
+			if (type & SPECIAL) {
+				if (base == 16) {
+					size -= 2;
+				} else if (base == 8) {
+					size--;
+				}
+			}
+
+			i = 0;
+
+			if (num == 0) {
+				tmp[i++] = '0';
+			} else {
+				while (num != 0) {
+					tmp[i++] = dig[((unsigned long) num) % (unsigned) base];
+					num = ((unsigned long) num) / (unsigned) base;
+				}
+			}
+
+			if (i > precision) precision = i;
+			size -= precision;
+			if (!(type & (ZEROPAD | LEFT))) while (size-- > 0) buf.append(OS_TEXT(' '));
+			if (sign) buf.append(sign);
+
+			if (type & SPECIAL) {
+				if (base == 8) {
+					buf.append(OS_TEXT('0'));
+				} else if (base == 16) {
+					buf.append(OS_TEXT('0'));
+					buf.append(DIGITS[33]);
+				}
+			}
+
+			if (!(type & LEFT)) while (size-- > 0) buf.append(c);
+			while (i < precision--) buf.append(OS_TEXT('0'));
+			while (i-- > 0) buf.append(tmp[i]);
+			while (size-- > 0) buf.append(OS_TEXT(' '));
+		}
+
+#if 0
+		static OS_CHAR *cvt(double arg, int ndigits, int *decpt, int *sign, OS_CHAR *buf, int eflag)
+		{
+			int r2;
+			double fi, fj;
+			OS_CHAR *p, *p1;
+
+			if (ndigits < 0) ndigits = 0;
+			if (ndigits >= CVTBUFSIZE - 1) ndigits = CVTBUFSIZE - 2;
+			r2 = 0;
+			*sign = 0;
+			p = &buf[0];
+			if (arg < 0) {
+				*sign = 1;
+				arg = -arg;
+			}
+			arg = modf(arg, &fi);
+			p1 = &buf[CVTBUFSIZE];
+
+			if (fi != 0) {
+				p1 = &buf[CVTBUFSIZE];
+				while (fi != 0) {
+					fj = ::modf(fi / 10, &fi);
+					*--p1 = (int)((fj + .03) * 10) + OS_TEXT('0');
+					r2++;
+				}
+				while (p1 < &buf[CVTBUFSIZE]) *p++ = *p1++;
+			} else if (arg > 0) {
+				while ((fj = arg * 10) < 1) {
+					arg = fj;
+					r2--;
+				}
+			}
+			p1 = &buf[ndigits];
+			if (eflag == 0) p1 += r2;
+			*decpt = r2;
+			if (p1 < &buf[0]) {
+				buf[0] = OS_TEXT('\0');
+				return buf;
+			}
+			while (p <= p1 && p < &buf[CVTBUFSIZE]) {
+				arg *= 10;
+				arg = modf(arg, &fj);
+				*p++ = (int) fj + OS_TEXT('0');
+			}
+			if (p1 >= &buf[CVTBUFSIZE]) {
+				buf[CVTBUFSIZE - 1] = OS_TEXT('\0');
+				return buf;
+			}
+			p = p1;
+			*p1 += 5;
+			while (*p1 > OS_TEXT('9')) {
+				*p1 = OS_TEXT('0');
+				if (p1 > buf) {
+					++*--p1;
+				} else {
+					*p1 = OS_TEXT('1');
+					(*decpt)++;
+					if (eflag == 0) {
+						if (p > buf) *p = OS_TEXT('0');
+						p++;
+					}
+				}
+			}
+			*p = OS_TEXT('\0');
+			return buf;
+		}
+
+		static OS_CHAR *ecvtbuf(double arg, int ndigits, int *decpt, int *sign, OS_CHAR *buf)
+		{
+			return cvt(arg, ndigits, decpt, sign, buf, 1);
+		}
+
+		static OS_CHAR *fcvtbuf(double arg, int ndigits, int *decpt, int *sign, OS_CHAR *buf)
+		{
+			return cvt(arg, ndigits, decpt, sign, buf, 0);
+		}
+
+		static void cfltcvt(double value, OS_CHAR *buffer, OS_CHAR fmt, int precision)
+		{
+			int decpt, sign, exp, pos;
+			OS_CHAR *digits = NULL;
+			OS_CHAR cvtbuf[CVTBUFSIZE];
+			int capexp = 0;
+			int magnitude;
+
+			if (fmt == OS_TEXT('G') || fmt == OS_TEXT('E')) {
+				capexp = 1;
+				fmt += OS_TEXT('a') - OS_TEXT('A');
+			}
+
+			if (fmt == OS_TEXT('g')) {
+				digits = ecvtbuf(value, precision, &decpt, &sign, cvtbuf);
+				magnitude = decpt - 1;
+				if (magnitude < -4  ||  magnitude > precision - 1) {
+					fmt = OS_TEXT('e');
+					precision -= 1;
+				} else {
+					fmt = OS_TEXT('f');
+					precision -= decpt;
+				}
+			}
+
+			if (fmt == OS_TEXT('e')) {
+				digits = ecvtbuf(value, precision + 1, &decpt, &sign, cvtbuf);
+
+				if (sign) *buffer++ = '-';
+				*buffer++ = *digits;
+				if (precision > 0) *buffer++ = '.';
+				OS_MEMCPY(buffer, digits + 1, precision);
+				buffer += precision;
+				*buffer++ = capexp ? OS_TEXT('E') : OS_TEXT('e');
+
+				if (decpt == 0) {
+					if (value == 0.0) {
+						exp = 0;
+					} else {
+						exp = -1;
+					}
+				} else {
+					exp = decpt - 1;
+				}
+
+				if (exp < 0) {
+					*buffer++ = OS_TEXT('-');
+					exp = -exp;
+				} else {
+					*buffer++ = OS_TEXT('+');
+				}
+
+				buffer[2] = (exp % 10) + OS_TEXT('0');
+				exp = exp / 10;
+				buffer[1] = (exp % 10) + OS_TEXT('0');
+				exp = exp / 10;
+				buffer[0] = (exp % 10) + OS_TEXT('0');
+				buffer += 3;
+			} else if (fmt == 'f') {
+				digits = fcvtbuf(value, precision, &decpt, &sign, cvtbuf);
+				if (sign) *buffer++ = '-';
+				if (*digits) {
+					if (decpt <= 0) {
+						*buffer++ = OS_TEXT('0');
+						*buffer++ = OS_TEXT('.');
+						for (pos = 0; pos < -decpt; pos++) *buffer++ = OS_TEXT('0');
+						while (*digits) *buffer++ = *digits++;
+					} else {
+						pos = 0;
+						while (*digits) {
+							if (pos++ == decpt) *buffer++ = OS_TEXT('.');
+							*buffer++ = *digits++;
+						}
+					}
+				} else {
+					*buffer++ = OS_TEXT('0');
+					if (precision > 0) {
+						*buffer++ = OS_TEXT('.');
+						for (pos = 0; pos < precision; pos++) *buffer++ = OS_TEXT('0');
+					}
+				}
+			}
+
+			*buffer = OS_TEXT('\0');
+		}
+
+		static void forcdecpt(OS_CHAR *buffer)
+		{
+			while (*buffer) {
+				if (*buffer == OS_TEXT('.')) return;
+				if (*buffer == OS_TEXT('e') || *buffer == OS_TEXT('E')) break;
+				buffer++;
+			}
+
+			if (*buffer) {
+				int n = strlen(buffer);
+				while (n > 0) {
+					buffer[n + 1] = buffer[n];
+					n--;
+				}
+
+				*buffer = OS_TEXT('.');
+			} else {
+				*buffer++ = OS_TEXT('.');
+				*buffer = OS_TEXT('\0');
+			}
+		}
+
+		static void cropzeros(OS_CHAR *buffer)
+		{
+			OS_CHAR *stop;
+			while (*buffer && *buffer != OS_TEXT('.')) buffer++;
+			if (*buffer++) {
+				while (*buffer && *buffer != OS_TEXT('e') && *buffer != OS_TEXT('E')) buffer++;
+				stop = buffer--;
+				while (*buffer == OS_TEXT('0')) buffer--;
+				if (*buffer == '.') buffer--;
+				while (*++buffer = *stop++);
+			}
+		}
+
+
+		static void flt(OS::Core::StringBuffer& buf, double num, int size, int precision, OS_CHAR fmt, int flags)
+		{
+			OS_CHAR tmp[128];
+			OS_CHAR c, sign;
+			int n, i;
+
+			switch(fmt){
+			case OS_TEXT('d'):
+			case OS_TEXT('i'):
+			case OS_TEXT('n'):
+				fmt = OS_TEXT('G');
+				break;
+			}
+
+			if(precision < 0){
+				double p = 10.0;
+				for(int i = -precision-1; i > 0; i--){
+					p *= 10.0;
+				}
+				num = ::floor(num / p + 0.5) * p;
+				precision = 0;
+				// fmt = OS_TEXT('G');
+				// flags &= ~PRECISION;
+			}
+
+			// Left align means no zero padding
+			if (flags & LEFT) flags &= ~ZEROPAD;
+
+			// Determine padding and sign char
+			c = (flags & ZEROPAD) ? '0' : ' ';
+			sign = 0;
+			if(1){ // flags & SIGN) {
+				if (num < 0.0) {
+					sign = '-';
+					num = -num;
+					size--;
+				} else if (flags & PLUS) {
+					sign = '+';
+					size--;
+				} else if (flags & SPACE) {
+					sign = ' ';
+					size--;
+				}
+			}
+
+			// Compute the precision value
+			if (precision == 0 && (fmt == 'g' || fmt == 'G')) {
+				precision = (flags & PRECISION) ? 1 : 17; // ANSI specified
+			}else if(precision == 0 && !(flags & PRECISION)) {
+				precision = 6; // Default precision: 6
+			}
+
+			// Convert floating point number to text
+			cfltcvt(num, tmp, fmt, precision);
+
+			// '#' and precision == 0 means force a decimal point
+			if ((flags & SPECIAL) && precision == 0) forcdecpt(tmp);
+
+			// 'g' format means crop zero unless '#' given
+			if ((fmt == 'g' || fmt == 'G') && !(flags & SPECIAL)) cropzeros(tmp);
+
+			n = OS_STRLEN(tmp);
+
+			// Output number with alignment and padding
+			size -= n;
+			if (!(flags & (ZEROPAD | LEFT))) while (size-- > 0) buf.append(OS_TEXT(' '));
+			if (sign) buf.append(sign);
+			if (!(flags & LEFT)) while (size-- > 0) buf.append(c);
+			for (i = 0; i < n; i++) buf.append(tmp[i]);
+			while (size-- > 0) buf.append(OS_TEXT(' '));
+		}
+#else
+		static void flt(OS::Core::StringBuffer& buf, double num, int size, int precision, OS_CHAR fmt, int flags)
+		{
+			OS_CHAR format[128], tmp[128];
+			int i = 0;
+			format[i++] = OS_TEXT('%');
+			if(flags & LEFT) format[i++] = OS_TEXT('-');
+			if(flags & PLUS) format[i++] = OS_TEXT('+');
+			if(flags & SPACE) format[i++] = OS_TEXT(' ');
+			if(flags & SPECIAL) format[i++] = OS_TEXT('#');
+			if(flags & ZEROPAD) format[i++] = OS_TEXT('0');
+			if(size >= 0){
+				i += OS_SNPRINTF(format + i, sizeof(format) - i*sizeof(OS_CHAR), OS_TEXT("%d"), size);
+			}
+			if(precision < 0){
+				double p = 10.0;
+				for(int j = -precision-1; j > 0; j--){
+					p *= 10.0;
+				}
+				num = ::floor(num / p + 0.5) * p;
+				format[i++] = OS_TEXT('.');
+				format[i++] = OS_TEXT('0');
+				precision = 0;
+			}else if(flags & PRECISION){
+				format[i++] = OS_TEXT('.');
+				i += OS_SNPRINTF(format + i, sizeof(format) - i*sizeof(OS_CHAR), OS_TEXT("%d"), precision);
+			}
+			switch(fmt){
+			case OS_TEXT('d'):
+			case OS_TEXT('i'):
+			case OS_TEXT('n'):
+				fmt = OS_TEXT('G');
+				break;
+			}
+			format[i++] = fmt;
+			format[i++] = OS_TEXT('\0');
+			i = OS_SNPRINTF(tmp, sizeof(tmp), format, num);
+			buf.append(tmp, i);
+		}
+#endif
+
+		static void flt(OS::Core::StringBuffer& buf, double num)
+		{
+			OS_CHAR tmp[128];
+			int i;
+			if(::fabs(num) >= 1.0){
+				i = OS_SNPRINTF(tmp, sizeof(tmp), OS_TEXT("%-18f"), num);
+				while(i > 1 && tmp[i-1] == OS_TEXT(' ')) tmp[--i] = OS_TEXT('\0');
+				for(int j = 1; j < i; j++){
+					if(tmp[j] == OS_TEXT('.')){
+						while(i > j && tmp[i-1] == OS_TEXT('0')) tmp[--i] = OS_TEXT('\0');
+						if(i == j) tmp[--i] = OS_TEXT('\0');
+						break;
+					}
+				}
+			}else{
+				i = OS_SNPRINTF(tmp, sizeof(tmp), OS_TEXT("%G"), num);
+			}
+			buf.append(tmp, i);
+		}
+
+		static int sprintf(OS * os, int params, int, int, void*)
+		{
+			if(params < 1) return 0;
+
+			OS::Core::StringBuffer buf(os);
+			String fmt_string = os->toString(-params);
+			const OS_CHAR * fmt = fmt_string.toChar();
+			const OS_CHAR * fmt_end = fmt + fmt_string.getLen();
+			int arg_num = 1;
+			for(; fmt < fmt_end; fmt++){
+				if(*fmt != OS_TEXT('%')){
+					buf.append(*fmt);
+					continue;
+				}
+
+				const OS_CHAR * fmt_start = fmt; 
+				// Process flags
+				int flags = 0;
+				for(;;){
+					fmt++; // This also skips first '%'
+					switch (*fmt) {
+					case '-': flags |= LEFT; continue;
+					case '+': flags |= PLUS; continue;
+					case ' ': flags |= SPACE; continue;
+					case '#': flags |= SPECIAL; continue;
+					case '0': flags |= ZEROPAD; continue;
+					}
+					break;
+				}
+
+				// Get field width
+				int field_width = -1;
+				if(OS_IS_ALNUM(*fmt)){
+					parseSimpleDec(fmt, field_width);
+				}else if(*fmt == OS_TEXT('*')){
+					fmt++;
+					field_width = arg_num < params ? os->toInt(-params + arg_num++) : 0;
+					if(field_width < 0){
+						field_width = -field_width;
+						flags |= LEFT;
+					}
+				}
+
+				// Get the precision
+				int precision = 0;
+				if(*fmt == OS_TEXT('.')){
+					fmt++;    
+					if(OS_IS_ALNUM(*fmt)){
+						parseSimpleDec(fmt, precision);
+						flags |= PRECISION;
+					}else if(*fmt == OS_TEXT('-') && OS_IS_ALNUM(fmt[1])){
+						fmt++;
+						parseSimpleDec(fmt, precision);
+						precision = -precision;
+						flags |= PRECISION;
+					}else if(*fmt == OS_TEXT('*')){
+						fmt++;
+						precision = arg_num < params ? os->toInt(-params + arg_num++) : 0;
+						flags |= PRECISION;
+					}
+					// if(precision < 0) precision = 0;
+				}
+
+				// Default base
+				int base = 10;
+				OS_CHAR fmt_type = *fmt;
+				if(fmt_type == OS_TEXT('v')){
+					OS_EValueType type = arg_num < params ? os->getType(-params + arg_num) : OS_VALUE_TYPE_NULL;
+					switch(type){
+					case OS_VALUE_TYPE_NUMBER:
+						fmt_type = OS_TEXT('n');
+						break;
+
+					default:
+						fmt_type = OS_TEXT('s');
+						break;
+					}
+				}
+				switch(fmt_type){
+				case OS_TEXT('c'):
+					if (!(flags & LEFT)) while (--field_width > 0) buf.append(OS_TEXT(' '));
+					buf.append(arg_num < params ? toSingleChar(os->toString(-params + arg_num++)) : OS_TEXT(' '));
+					while (--field_width > 0) buf.append(OS_TEXT(' '));
+					break;
+
+				case OS_TEXT('s'):
+					{
+						String s = arg_num < params ? os->toString(-params + arg_num++) : String(os);
+						int len = s.getLen();
+						if((flags & PRECISION) && precision >= 0 && len > precision) len = precision;
+						if (!(flags & LEFT)) while (len < field_width--) buf.append(OS_TEXT(' '));
+						buf.append(s.toChar(), len);
+						while (len < field_width--) buf.append(OS_TEXT(' '));
+						break;
+					}
+
+				// Integer number formats - set up the flags and "break"
+				case OS_TEXT('o'):
+					base = 8;
+					number(buf, arg_num < params ? os->toInt(-params + arg_num++) : 0, base, field_width, precision, flags);
+					break;
+
+				case OS_TEXT('b'):
+					base = 2;
+					number(buf, arg_num < params ? os->toInt(-params + arg_num++) : 0, base, field_width, precision, flags);
+					break;
+
+				case OS_TEXT('X'):
+					flags |= LARGE;
+
+				case OS_TEXT('x'):
+					base = 16;
+					number(buf, arg_num < params ? os->toInt(-params + arg_num++) : 0, base, field_width, precision, flags);
+					break;
+
+				case OS_TEXT('d'):
+				case OS_TEXT('i'):
+					// flags |= SIGN;
+
+				// case 'u':
+					number(buf, arg_num < params ? os->toInt(-params + arg_num++) : 0, base, field_width, precision, flags);
+					break;
+
+				case OS_TEXT('n'):
+					flt(buf, arg_num < params ? os->toDouble(-params + arg_num++) : 0);
+					break;
+
+				case OS_TEXT('E'):
+				case OS_TEXT('G'):
+				case OS_TEXT('e'):
+				case OS_TEXT('f'):
+				case OS_TEXT('g'):
+					flt(buf, arg_num < params ? os->toDouble(-params + arg_num++) : 0, field_width, precision, fmt_type, flags | SIGN);
+					break;
+
+				default:
+					if(*fmt != '%') buf.append(OS_TEXT('%'));
+					if(*fmt){
+						buf.append(*fmt);
+					}else{
+						fmt--;
+					}
+					break;
+				}
+			}
+			os->pushString(buf);
+			return 1;
+		}
+	};
+
 	struct Lib
 	{
 		static int print(OS * os, int params, int, int, void*)
@@ -16631,6 +17210,16 @@ void OS::initGlobalFunctions()
 		{
 			for(int i = 0; i < params; i++){
 				String str = os->toString(-params + i);
+				os->printf("%s", str.toChar());
+			}
+			return 0;
+		}
+
+		static int printf(OS * os, int params, int, int, void*)
+		{
+			if(params > 0){
+				Format::sprintf(os, params, 0, 0, NULL);
+				String str = os->toString();
 				os->printf("%s", str.toChar());
 			}
 			return 0;
@@ -16877,6 +17466,8 @@ void OS::initGlobalFunctions()
 		{OS_TEXT("toString"), Lib::toString},
 		{OS_TEXT("print"), Lib::print},
 		{OS_TEXT("echo"), Lib::echo},
+		{OS_TEXT("sprintf"), Format::sprintf},
+		{OS_TEXT("printf"), Lib::printf},
 		{core->strings->func_concat, Lib::concat},
 		{OS_TEXT("compileText"), Lib::compileText},
 		{OS_TEXT("compileFile"), Lib::compileFile},

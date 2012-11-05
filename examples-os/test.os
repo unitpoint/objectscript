@@ -360,5 +360,26 @@ function Object.each(func){
 	print a
 }
 
+/*
+	formats:
+	%v - default depends on argument type
+	%s - string
+	%c - char (the first char of string)
+	%d, %i - integer, base 10
+	%o - integer, base 8
+	%b - integer, base 2
+	%x, %X - integer, base 16
+	%n - default number format, human friendly
+	%e - scientific notation, e.g. -1234.456e+78
+	%E - scientific notation, e.g. -1234.456E+78
+	%f - decimal point but no exponent, e.g. 123.456
+	%g - whichever of %e or %f produces more compact output
+	%G - whichever of %E or %f produces more compact output
+*/
+
+printf("def: %v, decimal: %d, string: %s, def:%v\n", "John", 123.45678, 123.45678, 123.45678)
+printf("number: %n, float: %f, float(%%.2f): %.2f, float(%%.-1f): %.-1f\n", math.round(123.45678, 2), math.round(123.45678, 2), 123.45678, 123.45678)
+printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54321))
+
 terminate()
 print "This text is never printed"

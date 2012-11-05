@@ -24,9 +24,9 @@ begin function
   end locals
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     move: # (52) = const number 5 (-4)
-    move: # (53) = const string " differences" (-27)
+    move: # (53) = const string " differences" (-29)
   end call method: start 50, params 4, ret values 0
 
 
@@ -44,7 +44,7 @@ begin function
 
 [7] var name, count, time = "Smith", 3 + 2/i, 1.23
 
-    move: # (50) = const string "Smith" (-28)
+    move: # (50) = const string "Smith" (-30)
     # (52) = const number 2 (-7) [operator /] var i (4)
     # (51) = const number 3 (-6) [operator +] # (52)
     move: var time (7) = const number 1.23 (-8)
@@ -56,15 +56,15 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       begin call method
         move: # (52) = var _E (2)
-        move: # (53) = const string "concat" (-29)
-        move: # (54) = const string "name: " (-30)
+        move: # (53) = const string "concat" (-31)
+        move: # (54) = const string "name: " (-32)
         move: # (55) = var name (5)
-        move: # (56) = const string ", count: " (-31)
+        move: # (56) = const string ", count: " (-33)
         move: # (57) = var count (6)
-        move: # (58) = const string ", time: " (-32)
+        move: # (58) = const string ", time: " (-34)
         move: # (59) = var time (7)
       end call method: start 52, params 8, ret values 1
     end call method: start 50, params 3, ret values 0
@@ -75,10 +75,10 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     new object 2: # (52)
-    set property: # (52) [const string "firstname" (-33)] = const string "Ivan" (-34)
-    set property: # (52) [const string "lastname" (-35)] = const string "Petrov" (-36)
+    set property: # (52) [const string "firstname" (-35)] = const string "Ivan" (-36)
+    set property: # (52) [const string "lastname" (-37)] = const string "Petrov" (-38)
   end call method: start 50, params 3, ret values 0
 
 
@@ -99,24 +99,24 @@ begin function
       18 c
     end locals
     new object 6: # (50)
-    set property: # (50) [const string "x" (-37)] = const number 1 (-9)
-    set property: # (50) [const string "y" (-38)] = const number 3 (-6)
+    set property: # (50) [const string "x" (-39)] = const number 1 (-9)
+    set property: # (50) [const string "y" (-40)] = const number 3 (-6)
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
-      move: # (53) = const string "zero" (-40)
+      move: # (52) = const string "push" (-41)
+      move: # (53) = const string "zero" (-42)
     end call method: start 51, params 3, ret values 0
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
-      move: # (53) = const string "one" (-41)
+      move: # (52) = const string "push" (-41)
+      move: # (53) = const string "one" (-43)
     end call method: start 51, params 3, ret values 0
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
-      move: # (53) = const string "two" (-42)
+      move: # (52) = const string "push" (-41)
+      move: # (53) = const string "two" (-44)
     end call method: start 51, params 3, ret values 0
-    set property: # (50) [const string "last" (-43)] = const number 7 (-10)
+    set property: # (50) [const string "last" (-45)] = const number 7 (-10)
     move: var a (8) = # (50)
 
 
@@ -124,7 +124,7 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       get property: # (52) = var a (8) [const number 1 (-9)]
     end call method: start 50, params 3, ret values 0
 
@@ -133,7 +133,7 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       move: # (52) = var a (8)
     end call method: start 50, params 3, ret values 0
 
@@ -141,8 +141,8 @@ begin function
 [22] a = {[2+3]="five" y=3}
 
     new object 2: # (50)
-    set property: # (50) [const number 5 (-4)] = const string "five" (-44)
-    set property: # (50) [const string "y" (-38)] = const number 3 (-6)
+    set property: # (50) [const number 5 (-4)] = const string "five" (-46)
+    set property: # (50) [const string "y" (-40)] = const number 3 (-6)
     move: var a (8) = # (50)
 
 
@@ -150,7 +150,7 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       get property: # (52) = var a (8) [const number 5 (-4)]
     end call method: start 50, params 3, ret values 0
 
@@ -159,7 +159,7 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       move: # (52) = var a (8)
     end call method: start 50, params 3, ret values 0
 
@@ -167,16 +167,16 @@ begin function
 [26] a = {x=1 y=2}
 
     new object 2: # (50)
-    set property: # (50) [const string "x" (-37)] = const number 1 (-9)
-    set property: # (50) [const string "y" (-38)] = const number 2 (-7)
+    set property: # (50) [const string "x" (-39)] = const number 1 (-9)
+    set property: # (50) [const string "y" (-40)] = const number 2 (-7)
     move: var a (8) = # (50)
 
 
 [28] var b = {[a]="powerful" 7="greate"}
 
     new object 2: # (50)
-    set property: # (50) [var a (8)] = const string "powerful" (-45)
-    set property: # (50) [const string ", time: " (-32)] = const string "greate" (-46)
+    set property: # (50) [var a (8)] = const string "powerful" (-47)
+    set property: # (50) [const string ", time: " (-34)] = const string "greate" (-48)
     move: var b (9) = # (50)
 
 
@@ -184,7 +184,7 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       get property: # (52) = var b (9) [var a (8)]
     end call method: start 50, params 3, ret values 0
 
@@ -193,26 +193,26 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       new array 4: # (52)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 10 (-11)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 20 (-12)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 30 (-13)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 40 (-14)
       end call method: start 53, params 3, ret values 0
     end call method: start 50, params 3, ret values 0
@@ -222,26 +222,26 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       new array 4: # (52)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 10 (-11)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 20 (-12)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 30 (-13)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 40 (-14)
       end call method: start 53, params 3, ret values 0
     end call method: start 50, params 3, ret values 0
@@ -260,15 +260,15 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "echo" (-47)
-      move: # (52) = const string "i=" (-48)
+      move: # (51) = const string "echo" (-49)
+      move: # (52) = const string "i=" (-50)
       move: # (53) = var i (10)
-      move: # (54) = const string ", j=" (-49)
+      move: # (54) = const string ", j=" (-51)
       move: # (55) = var j (11)
-      move: # (56) = const string ", k=" (-50)
+      move: # (56) = const string ", k=" (-52)
       move: # (57) = var k (12)
       move: # (58) = const string "
-" (-51)
+" (-53)
     end call method: start 50, params 9, ret values 0
 
 
@@ -283,13 +283,13 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "echo" (-47)
-      move: # (52) = const string "after swap: i=" (-52)
+      move: # (51) = const string "echo" (-49)
+      move: # (52) = const string "after swap: i=" (-54)
       move: # (53) = var i (10)
-      move: # (54) = const string ", j=" (-49)
+      move: # (54) = const string ", j=" (-51)
       move: # (55) = var j (11)
       move: # (56) = const string "
-" (-51)
+" (-53)
     end call method: start 50, params 7, ret values 0
 
 
@@ -322,18 +322,18 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "results from function" (-53)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "results from function" (-55)
       begin call method
         move: # (53) = var _G (3)
-        move: # (54) = const string "concat" (-29)
-        move: # (55) = const string "a=" (-54)
+        move: # (54) = const string "concat" (-31)
+        move: # (55) = const string "a=" (-56)
         move: # (56) = var a (14)
       end call method: start 53, params 4, ret values 1
       begin call method
         move: # (54) = var _G (3)
-        move: # (55) = const string "concat" (-29)
-        move: # (56) = const string "b=" (-55)
+        move: # (55) = const string "concat" (-31)
+        move: # (56) = const string "b=" (-57)
         move: # (57) = var b (15)
       end call method: start 54, params 4, ret values 1
     end call method: start 50, params 5, ret values 0
@@ -354,24 +354,24 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "results from function" (-53)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "results from function" (-55)
       begin call method
         move: # (53) = var _G (3)
-        move: # (54) = const string "concat" (-29)
-        move: # (55) = const string "a=" (-54)
+        move: # (54) = const string "concat" (-31)
+        move: # (55) = const string "a=" (-56)
         move: # (56) = var a (16)
       end call method: start 53, params 4, ret values 1
       begin call method
         move: # (54) = var _G (3)
-        move: # (55) = const string "concat" (-29)
-        move: # (56) = const string "b=" (-55)
+        move: # (55) = const string "concat" (-31)
+        move: # (56) = const string "b=" (-57)
         move: # (57) = var b (17)
       end call method: start 54, params 4, ret values 1
       begin call method
         move: # (55) = var _G (3)
-        move: # (56) = const string "concat" (-29)
-        move: # (57) = const string "c=" (-56)
+        move: # (56) = const string "concat" (-31)
+        move: # (57) = const string "c=" (-58)
         move: # (58) = var c (18)
       end call method: start 55, params 4, ret values 1
     end call method: start 50, params 6, ret values 0
@@ -387,8 +387,8 @@ begin function
     end locals
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "Object iterator test" (-57)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "Object iterator test" (-59)
     end call method: start 50, params 3, ret values 0
 
 
@@ -397,19 +397,19 @@ begin function
     new object 4: # (50)
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
+      move: # (52) = const string "push" (-41)
       move: # (53) = const null (-1)
     end call method: start 51, params 3, ret values 0
-    set property: # (50) [const string "awesome" (-58)] = const true (-2)
+    set property: # (50) [const string "awesome" (-60)] = const true (-2)
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
+      move: # (52) = const string "push" (-41)
       move: # (53) = const number 12 (-16)
     end call method: start 51, params 3, ret values 0
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
-      move: # (53) = const string "excellent" (-59)
+      move: # (52) = const string "push" (-41)
+      move: # (53) = const string "excellent" (-61)
     end call method: start 51, params 3, ret values 0
     move: var obj (19) = # (50)
 
@@ -429,7 +429,7 @@ begin function
 
       begin call method
         move: # (50) = var obj (19)
-        move: # (51) = const string "__iter" (-60)
+        move: # (51) = const string "__iter" (-62)
       end call method: start 50, params 2, ret values 1
       move: var #func (22) = # (50)
       begin loop
@@ -457,9 +457,9 @@ begin function
         begin scope
           begin call method
             move: # (50) = var _E (2)
-            move: # (51) = const string "print" (-26)
+            move: # (51) = const string "print" (-28)
             move: # (52) = var k (20)
-            move: # (53) = const string " --> " (-61)
+            move: # (53) = const string " --> " (-63)
             move: # (54) = var v (21)
           end call method: start 50, params 5, ret values 0
         end scope ret values 0
@@ -471,8 +471,8 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "Object iterator test, only keys" (-62)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "Object iterator test, only keys" (-64)
     end call method: start 50, params 3, ret values 0
 
 
@@ -488,7 +488,7 @@ begin function
 
       begin call method
         move: # (50) = var obj (19)
-        move: # (51) = const string "__iter" (-60)
+        move: # (51) = const string "__iter" (-62)
       end call method: start 50, params 2, ret values 1
       move: var #func (24) = # (50)
       begin loop
@@ -496,7 +496,7 @@ begin function
           move: # (50) = var #func (24)
           move: # (51) = const null (-1)
         end call: start 50, params 2, ret values 2
-        set property: var _E (2) [const string "k" (-63)] = # (51)
+        set property: var _E (2) [const string "k" (-65)] = # (51)
         move: var #valid (25) = # (50)
 
         begin if
@@ -515,8 +515,8 @@ begin function
         begin scope
           begin call method
             move: # (50) = var _E (2)
-            move: # (51) = const string "print" (-26)
-            get property: # (52) = var _E (2) [const string "k" (-63)]
+            move: # (51) = const string "print" (-28)
+            get property: # (52) = var _E (2) [const string "k" (-65)]
           end call method: start 50, params 3, ret values 0
         end scope ret values 0
       end loop ret values 0
@@ -527,8 +527,8 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "Array iterator test" (-64)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "Array iterator test" (-66)
     end call method: start 50, params 3, ret values 0
 
 
@@ -568,7 +568,7 @@ begin function
               get upvalue: # (5) = var i (4 1)
               begin call method
                 get upvalue: # (6) = var self (5 1)
-                move: # (7) = const string "__len" (-65)
+                move: # (7) = const string "__len" (-67)
               end call method: start 6, params 2, ret values 1
               # (5) = # (5) [logic <] # (6)
             end bool exp
@@ -582,8 +582,8 @@ begin function
                 end locals
                 begin call method
                   move: # (5) = var _E (2)
-                  move: # (6) = const string "print" (-26)
-                  move: # (7) = const string "... inside of array iter func: " (-66)
+                  move: # (6) = const string "print" (-28)
+                  move: # (7) = const string "... inside of array iter func: " (-68)
                   get upvalue: # (8) = var i (4 1)
                   get upvalue: # (9) = var self (5 1)
                   get upvalue: # (10) = var i (4 1)
@@ -612,8 +612,8 @@ begin function
 
 [66] Array.__iter = function(){
 
-    get property: # (51) = var _E (2) [const string "Array" (-67)]
-    set property: # (51) [const string "__iter" (-60)] = # (50)
+    get property: # (51) = var _E (2) [const string "Array" (-69)]
+    set property: # (51) [const string "__iter" (-62)] = # (50)
 
 
 [75] for(k, v in [10 20 30 40 50]){
@@ -631,30 +631,30 @@ begin function
         new array 5: # (50)
         begin call method
           move: # (51) = # (50)
-          move: # (52) = const string "push" (-39)
+          move: # (52) = const string "push" (-41)
           move: # (53) = const number 10 (-11)
         end call method: start 51, params 3, ret values 0
         begin call method
           move: # (51) = # (50)
-          move: # (52) = const string "push" (-39)
+          move: # (52) = const string "push" (-41)
           move: # (53) = const number 20 (-12)
         end call method: start 51, params 3, ret values 0
         begin call method
           move: # (51) = # (50)
-          move: # (52) = const string "push" (-39)
+          move: # (52) = const string "push" (-41)
           move: # (53) = const number 30 (-13)
         end call method: start 51, params 3, ret values 0
         begin call method
           move: # (51) = # (50)
-          move: # (52) = const string "push" (-39)
+          move: # (52) = const string "push" (-41)
           move: # (53) = const number 40 (-14)
         end call method: start 51, params 3, ret values 0
         begin call method
           move: # (51) = # (50)
-          move: # (52) = const string "push" (-39)
+          move: # (52) = const string "push" (-41)
           move: # (53) = const number 50 (-17)
         end call method: start 51, params 3, ret values 0
-        move: # (51) = const string "__iter" (-60)
+        move: # (51) = const string "__iter" (-62)
       end call method: start 50, params 2, ret values 1
       move: var #func (26) = # (50)
       begin loop
@@ -662,8 +662,8 @@ begin function
           move: # (50) = var #func (26)
           move: # (51) = const null (-1)
         end call: start 50, params 2, ret values 3
-        set property: var _E (2) [const string "v" (-68)] = # (52)
-        set property: var _E (2) [const string "k" (-63)] = # (51)
+        set property: var _E (2) [const string "v" (-70)] = # (52)
+        set property: var _E (2) [const string "k" (-65)] = # (51)
         move: var #valid (27) = # (50)
 
         begin if
@@ -682,10 +682,10 @@ begin function
         begin scope
           begin call method
             move: # (50) = var _E (2)
-            move: # (51) = const string "print" (-26)
-            get property: # (52) = var _E (2) [const string "k" (-63)]
-            move: # (53) = const string " --> " (-61)
-            get property: # (54) = var _E (2) [const string "v" (-68)]
+            move: # (51) = const string "print" (-28)
+            get property: # (52) = var _E (2) [const string "k" (-65)]
+            move: # (53) = const string " --> " (-63)
+            get property: # (54) = var _E (2) [const string "v" (-70)]
           end call method: start 50, params 5, ret values 0
         end scope ret values 0
       end loop ret values 0
@@ -696,26 +696,26 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "Test array prototype:" (-69)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "Test array prototype:" (-71)
       new array 3: # (53)
       begin call method
         move: # (54) = # (53)
-        move: # (55) = const string "push" (-39)
+        move: # (55) = const string "push" (-41)
         move: # (56) = const number 1 (-9)
       end call method: start 54, params 3, ret values 0
       begin call method
         move: # (54) = # (53)
-        move: # (55) = const string "push" (-39)
+        move: # (55) = const string "push" (-41)
         move: # (56) = const number 2 (-7)
       end call method: start 54, params 3, ret values 0
       begin call method
         move: # (54) = # (53)
-        move: # (55) = const string "push" (-39)
+        move: # (55) = const string "push" (-41)
         move: # (56) = const number 3 (-6)
       end call method: start 54, params 3, ret values 0
-      get property: # (53) = # (53) [const string "prototype" (-70)]
-      get property: # (54) = var _E (2) [const string "Array" (-67)]
+      get property: # (53) = # (53) [const string "prototype" (-72)]
+      get property: # (54) = var _E (2) [const string "Array" (-69)]
       # (53) = # (53) [logic ===] # (54)
     end call method: start 50, params 4, ret values 0
 
@@ -724,8 +724,8 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "Test range iterator" (-71)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "Test range iterator" (-73)
     end call method: start 50, params 3, ret values 0
 
 
@@ -800,7 +800,7 @@ begin function
           move: # (52) = const number 10 (-11)
           move: # (53) = const number 13 (-18)
         end call: start 50, params 4, ret values 1
-        move: # (51) = const string "__iter" (-60)
+        move: # (51) = const string "__iter" (-62)
       end call method: start 50, params 2, ret values 1
       move: var #func (30) = # (50)
       begin loop
@@ -827,11 +827,11 @@ begin function
         begin scope
           begin call method
             move: # (50) = var _E (2)
-            move: # (51) = const string "print" (-26)
+            move: # (51) = const string "print" (-28)
             begin call method
               move: # (52) = var _G (3)
-              move: # (53) = const string "concat" (-29)
-              move: # (54) = const string "i = " (-72)
+              move: # (53) = const string "concat" (-31)
+              move: # (54) = const string "i = " (-74)
               move: # (55) = var i (29)
             end call method: start 52, params 4, ret values 1
           end call method: start 50, params 3, ret values 0
@@ -845,11 +845,11 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "7 && 9 = " (-73)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "7 && 9 = " (-75)
       move: # (55) = const number 7 (-10)
       logic &&: # (55)
         move: # (55) = const number 9 (-19)
@@ -861,11 +861,11 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "7 || 9 = " (-74)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "7 || 9 = " (-76)
       move: # (55) = const number 7 (-10)
       logic ||: # (55)
         move: # (55) = const number 9 (-19)
@@ -881,16 +881,16 @@ begin function
       33 a
     end locals
     new object 2: # (50)
-    set property: # (50) [const string "x" (-37)] = const number 1 (-9)
-    set property: # (50) [const string "y" (-38)] = const number 2 (-7)
+    set property: # (50) [const string "x" (-39)] = const number 1 (-9)
+    set property: # (50) [const string "y" (-40)] = const number 2 (-7)
     move: var v1 (32) = # (50)
 
 
 [102] var a = {[v1]="vv1" v2="vv2"}
 
     new object 2: # (50)
-    set property: # (50) [var v1 (32)] = const string "vv1" (-75)
-    set property: # (50) [const string "v2" (-76)] = const string "vv2" (-77)
+    set property: # (50) [var v1 (32)] = const string "vv1" (-77)
+    set property: # (50) [const string "v2" (-78)] = const string "vv2" (-79)
     move: var a (33) = # (50)
 
 
@@ -898,9 +898,9 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       get property: # (52) = var a (33) [var v1 (32)]
-      get property: # (53) = var a (33) [const string "v2" (-76)]
+      get property: # (53) = var a (33) [const string "v2" (-78)]
     end call method: start 50, params 4, ret values 0
   end scope ret values 0
 
@@ -923,13 +923,13 @@ begin function
 
 [110] @firstname = firstname // equal to this.firstname = firstname
 
-    set property: param this (1) [const string "firstname" (-33)] = param firstname (2)
+    set property: param this (1) [const string "firstname" (-35)] = param firstname (2)
 
 [111] @lastname = lastname // equal to this.lastname = lastname
 
-    set property: param this (1) [const string "lastname" (-35)] = param lastname (3)
+    set property: param this (1) [const string "lastname" (-37)] = param lastname (3)
   end function: # (52), index 6
-  set property: # (50) [const string "__construct" (-78)] = # (52)
+  set property: # (50) [const string "__construct" (-80)] = # (52)
 
 [113] walk = function(){
 
@@ -945,17 +945,17 @@ begin function
 
       begin call method
         move: # (4) = var _E (2)
-        move: # (5) = const string "print" (-26)
+        move: # (5) = const string "print" (-28)
         begin call method
           move: # (6) = var _G (3)
-          move: # (7) = const string "concat" (-29)
-          get property: # (8) = param this (1) [const string "fullname" (-80)]
-          move: # (9) = const string " is walking!" (-81)
+          move: # (7) = const string "concat" (-31)
+          get property: # (8) = param this (1) [const string "fullname" (-82)]
+          move: # (9) = const string " is walking!" (-83)
         end call method: start 6, params 4, ret values 1
       end call method: start 4, params 3, ret values 1
     return: # (4), count 1
   end function: # (52), index 7
-  set property: # (50) [const string "walk" (-79)] = # (52)
+  set property: # (50) [const string "walk" (-81)] = # (52)
 
 [116] __get@fullname = function(){
 
@@ -971,14 +971,14 @@ begin function
 
       begin call method
         move: # (4) = var _G (3)
-        move: # (5) = const string "concat" (-29)
-        get property: # (6) = param this (1) [const string "firstname" (-33)]
-        move: # (7) = const string " " (-83)
-        get property: # (8) = param this (1) [const string "lastname" (-35)]
+        move: # (5) = const string "concat" (-31)
+        get property: # (6) = param this (1) [const string "firstname" (-35)]
+        move: # (7) = const string " " (-85)
+        get property: # (8) = param this (1) [const string "lastname" (-37)]
       end call method: start 4, params 5, ret values 1
     return: # (4), count 1
   end function: # (52), index 8
-  set property: # (50) [const string "__get@fullname" (-82)] = # (52)
+  set property: # (50) [const string "__get@fullname" (-84)] = # (52)
   move: var Person (34) = # (50)
 
 
@@ -987,8 +987,8 @@ begin function
   begin call
     move: # (50) = var Person (34)
     move: # (51) = const null (-1)
-    move: # (52) = const string "James" (-84)
-    move: # (53) = const string "Bond" (-85)
+    move: # (52) = const string "James" (-86)
+    move: # (53) = const string "Bond" (-87)
   end call: start 50, params 4, ret values 1
   move: var p (35) = # (50)
 
@@ -997,7 +997,7 @@ begin function
 
   begin call method
     move: # (50) = var p (35)
-    move: # (51) = const string "walk" (-79)
+    move: # (51) = const string "walk" (-81)
   end call method: start 50, params 2, ret values 0
 
 
@@ -1005,7 +1005,7 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     move: # (52) = var p (35)
   end call method: start 50, params 3, ret values 0
 
@@ -1014,14 +1014,14 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "p is Person = " (-86)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "p is Person = " (-88)
       begin call method
         move: # (55) = var _G (3)
-        move: # (56) = const string "__is" (-87)
+        move: # (56) = const string "__is" (-89)
         move: # (57) = var p (35)
         move: # (58) = var Person (34)
       end call method: start 55, params 4, ret values 1
@@ -1033,7 +1033,7 @@ begin function
 
   begin call method
     move: # (50) = var _G (3)
-    move: # (51) = const string "__extends" (-88)
+    move: # (51) = const string "__extends" (-90)
     move: # (52) = var Person (34)
     new object 2: # (53)
 
@@ -1052,12 +1052,12 @@ begin function
         begin super call
           move: # (4) = const null (-1)
           move: # (5) = const null (-1)
-          move: # (6) = const string "Ivan" (-34)
-          move: # (7) = const string "Petrov" (-36)
+          move: # (6) = const string "Ivan" (-36)
+          move: # (7) = const string "Petrov" (-38)
         end super call: start 4, params 4, ret values 1
       return: # (4), count 1
     end function: # (55), index 9
-    set property: # (53) [const string "__construct" (-78)] = # (55)
+    set property: # (53) [const string "__construct" (-80)] = # (55)
 
 [131] walk = function(){
 
@@ -1073,8 +1073,8 @@ begin function
 
       begin call method
         move: # (4) = var _E (2)
-        move: # (5) = const string "echo" (-47)
-        move: # (6) = const string "Someone named " (-89)
+        move: # (5) = const string "echo" (-49)
+        move: # (6) = const string "Someone named " (-91)
       end call method: start 4, params 3, ret values 0
 
 
@@ -1086,7 +1086,7 @@ begin function
         end super call: start 4, params 2, ret values 1
       return: # (4), count 1
     end function: # (55), index 10
-    set property: # (53) [const string "walk" (-79)] = # (55)
+    set property: # (53) [const string "walk" (-81)] = # (55)
   end call method: start 50, params 4, ret values 1
   move: var IvanPerson (36) = # (50)
 
@@ -1104,7 +1104,7 @@ begin function
 
   begin call method
     move: # (50) = var p (37)
-    move: # (51) = const string "walk" (-79)
+    move: # (51) = const string "walk" (-81)
   end call method: start 50, params 2, ret values 0
 
 
@@ -1112,7 +1112,7 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     move: # (52) = var p (37)
   end call method: start 50, params 3, ret values 0
 
@@ -1121,16 +1121,16 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Person.walk.call" (-90)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Person.walk.call" (-92)
   end call method: start 50, params 3, ret values 0
 
 
 [143] Person.walk.call(p)
 
   begin call method
-    get property: # (50) = var Person (34) [const string "walk" (-79)]
-    move: # (51) = const string "call" (-91)
+    get property: # (50) = var Person (34) [const string "walk" (-81)]
+    move: # (51) = const string "call" (-93)
     move: # (52) = var p (37)
   end call method: start 50, params 3, ret values 0
 
@@ -1149,7 +1149,7 @@ begin function
       # (6) = param a (2) [operator +] param b (3)
     return: # (6), count 1
   end function: # (50), index 11
-  set property: var _E (2) [const string "foo" (-92)] = # (50)
+  set property: var _E (2) [const string "foo" (-94)] = # (50)
 
 
 [148] function bar(){ return foo.apply(null, arguments) }
@@ -1162,28 +1162,28 @@ begin function
       3 _G
     end locals
       begin call method
-        get property: # (4) = var _E (2) [const string "foo" (-92)]
-        move: # (5) = const string "apply" (-94)
+        get property: # (4) = var _E (2) [const string "foo" (-94)]
+        move: # (5) = const string "apply" (-96)
         move: # (6) = const null (-1)
         get arguments: # (7)
       end call method: start 4, params 4, ret values 1
     return: # (4), count 1
   end function: # (50), index 12
-  set property: var _E (2) [const string "bar" (-93)] = # (50)
+  set property: var _E (2) [const string "bar" (-95)] = # (50)
 
 
 [149] print "should be 5: "..bar(2 3)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "should be 5: " (-95)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "should be 5: " (-97)
       begin call method
         move: # (55) = var _E (2)
-        move: # (56) = const string "bar" (-93)
+        move: # (56) = const string "bar" (-95)
         move: # (57) = const number 2 (-7)
         move: # (58) = const number 3 (-6)
       end call method: start 55, params 4, ret values 1
@@ -1195,14 +1195,14 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "should be 9: " (-96)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "should be 9: " (-98)
       begin call method
         move: # (55) = var _E (2)
-        move: # (56) = const string "bar" (-93)
+        move: # (56) = const string "bar" (-95)
         move: # (57) = const number 4 (-5)
         move: # (58) = const number 5 (-4)
       end call method: start 55, params 4, ret values 1
@@ -1229,17 +1229,17 @@ begin function
 
 [156] this.x = x
 
-    set property: param this (1) [const string "x" (-37)] = param x (2)
+    set property: param this (1) [const string "x" (-39)] = param x (2)
 
 [157] this.y = y
 
-    set property: param this (1) [const string "y" (-38)] = param y (3)
+    set property: param this (1) [const string "y" (-40)] = param y (3)
 
 [158] this.z = z
 
-    set property: param this (1) [const string "z" (-97)] = param z (4)
+    set property: param this (1) [const string "z" (-99)] = param z (4)
   end function: # (52), index 13
-  set property: # (50) [const string "__construct" (-78)] = # (52)
+  set property: # (50) [const string "__construct" (-80)] = # (52)
 
 [160] __add = {|a b| vec3(a.x + b.x, a.y + b.y, a.z + b.z)}
 
@@ -1255,19 +1255,19 @@ begin function
       begin call
         get upvalue: # (6) = var vec3 (38 1)
         move: # (7) = const null (-1)
-        get property: # (8) = param a (2) [const string "x" (-37)]
-        get property: # (9) = param b (3) [const string "x" (-37)]
+        get property: # (8) = param a (2) [const string "x" (-39)]
+        get property: # (9) = param b (3) [const string "x" (-39)]
         # (8) = # (8) [operator +] # (9)
-        get property: # (9) = param a (2) [const string "y" (-38)]
-        get property: # (10) = param b (3) [const string "y" (-38)]
+        get property: # (9) = param a (2) [const string "y" (-40)]
+        get property: # (10) = param b (3) [const string "y" (-40)]
         # (9) = # (9) [operator +] # (10)
-        get property: # (10) = param a (2) [const string "z" (-97)]
-        get property: # (11) = param b (3) [const string "z" (-97)]
+        get property: # (10) = param a (2) [const string "z" (-99)]
+        get property: # (11) = param b (3) [const string "z" (-99)]
         # (10) = # (10) [operator +] # (11)
       end call: start 6, params 5, ret values 1
     return: # (6), count 1
   end function: # (52), index 14
-  set property: # (50) [const string "__add" (-98)] = # (52)
+  set property: # (50) [const string "__add" (-100)] = # (52)
 
 [164] __mul = {|a b| vec3(a.x * b.x, a.y * b.y, a.z * b.z)}
 
@@ -1283,19 +1283,19 @@ begin function
       begin call
         get upvalue: # (6) = var vec3 (38 1)
         move: # (7) = const null (-1)
-        get property: # (8) = param a (2) [const string "x" (-37)]
-        get property: # (9) = param b (3) [const string "x" (-37)]
+        get property: # (8) = param a (2) [const string "x" (-39)]
+        get property: # (9) = param b (3) [const string "x" (-39)]
         # (8) = # (8) [operator *] # (9)
-        get property: # (9) = param a (2) [const string "y" (-38)]
-        get property: # (10) = param b (3) [const string "y" (-38)]
+        get property: # (9) = param a (2) [const string "y" (-40)]
+        get property: # (10) = param b (3) [const string "y" (-40)]
         # (9) = # (9) [operator *] # (10)
-        get property: # (10) = param a (2) [const string "z" (-97)]
-        get property: # (11) = param b (3) [const string "z" (-97)]
+        get property: # (10) = param a (2) [const string "z" (-99)]
+        get property: # (11) = param b (3) [const string "z" (-99)]
         # (10) = # (10) [operator *] # (11)
       end call: start 6, params 5, ret values 1
     return: # (6), count 1
   end function: # (52), index 15
-  set property: # (50) [const string "__mul" (-99)] = # (52)
+  set property: # (50) [const string "__mul" (-101)] = # (52)
   move: var vec3 (38) = # (50)
 
 
@@ -1333,11 +1333,11 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "should be {x:11,y:24,z:39} " (-100)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "should be {x:11,y:24,z:39} " (-102)
       move: # (55) = var v3 (41)
     end call method: start 52, params 4, ret values 1
   end call method: start 50, params 3, ret values 0
@@ -1351,8 +1351,8 @@ begin function
     end locals
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "Test properties" (-101)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "Test properties" (-103)
     end call method: start 50, params 3, ret values 0
 
 
@@ -1362,7 +1362,7 @@ begin function
 
 [176] _color = "red"
 
-    set property: # (50) [const string "_color" (-102)] = const string "red" (-103)
+    set property: # (50) [const string "_color" (-104)] = const string "red" (-105)
 
 [177] __get@color = {|| @_color }
 
@@ -1373,10 +1373,10 @@ begin function
         2 _E
         3 _G
       end locals
-        get property: # (4) = param this (1) [const string "_color" (-102)]
+        get property: # (4) = param this (1) [const string "_color" (-104)]
       return: # (4), count 1
     end function: # (52), index 16
-    set property: # (50) [const string "__get@color" (-104)] = # (52)
+    set property: # (50) [const string "__get@color" (-106)] = # (52)
 
 [178] __set@color = {|v| @_color = v }
 
@@ -1388,9 +1388,9 @@ begin function
         3 _E
         4 _G
       end locals
-      set property: param this (1) [const string "_color" (-102)] = param v (2)
+      set property: param this (1) [const string "_color" (-104)] = param v (2)
     end function: # (52), index 17
-    set property: # (50) [const string "__set@color" (-105)] = # (52)
+    set property: # (50) [const string "__set@color" (-107)] = # (52)
     move: var a (42) = # (50)
 
 
@@ -1398,31 +1398,31 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       begin call method
         move: # (52) = var _G (3)
-        move: # (53) = const string "concat" (-29)
-        move: # (54) = const string "should be red: " (-106)
-        get property: # (55) = var a (42) [const string "color" (-107)]
+        move: # (53) = const string "concat" (-31)
+        move: # (54) = const string "should be red: " (-108)
+        get property: # (55) = var a (42) [const string "color" (-109)]
       end call method: start 52, params 4, ret values 1
     end call method: start 50, params 3, ret values 0
 
 
 [184] a.color = "blue"
 
-    set property: var a (42) [const string "color" (-107)] = const string "blue" (-108)
+    set property: var a (42) [const string "color" (-109)] = const string "blue" (-110)
 
 
 [185] print "should be blue: " .. a.color
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       begin call method
         move: # (52) = var _G (3)
-        move: # (53) = const string "concat" (-29)
-        move: # (54) = const string "should be blue: " (-109)
-        get property: # (55) = var a (42) [const string "color" (-107)]
+        move: # (53) = const string "concat" (-31)
+        move: # (54) = const string "should be blue: " (-111)
+        get property: # (55) = var a (42) [const string "color" (-109)]
       end call method: start 52, params 4, ret values 1
     end call method: start 50, params 3, ret values 0
 
@@ -1433,7 +1433,7 @@ begin function
 
 [188] _color = "white"
 
-    set property: # (50) [const string "_color" (-102)] = const string "white" (-110)
+    set property: # (50) [const string "_color" (-104)] = const string "white" (-112)
 
 [189] __get = function(name){
 
@@ -1451,19 +1451,19 @@ begin function
       begin if
         begin bool exp
           move: # (5) = param name (2)
-          move: # (6) = const string "color" (-107)
+          move: # (6) = const string "color" (-109)
           # (5) = # (5) [logic ==] # (6)
         end bool exp
         begin then
 
 [191] return this._color
 
-            get property: # (5) = param this (1) [const string "_color" (-102)]
+            get property: # (5) = param this (1) [const string "_color" (-104)]
           return: # (5), count 1
         end then
       end if ret values 0
     end function: # (52), index 18
-    set property: # (50) [const string "__get" (-111)] = # (52)
+    set property: # (50) [const string "__get" (-113)] = # (52)
 
 [193] __set = function(name, v){
 
@@ -1482,18 +1482,18 @@ begin function
       begin if
         begin bool exp
           move: # (6) = param name (2)
-          move: # (7) = const string "color" (-107)
+          move: # (7) = const string "color" (-109)
           # (6) = # (6) [logic ==] # (7)
         end bool exp
         begin then
 
 [195] this._color = v
 
-          set property: param this (1) [const string "_color" (-102)] = param v (3)
+          set property: param this (1) [const string "_color" (-104)] = param v (3)
         end then
       end if ret values 0
     end function: # (52), index 19
-    set property: # (50) [const string "__set" (-112)] = # (52)
+    set property: # (50) [const string "__set" (-114)] = # (52)
 
 [197] __del = function(name){
 
@@ -1511,7 +1511,7 @@ begin function
       begin if
         begin bool exp
           move: # (5) = param name (2)
-          move: # (6) = const string "color" (-107)
+          move: # (6) = const string "color" (-109)
           # (5) = # (5) [logic ==] # (6)
         end bool exp
         begin then
@@ -1520,14 +1520,14 @@ begin function
 
           begin call method
             move: # (5) = var _G (4)
-            move: # (6) = const string "__delete" (-114)
+            move: # (6) = const string "__delete" (-116)
             move: # (7) = param this (1)
-            move: # (8) = const string "_color" (-102)
+            move: # (8) = const string "_color" (-104)
           end call method: start 5, params 4, ret values 0
         end then
       end if ret values 0
     end function: # (52), index 20
-    set property: # (50) [const string "__del" (-113)] = # (52)
+    set property: # (50) [const string "__del" (-115)] = # (52)
     move: var a (42) = # (50)
 
 
@@ -1535,12 +1535,12 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       begin call method
         move: # (52) = var _G (3)
-        move: # (53) = const string "concat" (-29)
-        move: # (54) = const string "should be white: " (-115)
-        get property: # (55) = var a (42) [const string "color" (-107)]
+        move: # (53) = const string "concat" (-31)
+        move: # (54) = const string "should be white: " (-117)
+        get property: # (55) = var a (42) [const string "color" (-109)]
       end call method: start 52, params 4, ret values 1
     end call method: start 50, params 3, ret values 0
 
@@ -1549,31 +1549,31 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       begin call method
         move: # (52) = var _G (3)
-        move: # (53) = const string "concat" (-29)
-        move: # (54) = const string "should be null: " (-116)
-        get property: # (55) = var a (42) [const string "color2" (-117)]
+        move: # (53) = const string "concat" (-31)
+        move: # (54) = const string "should be null: " (-118)
+        get property: # (55) = var a (42) [const string "color2" (-119)]
       end call method: start 52, params 4, ret values 1
     end call method: start 50, params 3, ret values 0
 
 
 [207] a.color = "green"
 
-    set property: var a (42) [const string "color" (-107)] = const string "green" (-118)
+    set property: var a (42) [const string "color" (-109)] = const string "green" (-120)
 
 
 [208] print "should be green: " .. a.color
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       begin call method
         move: # (52) = var _G (3)
-        move: # (53) = const string "concat" (-29)
-        move: # (54) = const string "should be green: " (-119)
-        get property: # (55) = var a (42) [const string "color" (-107)]
+        move: # (53) = const string "concat" (-31)
+        move: # (54) = const string "should be green: " (-121)
+        get property: # (55) = var a (42) [const string "color" (-109)]
       end call method: start 52, params 4, ret values 1
     end call method: start 50, params 3, ret values 0
 
@@ -1582,9 +1582,9 @@ begin function
 
     begin call method
       move: # (50) = var _G (3)
-      move: # (51) = const string "__delete" (-114)
+      move: # (51) = const string "__delete" (-116)
       move: # (52) = var a (42)
-      move: # (53) = const string "color" (-107)
+      move: # (53) = const string "color" (-109)
     end call method: start 50, params 4, ret values 0
 
 
@@ -1592,12 +1592,12 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       begin call method
         move: # (52) = var _G (3)
-        move: # (53) = const string "concat" (-29)
-        move: # (54) = const string "should be null: " (-116)
-        get property: # (55) = var a (42) [const string "color" (-107)]
+        move: # (53) = const string "concat" (-31)
+        move: # (54) = const string "should be null: " (-118)
+        get property: # (55) = var a (42) [const string "color" (-109)]
       end call method: start 52, params 4, ret values 1
     end call method: start 50, params 3, ret values 0
 
@@ -1606,8 +1606,8 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "Test multi dimensional properties" (-120)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "Test multi dimensional properties" (-122)
     end call method: start 50, params 3, ret values 0
 
 
@@ -1618,7 +1618,7 @@ begin function
 [215] _matrix = {}
 
     new object 0: # (52)
-    set property: # (50) [const string "_matrix" (-121)] = # (52)
+    set property: # (50) [const string "_matrix" (-123)] = # (52)
 
 [216] __getdim = function(x, y){
 
@@ -1634,13 +1634,13 @@ begin function
 
 [217] return this._matrix[y*4 + x]
 
-        get property: # (6) = param this (1) [const string "_matrix" (-121)]
+        get property: # (6) = param this (1) [const string "_matrix" (-123)]
         # (7) = param y (3) [operator *] const number 4 (-5)
         # (7) = # (7) [operator +] param x (2)
         get property: # (6) = # (6) [# (7)]
       return: # (6), count 1
     end function: # (52), index 21
-    set property: # (50) [const string "__getdim" (-122)] = # (52)
+    set property: # (50) [const string "__getdim" (-124)] = # (52)
 
 [219] __setdim = function(value, x, y){
 
@@ -1657,12 +1657,12 @@ begin function
 
 [220] this._matrix[y*4 + x] = value
 
-      get property: # (8) = param this (1) [const string "_matrix" (-121)]
+      get property: # (8) = param this (1) [const string "_matrix" (-123)]
       # (9) = param y (4) [operator *] const number 4 (-5)
       # (9) = # (9) [operator +] param x (3)
       set property: # (8) [# (9)] = param value (2)
     end function: # (52), index 22
-    set property: # (50) [const string "__setdim" (-123)] = # (52)
+    set property: # (50) [const string "__setdim" (-125)] = # (52)
 
 [222] __deldim = function(x, y){
 
@@ -1680,13 +1680,13 @@ begin function
 
       begin call method
         move: # (6) = var _G (5)
-        move: # (7) = const string "__delete" (-114)
-        get property: # (8) = param this (1) [const string "_matrix" (-121)]
+        move: # (7) = const string "__delete" (-116)
+        get property: # (8) = param this (1) [const string "_matrix" (-123)]
         # (9) = param y (3) [operator *] const number 4 (-5)
         # (9) = # (9) [operator +] param x (2)
       end call method: start 6, params 4, ret values 0
     end function: # (52), index 23
-    set property: # (50) [const string "__deldim" (-124)] = # (52)
+    set property: # (50) [const string "__deldim" (-126)] = # (52)
     move: var a (42) = # (50)
 
 
@@ -1695,7 +1695,7 @@ begin function
     begin call method
       move: # (50) = const number 5 (-4)
       move: # (51) = var a (42)
-      move: # (52) = const string "__setdim" (-123)
+      move: # (52) = const string "__setdim" (-125)
       move: # (53) = # (50)
       move: # (54) = const number 1 (-9)
       move: # (55) = const number 2 (-7)
@@ -1706,14 +1706,14 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       begin call method
         move: # (52) = var _G (3)
-        move: # (53) = const string "concat" (-29)
-        move: # (54) = const string "should be 5: " (-95)
+        move: # (53) = const string "concat" (-31)
+        move: # (54) = const string "should be 5: " (-97)
         begin call method
           move: # (55) = var a (42)
-          move: # (56) = const string "__getdim" (-122)
+          move: # (56) = const string "__getdim" (-124)
           move: # (57) = const number 1 (-9)
           move: # (58) = const number 2 (-7)
         end call method: start 55, params 4, ret values 1
@@ -1725,7 +1725,7 @@ begin function
 
     begin call method
       move: # (50) = var a (42)
-      move: # (51) = const string "__deldim" (-124)
+      move: # (51) = const string "__deldim" (-126)
       move: # (52) = const number 1 (-9)
       move: # (53) = const number 2 (-7)
     end call method: start 50, params 4, ret values 0
@@ -1735,14 +1735,14 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       begin call method
         move: # (52) = var _G (3)
-        move: # (53) = const string "concat" (-29)
-        move: # (54) = const string "should be null: " (-116)
+        move: # (53) = const string "concat" (-31)
+        move: # (54) = const string "should be null: " (-118)
         begin call method
           move: # (55) = var a (42)
-          move: # (56) = const string "__getdim" (-122)
+          move: # (56) = const string "__getdim" (-124)
           move: # (57) = const number 1 (-9)
           move: # (58) = const number 2 (-7)
         end call method: start 55, params 4, ret values 1
@@ -1755,8 +1755,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Test function inline call" (-125)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Test function inline call" (-127)
   end call method: start 50, params 3, ret values 0
 
 
@@ -1764,11 +1764,11 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "should be 7: " (-126)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "should be 7: " (-128)
       begin call
         begin function
           begin locals 7, stack 10
@@ -1801,8 +1801,8 @@ begin function
     end locals
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
-      move: # (52) = const string "Test local vars scope" (-127)
+      move: # (51) = const string "print" (-28)
+      move: # (52) = const string "Test local vars scope" (-129)
     end call method: start 50, params 3, ret values 0
 
 
@@ -1829,7 +1829,7 @@ begin function
 
       begin call method
         move: # (50) = var _E (2)
-        move: # (51) = const string "print" (-26)
+        move: # (51) = const string "print" (-28)
         move: # (52) = var i (44)
       end call method: start 50, params 3, ret values 0
     end scope ret values 0
@@ -1839,7 +1839,7 @@ begin function
 
     begin call method
       move: # (50) = var _E (2)
-      move: # (51) = const string "print" (-26)
+      move: # (51) = const string "print" (-28)
       move: # (52) = var i (43)
     end call method: start 50, params 3, ret values 0
   end scope ret values 0
@@ -1849,8 +1849,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Test debuglocals" (-128)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Test debuglocals" (-130)
   end call method: start 50, params 3, ret values 0
 
 
@@ -1887,32 +1887,32 @@ begin function
 
         begin call method
           move: # (7) = var _E (3)
-          move: # (8) = const string "print" (-26)
+          move: # (8) = const string "print" (-28)
           new object 13: # (9)
           get upvalue: # (11) = var Person (34 1)
-          set property: # (9) [const string "Person" (-129)] = # (11)
+          set property: # (9) [const string "Person" (-131)] = # (11)
           get upvalue: # (11) = var IvanPerson (36 1)
-          set property: # (9) [const string "IvanPerson" (-130)] = # (11)
+          set property: # (9) [const string "IvanPerson" (-132)] = # (11)
           get upvalue: # (11) = var p (37 1)
-          set property: # (9) [const string "p" (-131)] = # (11)
+          set property: # (9) [const string "p" (-133)] = # (11)
           get upvalue: # (11) = var vec3 (38 1)
-          set property: # (9) [const string "vec3" (-132)] = # (11)
+          set property: # (9) [const string "vec3" (-134)] = # (11)
           get upvalue: # (11) = var v1 (39 1)
-          set property: # (9) [const string "v1" (-133)] = # (11)
+          set property: # (9) [const string "v1" (-135)] = # (11)
           get upvalue: # (11) = var v2 (40 1)
-          set property: # (9) [const string "v2" (-76)] = # (11)
+          set property: # (9) [const string "v2" (-78)] = # (11)
           get upvalue: # (11) = var v3 (41 1)
-          set property: # (9) [const string "v3" (-134)] = # (11)
+          set property: # (9) [const string "v3" (-136)] = # (11)
           get upvalue: # (11) = var transform (46 1)
-          set property: # (9) [const string "transform" (-135)] = # (11)
+          set property: # (9) [const string "transform" (-137)] = # (11)
           get upvalue: # (11) = var core (47 1)
-          set property: # (9) [const string "core" (-136)] = # (11)
+          set property: # (9) [const string "core" (-138)] = # (11)
           get upvalue: # (11) = var __planet (48 1)
-          set property: # (9) [const string "__planet" (-137)] = # (11)
+          set property: # (9) [const string "__planet" (-139)] = # (11)
           get upvalue: # (11) = var testFunc (49 1)
-          set property: # (9) [const string "testFunc" (-138)] = # (11)
-          set property: # (9) [const string "a" (-139)] = param a (2)
-          set property: # (9) [const string "c" (-140)] = var c (6)
+          set property: # (9) [const string "testFunc" (-140)] = # (11)
+          set property: # (9) [const string "a" (-141)] = param a (2)
+          set property: # (9) [const string "c" (-142)] = var c (6)
         end call method: start 7, params 3, ret values 0
       end scope ret values 0
     end function: # (50), index 25
@@ -1928,8 +1928,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Script environment" (-141)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Script environment" (-143)
   end call method: start 50, params 3, ret values 0
 
 
@@ -1937,7 +1937,7 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     move: # (52) = var _E (2)
   end call method: start 50, params 3, ret values 0
 
@@ -1946,8 +1946,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Math functions" (-142)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Math functions" (-144)
   end call method: start 50, params 3, ret values 0
 
 
@@ -1956,50 +1956,50 @@ begin function
   new array 6: # (50)
   begin call method
     move: # (51) = # (50)
-    move: # (52) = const string "push" (-39)
+    move: # (52) = const string "push" (-41)
     begin call method
-      get property: # (53) = var _E (2) [const string "math" (-143)]
-      move: # (54) = const string "random" (-144)
+      get property: # (53) = var _E (2) [const string "math" (-145)]
+      move: # (54) = const string "random" (-146)
     end call method: start 53, params 2, ret values 1
   end call method: start 51, params 3, ret values 0
   begin call method
     move: # (51) = # (50)
-    move: # (52) = const string "push" (-39)
+    move: # (52) = const string "push" (-41)
     begin call method
-      get property: # (53) = var _E (2) [const string "math" (-143)]
-      move: # (54) = const string "random" (-144)
+      get property: # (53) = var _E (2) [const string "math" (-145)]
+      move: # (54) = const string "random" (-146)
     end call method: start 53, params 2, ret values 1
   end call method: start 51, params 3, ret values 0
   begin call method
     move: # (51) = # (50)
-    move: # (52) = const string "push" (-39)
+    move: # (52) = const string "push" (-41)
     begin call method
-      get property: # (53) = var _E (2) [const string "math" (-143)]
-      move: # (54) = const string "random" (-144)
+      get property: # (53) = var _E (2) [const string "math" (-145)]
+      move: # (54) = const string "random" (-146)
     end call method: start 53, params 2, ret values 1
   end call method: start 51, params 3, ret values 0
   begin call method
     move: # (51) = # (50)
-    move: # (52) = const string "push" (-39)
+    move: # (52) = const string "push" (-41)
     begin call method
-      get property: # (53) = var _E (2) [const string "math" (-143)]
-      move: # (54) = const string "random" (-144)
+      get property: # (53) = var _E (2) [const string "math" (-145)]
+      move: # (54) = const string "random" (-146)
     end call method: start 53, params 2, ret values 1
   end call method: start 51, params 3, ret values 0
   begin call method
     move: # (51) = # (50)
-    move: # (52) = const string "push" (-39)
+    move: # (52) = const string "push" (-41)
     begin call method
-      get property: # (53) = var _E (2) [const string "math" (-143)]
-      move: # (54) = const string "random" (-144)
+      get property: # (53) = var _E (2) [const string "math" (-145)]
+      move: # (54) = const string "random" (-146)
     end call method: start 53, params 2, ret values 1
   end call method: start 51, params 3, ret values 0
   begin call method
     move: # (51) = # (50)
-    move: # (52) = const string "push" (-39)
+    move: # (52) = const string "push" (-41)
     begin call method
-      get property: # (53) = var _E (2) [const string "math" (-143)]
-      move: # (54) = const string "random" (-144)
+      get property: # (53) = var _E (2) [const string "math" (-145)]
+      move: # (54) = const string "random" (-146)
     end call method: start 53, params 2, ret values 1
   end call method: start 51, params 3, ret values 0
   move: var a (45) = # (50)
@@ -2009,8 +2009,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "random" (-144)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "random" (-146)
     move: # (53) = var a (45)
   end call method: start 50, params 4, ret values 0
 
@@ -2019,9 +2019,9 @@ begin function
 
   begin call method
     move: # (50) = var _G (3)
-    move: # (51) = const string "__delete" (-114)
-    get property: # (52) = var _E (2) [const string "Array" (-67)]
-    move: # (53) = const string "__iter" (-60)
+    move: # (51) = const string "__delete" (-116)
+    get property: # (52) = var _E (2) [const string "Array" (-69)]
+    move: # (53) = const string "__iter" (-62)
   end call method: start 50, params 4, ret values 0
 
 
@@ -2044,7 +2044,7 @@ begin function
       begin bool exp
         begin call method
           move: # (11) = var _E (4)
-          move: # (12) = const string "arrayOf" (-145)
+          move: # (12) = const string "arrayOf" (-147)
           move: # (13) = param a (2)
         end call method: start 11, params 3, ret values 1
       end bool exp
@@ -2073,7 +2073,7 @@ begin function
 
       begin call method
         move: # (11) = param a (2)
-        move: # (12) = const string "__iter" (-60)
+        move: # (12) = const string "__iter" (-62)
       end call method: start 11, params 2, ret values 1
       move: var #func (9) = # (11)
       begin loop
@@ -2141,8 +2141,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "mult 100" (-146)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "mult 100" (-148)
     move: # (53) = var a (45)
   end call method: start 50, params 4, ret values 0
 
@@ -2151,14 +2151,14 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "math.ceil" (-147)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "math.ceil" (-149)
     begin call
       move: # (53) = var transform (46)
       move: # (54) = const null (-1)
       move: # (55) = var a (45)
-      get property: # (56) = var _E (2) [const string "math" (-143)]
-      get property: # (56) = # (56) [const string "ceil" (-148)]
+      get property: # (56) = var _E (2) [const string "math" (-145)]
+      get property: # (56) = # (56) [const string "ceil" (-150)]
     end call: start 53, params 4, ret values 1
   end call method: start 50, params 4, ret values 0
 
@@ -2167,14 +2167,14 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "math.floor" (-149)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "math.floor" (-151)
     begin call
       move: # (53) = var transform (46)
       move: # (54) = const null (-1)
       move: # (55) = var a (45)
-      get property: # (56) = var _E (2) [const string "math" (-143)]
-      get property: # (56) = # (56) [const string "floor" (-150)]
+      get property: # (56) = var _E (2) [const string "math" (-145)]
+      get property: # (56) = # (56) [const string "floor" (-152)]
     end call: start 53, params 4, ret values 1
   end call method: start 50, params 4, ret values 0
 
@@ -2183,8 +2183,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "math.round(-1)" (-151)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "math.round(-1)" (-153)
     begin call
       move: # (53) = var transform (46)
       move: # (54) = const null (-1)
@@ -2198,8 +2198,8 @@ begin function
           4 _G
         end locals
           begin call method
-            get property: # (5) = var _E (3) [const string "math" (-143)]
-            move: # (6) = const string "round" (-152)
+            get property: # (5) = var _E (3) [const string "math" (-145)]
+            move: # (6) = const string "round" (-154)
             move: # (7) = param a (2)
             # (8) = [neg] const number 1 (-9)
           end call method: start 5, params 4, ret values 1
@@ -2213,8 +2213,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "math.round(2)" (-153)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "math.round(2)" (-155)
     begin call
       move: # (53) = var transform (46)
       move: # (54) = const null (-1)
@@ -2228,8 +2228,8 @@ begin function
           4 _G
         end locals
           begin call method
-            get property: # (5) = var _E (3) [const string "math" (-143)]
-            move: # (6) = const string "round" (-152)
+            get property: # (5) = var _E (3) [const string "math" (-145)]
+            move: # (6) = const string "round" (-154)
             move: # (7) = param a (2)
             move: # (8) = const number 2 (-7)
           end call method: start 5, params 4, ret values 1
@@ -2243,14 +2243,14 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "math.sin" (-154)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "math.sin" (-156)
     begin call
       move: # (53) = var transform (46)
       move: # (54) = const null (-1)
       move: # (55) = var a (45)
-      get property: # (56) = var _E (2) [const string "math" (-143)]
-      get property: # (56) = # (56) [const string "sin" (-155)]
+      get property: # (56) = var _E (2) [const string "math" (-145)]
+      get property: # (56) = # (56) [const string "sin" (-157)]
     end call: start 53, params 4, ret values 1
   end call method: start 50, params 4, ret values 0
 
@@ -2259,14 +2259,14 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "math.cos" (-156)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "math.cos" (-158)
     begin call
       move: # (53) = var transform (46)
       move: # (54) = const null (-1)
       move: # (55) = var a (45)
-      get property: # (56) = var _E (2) [const string "math" (-143)]
-      get property: # (56) = # (56) [const string "cos" (-157)]
+      get property: # (56) = var _E (2) [const string "math" (-145)]
+      get property: # (56) = # (56) [const string "cos" (-159)]
     end call: start 53, params 4, ret values 1
   end call method: start 50, params 4, ret values 0
 
@@ -2275,29 +2275,29 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "math.tan" (-158)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "math.tan" (-160)
     begin call
       move: # (53) = var transform (46)
       move: # (54) = const null (-1)
       move: # (55) = var a (45)
-      get property: # (56) = var _E (2) [const string "math" (-143)]
-      get property: # (56) = # (56) [const string "tan" (-159)]
+      get property: # (56) = var _E (2) [const string "math" (-145)]
+      get property: # (56) = # (56) [const string "tan" (-161)]
     end call: start 53, params 4, ret values 1
   end call method: start 50, params 4, ret values 0
 
 
 [285] _E = math
 
-  get property: var _E (2) = var _E (2) [const string "math" (-143)]
+  get property: var _E (2) = var _E (2) [const string "math" (-145)]
 
 
 [286] print "Extend local environment to be able to use math module without namespace"
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Extend local environment to be able to use math module without namespace" (-160)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Extend local environment to be able to use math module without namespace" (-162)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2305,8 +2305,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "round(3)" (-161)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "round(3)" (-163)
     begin call
       move: # (53) = var transform (46)
       move: # (54) = const null (-1)
@@ -2321,7 +2321,7 @@ begin function
         end locals
           begin call method
             move: # (5) = var _E (3)
-            move: # (6) = const string "round" (-152)
+            move: # (6) = const string "round" (-154)
             move: # (7) = param a (2)
             move: # (8) = const number 3 (-6)
           end call method: start 5, params 4, ret values 1
@@ -2335,9 +2335,9 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "PI" (-162)
-    get property: # (53) = var _E (2) [const string "PI" (-162)]
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "PI" (-164)
+    get property: # (53) = var _E (2) [const string "PI" (-164)]
   end call method: start 50, params 4, ret values 0
 
 
@@ -2345,8 +2345,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "require" (-163)
-    move: # (52) = const string "core" (-136)
+    move: # (51) = const string "require" (-165)
+    move: # (52) = const string "core" (-138)
   end call method: start 50, params 3, ret values 1
   move: var core (47) = # (50)
 
@@ -2355,12 +2355,12 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "core.eval(math.round(13.5))" (-164)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "core.eval(math.round(13.5))" (-166)
     begin call method
       move: # (53) = var core (47)
-      move: # (54) = const string "eval" (-165)
-      move: # (55) = const string "math.round(13.5)" (-166)
+      move: # (54) = const string "eval" (-167)
+      move: # (55) = const string "math.round(13.5)" (-168)
     end call method: start 53, params 3, ret values 1
   end call method: start 50, params 4, ret values 0
 
@@ -2369,12 +2369,12 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "eval(math.round(13.5))" (-167)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "eval(math.round(13.5))" (-169)
     begin call method
       move: # (53) = var _E (2)
-      move: # (54) = const string "eval" (-165)
-      move: # (55) = const string "math.round(13.5)" (-166)
+      move: # (54) = const string "eval" (-167)
+      move: # (55) = const string "math.round(13.5)" (-168)
     end call method: start 53, params 3, ret values 1
   end call method: start 50, params 4, ret values 0
 
@@ -2383,8 +2383,8 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "==============" (-168)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "==============" (-170)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2392,14 +2392,14 @@ begin function
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     move: # (52) = const string "Next: math namespace is not used
 but eval executes code in global environment by default
-so eval(round(13.5))" (-169)
+so eval(round(13.5))" (-171)
     begin call method
       move: # (53) = var _E (2)
-      move: # (54) = const string "eval" (-165)
-      move: # (55) = const string "round(13.5)" (-170)
+      move: # (54) = const string "eval" (-167)
+      move: # (55) = const string "round(13.5)" (-172)
     end call method: start 53, params 3, ret values 1
   end call method: start 50, params 4, ret values 0
 
@@ -2408,12 +2408,12 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "run eval in space of the current environment (round(13.5))" (-171)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "run eval in space of the current environment (round(13.5))" (-173)
     begin call method
       move: # (53) = var _E (2)
-      move: # (54) = const string "eval" (-165)
-      move: # (55) = const string "round(13.5)" (-170)
+      move: # (54) = const string "eval" (-167)
+      move: # (55) = const string "round(13.5)" (-172)
       move: # (56) = var _E (2)
     end call method: start 53, params 4, ret values 1
   end call method: start 50, params 4, ret values 0
@@ -2421,7 +2421,7 @@ so eval(round(13.5))" (-169)
 
 [297] var __planet = "Mars"
 
-  move: var __planet (48) = const string "Mars" (-172)
+  move: var __planet (48) = const string "Mars" (-174)
 
 
 [298] function get planet(){ return __planet }
@@ -2436,7 +2436,7 @@ so eval(round(13.5))" (-169)
       get upvalue: # (4) = var __planet (48 1)
     return: # (4), count 1
   end function: # (50), index 31
-  set property: var _E (2) [const string "__get@planet" (-173)] = # (50)
+  set property: var _E (2) [const string "__get@planet" (-175)] = # (50)
 
 
 [299] function set planet(a){ __planet = a }
@@ -2451,39 +2451,39 @@ so eval(round(13.5))" (-169)
     end locals
     set upvalue: var __planet (48 1) = param a (2)
   end function: # (50), index 32
-  set property: var _E (2) [const string "__set@planet" (-174)] = # (50)
+  set property: var _E (2) [const string "__set@planet" (-176)] = # (50)
 
 
 [301] print "Planet should be Mars: "..planet
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "Planet should be Mars: " (-175)
-      get property: # (55) = var _E (2) [const string "planet" (-176)]
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "Planet should be Mars: " (-177)
+      get property: # (55) = var _E (2) [const string "planet" (-178)]
     end call method: start 52, params 4, ret values 1
   end call method: start 50, params 3, ret values 0
 
 
 [302] planet = "Mercury"
 
-  move: # (50) = const string "Mercury" (-177)
-  set property: var _E (2) [const string "planet" (-176)] = # (50)
+  move: # (50) = const string "Mercury" (-179)
+  set property: var _E (2) [const string "planet" (-178)] = # (50)
 
 
 [303] print "Planet should be Mercury: "..planet
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "Planet should be Mercury: " (-178)
-      get property: # (55) = var _E (2) [const string "planet" (-176)]
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "Planet should be Mercury: " (-180)
+      get property: # (55) = var _E (2) [const string "planet" (-178)]
     end call method: start 52, params 4, ret values 1
   end call method: start 50, params 3, ret values 0
 
@@ -2492,8 +2492,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Sorted array" (-179)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Sorted array" (-181)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2501,45 +2501,45 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       new array 7: # (52)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 9 (-19)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 4 (-5)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 0 (-15)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 276 (-21)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 15 (-22)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 39 (-23)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 3 (-6)
       end call method: start 53, params 3, ret values 0
-      move: # (53) = const string "sort" (-180)
+      move: # (53) = const string "sort" (-182)
     end call method: start 52, params 2, ret values 1
   end call method: start 50, params 3, ret values 0
 
@@ -2548,8 +2548,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "User sorted array by keys" (-181)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "User sorted array by keys" (-183)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2557,60 +2557,60 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       new array 10: # (52)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 0 (-15)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 1 (-9)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 2 (-7)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 3 (-6)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 4 (-5)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 5 (-4)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 6 (-24)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 7 (-10)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 8 (-25)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 9 (-19)
       end call method: start 53, params 3, ret values 0
-      move: # (53) = const string "ksort" (-182)
+      move: # (53) = const string "ksort" (-184)
       begin function
         begin locals 6, stack 9
           0 _F (param)
@@ -2633,8 +2633,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Sorted array (reverse)" (-183)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Sorted array (reverse)" (-185)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2642,45 +2642,45 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       new array 7: # (52)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 9 (-19)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 4 (-5)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 0 (-15)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 276 (-21)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 15 (-22)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 39 (-23)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 3 (-6)
       end call method: start 53, params 3, ret values 0
-      move: # (53) = const string "rsort" (-184)
+      move: # (53) = const string "rsort" (-186)
     end call method: start 52, params 2, ret values 1
   end call method: start 50, params 3, ret values 0
 
@@ -2689,8 +2689,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "User sorted array" (-185)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "User sorted array" (-187)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2698,45 +2698,45 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       new array 7: # (52)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 9 (-19)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 4 (-5)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 0 (-15)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 276 (-21)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 15 (-22)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 39 (-23)
       end call method: start 53, params 3, ret values 0
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 3 (-6)
       end call method: start 53, params 3, ret values 0
-      move: # (53) = const string "sort" (-180)
+      move: # (53) = const string "sort" (-182)
       begin function
         begin locals 6, stack 9
           0 _F (param)
@@ -2759,8 +2759,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Sorted object by values" (-186)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Sorted object by values" (-188)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2768,29 +2768,29 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       new object 7: # (52)
-      set property: # (52) [const string "b" (-187)] = const number 9 (-19)
+      set property: # (52) [const string "b" (-189)] = const number 9 (-19)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 4 (-5)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "d" (-188)] = const number 0 (-15)
-      set property: # (52) [const string "c" (-140)] = const number 276 (-21)
+      set property: # (52) [const string "d" (-190)] = const number 0 (-15)
+      set property: # (52) [const string "c" (-142)] = const number 276 (-21)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 15 (-22)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "a" (-139)] = const number 39 (-23)
+      set property: # (52) [const string "a" (-141)] = const number 39 (-23)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 3 (-6)
       end call method: start 53, params 3, ret values 0
-      move: # (53) = const string "sort" (-180)
+      move: # (53) = const string "sort" (-182)
     end call method: start 52, params 2, ret values 1
   end call method: start 50, params 3, ret values 0
 
@@ -2799,8 +2799,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Sorted object by values (reverse)" (-189)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Sorted object by values (reverse)" (-191)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2808,29 +2808,29 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       new object 7: # (52)
-      set property: # (52) [const string "b" (-187)] = const number 9 (-19)
+      set property: # (52) [const string "b" (-189)] = const number 9 (-19)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 4 (-5)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "d" (-188)] = const number 0 (-15)
-      set property: # (52) [const string "c" (-140)] = const number 276 (-21)
+      set property: # (52) [const string "d" (-190)] = const number 0 (-15)
+      set property: # (52) [const string "c" (-142)] = const number 276 (-21)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 15 (-22)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "a" (-139)] = const number 39 (-23)
+      set property: # (52) [const string "a" (-141)] = const number 39 (-23)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 3 (-6)
       end call method: start 53, params 3, ret values 0
-      move: # (53) = const string "rsort" (-184)
+      move: # (53) = const string "rsort" (-186)
     end call method: start 52, params 2, ret values 1
   end call method: start 50, params 3, ret values 0
 
@@ -2839,8 +2839,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Sorted object by keys" (-190)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Sorted object by keys" (-192)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2848,29 +2848,29 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       new object 7: # (52)
-      set property: # (52) [const string "b" (-187)] = const number 9 (-19)
+      set property: # (52) [const string "b" (-189)] = const number 9 (-19)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 4 (-5)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "d" (-188)] = const number 0 (-15)
-      set property: # (52) [const string "c" (-140)] = const number 276 (-21)
+      set property: # (52) [const string "d" (-190)] = const number 0 (-15)
+      set property: # (52) [const string "c" (-142)] = const number 276 (-21)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 15 (-22)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "a" (-139)] = const number 39 (-23)
+      set property: # (52) [const string "a" (-141)] = const number 39 (-23)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 3 (-6)
       end call method: start 53, params 3, ret values 0
-      move: # (53) = const string "ksort" (-182)
+      move: # (53) = const string "ksort" (-184)
     end call method: start 52, params 2, ret values 1
   end call method: start 50, params 3, ret values 0
 
@@ -2879,8 +2879,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Sorted object by keys (reverse)" (-191)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Sorted object by keys (reverse)" (-193)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2888,29 +2888,29 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       new object 7: # (52)
-      set property: # (52) [const string "b" (-187)] = const number 9 (-19)
+      set property: # (52) [const string "b" (-189)] = const number 9 (-19)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 4 (-5)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "d" (-188)] = const number 0 (-15)
-      set property: # (52) [const string "c" (-140)] = const number 276 (-21)
+      set property: # (52) [const string "d" (-190)] = const number 0 (-15)
+      set property: # (52) [const string "c" (-142)] = const number 276 (-21)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 15 (-22)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "a" (-139)] = const number 39 (-23)
+      set property: # (52) [const string "a" (-141)] = const number 39 (-23)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 3 (-6)
       end call method: start 53, params 3, ret values 0
-      move: # (53) = const string "krsort" (-192)
+      move: # (53) = const string "krsort" (-194)
     end call method: start 52, params 2, ret values 1
   end call method: start 50, params 3, ret values 0
 
@@ -2919,8 +2919,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "User sorted object by keys (reverse)" (-193)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "User sorted object by keys (reverse)" (-195)
   end call method: start 50, params 3, ret values 0
 
 
@@ -2928,29 +2928,29 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       new object 7: # (52)
-      set property: # (52) [const string "b" (-187)] = const number 9 (-19)
+      set property: # (52) [const string "b" (-189)] = const number 9 (-19)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 4 (-5)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "d" (-188)] = const number 0 (-15)
-      set property: # (52) [const string "c" (-140)] = const number 276 (-21)
+      set property: # (52) [const string "d" (-190)] = const number 0 (-15)
+      set property: # (52) [const string "c" (-142)] = const number 276 (-21)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 15 (-22)
       end call method: start 53, params 3, ret values 0
-      set property: # (52) [const string "a" (-139)] = const number 39 (-23)
+      set property: # (52) [const string "a" (-141)] = const number 39 (-23)
       begin call method
         move: # (53) = # (52)
-        move: # (54) = const string "push" (-39)
+        move: # (54) = const string "push" (-41)
         move: # (55) = const number 3 (-6)
       end call method: start 53, params 3, ret values 0
-      move: # (53) = const string "krsort" (-192)
+      move: # (53) = const string "krsort" (-194)
       begin function
         begin locals 6, stack 9
           0 _F (param)
@@ -3014,7 +3014,7 @@ so eval(round(13.5))" (-169)
 
         begin call method
           move: # (6) = var _E (3)
-          move: # (7) = const string "printBackTrace" (-194)
+          move: # (7) = const string "printBackTrace" (-196)
         end call method: start 6, params 2, ret values 0
 
 [336] var i = 0 // add some code at the end of function to prevent tail call
@@ -3055,8 +3055,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Test back trace" (-195)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Test back trace" (-197)
   end call method: start 50, params 3, ret values 0
 
 
@@ -3074,11 +3074,11 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "Test 5 < 10 ? 7 : 3 --> " (-196)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "Test 5 < 10 ? 7 : 3 --> " (-198)
       begin question
         begin bool exp
           move: # (55) = const number 5 (-4)
@@ -3100,20 +3100,20 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "Test in operator (should be true) " (-197)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "Test in operator (should be true) " (-199)
       begin call method
         move: # (55) = var _G (3)
-        move: # (56) = const string "__in" (-198)
-        move: # (57) = const string "name" (-199)
+        move: # (56) = const string "__in" (-200)
+        move: # (57) = const string "name" (-201)
         new object 4: # (58)
-        set property: # (58) [const string "x" (-37)] = const number 0 (-15)
-        set property: # (58) [const string "y" (-38)] = const number 0 (-15)
-        set property: # (58) [const string "name" (-199)] = const number 0 (-15)
-        set property: # (58) [const string "index" (-200)] = const number 0 (-15)
+        set property: # (58) [const string "x" (-39)] = const number 0 (-15)
+        set property: # (58) [const string "y" (-40)] = const number 0 (-15)
+        set property: # (58) [const string "name" (-201)] = const number 0 (-15)
+        set property: # (58) [const string "index" (-202)] = const number 0 (-15)
       end call method: start 55, params 4, ret values 1
     end call method: start 52, params 4, ret values 1
   end call method: start 50, params 3, ret values 0
@@ -3123,8 +3123,8 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "Test _F and recursion" (-201)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "Test _F and recursion" (-203)
   end call method: start 50, params 3, ret values 0
 
 
@@ -3132,11 +3132,11 @@ so eval(round(13.5))" (-169)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
+    move: # (51) = const string "print" (-28)
     begin call method
       move: # (52) = var _G (3)
-      move: # (53) = const string "concat" (-29)
-      move: # (54) = const string "factorial(20) = " (-202)
+      move: # (53) = const string "concat" (-31)
+      move: # (54) = const string "factorial(20) = " (-204)
       begin call
         begin function
           begin locals 5, stack 10
@@ -3199,7 +3199,7 @@ so eval(round(13.5))" (-169)
 
       begin call method
         move: # (9) = param this (1)
-        move: # (10) = const string "__iter" (-60)
+        move: # (10) = const string "__iter" (-62)
       end call method: start 9, params 2, ret values 1
       move: var #func (7) = # (9)
       begin loop
@@ -3238,8 +3238,8 @@ so eval(round(13.5))" (-169)
 
 [353] function Object.each(func){
 
-  get property: # (51) = var _E (2) [const string "Object" (-203)]
-  set property: # (51) [const string "each" (-204)] = # (50)
+  get property: # (51) = var _E (2) [const string "Object" (-205)]
+  set property: # (51) [const string "each" (-206)] = # (50)
 
 
 [359] [10 20 30 40].each {|a|
@@ -3248,25 +3248,25 @@ so eval(round(13.5))" (-169)
     new array 4: # (50)
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
+      move: # (52) = const string "push" (-41)
       move: # (53) = const number 10 (-11)
     end call method: start 51, params 3, ret values 0
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
+      move: # (52) = const string "push" (-41)
       move: # (53) = const number 20 (-12)
     end call method: start 51, params 3, ret values 0
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
+      move: # (52) = const string "push" (-41)
       move: # (53) = const number 30 (-13)
     end call method: start 51, params 3, ret values 0
     begin call method
       move: # (51) = # (50)
-      move: # (52) = const string "push" (-39)
+      move: # (52) = const string "push" (-41)
       move: # (53) = const number 40 (-14)
     end call method: start 51, params 3, ret values 0
-    move: # (51) = const string "each" (-204)
+    move: # (51) = const string "each" (-206)
     begin function
       begin locals 5, stack 8
         0 _F (param)
@@ -3280,7 +3280,7 @@ so eval(round(13.5))" (-169)
 
         begin call method
           move: # (5) = var _E (3)
-          move: # (6) = const string "print" (-26)
+          move: # (6) = const string "print" (-28)
           move: # (7) = param a (2)
         end call method: start 5, params 3, ret values 1
       return: # (5), count 1
@@ -3288,20 +3288,75 @@ so eval(round(13.5))" (-169)
   end call method: start 50, params 3, ret values 0
 
 
-[363] terminate()
+[380] printf("def: %v, decimal: %d, string: %s, def:%v\n", "John", 123.45678, 123.45678, 123.45678)
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "terminate" (-205)
+    move: # (51) = const string "printf" (-207)
+    move: # (52) = const string "def: %v, decimal: %d, string: %s, def:%v
+" (-208)
+    move: # (53) = const string "John" (-209)
+    move: # (54) = const number 123.457 (-26)
+    move: # (55) = const number 123.457 (-26)
+    move: # (56) = const number 123.457 (-26)
+  end call method: start 50, params 7, ret values 0
+
+
+[381] printf("number: %n, float: %f, float(%%.2f): %.2f, float(%%.-1f): %.-1f\n", math.round(123.45678, 2), math.round(123.45678, 2), 123.45678, 123.45678)
+
+  begin call method
+    move: # (50) = var _E (2)
+    move: # (51) = const string "printf" (-207)
+    move: # (52) = const string "number: %n, float: %f, float(%%.2f): %.2f, float(%%.-1f): %.-1f
+" (-210)
+    begin call method
+      get property: # (53) = var _E (2) [const string "math" (-145)]
+      move: # (54) = const string "round" (-154)
+      move: # (55) = const number 123.457 (-26)
+      move: # (56) = const number 2 (-7)
+    end call method: start 53, params 4, ret values 1
+    begin call method
+      get property: # (54) = var _E (2) [const string "math" (-145)]
+      move: # (55) = const string "round" (-154)
+      move: # (56) = const number 123.457 (-26)
+      move: # (57) = const number 2 (-7)
+    end call method: start 54, params 4, ret values 1
+    move: # (55) = const number 123.457 (-26)
+    move: # (56) = const number 123.457 (-26)
+  end call method: start 50, params 7, ret values 0
+
+
+[382] printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54321))
+
+  begin call method
+    move: # (50) = var _E (2)
+    move: # (51) = const string "printf" (-207)
+    move: # (52) = const string "%s
+" (-211)
+    begin call method
+      move: # (53) = var _E (2)
+      move: # (54) = const string "sprintf" (-212)
+      move: # (55) = const string "number: %n, float(%%.-2f): %.-2f" (-213)
+      move: # (56) = const number 12876.5 (-27)
+      move: # (57) = const number 12876.5 (-27)
+    end call method: start 53, params 5, ret values 1
+  end call method: start 50, params 4, ret values 0
+
+
+[384] terminate()
+
+  begin call method
+    move: # (50) = var _E (2)
+    move: # (51) = const string "terminate" (-214)
   end call method: start 50, params 2, ret values 0
 
 
-[364] print "This text is never printed"
+[385] print "This text is never printed"
 
   begin call method
     move: # (50) = var _E (2)
-    move: # (51) = const string "print" (-26)
-    move: # (52) = const string "This text is never printed" (-206)
+    move: # (51) = const string "print" (-28)
+    move: # (52) = const string "This text is never printed" (-215)
   end call method: start 50, params 3, ret values 0
 
   return: var _E (2), count 1
