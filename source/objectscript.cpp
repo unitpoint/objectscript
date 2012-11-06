@@ -15459,7 +15459,7 @@ int OS::Core::execute()
 				b = GETARG_B(instruction); // inverse
 				c = GETARG_C(instruction); // if opcode
 
-				res = isEqualExactly(*left_value, *right_value);
+				res = (int)isEqualExactly(*left_value, *right_value) ^ b;
 				if(!c){
 					stack_func_locals[a] = res != 0;
 					break;
