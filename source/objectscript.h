@@ -283,20 +283,6 @@ namespace ObjectScript
 		OP_PLUS,		// +
 		OP_NEG,			// -
 		OP_LENGTH,		// #
-
-		/*
-		OP_LOGIC_BOOL,
-		OP_LOGIC_NOT,
-
-		OP_VALUE_OF,
-		OP_NUMBER_OF,
-		OP_STRING_OF,
-		OP_ARRAY_OF,
-		OP_OBJECT_OF,
-		OP_USERDATA_OF,
-		OP_FUNCTION_OF,
-		OP_CLONE,
-		*/
 	};
 
 	class OS
@@ -1452,8 +1438,8 @@ namespace ObjectScript
 				Value index;
 
 				PropertyIndex(const PropertyIndex& index);
-				PropertyIndex(Value index);
-				PropertyIndex(Value index, const KeepStringIndex&);
+				PropertyIndex(const Value& index);
+				PropertyIndex(const Value& index, const KeepStringIndex&);
 				PropertyIndex(GCStringValue * index);
 				PropertyIndex(GCStringValue * index, const KeepStringIndex&);
 				PropertyIndex(const String& index);
@@ -2619,10 +2605,10 @@ namespace ObjectScript
 			void pushCloneValue(Value val);
 
 			// unary operator
-			void pushOpResultValue(int opcode, Value value);
+			void pushOpResultValue(OpcodeType opcode, const Value& value);
 
 			// binary operator
-			void pushOpResultValue(int opcode, Value left_value, Value right_value);
+			void pushOpResultValue(OpcodeType opcode, const Value& left_value, const Value& right_value);
 			bool isEqualExactly(const Value& left_value, const Value& right_value);
 
 			void setGlobalValue(const String& name, Value value, bool anonymous_setter_enabled, bool named_setter_enabled);
@@ -2658,10 +2644,11 @@ namespace ObjectScript
 			OS_INT valueToInt(const Value& val, bool valueof_enabled = false);
 			OS_NUMBER valueToNumber(const Value& val, bool valueof_enabled = false);
 			String valueToString(const Value& val, bool valueof_enabled = false);
+			OS::String valueToStringOS(const Value& val, bool valueof_enabled = false);
 
 			bool isValueNumber(const Value& val, OS_NUMBER * out = NULL);
 			bool isValueString(const Value& val, String * out = NULL);
-			bool isValueString(const Value& val, OS::String * out = NULL);
+			bool isValueStringOS(const Value& val, OS::String * out = NULL);
 			bool isValueInstanceOf(GCValue * val, GCValue * prototype_val);
 			bool isValueInstanceOf(const Value& val, const Value& prototype_val);
 			bool isValuePrototypeOf(GCValue * val, GCValue * prototype_val);
@@ -2773,10 +2760,12 @@ namespace ObjectScript
 		class String: public Core::String // this string retains OS
 		{
 			typedef Core::String super;
+			friend class Core;
 
 		protected:
 
 			OS * allocator;
+			String(OS*, Core::GCStringValue*);
 
 		public:
 
