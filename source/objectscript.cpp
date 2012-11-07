@@ -13682,6 +13682,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		}
 	};
 
+	int is_gc_left_value = 0;
 	switch(left_value.type){
 	case OS_VALUE_TYPE_STRING:
 		if(right_value.type == OS_VALUE_TYPE_STRING){
@@ -13720,6 +13721,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				return;
 			}			
 		}
+		is_gc_left_value ^= 1;
 		// no break
 
 	case OS_VALUE_TYPE_NULL:
@@ -13796,6 +13798,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			OS_ASSERT(false);
 			return pushNull();
 		}
+		is_gc_left_value ^= 1;
 		// no break
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -13804,12 +13807,24 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
+		is_gc_left_value ^= 1;
 		switch(opcode){
 		case OP_COMPARE:
-			if(left_value.v.value == right_value.v.value){
-				return pushNumber((OS_NUMBER)0.0);
+			if(is_gc_left_value){
+				switch(right_value.type){
+				case OS_VALUE_TYPE_STRING:
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_FUNCTION:
+				case OS_VALUE_TYPE_CFUNCTION:
+					if(left_value.v.value == right_value.v.value){
+						return pushNumber((OS_NUMBER)0.0);
+					}
+				}
 			}
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13818,10 +13833,21 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			return pushBool(isEqualExactly(left_value, right_value));
 
 		case OP_LOGIC_EQ:
-			if(left_value.v.value == right_value.v.value){
-				return pushBool(true);
+			if(is_gc_left_value){
+				switch(right_value.type){
+				case OS_VALUE_TYPE_STRING:
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_FUNCTION:
+				case OS_VALUE_TYPE_CFUNCTION:
+					if(left_value.v.value == right_value.v.value){
+						return pushBool(true);
+					}
+				}
 			}
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
 			}
 			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13829,10 +13855,21 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			return;
 
 		case OP_LOGIC_GE:
-			if(left_value.v.value == right_value.v.value){
-				return pushBool(true);
+			if(is_gc_left_value){
+				switch(right_value.type){
+				case OS_VALUE_TYPE_STRING:
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_FUNCTION:
+				case OS_VALUE_TYPE_CFUNCTION:
+					if(left_value.v.value == right_value.v.value){
+						return pushBool(true);
+					}
+				}
 			}
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
 			}
 			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13840,10 +13877,21 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			return;
 
 		case OP_LOGIC_GREATER:
-			if(left_value.v.value == right_value.v.value){
-				return pushBool(false);
+			if(is_gc_left_value){
+				switch(right_value.type){
+				case OS_VALUE_TYPE_STRING:
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_FUNCTION:
+				case OS_VALUE_TYPE_CFUNCTION:
+					if(left_value.v.value == right_value.v.value){
+						return pushBool(false);
+					}
+				}
 			}
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
 			}
 			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13851,67 +13899,67 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			return;
 
 		case OP_BIT_AND:
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, left_value, right_value, true);
 
 		case OP_BIT_OR:
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, left_value, right_value, true);
 
 		case OP_BIT_XOR:
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, left_value, right_value, true);
 
 		case OP_ADD: // +
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__add, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__add, left_value, right_value, true);
 
 		case OP_SUB: // -
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, left_value, right_value, true);
 
 		case OP_MUL: // *
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, left_value, right_value, true);
 
 		case OP_DIV: // /
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__div, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__div, left_value, right_value, true);
 
 		case OP_MOD: // %
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, left_value, right_value, true);
 
 		case OP_LSHIFT: // <<
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, left_value, right_value, true);
 
 		case OP_RSHIFT: // >>
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, left_value, right_value, true);
 
 		case OP_POW: // **
-			if(left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, left_value, right_value, true);
@@ -14435,6 +14483,18 @@ OS_EValueType OS::getTypeById(int id)
 {
 	Core::GCValue * val = core->values.get(id);
 	return val ? val->type : OS_VALUE_TYPE_NULL;
+}
+
+OS::String OS::getTypeStr(int offs)
+{
+	core->pushTypeOf(core->getStackValue(offs));
+	return popString();
+}
+
+OS::String OS::getTypeStrById(int id)
+{
+	core->pushTypeOf(core->values.get(id));
+	return popString();
 }
 
 bool OS::isType(OS_EValueType type, int offs)
@@ -16933,6 +16993,10 @@ void OS::initGlobalFunctions()
 
 		static int concat(OS * os, int params, int, int, void*)
 		{
+			if(params == 2){
+				os->pushString(os->toString(-params) + os->toString(-params + 1));
+				return 1;
+			}
 			if(params < 1){
 				return 0;
 			}
@@ -17987,7 +18051,20 @@ void OS::initObjectClass()
 			Core::Value left_value = os->core->getStackValue(-params + 0);
 			Core::Value right_value = os->core->getStackValue(-params + 1);
 			switch(left_value.type){
+			case OS_VALUE_TYPE_NULL:
+			case OS_VALUE_TYPE_BOOL:
+			case OS_VALUE_TYPE_NUMBER:
 			case OS_VALUE_TYPE_STRING:
+				switch(right_value.type){
+				case OS_VALUE_TYPE_NULL:
+				case OS_VALUE_TYPE_BOOL:
+				case OS_VALUE_TYPE_NUMBER:
+				case OS_VALUE_TYPE_STRING:
+					os->core->pushOpResultValue(Core::OP_COMPARE, left_value, right_value);
+					return 1;
+				}
+				break;
+
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_USERDATA:
@@ -18005,7 +18082,9 @@ void OS::initObjectClass()
 					os->pushNumber(left_value.v.value > right_value.v.value ? 1 : (left_value.v.value < right_value.v.value ? -1 : 0));
 					return 1;
 				}
+				break;
 			}
+			os->triggerError(String::format(os, OS_TEXT("Can't compare '%s' with '%s'!"), os->getTypeStr(-params + 0).toChar(), os->getTypeStr(-params + 1).toChar()));
 			return 0;
 		}
 	};

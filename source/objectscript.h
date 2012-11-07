@@ -2903,6 +2903,8 @@ namespace ObjectScript
 
 		OS_EValueType getType(int offs = -1);
 		OS_EValueType getTypeById(int id);
+		String getTypeStr(int offs = -1);
+		String getTypeStrById(int id);
 		bool isNumber(int offs = -1, OS_NUMBER * out = NULL);
 		bool isString(int offs = -1, String * out = NULL);
 		bool isType(OS_EValueType, int offs = -1);
