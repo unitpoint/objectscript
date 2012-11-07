@@ -2698,7 +2698,7 @@ namespace ObjectScript
 
 			bool getPropertyValue(Value& result, Table * table, const PropertyIndex& index);
 			bool getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled);
-			bool getPropertyValue(Value& result, Value table_value, const PropertyIndex& index, bool prototype_enabled);
+			bool getPropertyValue(Value& result, const Value& table_value, const PropertyIndex& index, bool prototype_enabled);
 
 			bool hasProperty(GCValue * table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled);
 			void pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create);

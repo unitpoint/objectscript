@@ -13657,7 +13657,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 {
 	struct Lib
 	{
-		static void pushObjectMethodOpcodeValue(Core * core, const String& method_name, Value left_value, Value right_value, bool is_left_side)
+		static void pushObjectMethodOpcodeValue(Core * core, const String& method_name, const Value& left_value, const Value& right_value, bool is_left_side)
 		{
 			Value func;
 			bool prototype_enabled = true;
@@ -14851,7 +14851,7 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Prop
 	return false;
 }
 
-bool OS::Core::getPropertyValue(Value& result, Value table_value, const PropertyIndex& index, bool prototype_enabled)
+bool OS::Core::getPropertyValue(Value& result, const Value& table_value, const PropertyIndex& index, bool prototype_enabled)
 {
 	switch(table_value.type){
 	case OS_VALUE_TYPE_NULL:
