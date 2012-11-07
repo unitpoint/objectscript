@@ -15247,11 +15247,13 @@ int OS::Core::execute()
 		case OP_LOGIC_PTR_EQ:
 			{
 				a = GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
 				
-				left_value = & ARG_B_VALUE(a);
-				b = a + 1;
-				right_value = & ARG_C_VALUE(b);
+				// left_value = & ARG_B_VALUE(a);
+				// b = a + 1;
+				// right_value = & ARG_C_VALUE(b);
+				left_value = &stack_func_locals[a];
+				right_value = &stack_func_locals[a+1];
 
 				b = GETARG_B(instruction); // inverse
 				c = GETARG_C(instruction); // if opcode
@@ -15279,11 +15281,13 @@ int OS::Core::execute()
 		case OP_LOGIC_EQ:
 			{
 				a = GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
 				
-				left_value = & ARG_B_VALUE(a);
-				b = a + 1;
-				right_value = & ARG_C_VALUE(b);
+				// left_value = & ARG_B_VALUE(a);
+				// b = a + 1;
+				// right_value = & ARG_C_VALUE(b);
+				left_value = &stack_func_locals[a];
+				right_value = &stack_func_locals[a+1];
 
 				b = GETARG_B(instruction); // inverse
 				c = GETARG_C(instruction); // if opcode
@@ -15317,11 +15321,13 @@ int OS::Core::execute()
 		case OP_LOGIC_GREATER:
 			{
 				a = GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
 				
-				left_value = & ARG_B_VALUE(a);
-				b = a + 1;
-				right_value = & ARG_C_VALUE(b);
+				// left_value = & ARG_B_VALUE(a);
+				// b = a + 1;
+				// right_value = & ARG_C_VALUE(b);
+				left_value = &stack_func_locals[a];
+				right_value = &stack_func_locals[a+1];
 
 				b = GETARG_B(instruction); // inverse
 				c = GETARG_C(instruction); // if opcode
@@ -15355,11 +15361,13 @@ int OS::Core::execute()
 		case OP_LOGIC_GE:
 			{
 				a = GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
 				
-				left_value = & ARG_B_VALUE(a);
-				b = a + 1;
-				right_value = & ARG_C_VALUE(b);
+				// left_value = & ARG_B_VALUE(a);
+				// b = a + 1;
+				// right_value = & ARG_C_VALUE(b);
+				left_value = &stack_func_locals[a];
+				right_value = &stack_func_locals[a+1];
 
 				b = GETARG_B(instruction); // inverse
 				c = GETARG_C(instruction); // if opcode
@@ -15419,7 +15427,7 @@ int OS::Core::execute()
 				b = GETARG_B(instruction);
 				left_value = & ARG_B_VALUE(b);
 				if(left_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] =  left_value->v.number;
+					stack_func_locals[a] =  *left_value; // left_value->v.number;
 				}else{
 					pushOpResultValue((OpcodeType)opcode, *left_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
@@ -15434,7 +15442,7 @@ int OS::Core::execute()
 				b = GETARG_B(instruction);
 				left_value = & ARG_B_VALUE(b);
 				if(left_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] =  -left_value->v.number;
+					stack_func_locals[a] = -left_value->v.number;
 				}else{
 					pushOpResultValue((OpcodeType)opcode, *left_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
