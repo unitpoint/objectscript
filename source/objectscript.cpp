@@ -13673,8 +13673,17 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					return;
 				}
 				if(is_left_side){
-					is_left_side = false;
-					continue;
+					switch(right_value.type){
+					// case OS_VALUE_TYPE_STRING:
+					case OS_VALUE_TYPE_ARRAY:
+					case OS_VALUE_TYPE_OBJECT:
+					case OS_VALUE_TYPE_USERDATA:
+					case OS_VALUE_TYPE_USERPTR:
+					case OS_VALUE_TYPE_FUNCTION:
+					case OS_VALUE_TYPE_CFUNCTION:
+						is_left_side = false;
+						continue;
+					}
 				}
 				break;
 			}
@@ -13694,7 +13703,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 
 			case OP_LOGIC_PTR_EQ:
-				return pushBool(isEqualExactly(left_value, right_value));
+				return pushBool(left_value.v.value == right_value.v.value); // isEqualExactly(left_value, right_value));
 
 			case OP_LOGIC_EQ:
 				if(left_value.v.value == right_value.v.value){
@@ -13848,9 +13857,10 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				}
 			}
 			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
-				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
+				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
+			}else{
+				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			}
-			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) == (OS_NUMBER)0.0;
 			return;
 
@@ -13892,9 +13902,10 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				}
 			}
 			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
-				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
+				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
+			}else{
+				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			}
-			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) > (OS_NUMBER)0.0;
 			return;
 
