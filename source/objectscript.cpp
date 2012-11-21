@@ -13894,6 +13894,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				break;
 			}
 			core->error(OS_E_ERROR, String::format(core->allocator, OS_TEXT("Op %s is not found!"), method_name.toChar()));
+			core->pushNull();
 		}
 	};
 
@@ -14087,9 +14088,10 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				}
 			}
 			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
-				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
+				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
+			}else{
+				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			}
-			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) >= (OS_NUMBER)0.0;
 			return;
 
