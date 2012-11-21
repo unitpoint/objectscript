@@ -4821,7 +4821,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		OS_ASSERT(exp->list.count == 1);
 
 		stack_pos = scope->allocTempVar();
-		b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES; // const string
+		b = -1 - exp->slots.b - CONST_STD_VALUES; // const index
 		if(b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = b;
