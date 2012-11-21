@@ -59,7 +59,8 @@ inline void operator delete(void *, void *){}
 #endif // OS_NUMBER
 
 #define OS_MATH_POW_OPERATOR(a, b) (OS_NUMBER)::pow((double)(a), (double)(b))
-#define OS_MATH_MOD_OPERATOR(a, b) (OS_NUMBER)((OS_INT)(a) % (OS_INT)(b))
+// #define OS_MATH_MOD_OPERATOR(a, b) (OS_NUMBER)((OS_INT)(a) % (OS_INT)(b))
+#define OS_MATH_MOD_OPERATOR(a, b) (OS_NUMBER)((double)(a) - ::floor((double)(a)/(double)(b))*(double)(b))
 
 #define OS_CHAR char
 #define OS_TEXT(s) s
@@ -135,7 +136,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("0.99-vm3")
+#define OS_VERSION OS_TEXT("0.99-vm4")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_SOURCECODE_EXT OS_TEXT(".os")
@@ -1345,8 +1346,92 @@ namespace ObjectScript
 			struct GCFunctionValue;
 
 			struct WeakRef { WeakRef(){} };
+
+			template <class T> struct NumberType { enum { FLOAT = 0 }; };
+			template <> struct NumberType<double> { enum { FLOAT = 1 }; };
+			template <> struct NumberType<float> { enum { FLOAT = 1 }; };
+
+/* Microsoft compiler on a Pentium (32 bit) ? */
+#if defined(_MSC_VER) && defined(_M_IX86)
+
+#define OS_NUMBER_IEEEENDIAN	0
+#define OS_NUMBER_NAN_TRICK
+
+/* pentium 32 bits? */
+#elif defined(__i386__) || defined(__i386) || defined(__X86__)
+
+#define OS_NUMBER_IEEEENDIAN	1
+#define OS_NUMBER_NAN_TRICK
+
+#elif defined(__x86_64)
+
+#define OS_NUMBER_IEEEENDIAN	0
+
+#elif defined(__POWERPC__) || defined(__ppc__)
+
+#define OS_NUMBER_IEEEENDIAN	1
+
+#else
+
+#endif // OS_NUMBER_IEEEENDIAN & OS_NUMBER_NAN_TRICK
+
+			union ValueUnion
+			{
+				int boolean;
+				int value_id;
+				GCValue * value;
+				GCObjectValue * object;
+				GCArrayValue * arr;
+				GCStringValue * string;
+				GCUserdataValue * userdata;
+				GCFunctionValue * func;
+				GCCFunctionValue * cfunc;
+#ifndef OS_NUMBER_NAN_TRICK
+				// OS_NUMBER number;
+#endif
+			};
+
 			struct Value
 			{
+#ifndef OS_NUMBER_NAN_TRICK
+				struct {
+					struct { ValueUnion v; int type; } i;
+					// OS_NUMBER number;
+				} u;
+#elif !defined(OS_NUMBER_IEEEENDIAN)
+#error option 'OS_NUMBER_NAN_TRICK' needs 'OS_NUMBER_IEEEENDIAN'
+#else
+
+#define OS_NUMBER_NAN_MASK	0x7FFFFF00
+#define OS_NUMBER_NAN_MARK	0x7FF7A500
+
+#define OS_VALUE_VARIANT(a)	(a).u.i.v
+#define OS_VALUE_NUMBER(a)	(a).u.number
+#define OS_VALUE_TAGGED_TYPE(a)	(a).u.i.type
+#define OS_VALUE_TYPE(a)	(OS_IS_VALUE_NUMBER(a) ? OS_VALUE_TYPE_NUMBER : OS_VALUE_TAGGED_TYPE(a) & 0xff)
+
+#define OS_IS_VALUE_NUMBER(a)	((OS_VALUE_TAGGED_TYPE(a) & OS_NUMBER_NAN_MASK) != OS_NUMBER_NAN_MARK)
+#define OS_MAKE_VALUE_TAGGED_TYPE(t)	((t) | OS_NUMBER_NAN_MARK)
+
+#define OS_SET_VALUE_NUMBER(a, n)	(OS_VALUE_NUMBER(a) = (OS_NUMBER)(n))
+// #define OS_SET_VALUE_OBJECT(a, v)	(OS_VALUE_VARIANT(a) = (v))
+#define OS_SET_VALUE_TYPE(a, t)		(OS_VALUE_TAGGED_TYPE(a) = OS_MAKE_VALUE_TAGGED_TYPE(t))
+#define OS_SET_VALUE_NULL(a) (OS_VALUE_VARIANT(a).value = NULL, OS_SET_VALUE_TYPE((a), OS_VALUE_TYPE_NULL))
+#define OS_SET_NULL_VALUES(a, c) do{ Value * v = a; for(int count = c; count > 0; --count, ++v) OS_SET_VALUE_NULL(*v); }while(false)
+
+#if OS_NUMBER_IEEEENDIAN == 0
+				union {
+					struct { ValueUnion v; int type; } i;
+					OS_NUMBER number;
+				} u;
+#else
+				union {
+					struct { int type; ValueUnion v; } i;
+					OS_NUMBER number;
+				} u;
+#endif
+#endif // OS_NUMBER_NAN_TRICK
+				/*
 				union {
 					int boolean;
 					OS_NUMBER number;
@@ -1361,6 +1446,7 @@ namespace ObjectScript
 				} v;
 
 				OS_EValueType type;
+				*/
 
 				Value();
 				Value(bool);
@@ -1377,6 +1463,10 @@ namespace ObjectScript
 				Value& operator=(OS_INT64);
 				Value& operator=(float);
 				Value& operator=(double);
+
+#ifdef OS_NUMBER_NAN_TRICK
+				// Value& operator=(const Value& b){ OS_SET_VALUE_NUMBER(*this, OS_VALUE_NUMBER(b)); return *this;  }
+#endif
 				
 				void clear();
 
@@ -2038,6 +2128,7 @@ namespace ObjectScript
 
 				int getOpcodePos();
 				int writeOpcode(OS_U32 opcode);
+				int writeOpcode(OpcodeType opcode);
 				int writeOpcodeABC(OpcodeType opcode, int a, int b = 0, int c = 0);
 				int writeOpcodeABx(OpcodeType opcode, int a, int b);
 				void writeOpcodeAt(OS_U32 opcode, int pos);

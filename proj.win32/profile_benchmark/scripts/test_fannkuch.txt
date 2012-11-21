@@ -3,7 +3,7 @@
 [1] print arg
 
 begin function
-  begin locals 9, stack 21
+  begin locals 9, stack 18
     0 _F (param)
     1 this (param)
     2 _E
@@ -483,21 +483,22 @@ begin function
     move: # (16) = var flips (8)
     move: # (17) = const string "
 " (-15)
+  end call method: start 9, params 9, ret values 0
 
-[53] "time = ", (getTimeSec() - start_time)"\n"
 
-    move: # (18) = const string "time = " (-18)
+[54] printf("time: %.3f\n", getTimeSec() - start_time)
+
+  begin call method
+    move: # (9) = var _E (2)
+    move: # (10) = const string "printf" (-18)
+    move: # (11) = const string "time: %.3f
+" (-19)
     begin call method
-      move: # (19) = var _E (2)
-      move: # (20) = const string "getTimeSec" (-13)
-    end call method: start 19, params 2, ret values 1
-    # (19) = # (19) [operator -] var start_time (6)
-    move: # (20) = const string "
-" (-15)
-  end call method: start 9, params 12, ret values 0
-
-
-[54] )
+      move: # (12) = var _E (2)
+      move: # (13) = const string "getTimeSec" (-13)
+    end call method: start 12, params 2, ret values 1
+    # (12) = # (12) [operator -] var start_time (6)
+  end call method: start 9, params 4, ret values 0
 
   return: var _E (2), count 1
 end function: <<->> (0), index 0

@@ -40,7 +40,8 @@ local function fannkuch(n)
     end
   until false
 end
-local start_time = os.time()
+local start_time = os.clock()
 local n = tonumber(arg and arg[1]) or 1
 local sum, flips = fannkuch(n)
-io.write(sum, "\nPfannkuchen(", n, ") = ", flips, "\n", "time = ", os.time() - start_time)
+io.write(sum, "\nPfannkuchen(", n, ") = ", flips, "\n")
+print(string.format("elapsed time: %.3f\n", os.clock() - start_time))

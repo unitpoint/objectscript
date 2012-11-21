@@ -8,16 +8,24 @@ using namespace ObjectScript;
 
 #define Instruction OS_U32
 
+// #define OS_USE_OPCODE_VV
+
+#ifndef OS_USE_OPCODE_VV
+
 /*
 ** size and position of opcode arguments.
 */
 #define OS_SIZE_C		9
 #define OS_SIZE_B		9
 #define OS_SIZE_Bx		(OS_SIZE_C + OS_SIZE_B)
-#define OS_SIZE_A		8
+#define OS_SIZE_A		6
 #define OS_SIZE_Ax		(OS_SIZE_C + OS_SIZE_B + OS_SIZE_A)
 
+// #define OS_SIZE_CC		2
 #define OS_SIZE_OP		6
+
+// #define OS_OPCODE_CONST_B	(1<<0)
+// #define OS_OPCODE_CONST_C	(1<<1)
 
 #define OS_POS_OP		0
 #define OS_POS_A		(OS_POS_OP + OS_SIZE_OP)
@@ -29,11 +37,150 @@ using namespace ObjectScript;
 #define OS_MAXARG_Bx        ((1<<OS_SIZE_Bx)-1)
 #define OS_MAXARG_sBx        (OS_MAXARG_Bx>>1)
 #define OS_MAXARG_Ax		((1<<OS_SIZE_Ax)-1)
+#define OS_MAXARG_sAx		 (OS_MAXARG_Ax>>1)
+
+#define OS_MAXARG_A        ((1<<OS_SIZE_A)-1)
+#define OS_MAXARG_B        ((1<<(OS_SIZE_B-1))-1)
+#define OS_MAXARG_C        ((1<<(OS_SIZE_C-1))-1)
+
+#define OS_OPCODE_CONST_B	(1<<(OS_POS_B + OS_SIZE_B - 1))
+#define OS_OPCODE_CONST_C	(1<<(OS_POS_C + OS_SIZE_C - 1))
+
+/*
+#define OS_IS_CONST_B(i) ((i) & (1<<(OS_SIZE_B-1)))
+#define OS_CONST_B_TO_INDEX(i) ((i) & ~(1<<(OS_SIZE_B-1)))
+#define OS_SET_CONST_B(i) ((i) |= (1<<(OS_SIZE_B-1)))
+
+#define OS_IS_CONST_C(i) ((i) & (1<<(OS_SIZE_C-1)))
+#define OS_CONST_C_TO_INDEX(i) ((i) & ~(1<<(OS_SIZE_C-1)))
+#define OS_SET_CONST_C(i) ((i) |= (1<<(OS_SIZE_C-1)))
+
+#ifdef OS_DEBUG
+#define ARG_B_VALUE(i) (IS_CONST_B(i) ? \
+	(OS_ASSERT(CONST_B_TO_INDEX(i) >= 0 && CONST_B_TO_INDEX(i) < stack_func->func->prog->num_numbers + stack_func->func->prog->num_strings + CONST_STD_VALUES), stack_func_prog_values[CONST_B_TO_INDEX(i)]) \
+	: (OS_ASSERT(i >= 0 && i < stack_func->func->func_decl->stack_size), stack_func_locals[i]))
+
+#define ARG_C_VALUE(i) (IS_CONST_C(i) ? \
+	(OS_ASSERT(CONST_C_TO_INDEX(i) >= 0 && CONST_C_TO_INDEX(i) < stack_func->func->prog->num_numbers + stack_func->func->prog->num_strings + CONST_STD_VALUES), stack_func_prog_values[CONST_C_TO_INDEX(i)]) \
+	: (OS_ASSERT(i >= 0 && i < stack_func->func->func_decl->stack_size), stack_func_locals[i]))
+#else
+#define ARG_B_VALUE(i) (IS_CONST_B(i) ? \
+	(stack_func_prog_values[CONST_B_TO_INDEX(i)]) \
+	: (stack_func_locals[i]))
+
+#define ARG_C_VALUE(i) (IS_CONST_C(i) ? \
+	(stack_func_prog_values[CONST_C_TO_INDEX(i)]) \
+	: (stack_func_locals[i]))
+#endif
+	*/
+
+#define OS_MASK1(n,p)	((~((~(Instruction)0)<<(n)))<<(p))
+#define OS_MASK0(n,p)	(~OS_MASK1(n,p))
+
+#define OS_GET_OPCODE_WITH_CC(i)	(((i)>>OS_POS_OP) & OS_MASK1(OS_SIZE_OP, 0))
+#define OS_GET_OPCODE_NO_CC(i)	OS_GET_OPCODE_WITH_CC(i)
+#define OS_GET_OPCODE_TYPE(i)	(((i)>>(OS_POS_OP)) & OS_MASK1(OS_SIZE_OP, 0))
+#define OS_FROM_OPCODE_TYPE(i)	((i)<<0)
+#define OS_TO_OPCODE_TYPE(i)	((i)>>0)
+
+// #define OS_SET_OPCODE_WITH_CC(i,o)	((i) = (((i) & OS_MASK0(OS_SIZE_OP, OS_POS_OP)) | (((Instruction)(o))<<OS_POS_OP) & OS_MASK1(OS_SIZE_OP, OS_POS_OP)))
+
+#define getarg(i,pos,size)		(((i)>>pos) & OS_MASK1(size, 0))
+#define setarg(i,v,pos,size)	((i) = (((i)&OS_MASK0(size,pos)) | (((Instruction)(v))<<pos) & OS_MASK1(size, pos)))
+
+#define OS_GETARG_A(i)		getarg(i, OS_POS_A, OS_SIZE_A)
+#define OS_SETARG_A(i,v)	setarg(i, v, OS_POS_A, OS_SIZE_A)
+
+#define OS_GETARG_B(i)		getarg(i, OS_POS_B, OS_SIZE_B-1)
+#define OS_SETARG_B(i,v)	setarg(i, v, OS_POS_B, OS_SIZE_B-1)
+
+#define OS_GETARG_C(i)		getarg(i, OS_POS_C, OS_SIZE_C-1)
+#define OS_SETARG_C(i,v)	setarg(i, v, OS_POS_C, OS_SIZE_C-1)
+
+#define OS_GETARG_Bx(i)		getarg(i, OS_POS_Bx, OS_SIZE_Bx)
+#define OS_SETARG_Bx(i,v)	setarg(i, v, OS_POS_Bx, OS_SIZE_Bx)
+
+#define OS_GETARG_Ax(i)		getarg(i, OS_POS_Ax, OS_SIZE_Ax)
+#define OS_SETARG_Ax(i,v)	setarg(i, v, OS_POS_Ax, OS_SIZE_Ax)
+
+#define OS_GETARG_sBx(i)	(OS_GETARG_Bx(i)-OS_MAXARG_sBx)
+#define OS_SETARG_sBx(i,b)	OS_SETARG_Bx((i),((unsigned int)((b)+OS_MAXARG_sBx)))
+
+// #define OS_GETARG_sAx(i)	(OS_GETARG_Ax(i)-OS_MAXARG_sAx)
+// #define OS_SETARG_sAx(i,b)	OS_SETARG_Ax((i),((unsigned int)((b)+OS_MAXARG_sAx)))
+
+#define OS_OPCODE_ABC(o,a,b,c)	((((Instruction)(o)) << OS_POS_OP) \
+			| (((Instruction)(a)) << OS_POS_A) \
+			| (((Instruction)(b)) << OS_POS_B) \
+			| (((Instruction)(c)) << OS_POS_C))
+
+#define OS_OPCODE_ABx(o,a,bc)	((((Instruction)(o)) << OS_POS_OP) \
+			| (((Instruction)(a)) << OS_POS_A) \
+			| (((Instruction)(bc)) << OS_POS_Bx))
+
+// #define OS_OPCODE_Ax(o,a)		((((Instruction)(o)) << OS_POS_OP) \
+//			| (((Instruction)(a)) << OS_POS_Ax)) 
+
+#define OS_MAX_GENERIC_CONST_INDEX ((1<<(OS_SIZE_B-1))-1)
+
+/*
+#define OS_GETARG_B_VALUE(i) ((i) & OS_OPCODE_CONST_B ? \
+	(stack_func_prog_values[OS_GETARG_B(i)]) \
+	: (stack_func_locals[OS_GETARG_B(i)]))
+
+#define OS_GETARG_C_VALUE(i) ((i) & OS_OPCODE_CONST_C ? \
+	(stack_func_prog_values[OS_GETARG_C(i)]) \
+	: (stack_func_locals[OS_GETARG_C(i)]))
+*/
+
+#define OS_GETARG_B_VALUE() ((instruction) & OS_OPCODE_CONST_B ? \
+	(stack_func_prog_values[b]) \
+	: (stack_func_locals[b]))
+
+#define OS_GETARG_C_VALUE() ((instruction) & OS_OPCODE_CONST_C ? \
+	(stack_func_prog_values[c]) \
+	: (stack_func_locals[c]))
+
+#define OS_CASE_OPCODE_ALL(opcode) case (opcode)
+#define OS_CASE_OPCODE(opcode) case (opcode)
+
+#else // OS_USE_OPCODE_VV
+
+/*
+** size and position of opcode arguments.
+*/
+#define OS_SIZE_C		8
+#define OS_SIZE_B		8
+#define OS_SIZE_Bx		(OS_SIZE_C + OS_SIZE_B)
+#define OS_SIZE_A		8
+#define OS_SIZE_Ax		(OS_SIZE_C + OS_SIZE_B + OS_SIZE_A)
+
+// #define OS_SIZE_CC		2
+#define OS_SIZE_OP		8
+
+#define OS_OPCODE_CONST_B	(1<<0)
+#define OS_OPCODE_CONST_C	(1<<1)
+
+#define OS_POS_OP		0
+#define OS_POS_A		(OS_POS_OP + OS_SIZE_OP)
+// #define OS_POS_C		(OS_POS_A + OS_SIZE_A)
+// #define OS_POS_B		(OS_POS_C + OS_SIZE_C)
+// #define OS_POS_Bx		OS_POS_C
+#define OS_POS_B		(OS_POS_A + OS_SIZE_A)
+#define OS_POS_C		(OS_POS_B + OS_SIZE_B)
+#define OS_POS_Bx		OS_POS_B
+#define OS_POS_Ax		OS_POS_A
+
+#define OS_MAXARG_Bx        ((1<<OS_SIZE_Bx)-1)
+#define OS_MAXARG_sBx        (OS_MAXARG_Bx>>1)
+#define OS_MAXARG_Ax		((1<<OS_SIZE_Ax)-1)
+#define OS_MAXARG_sAx		 (OS_MAXARG_Ax>>1)
 
 #define OS_MAXARG_A        ((1<<OS_SIZE_A)-1)
 #define OS_MAXARG_B        ((1<<OS_SIZE_B)-1)
 #define OS_MAXARG_C        ((1<<OS_SIZE_C)-1)
 
+/*
 #define IS_CONST_B(i) ((i) & (1<<(OS_SIZE_B-1)))
 #define CONST_B_TO_INDEX(i) ((i) & ~(1<<(OS_SIZE_B-1)))
 #define SET_CONST_B(i) ((i) |= (1<<(OS_SIZE_B-1)))
@@ -59,34 +206,42 @@ using namespace ObjectScript;
 	(stack_func_prog_values[CONST_C_TO_INDEX(i)]) \
 	: (stack_func_locals[i]))
 #endif
+	*/
 
 #define OS_MASK1(n,p)	((~((~(Instruction)0)<<(n)))<<(p))
 #define OS_MASK0(n,p)	(~OS_MASK1(n,p))
 
-#define GET_OPCODE(i)	(((i)>>OS_POS_OP) & OS_MASK1(OS_SIZE_OP, 0))
-#define SET_OPCODE(i,o)	((i) = (((i) & OS_MASK0(OS_SIZE_OP, OS_POS_OP)) | (((Instruction)(o))<<OS_POS_OP) & OS_MASK1(OS_SIZE_OP, OS_POS_OP)))
+#define OS_GET_OPCODE_WITH_CC(i)	(((i)>>OS_POS_OP) & OS_MASK1(OS_SIZE_OP, 0))
+#define OS_GET_OPCODE_NO_CC(i)	(((i)>>OS_POS_OP) & OS_MASK1(OS_SIZE_OP-2, 2))
+#define OS_GET_OPCODE_TYPE(i)	(((i)>>(OS_POS_OP+2)) & OS_MASK1(OS_SIZE_OP-2, 0))
+#define OS_FROM_OPCODE_TYPE(i)	((i)<<2)
+#define OS_TO_OPCODE_TYPE(i)	((i)>>2)
+
+// #define OS_SET_OPCODE_WITH_CC(i,o)	((i) = (((i) & OS_MASK0(OS_SIZE_OP, OS_POS_OP)) | (((Instruction)(o))<<OS_POS_OP) & OS_MASK1(OS_SIZE_OP, OS_POS_OP)))
 
 #define getarg(i,pos,size)		(((i)>>pos) & OS_MASK1(size, 0))
 #define setarg(i,v,pos,size)	((i) = (((i)&OS_MASK0(size,pos)) | (((Instruction)(v))<<pos) & OS_MASK1(size, pos)))
 
-#define GETARG_A(i)		getarg(i, OS_POS_A, OS_SIZE_A)
-#define SETARG_A(i,v)	setarg(i, v, OS_POS_A, OS_SIZE_A)
+#define OS_GETARG_A(i)		getarg(i, OS_POS_A, OS_SIZE_A)
+#define OS_SETARG_A(i,v)	setarg(i, v, OS_POS_A, OS_SIZE_A)
 
-#define GETARG_B(i)		getarg(i, OS_POS_B, OS_SIZE_B)
-#define SETARG_B(i,v)	setarg(i, v, OS_POS_B, OS_SIZE_B)
+#define OS_GETARG_B(i)		getarg(i, OS_POS_B, OS_SIZE_B)
+#define OS_SETARG_B(i,v)	setarg(i, v, OS_POS_B, OS_SIZE_B)
 
-#define GETARG_C(i)		getarg(i, OS_POS_C, OS_SIZE_C)
-#define SETARG_C(i,v)	setarg(i, v, OS_POS_C, OS_SIZE_C)
+#define OS_GETARG_C(i)		getarg(i, OS_POS_C, OS_SIZE_C)
+#define OS_SETARG_C(i,v)	setarg(i, v, OS_POS_C, OS_SIZE_C)
 
-#define GETARG_Bx(i)	getarg(i, OS_POS_Bx, OS_SIZE_Bx)
-#define SETARG_Bx(i,v)	setarg(i, v, OS_POS_Bx, OS_SIZE_Bx)
+#define OS_GETARG_Bx(i)		getarg(i, OS_POS_Bx, OS_SIZE_Bx)
+#define OS_SETARG_Bx(i,v)	setarg(i, v, OS_POS_Bx, OS_SIZE_Bx)
 
-#define GETARG_Ax(i)	getarg(i, OS_POS_Ax, OS_SIZE_Ax)
-#define SETARG_Ax(i,v)	setarg(i, v, OS_POS_Ax, OS_SIZE_Ax)
+#define OS_GETARG_Ax(i)		getarg(i, OS_POS_Ax, OS_SIZE_Ax)
+#define OS_SETARG_Ax(i,v)	setarg(i, v, OS_POS_Ax, OS_SIZE_Ax)
 
-#define GETARG_sBx(i)	(GETARG_Bx(i)-OS_MAXARG_sBx)
-#define SETARG_sBx(i,b)	SETARG_Bx((i),((unsigned int)((b)+OS_MAXARG_sBx)))
+#define OS_GETARG_sBx(i)	(OS_GETARG_Bx(i)-OS_MAXARG_sBx)
+#define OS_SETARG_sBx(i,b)	OS_SETARG_Bx((i),((unsigned int)((b)+OS_MAXARG_sBx)))
 
+// #define OS_GETARG_sAx(i)	(OS_GETARG_Ax(i)-OS_MAXARG_sAx)
+// #define OS_SETARG_sAx(i,b)	OS_SETARG_Ax((i),((unsigned int)((b)+OS_MAXARG_sAx)))
 
 #define OS_OPCODE_ABC(o,a,b,c)	((((Instruction)(o)) << OS_POS_OP) \
 			| (((Instruction)(a)) << OS_POS_A) \
@@ -97,10 +252,37 @@ using namespace ObjectScript;
 			| (((Instruction)(a)) << OS_POS_A) \
 			| (((Instruction)(bc)) << OS_POS_Bx))
 
-#define OS_OPCODE_Ax(o,a)		((((Instruction)(o)) << OS_POS_OP) \
-			| (((Instruction)(a)) << OS_POS_Ax)) 
+// #define OS_OPCODE_Ax(o,a)		((((Instruction)(o)) << OS_POS_OP) \
+//			| (((Instruction)(a)) << OS_POS_Ax)) 
 
-#define MAX_GENERIC_CONST_INDEX ((1<<(OS_SIZE_B-1))-1)
+#define OS_MAX_GENERIC_CONST_INDEX ((1<<(OS_SIZE_B-1))-1)
+
+/*
+#define OS_GETARG_B_VALUE(i) ((i) & OS_OPCODE_CONST_B ? \
+	(stack_func_prog_values[OS_GETARG_B(i)]) \
+	: (stack_func_locals[OS_GETARG_B(i)]))
+
+#define OS_GETARG_C_VALUE(i) ((i) & OS_OPCODE_CONST_C ? \
+	(stack_func_prog_values[OS_GETARG_C(i)]) \
+	: (stack_func_locals[OS_GETARG_C(i)]))
+*/
+
+#define OS_GETARG_B_VALUE() ((instruction) & OS_OPCODE_CONST_B ? \
+	(stack_func_prog_values[b]) \
+	: (stack_func_locals[b]))
+
+#define OS_GETARG_C_VALUE() ((instruction) & OS_OPCODE_CONST_C ? \
+	(stack_func_prog_values[c]) \
+	: (stack_func_locals[c]))
+
+#define OS_CASE_OPCODE_ALL(opcode) case ((opcode)<<2): case (((opcode)<<2)|OS_OPCODE_CONST_B): case (((opcode)<<2)|OS_OPCODE_CONST_C): case (((opcode)<<2)|OS_OPCODE_CONST_B|OS_OPCODE_CONST_C)
+#define OS_CASE_OPCODE(opcode) case ((opcode)<<2)
+#define OS_CASE_OPCODE_VV(opcode) case ((opcode)<<2)
+#define OS_CASE_OPCODE_CV(opcode) case (((opcode)<<2)|OS_OPCODE_CONST_B)
+#define OS_CASE_OPCODE_VC(opcode) case (((opcode)<<2)|OS_OPCODE_CONST_C)
+#define OS_CASE_OPCODE_CC(opcode) case (((opcode)<<2)|OS_OPCODE_CONST_B|OS_OPCODE_CONST_C)
+
+#endif // OS_USE_OPCODE_VV
 
 // =====================================================================
 // =====================================================================
@@ -2452,8 +2634,8 @@ int OS::Core::Compiler::cacheString(Table * strings_table, Vector<String>& strin
 	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
 	Property * prop = strings_table->get(index);
 	if(prop){
-		OS_ASSERT(prop->value.type == OS_VALUE_TYPE_NUMBER);
-		return (int)prop->value.v.number;
+		OS_ASSERT(OS_IS_VALUE_NUMBER(prop->value));
+		return (int)OS_VALUE_NUMBER(prop->value);
 	}
 	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index);
 	prop->value = Value(strings_table->count);
@@ -2478,8 +2660,8 @@ int OS::Core::Compiler::cacheNumber(OS_NUMBER num)
 	PropertyIndex index(num);
 	Property * prop = prog_numbers_table->get(index);
 	if(prop){
-		OS_ASSERT(prop->value.type == OS_VALUE_TYPE_NUMBER);
-		return (int)prop->value.v.number;
+		OS_ASSERT(OS_IS_VALUE_NUMBER(prop->value));
+		return (int)OS_VALUE_NUMBER(prop->value);
 	}
 	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index);
 	prop->value = Value(prog_numbers_table->count);
@@ -2503,46 +2685,61 @@ void OS::Core::Compiler::writeDebugInfo(Expression * exp)
 void OS::Core::Compiler::writeJumpOpcode(int offs)
 {
 	offs += 1;
-	Instruction instruction = 0;
-	SET_OPCODE(instruction, OP_JUMP);
-	SETARG_sBx(instruction, offs);
+	Instruction instruction = OS_FROM_OPCODE_TYPE(OP_JUMP);
+	OS_SETARG_sBx(instruction, offs);
 	writeOpcode(instruction);
 }
 
 void OS::Core::Compiler::fixJumpOpcode(int offs, int pos)
 {
 	Instruction instruction = prog_opcodes[pos];
-	OpcodeType opcode = (OpcodeType)GET_OPCODE(instruction);
+	OpcodeType opcode = (OpcodeType)OS_GET_OPCODE_TYPE(instruction);
 	OS_ASSERT(opcode == OP_JUMP);
-	SETARG_sBx(instruction, offs);
+	OS_SETARG_sBx(instruction, offs);
 	prog_opcodes[pos] = instruction;
 }
 
 bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list)
 {
-	int start = prog_opcodes.count;
+	int start = prog_opcodes.count+0;
 	for(int i = 0; i < list.count; i++){
 		if(!writeOpcodes(scope, list[i])){
 			return false;
 		}
+#if 1
 		if(prog_opcodes.count > start){
 			Instruction prev = prog_opcodes[prog_opcodes.count - 2];
-			if(GET_OPCODE(prev) == OP_MOVE){
+			if(OS_GET_OPCODE_TYPE(prev) == OP_MOVE){
 				Instruction cur = prog_opcodes[prog_opcodes.count - 1];
-				if(GET_OPCODE(cur) == OP_MOVE){
-					int prev_a = GETARG_A(prev);
-					int cur_a = GETARG_A(cur);
+				if(OS_GET_OPCODE_TYPE(cur) == OP_MOVE){
+					int prev_a = OS_GETARG_A(prev);
+					int cur_a = OS_GETARG_A(cur);
 					if(prev_a+1 == cur_a){
-						SET_OPCODE(prev, OP_MOVE2);
+						Instruction instruction = OS_FROM_OPCODE_TYPE(OP_MOVE2);
+						OS_SETARG_A(instruction, prev_a);
+						int prev_b = OS_GETARG_B(prev & ~OS_OPCODE_CONST_B);
+						OS_SETARG_B(instruction, prev_b);
+						int cur_b = OS_GETARG_B(cur & ~OS_OPCODE_CONST_B);
+						OS_SETARG_C(instruction, cur_b);
+						if(prev & OS_OPCODE_CONST_B){
+							instruction |= OS_OPCODE_CONST_B;
+						}
+						if(cur & OS_OPCODE_CONST_B){
+							instruction |= OS_OPCODE_CONST_C;
+						}
+						/*
+						OS_SET_OPCODE_(prev, OP_MOVE2);
 						OS_ASSERT(GETARG_C(prev) == 0);
 						int cur_b = GETARG_B(cur);
 						SETARG_C(prev, cur_b);
-						prog_opcodes[prog_opcodes.count - 2] = prev;
+						*/
+						prog_opcodes[prog_opcodes.count - 2] = instruction;
 						start = --prog_opcodes.count;
 					}
 				}
 			}
 		}
+#endif
 	}
 	return true;
 }
@@ -2559,22 +2756,30 @@ int OS::Core::Compiler::writeOpcode(OS_U32 opcode)
 	return i;
 }
 
-int OS::Core::Compiler::writeOpcodeABC(OpcodeType opcode, int a, int b, int c)
+int OS::Core::Compiler::writeOpcode(OpcodeType opcode)
 {
+	return writeOpcode(OS_FROM_OPCODE_TYPE(opcode));
+}
+
+int OS::Core::Compiler::writeOpcodeABC(OpcodeType p_opcode, int a, int b, int c)
+{
+	int opcode = OS_FROM_OPCODE_TYPE(p_opcode);
 	OS_ASSERT(a >= 0 && a <= OS_MAXARG_A);
 	if(b < 0){
 		b = -1-b;
-		OS_ASSERT(b <= OS_MAXARG_B && !IS_CONST_B(b));
-		SET_CONST_B(b);
+		OS_ASSERT(b <= OS_MAXARG_B); // && !IS_CONST_B(b));
+		// SET_CONST_B(b);
+		opcode |= OS_OPCODE_CONST_B;
 	}else{
-		OS_ASSERT(b <= OS_MAXARG_B && !IS_CONST_B(b));
+		OS_ASSERT(b <= OS_MAXARG_B); // && !IS_CONST_B(b));
 	}
 	if(c < 0){
 		c = -1-c;
-		OS_ASSERT(c <= OS_MAXARG_C && !IS_CONST_C(c));
-		SET_CONST_C(c);
+		OS_ASSERT(c <= OS_MAXARG_C); // && !IS_CONST_C(c));
+		// SET_CONST_C(c);
+		opcode |= OS_OPCODE_CONST_C;
 	}else{
-		OS_ASSERT(c <= OS_MAXARG_C && !IS_CONST_C(c));
+		OS_ASSERT(c <= OS_MAXARG_C); // && !IS_CONST_C(c));
 	}
 	return writeOpcode(OS_OPCODE_ABC(opcode, a, b, c));
 }
@@ -2583,7 +2788,8 @@ int OS::Core::Compiler::writeOpcodeABx(OpcodeType opcode, int a, int b)
 {
 	OS_ASSERT(a >= 0 && a <= OS_MAXARG_A);
 	OS_ASSERT(b >= 0 && b <= OS_MAXARG_Bx);
-	return writeOpcode(OS_OPCODE_ABx(opcode, a, b));
+	Instruction instruction = OS_FROM_OPCODE_TYPE(opcode);
+	return writeOpcode(OS_OPCODE_ABx(instruction, a, b));
 }
 
 void OS::Core::Compiler::writeOpcodeAt(OS_U32 opcode, int pos)
@@ -4592,7 +4798,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		stack_pos = scope->allocTempVar();
 		b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES; // const string
-		if(b < -MAX_GENERIC_CONST_INDEX){
+		if(b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = b;
 			exp_xconst->slots.a = b = stack_pos;
@@ -4616,7 +4822,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		stack_pos = scope->allocTempVar();
 		b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES; // const string
-		if(b < -MAX_GENERIC_CONST_INDEX){
+		if(b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = b;
 			exp_xconst->slots.a = b = stack_pos;
@@ -4676,7 +4882,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp2->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES; // const string
 		allocator->vectorInsertAtIndex(exp1->list, 0, exp2 OS_DBG_FILEPOS);
 
-		if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp2->type = EXP_TYPE_GET_XCONST;
 		}
 
@@ -4692,14 +4898,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		OS_ASSERT(exp->list.count == 0);
 		exp->slots.a = scope->allocTempVar();
 		exp->slots.b = -1 - exp->slots.b - CONST_STD_VALUES;
-		exp->type = exp->slots.b < -MAX_GENERIC_CONST_INDEX ? EXP_TYPE_GET_XCONST : EXP_TYPE_MOVE;
+		exp->type = exp->slots.b < -OS_MAX_GENERIC_CONST_INDEX ? EXP_TYPE_GET_XCONST : EXP_TYPE_MOVE;
 		return exp;
 
 	case EXP_TYPE_CONST_STRING:
 		OS_ASSERT(exp->list.count == 0);
 		exp->slots.a = scope->allocTempVar();
 		exp->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES;
-		exp->type = exp->slots.b < -MAX_GENERIC_CONST_INDEX ? EXP_TYPE_GET_XCONST : EXP_TYPE_MOVE;
+		exp->type = exp->slots.b < -OS_MAX_GENERIC_CONST_INDEX ? EXP_TYPE_GET_XCONST : EXP_TYPE_MOVE;
 		return exp;
 
 	case EXP_TYPE_CONST_NULL:
@@ -4827,7 +5033,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp2->ret_values = 1;
 		allocator->vectorInsertAtIndex(exp1->list, 0, exp2 OS_DBG_FILEPOS);
 
-		if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp2->type = EXP_TYPE_GET_XCONST;
 		}
 
@@ -4860,7 +5066,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp2->ret_values = 1;
 		exp1->list.add(exp2 OS_DBG_FILEPOS);
 		
-		if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp2->type = EXP_TYPE_GET_XCONST;
 		}
 
@@ -4905,7 +5111,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp1->ret_values = 1;
 			allocator->vectorInsertAtIndex(exp2->list, 0, exp1 OS_DBG_FILEPOS);
 
-			if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+			if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 				exp2->type = EXP_TYPE_GET_XCONST;
 			}
 
@@ -4942,7 +5148,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp1->list.add(exp2 OS_DBG_FILEPOS);
 		exp->list.add(exp1 OS_DBG_FILEPOS);
 
-		if(exp2->slots.b < -MAX_GENERIC_CONST_INDEX){
+		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp2->type = EXP_TYPE_GET_XCONST;
 		}
 
@@ -5120,7 +5326,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = scope->function->num_params + POST_VAR_ENV;
 		exp->type = EXP_TYPE_GET_PROPERTY;
 		
-		if(exp->slots.c < -MAX_GENERIC_CONST_INDEX){
+		if(exp->slots.c < -OS_MAX_GENERIC_CONST_INDEX){
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = exp->slots.c;
 			exp_xconst->slots.a = exp->slots.c = exp->slots.a;
@@ -5138,7 +5344,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = --scope->function->stack_cur_size;
 		exp->type = EXP_TYPE_SET_PROPERTY;
 
-		if(exp->slots.b < -MAX_GENERIC_CONST_INDEX){
+		if(exp->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = exp->slots.b;
 			exp_xconst->slots.a = exp->slots.b = exp->slots.c + 1;
@@ -8100,8 +8306,9 @@ OS::Core::Program::~Program()
 	int i;
 	for(i = 0; i < num_strings; i++){
 		int j = i + num_numbers + CONST_STD_VALUES;
-		OS_ASSERT(const_values[j].type == OS_VALUE_TYPE_STRING && dynamic_cast<GCStringValue*>(const_values[j].v.string));
-		GCStringValue * string = const_values[j].v.string;
+		OS_ASSERT(OS_VALUE_TYPE(const_values[j]) == OS_VALUE_TYPE_STRING);
+		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(const_values[j]).string));
+		GCStringValue * string = OS_VALUE_VARIANT(const_values[j]).string;
 		OS_ASSERT(string->external_ref_count > 0);
 		string->external_ref_count--;
 		if(string->gc_color == GC_WHITE){
@@ -8310,8 +8517,8 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 			int cached_name_index = reader->readUVariable();
 			OS_ASSERT(cached_name_index >= 0 && cached_name_index < num_strings);
 			FunctionDecl::LocalVar * local_var = func->locals + j;
-			OS_ASSERT(dynamic_cast<GCStringValue*>(const_values[cached_name_index + num_numbers + CONST_STD_VALUES].v.string));
-			String var_name(const_values[cached_name_index + num_numbers + CONST_STD_VALUES].v.string);
+			OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(const_values[cached_name_index + num_numbers + CONST_STD_VALUES]).string));
+			String var_name(OS_VALUE_VARIANT(const_values[cached_name_index + num_numbers + CONST_STD_VALUES]).string);
 			new (local_var) FunctionDecl::LocalVar(var_name);
 			local_var->start_code_pos = reader->readUVariable() + func->opcodes_pos;
 			local_var->end_code_pos = reader->readUVariable() + func->opcodes_pos;
@@ -8389,14 +8596,14 @@ OS::Core::Program::DebugInfoItem::DebugInfoItem(int p_opcode_pos, int p_line, in
 void OS::Core::Program::pushStartFunction()
 {
 	int opcode = opcodes[0];
-	if(GET_OPCODE(opcode) != OP_NEW_FUNCTION){
+	if(OS_GET_OPCODE_TYPE(opcode) != OP_NEW_FUNCTION){
 		OS_ASSERT(false);
 		allocator->pushNull();
 		return;
 	}
 
-	int prog_func_index = GETARG_B(opcode);
-	OS_ASSERT(prog_func_index == 0 && !GETARG_A(opcode)); // func_index >= 0 && func_index < num_functions);
+	int prog_func_index = OS_GETARG_B(opcode);
+	OS_ASSERT(prog_func_index == 0 && !OS_GETARG_A(opcode)); // func_index >= 0 && func_index < num_functions);
 	FunctionDecl * func_decl = functions + prog_func_index;
 	OS_ASSERT(func_decl->max_up_count == 0);
 
@@ -9065,7 +9272,7 @@ OS::Core::PropertyIndex::PropertyIndex(const Value& p_index): index(p_index)
 
 OS::Core::PropertyIndex::PropertyIndex(const Value& p_index, const KeepStringIndex&): index(p_index)
 {
-	OS_ASSERT(index.type != OS_VALUE_TYPE_STRING || PropertyIndex(p_index).index.type == OS_VALUE_TYPE_STRING);
+	OS_ASSERT(OS_VALUE_TYPE(index) != OS_VALUE_TYPE_STRING || OS_VALUE_TYPE(PropertyIndex(p_index).index) == OS_VALUE_TYPE_STRING);
 }
 
 OS::Core::PropertyIndex::PropertyIndex(GCStringValue * p_index): index(p_index)
@@ -9090,13 +9297,13 @@ OS::Core::PropertyIndex::PropertyIndex(const String& p_index, const KeepStringIn
 
 void OS::Core::PropertyIndex::convertIndexStringToNumber()
 {
-	if(index.type == OS_VALUE_TYPE_STRING){
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 		bool neg = false;
-		const OS_CHAR * str = index.v.string->toChar();
+		const OS_CHAR * str = OS_VALUE_VARIANT(index).string->toChar();
 		if((*str >= OS_TEXT('0') && *str <= OS_TEXT('9'))
 			|| ((neg = *str == OS_TEXT('-')) && str[1] >= OS_TEXT('0') && str[1] <= OS_TEXT('9')))
 		{
-			const OS_CHAR * end = str + index.v.string->getLen();
+			const OS_CHAR * end = str + OS_VALUE_VARIANT(index).string->getLen();
 			str += (int)neg;
 			OS_FLOAT val;
 			if(parseSimpleFloat(str, val)){
@@ -9107,9 +9314,9 @@ void OS::Core::PropertyIndex::convertIndexStringToNumber()
 					}
 				}
 				if(str == end){
-					index.v.number = (OS_NUMBER)(neg ? -val : val);
-					index.type = OS_VALUE_TYPE_NUMBER;
-					// OS_ASSERT((OS_INT)index.v.number == val);
+					OS_SET_VALUE_NUMBER(index, (OS_NUMBER)(neg ? -val : val));
+					// index.type = OS_VALUE_TYPE_NUMBER;
+					OS_ASSERT(OS_IS_VALUE_NUMBER(index));
 				}
 			}
 		}
@@ -9118,17 +9325,17 @@ void OS::Core::PropertyIndex::convertIndexStringToNumber()
 
 bool OS::Core::PropertyIndex::isEqual(const PropertyIndex& b) const
 {
-	switch(index.type){
+	switch(OS_VALUE_TYPE(index)){
 	case OS_VALUE_TYPE_NULL:
-		return b.index.type == OS_VALUE_TYPE_NULL;
+		return OS_VALUE_TYPE(b.index) == OS_VALUE_TYPE_NULL;
 
 		// case OS_VALUE_TYPE_BOOL:
 		//	return b.index.type == OS_VALUE_TYPE_BOOL && index.v.boolean == b.index.v.boolean;
 
 	case OS_VALUE_TYPE_NUMBER:
-		return b.index.type == OS_VALUE_TYPE_NUMBER && index.v.number == b.index.v.number;
+		return OS_VALUE_TYPE(b.index) == OS_VALUE_TYPE_NUMBER && OS_VALUE_NUMBER(index) == OS_VALUE_NUMBER(b.index);
 	}
-	return index.type == b.index.type && index.v.value == b.index.v.value;
+	return OS_VALUE_TYPE(index) == OS_VALUE_TYPE(b.index) && OS_VALUE_VARIANT(index).value == OS_VALUE_VARIANT(b.index).value;
 }
 
 bool OS::Core::GCStringValue::isEqual(int hash, const void * b, int size) const
@@ -9150,22 +9357,22 @@ bool OS::Core::GCStringValue::isEqual(int hash, const void * buf1, int size1, co
 
 bool OS::Core::PropertyIndex::isEqual(int hash, const void * b, int size) const
 {
-	if(index.type == OS_VALUE_TYPE_STRING){
-		return index.v.string->hash == hash 
-			&& index.v.string->data_size == size
-			&& OS_MEMCMP(index.v.string->toMemory(), b, size) == 0;
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
+		return OS_VALUE_VARIANT(index).string->hash == hash 
+			&& OS_VALUE_VARIANT(index).string->data_size == size
+			&& OS_MEMCMP(OS_VALUE_VARIANT(index).string->toMemory(), b, size) == 0;
 	}
 	return false;
 }
 
 bool OS::Core::PropertyIndex::isEqual(int hash, const void * buf1, int size1, const void * buf2, int size2) const
 {
-	if(index.type == OS_VALUE_TYPE_STRING){
-		int src_size = index.v.string->data_size;
-		if(index.v.string->hash != hash || src_size != size1 + size2){
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
+		int src_size = OS_VALUE_VARIANT(index).string->data_size;
+		if(OS_VALUE_VARIANT(index).string->hash != hash || src_size != size1 + size2){
 			return false;
 		}
-		const OS_BYTE * src = index.v.string->toBytes();
+		const OS_BYTE * src = OS_VALUE_VARIANT(index).string->toBytes();
 		return Utils::cmp(src, size1, buf1, size1) == 0
 			&& Utils::cmp(src + size1, size2, buf2, size2) == 0;
 	}
@@ -9192,22 +9399,22 @@ template <> int getNumberHash<int>(int t)
 
 int OS::Core::PropertyIndex::getHash() const
 {
-	switch(index.type){
+	switch(OS_VALUE_TYPE(index)){
 	case OS_VALUE_TYPE_NUMBER:
 		{
 			union { 
 				double d; 
 				OS_INT32 p[2];
 			} u;
-			u.d = (double)index.v.number; // + 1.0f;
+			u.d = (double)OS_VALUE_NUMBER(index); // + 1.0f;
 			return u.p[0] + u.p[1];
 		}
 
 	case OS_VALUE_TYPE_STRING:
-		return index.v.string->hash;
+		return OS_VALUE_VARIANT(index).string->hash;
 	}
 	// all other values share same area with index.v.value so just use it as hash
-	return (ptrdiff_t) index.v.value;
+	return (ptrdiff_t) OS_VALUE_VARIANT(index).value;
 }
 
 // =====================================================================
@@ -9408,8 +9615,8 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 	}
 	table->last = prop;
 
-	if(prop->index.type == OS_VALUE_TYPE_NUMBER && table->next_index <= prop->index.v.number){
-		table->next_index = (OS_INT)prop->index.v.number + 1;
+	if(OS_IS_VALUE_NUMBER(prop->index) && table->next_index <= OS_VALUE_NUMBER(prop->index)){
+		table->next_index = (OS_INT) OS_VALUE_NUMBER(prop->index) + 1;
 	}
 
 	table->count++;
@@ -9437,8 +9644,8 @@ void OS::Core::changePropertyIndex(Table * table, Property * prop, const Propert
 		prop->hash_next = table->heads[slot];
 		table->heads[slot] = prop;
 
-		if(prop->index.type == OS_VALUE_TYPE_NUMBER && table->next_index <= prop->index.v.number){
-			table->next_index = (OS_INT)prop->index.v.number + 1;
+		if(OS_IS_VALUE_NUMBER(prop->index) && table->next_index <= OS_VALUE_NUMBER(prop->index)){
+			table->next_index = (OS_INT)OS_VALUE_NUMBER(prop->index) + 1;
 		}
 	}
 }
@@ -9531,7 +9738,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 			}
 		}
 	}
-	if(index.index.type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == index.index.v.string){
+	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index.index).string){
 		return;
 	}
 	if(table_value->type == OS_VALUE_TYPE_ARRAY){
@@ -9545,11 +9752,11 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 	}
 	if((anonymous_del_enabled || named_del_enabled) && !hasSpecialPrefix(index.index)){
 		Value value;
-		if(index.index.type == OS_VALUE_TYPE_STRING && named_del_enabled){
+		if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_del_enabled){
 			const void * buf1 = strings->__delAt.toChar();
 			int size1 = strings->__delAt.getDataSize();
-			const void * buf2 = index.index.v.string->toChar();
-			int size2 = index.index.v.string->getDataSize();
+			const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
+			int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 			GCStringValue * del_name = newStringValue(buf1, size1, buf2, size2);
 			if(getPropertyValue(value, table_value, PropertyIndex(del_name, PropertyIndex::KeepStringIndex()), prototype_enabled)
 				&& value.isFunction())
@@ -9574,7 +9781,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 
 void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled)
 {
-	switch(table_value.type){
+	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
 		return;
 
@@ -9597,7 +9804,7 @@ void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return deleteValueProperty(table_value.v.value, index, anonymous_del_enabled, named_del_enabled, prototype_enabled);
+		return deleteValueProperty(OS_VALUE_VARIANT(table_value).value, index, anonymous_del_enabled, named_del_enabled, prototype_enabled);
 	}
 }
 
@@ -9882,113 +10089,105 @@ OS::Core::Locals * OS::Core::Locals::retain()
 
 OS::Core::Value::Value()
 {
-	v.value = NULL;
-	type = OS_VALUE_TYPE_NULL;
+	OS_SET_VALUE_NULL(*this);
 }
 
 OS::Core::Value::Value(bool val)
 {
-	v.boolean = val;
-	type = OS_VALUE_TYPE_BOOL;
+	OS_VALUE_VARIANT(*this).boolean = val;
+	OS_SET_VALUE_TYPE(*this, OS_VALUE_TYPE_BOOL);
 }
 
 OS::Core::Value::Value(OS_INT32 val)
 {
-	v.number = (OS_NUMBER)val;
-	type = OS_VALUE_TYPE_NUMBER;
+	OS_SET_VALUE_NUMBER(*this, val);
+	// type = OS_VALUE_TYPE_NUMBER;
 }
 
 OS::Core::Value::Value(OS_INT64 val)
 {
-	v.number = (OS_NUMBER)val;
-	type = OS_VALUE_TYPE_NUMBER;
+	OS_SET_VALUE_NUMBER(*this, val);
+	// type = OS_VALUE_TYPE_NUMBER;
 }
 
 OS::Core::Value::Value(float val)
 {
-	v.number = (OS_NUMBER)val;
-	type = OS_VALUE_TYPE_NUMBER;
+	OS_SET_VALUE_NUMBER(*this, val);
+	// type = OS_VALUE_TYPE_NUMBER;
 }
 
 OS::Core::Value::Value(double val)
 {
-	v.number = (OS_NUMBER)val;
-	type = OS_VALUE_TYPE_NUMBER;
+	OS_SET_VALUE_NUMBER(*this, val);
+	// type = OS_VALUE_TYPE_NUMBER;
 }
 
 OS::Core::Value::Value(int val, const WeakRef&)
 {
-	v.value_id = val;
-	type = OS_VALUE_TYPE_WEAKREF;
+	OS_VALUE_VARIANT(*this).value_id = val;
+	OS_SET_VALUE_TYPE(*this, OS_VALUE_TYPE_WEAKREF);
 }
 
 OS::Core::Value::Value(GCValue * val)
 {
 	if(val){
-		v.value = val;
-		type = val->type;
+		OS_VALUE_VARIANT(*this).value = val;
+		OS_SET_VALUE_TYPE(*this, val->type);
 	}else{
-		v.value = NULL;
-		type = OS_VALUE_TYPE_NULL;
+		OS_SET_VALUE_NULL(*this);
 	}
 }
 
 OS::Core::Value& OS::Core::Value::operator=(GCValue * val)
 {
 	if(val){
-		v.value = val;
-		type = val->type;
+		OS_VALUE_VARIANT(*this).value = val;
+		OS_SET_VALUE_TYPE(*this, val->type);
 	}else{
-		v.value = NULL;
-		type = OS_VALUE_TYPE_NULL;
+		OS_SET_VALUE_NULL(*this);
 	}
 	return *this;
 }
 
 OS::Core::Value& OS::Core::Value::operator=(bool val)
 {
-	v.boolean = val;
-	type = OS_VALUE_TYPE_BOOL;
+	OS_VALUE_VARIANT(*this).boolean = val;
+	OS_SET_VALUE_TYPE(*this, OS_VALUE_TYPE_BOOL);
 	return *this;
 }
 
 OS::Core::Value& OS::Core::Value::operator=(OS_INT32 val)
 {
-	v.number = (OS_NUMBER)val;
-	type = OS_VALUE_TYPE_NUMBER;
+	OS_SET_VALUE_NUMBER(*this, val);
 	return *this;
 }
 
 OS::Core::Value& OS::Core::Value::operator=(OS_INT64 val)
 {
-	v.number = (OS_NUMBER)val;
-	type = OS_VALUE_TYPE_NUMBER;
+	OS_SET_VALUE_NUMBER(*this, val);
 	return *this;
 }
 
 OS::Core::Value& OS::Core::Value::operator=(float val)
 {
-	v.number = (OS_NUMBER)val;
-	type = OS_VALUE_TYPE_NUMBER;
+	OS_SET_VALUE_NUMBER(*this, val);
 	return *this;
 }
 
 OS::Core::Value& OS::Core::Value::operator=(double val)
 {
-	v.number = (OS_NUMBER)val;
-	type = OS_VALUE_TYPE_NUMBER;
+	OS_SET_VALUE_NUMBER(*this, val);
 	return *this;
 }
 
 void OS::Core::Value::clear()
 {
-	v.value = NULL;
-	type = OS_VALUE_TYPE_NULL;
+	OS_SET_VALUE_NULL(*this);
 }
 
 OS::Core::GCValue * OS::Core::Value::getGCValue() const
 {
-	switch(type){
+	switch(OS_VALUE_TYPE(*this)){
 	case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
@@ -9996,20 +10195,20 @@ OS::Core::GCValue * OS::Core::Value::getGCValue() const
 	case OS_VALUE_TYPE_CFUNCTION:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		OS_ASSERT(v.value);
-		return v.value;
+		OS_ASSERT(OS_VALUE_VARIANT(*this).value);
+		return OS_VALUE_VARIANT(*this).value;
 	}
 	return NULL;
 }
 
 bool OS::Core::Value::isNull() const
 {
-	return type == OS_VALUE_TYPE_NULL;
+	return OS_VALUE_TYPE(*this) == OS_VALUE_TYPE_NULL;
 }
 
 bool OS::Core::Value::isFunction() const
 {
-	switch(type){
+	switch(OS_VALUE_TYPE(*this)){
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		return true;
@@ -10019,7 +10218,7 @@ bool OS::Core::Value::isFunction() const
 
 bool OS::Core::Value::isUserdata() const
 {
-	switch(type){
+	switch(OS_VALUE_TYPE(*this)){
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		return true;
@@ -10088,7 +10287,7 @@ void OS::Core::ValueRetained::clear()
 
 void OS::Core::ValueRetained::retain()
 {
-	switch(type){
+	switch(OS_VALUE_TYPE(*this)){
 	case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
@@ -10096,15 +10295,15 @@ void OS::Core::ValueRetained::retain()
 	case OS_VALUE_TYPE_CFUNCTION:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		OS_ASSERT(v.value);
-		v.value->external_ref_count++;
+		OS_ASSERT(OS_VALUE_VARIANT(*this).value);
+		OS_VALUE_VARIANT(*this).value->external_ref_count++;
 		break;
 	}
 }
 
 void OS::Core::ValueRetained::release()
 {
-	switch(type){
+	switch(OS_VALUE_TYPE(*this)){
 	case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
@@ -10112,10 +10311,10 @@ void OS::Core::ValueRetained::release()
 	case OS_VALUE_TYPE_CFUNCTION:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		OS_ASSERT(v.value && v.value->external_ref_count > 0);
-		v.value->external_ref_count--;
-		if(v.value->gc_color == GC_WHITE){
-			v.value->gc_color = GC_BLACK;
+		OS_ASSERT(OS_VALUE_VARIANT(*this).value && OS_VALUE_VARIANT(*this).value->external_ref_count > 0);
+		OS_VALUE_VARIANT(*this).value->external_ref_count--;
+		if(OS_VALUE_VARIANT(*this).value->gc_color == GC_WHITE){
+			OS_VALUE_VARIANT(*this).value->gc_color = GC_BLACK;
 		}
 		break;
 	}
@@ -10250,16 +10449,19 @@ void OS::Core::GCStringValue::calcHash()
 
 bool OS::Core::valueToBool(const Value& val)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
 		return false;
 
 	case OS_VALUE_TYPE_BOOL:
-		return val.v.boolean ? true : false;
+		return OS_VALUE_VARIANT(val).boolean ? true : false;
 
+#ifndef OS_NUMBER_NAN_TRICK
 	case OS_VALUE_TYPE_NUMBER:
-		return !OS_ISNAN((OS_FLOAT)val.v.number);
+		return !OS_ISNAN((OS_FLOAT)OS_VALUE_NUMBER(val));
+#endif
 	}
+	// OS_EValueType type = (OS_EValueType)OS_VALUE_TYPE(val);
 	return true;
 }
 
@@ -10297,18 +10499,18 @@ OS_NUMBER OS::Core::Compiler::Expression::toNumber()
 
 OS_NUMBER OS::Core::valueToNumber(const Value& val, bool valueof_enabled)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
 		return 0; // nan_float;
 
 	case OS_VALUE_TYPE_BOOL:
-		return (OS_NUMBER)val.v.boolean;
+		return (OS_NUMBER)OS_VALUE_VARIANT(val).boolean;
 
 	case OS_VALUE_TYPE_NUMBER:
-		return val.v.number;
+		return OS_VALUE_NUMBER(val);
 
 	case OS_VALUE_TYPE_STRING:
-		return val.v.string->toNumber();
+		return OS_VALUE_VARIANT(val).string->toNumber();
 	}
 	if(valueof_enabled){
 		pushValueOf(val);
@@ -10320,22 +10522,22 @@ OS_NUMBER OS::Core::valueToNumber(const Value& val, bool valueof_enabled)
 
 bool OS::Core::isValueNumber(const Value& val, OS_NUMBER * out)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_BOOL:
 		if(out){
-			*out = (OS_NUMBER)val.v.boolean;
+			*out = (OS_NUMBER)OS_VALUE_VARIANT(val).boolean;
 		}
 		return true;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = (OS_NUMBER)val.v.number;
+			*out = (OS_NUMBER)OS_VALUE_NUMBER(val);
 		}
 		return true;
 
 	case OS_VALUE_TYPE_STRING:
-		OS_ASSERT(dynamic_cast<GCStringValue*>(val.v.string));
-		return val.v.string->isNumber(out);
+		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(val).string));
+		return OS_VALUE_VARIANT(val).string->isNumber(out);
 	}
 	if(out){
 		*out = 0;
@@ -10372,20 +10574,20 @@ OS::Core::String OS::Core::Compiler::Expression::toString()
 
 OS::Core::String OS::Core::valueToString(const Value& val, bool valueof_enabled)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
 		// return String(allocator);
 		return strings->syntax_null;
 
 	case OS_VALUE_TYPE_BOOL:
 		// return val->value.boolean ? String(allocator, OS_TEXT("1")) : String(allocator);
-		return val.v.boolean ? strings->syntax_true : strings->syntax_false;
+		return OS_VALUE_VARIANT(val).boolean ? strings->syntax_true : strings->syntax_false;
 
 	case OS_VALUE_TYPE_NUMBER:
-		return String(allocator, val.v.number, OS_AUTO_PRECISION);
+		return String(allocator, OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
 
 	case OS_VALUE_TYPE_STRING:
-		return String(val.v.string);
+		return String(OS_VALUE_VARIANT(val).string);
 	}
 	if(valueof_enabled){
 		pushValueOf(val);
@@ -10397,18 +10599,18 @@ OS::Core::String OS::Core::valueToString(const Value& val, bool valueof_enabled)
 
 OS::String OS::Core::valueToStringOS(const Value& val, bool valueof_enabled)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
 		return OS::String(allocator, strings->syntax_null);
 
 	case OS_VALUE_TYPE_BOOL:
-		return OS::String(allocator, val.v.boolean ? strings->syntax_true : strings->syntax_false);
+		return OS::String(allocator, OS_VALUE_VARIANT(val).boolean ? strings->syntax_true : strings->syntax_false);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return OS::String(allocator, val.v.number, OS_AUTO_PRECISION);
+		return OS::String(allocator, OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
 
 	case OS_VALUE_TYPE_STRING:
-		return OS::String(allocator, val.v.string);
+		return OS::String(allocator, OS_VALUE_VARIANT(val).string);
 	}
 	if(valueof_enabled){
 		pushValueOf(val);
@@ -10420,7 +10622,7 @@ OS::String OS::Core::valueToStringOS(const Value& val, bool valueof_enabled)
 
 bool OS::Core::isValueString(const Value& val, String * out)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
 		if(out){
 			// *out = String(allocator);
@@ -10431,20 +10633,20 @@ bool OS::Core::isValueString(const Value& val, String * out)
 	case OS_VALUE_TYPE_BOOL:
 		if(out){
 			// *out = String(allocator, val->value.boolean ? OS_TEXT("1") : OS_TEXT(""));
-			*out = val.v.boolean ? strings->syntax_true : strings->syntax_false;
+			*out = OS_VALUE_VARIANT(val).boolean ? strings->syntax_true : strings->syntax_false;
 		}
 		return true;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = String(allocator, val.v.number, OS_AUTO_PRECISION);
+			*out = String(allocator, OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
 		}
 		return true;
 
 	case OS_VALUE_TYPE_STRING:
 		if(out){
-			OS_ASSERT(dynamic_cast<GCStringValue*>(val.v.string));
-			*out = String(val.v.string);
+			OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(val).string));
+			*out = String(OS_VALUE_VARIANT(val).string);
 		}
 		return true;
 	}
@@ -10456,7 +10658,7 @@ bool OS::Core::isValueString(const Value& val, String * out)
 
 bool OS::Core::isValueStringOS(const Value& val, OS::String * out)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
 		if(out){
 			// *out = String(allocator);
@@ -10467,20 +10669,20 @@ bool OS::Core::isValueStringOS(const Value& val, OS::String * out)
 	case OS_VALUE_TYPE_BOOL:
 		if(out){
 			// *out = String(allocator, val->value.boolean ? OS_TEXT("1") : OS_TEXT(""));
-			*out = OS::String(allocator, val.v.boolean ? strings->syntax_true : strings->syntax_false);
+			*out = OS::String(allocator, OS_VALUE_VARIANT(val).boolean ? strings->syntax_true : strings->syntax_false);
 		}
 		return true;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = OS::String(allocator, val.v.number, OS_AUTO_PRECISION);
+			*out = OS::String(allocator, OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
 		}
 		return true;
 
 	case OS_VALUE_TYPE_STRING:
 		if(out){
-			OS_ASSERT(dynamic_cast<GCStringValue*>(val.v.string));
-			*out = OS::String(allocator, val.v.string);
+			OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(val).string));
+			*out = OS::String(allocator, OS_VALUE_VARIANT(val).string);
 		}
 		return true;
 	}
@@ -11721,7 +11923,7 @@ void OS::Core::shutdown()
 	int i;
 	OS_ASSERT(stack_values.count >= OS_TOP_STACK_NULL_VALUES);
 	for(i = 0; i < OS_TOP_STACK_NULL_VALUES; i++){
-		OS_ASSERT(stack_values[i].type == OS_VALUE_TYPE_NULL);
+		OS_ASSERT(OS_VALUE_TYPE(stack_values[i]) == OS_VALUE_TYPE_NULL);
 	}
 	// stack_values.count = 0;
 	while(call_stack_funcs.count > 0){
@@ -12049,16 +12251,16 @@ void OS::Core::gcMarkTable(Table * table)
 	Property * prop = table->first, * prop_next;
 	for(; prop; prop = prop_next){
 		prop_next = prop->next;
-		if(prop->index.type == OS_VALUE_TYPE_WEAKREF){
+		if(OS_VALUE_TYPE(prop->index) == OS_VALUE_TYPE_WEAKREF){
 			OS_ASSERT(false);
-			if(!values.get(prop->index.v.value_id)){
+			if(!values.get(OS_VALUE_VARIANT(prop->index).value_id)){
 				PropertyIndex index = *prop;
 				deleteTableProperty(table, index);
 				continue;
 			}
 		}
-		if(prop->value.type == OS_VALUE_TYPE_WEAKREF){
-			if(!values.get(prop->value.v.value_id)){
+		if(OS_VALUE_TYPE(prop->value) == OS_VALUE_TYPE_WEAKREF){
+			if(!values.get(OS_VALUE_VARIANT(prop->value).value_id)){
 				PropertyIndex index = *prop;
 				deleteTableProperty(table, index);
 				continue;
@@ -12111,7 +12313,7 @@ void OS::Core::gcMarkStackFunction(StackFunction * stack_func)
 
 void OS::Core::gcAddToGreyList(Value val)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
@@ -12119,7 +12321,7 @@ void OS::Core::gcAddToGreyList(Value val)
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		gcAddToGreyList(val.v.value);
+		gcAddToGreyList(OS_VALUE_VARIANT(val).value);
 		break;
 	}
 }
@@ -12732,11 +12934,11 @@ OS::Core::Property * OS::Core::setTableValue(Table * table, const PropertyIndex&
 
 bool OS::Core::hasSpecialPrefix(const Value& value)
 {
-	if(value.type != OS_VALUE_TYPE_STRING){
+	if(OS_VALUE_TYPE(value) != OS_VALUE_TYPE_STRING){
 		return false;
 	}
-	OS_ASSERT(dynamic_cast<GCStringValue*>(value.v.string));
-	GCStringValue * string = value.v.string;
+	OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(value).string));
+	GCStringValue * string = OS_VALUE_VARIANT(value).string;
 	if(string->getLen() >= 2){
 		const OS_CHAR * s = string->toChar();
 		return s[0] == OS_TEXT('_') && s[1] == OS_TEXT('_');
@@ -12754,20 +12956,20 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	// TODO: correct ???
 	gcAddToGreyList(value);
 
-	if(index.index.type == OS_VALUE_TYPE_STRING){
-		OS_ASSERT(dynamic_cast<GCStringValue*>(index.index.v.string));
-		switch(value.type){
+	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
+		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index.index).string));
+		switch(OS_VALUE_TYPE(value)){
 		case OS_VALUE_TYPE_FUNCTION:
-			OS_ASSERT(dynamic_cast<GCFunctionValue*>(value.v.func));
-			if(!value.v.func->name){
-				value.v.func->name = index.index.v.string;
+			OS_ASSERT(dynamic_cast<GCFunctionValue*>(OS_VALUE_VARIANT(value).func));
+			if(!OS_VALUE_VARIANT(value).func->name){
+				OS_VALUE_VARIANT(value).func->name = OS_VALUE_VARIANT(index.index).string;
 			}
 			break;
 
 		case OS_VALUE_TYPE_CFUNCTION:
-			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(value.v.cfunc));
-			if(!value.v.cfunc->name){
-				value.v.cfunc->name = index.index.v.string;
+			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(OS_VALUE_VARIANT(value).cfunc));
+			if(!OS_VALUE_VARIANT(value).cfunc->name){
+				OS_VALUE_VARIANT(value).cfunc->name = OS_VALUE_VARIANT(index.index).string;
 			}
 			break;
 		}
@@ -12793,13 +12995,13 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	}
 	} */
 
-	if(index.index.type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == index.index.v.string){
+	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index.index).string){
 		switch(table_value->type){
 		case OS_VALUE_TYPE_STRING:
 		case OS_VALUE_TYPE_ARRAY:
 		case OS_VALUE_TYPE_OBJECT:
 		case OS_VALUE_TYPE_FUNCTION:
-			table_value->prototype = value.v.value;
+			table_value->prototype = OS_VALUE_VARIANT(value).value;
 			break;
 
 		case OS_VALUE_TYPE_USERDATA:
@@ -12828,11 +13030,11 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 
 	if((anonymous_setter_enabled || named_setter_enabled) && !hasSpecialPrefix(index.index)){
 		Value func;
-		if(index.index.type == OS_VALUE_TYPE_STRING && named_setter_enabled){
+		if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_setter_enabled){
 			const void * buf1 = strings->__setAt.toChar();
 			int size1 = strings->__setAt.getDataSize();
-			const void * buf2 = index.index.v.string->toChar();
-			int size2 = index.index.v.string->getDataSize();
+			const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
+			int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 			GCStringValue * setter_name = newStringValue(buf1, size1, buf2, size2);
 			if(getPropertyValue(func, table_value, PropertyIndex(setter_name, PropertyIndex::KeepStringIndex()), true)){
 				pushValue(func);
@@ -12866,7 +13068,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 
 void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, Value value, bool anonymous_setter_enabled, bool named_setter_enabled)
 {
-	switch(table_value.type){
+	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
 		return;
 
@@ -12888,13 +13090,13 @@ void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, V
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return setPropertyValue(table_value.v.value, index, value, anonymous_setter_enabled, named_setter_enabled);
+		return setPropertyValue(OS_VALUE_VARIANT(table_value).value, index, value, anonymous_setter_enabled, named_setter_enabled);
 	}
 }
 
 void OS::Core::pushPrototype(Value val)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
 		pushNull();
 		return;
@@ -12914,14 +13116,14 @@ void OS::Core::pushPrototype(Value val)
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		pushValue(val.v.value);
+		pushValue(OS_VALUE_VARIANT(val).value);
 		return;
 	}
 }
 
 void OS::Core::setPrototype(Value val, Value proto, int userdata_crc)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_BOOL:
 	case OS_VALUE_TYPE_NUMBER:
@@ -12929,7 +13131,7 @@ void OS::Core::setPrototype(Value val, Value proto, int userdata_crc)
 
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		if(val.v.userdata->crc != userdata_crc){
+		if(OS_VALUE_VARIANT(val).userdata->crc != userdata_crc){
 			return;
 		}
 		// no break
@@ -12939,7 +13141,7 @@ void OS::Core::setPrototype(Value val, Value proto, int userdata_crc)
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		val.v.value->prototype = proto.getGCValue();
+		OS_VALUE_VARIANT(val).value->prototype = proto.getGCValue();
 		return;
 	}
 }
@@ -13386,7 +13588,7 @@ OS::Core::GCArrayValue * OS::Core::pushArrayValue(int initial_capacity)
 
 void OS::Core::pushTypeOf(const Value& val)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 		// case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_BOOL:
 		pushStringValue(strings->typeof_boolean);
@@ -13423,7 +13625,7 @@ void OS::Core::pushTypeOf(const Value& val)
 
 bool OS::Core::pushNumberOf(const Value& val)
 {
-	if(val.type == OS_VALUE_TYPE_NUMBER){
+	if(OS_IS_VALUE_NUMBER(val)){
 		pushValue(val);
 		return true;
 	}
@@ -13438,7 +13640,7 @@ bool OS::Core::pushNumberOf(const Value& val)
 
 bool OS::Core::pushStringOf(const Value& val)
 {
-	if(val.type == OS_VALUE_TYPE_STRING){
+	if(OS_VALUE_TYPE(val) == OS_VALUE_TYPE_STRING){
 		pushValue(val);
 		return true;
 	}
@@ -13453,7 +13655,7 @@ bool OS::Core::pushStringOf(const Value& val)
 
 bool OS::Core::pushValueOf(Value val)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_BOOL:
@@ -13482,13 +13684,13 @@ bool OS::Core::pushValueOf(Value val)
 
 	bool prototype_enabled = true;
 	Value func;
-	if(getPropertyValue(func, val.v.value, PropertyIndex(strings->func_valueOf, PropertyIndex::KeepStringIndex()), prototype_enabled)
+	if(getPropertyValue(func, OS_VALUE_VARIANT(val).value, PropertyIndex(strings->func_valueOf, PropertyIndex::KeepStringIndex()), prototype_enabled)
 		&& func.isFunction())
 	{
 		pushValue(func);
 		pushValue(val);
 		call(0, 1);
-		switch(stack_values.lastElement().type){
+		switch(OS_VALUE_TYPE(stack_values.lastElement())){
 		case OS_VALUE_TYPE_NULL:
 		case OS_VALUE_TYPE_NUMBER:
 		case OS_VALUE_TYPE_BOOL:
@@ -13504,10 +13706,10 @@ bool OS::Core::pushValueOf(Value val)
 
 OS::Core::GCArrayValue * OS::Core::pushArrayOf(const Value& val)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_ARRAY:
 		pushValue(val);
-		return val.v.arr;
+		return OS_VALUE_VARIANT(val).arr;
 	}
 	pushNull();
 	return NULL;
@@ -13515,10 +13717,10 @@ OS::Core::GCArrayValue * OS::Core::pushArrayOf(const Value& val)
 
 OS::Core::GCObjectValue * OS::Core::pushObjectOf(const Value& val)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_OBJECT:
 		pushValue(val);
-		return val.v.object;
+		return OS_VALUE_VARIANT(val).object;
 	}
 	pushNull();
 	return NULL;
@@ -13526,11 +13728,11 @@ OS::Core::GCObjectValue * OS::Core::pushObjectOf(const Value& val)
 
 OS::Core::GCUserdataValue * OS::Core::pushUserdataOf(const Value& val)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		pushValue(val);
-		return val.v.userdata;
+		return OS_VALUE_VARIANT(val).userdata;
 	}
 	pushNull();
 	return NULL;
@@ -13538,7 +13740,7 @@ OS::Core::GCUserdataValue * OS::Core::pushUserdataOf(const Value& val)
 
 bool OS::Core::pushFunctionOf(const Value& val)
 {
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
 		pushValue(val);
@@ -13583,7 +13785,8 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 		}
 	};
 
-	switch(value.type){
+	// opcode = (OpcodeType)OS_TO_OPCODE_TYPE(opcode);
+	switch(OS_VALUE_TYPE(value)){
 	case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_NUMBER:
@@ -13624,16 +13827,16 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 
 bool OS::Core::isEqualExactly(const Value& left_value, const Value& right_value)
 {
-	if(left_value.type == right_value.type){ // && left_value->prototype == right_value->prototype){
-		switch(left_value.type){
+	if(OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE(right_value)){ // && left_value->prototype == right_value->prototype){
+		switch(OS_VALUE_TYPE(left_value)){
 		case OS_VALUE_TYPE_NULL:
 			return true;
 
 		case OS_VALUE_TYPE_NUMBER:
-			return left_value.v.number == right_value.v.number;
+			return OS_VALUE_NUMBER(left_value) == OS_VALUE_NUMBER(right_value);
 
 		case OS_VALUE_TYPE_BOOL:
-			return left_value.v.boolean == right_value.v.boolean;
+			return OS_VALUE_VARIANT(left_value).boolean == OS_VALUE_VARIANT(right_value).boolean;
 
 		case OS_VALUE_TYPE_STRING:
 			// the same strings always share one instance, so check only gc value ptr
@@ -13644,10 +13847,10 @@ bool OS::Core::isEqualExactly(const Value& left_value, const Value& right_value)
 		case OS_VALUE_TYPE_USERPTR:
 		case OS_VALUE_TYPE_FUNCTION:
 		case OS_VALUE_TYPE_CFUNCTION:
-			return left_value.v.value == right_value.v.value;
+			return OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value;
 
 		case OS_VALUE_TYPE_WEAKREF:
-			return left_value.v.value_id == right_value.v.value_id;
+			return OS_VALUE_VARIANT(left_value).value_id == OS_VALUE_VARIANT(right_value).value_id;
 		}
 	}
 	return false;
@@ -13673,7 +13876,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					return;
 				}
 				if(is_left_side){
-					switch(right_value.type){
+					switch(OS_VALUE_TYPE(right_value)){
 					// case OS_VALUE_TYPE_STRING:
 					case OS_VALUE_TYPE_ARRAY:
 					case OS_VALUE_TYPE_OBJECT:
@@ -13691,22 +13894,23 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		}
 	};
 
+	// opcode = (OpcodeType)OS_TO_OPCODE_TYPE(opcode);
 	int is_gc_left_value = 0;
-	switch(left_value.type){
+	switch(OS_VALUE_TYPE(left_value)){
 	case OS_VALUE_TYPE_STRING:
-		if(right_value.type == OS_VALUE_TYPE_STRING){
+		if(OS_VALUE_TYPE(right_value) == OS_VALUE_TYPE_STRING){
 			switch(opcode){
 			case OP_COMPARE:
-				if(left_value.v.value == right_value.v.value){
+				if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 					return pushNumber((OS_NUMBER)0.0);
 				}
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 
 			case OP_LOGIC_PTR_EQ:
-				return pushBool(left_value.v.value == right_value.v.value); // isEqualExactly(left_value, right_value));
+				return pushBool(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value); // isEqualExactly(left_value, right_value));
 
 			case OP_LOGIC_EQ:
-				if(left_value.v.value == right_value.v.value){
+				if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 					return pushBool(true);
 				}
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13714,7 +13918,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				return;
 
 			case OP_LOGIC_GE:
-				if(left_value.v.value == right_value.v.value){
+				if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 					return pushBool(true);
 				}
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13722,7 +13926,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				return;
 
 			case OP_LOGIC_GREATER:
-				if(left_value.v.value == right_value.v.value){
+				if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 					return pushBool(false);
 				}
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13736,7 +13940,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 	case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_BOOL:
-		switch(right_value.type){
+		switch(OS_VALUE_TYPE(right_value)){
 		case OS_VALUE_TYPE_NULL:
 		case OS_VALUE_TYPE_NUMBER:
 		case OS_VALUE_TYPE_BOOL:
@@ -13820,7 +14024,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		switch(opcode){
 		case OP_COMPARE:
 			if(is_gc_left_value){
-				switch(right_value.type){
+				switch(OS_VALUE_TYPE(right_value)){
 				case OS_VALUE_TYPE_STRING:
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
@@ -13828,12 +14032,12 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
-					if(left_value.v.value == right_value.v.value){
+					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 						return pushNumber((OS_NUMBER)0.0);
 					}
 				}
 			}
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13843,7 +14047,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 
 		case OP_LOGIC_EQ:
 			if(is_gc_left_value){
-				switch(right_value.type){
+				switch(OS_VALUE_TYPE(right_value)){
 				case OS_VALUE_TYPE_STRING:
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
@@ -13851,12 +14055,12 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
-					if(left_value.v.value == right_value.v.value){
+					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 						return pushBool(true);
 					}
 				}
 			}
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
 			}else{
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13866,7 +14070,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 
 		case OP_LOGIC_GE:
 			if(is_gc_left_value){
-				switch(right_value.type){
+				switch(OS_VALUE_TYPE(right_value)){
 				case OS_VALUE_TYPE_STRING:
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
@@ -13874,12 +14078,12 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
-					if(left_value.v.value == right_value.v.value){
+					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 						return pushBool(true);
 					}
 				}
 			}
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
 			}
 			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13888,7 +14092,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 
 		case OP_LOGIC_GREATER:
 			if(is_gc_left_value){
-				switch(right_value.type){
+				switch(OS_VALUE_TYPE(right_value)){
 				case OS_VALUE_TYPE_STRING:
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
@@ -13896,12 +14100,12 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
-					if(left_value.v.value == right_value.v.value){
+					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 						return pushBool(false);
 					}
 				}
 			}
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
 			}else{
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
@@ -13910,67 +14114,67 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			return;
 
 		case OP_BIT_AND:
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, left_value, right_value, true);
 
 		case OP_BIT_OR:
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, left_value, right_value, true);
 
 		case OP_BIT_XOR:
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, left_value, right_value, true);
 
 		case OP_ADD: // +
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__add, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__add, left_value, right_value, true);
 
 		case OP_SUB: // -
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, left_value, right_value, true);
 
 		case OP_MUL: // *
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, left_value, right_value, true);
 
 		case OP_DIV: // /
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__div, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__div, left_value, right_value, true);
 
 		case OP_MOD: // %
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, left_value, right_value, true);
 
 		case OP_LSHIFT: // <<
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, left_value, right_value, true);
 
 		case OP_RSHIFT: // >>
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, left_value, right_value, true);
 
 		case OP_POW: // **
-			if(!is_gc_left_value || left_value.type == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, left_value, right_value, false);
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, left_value, right_value, true);
@@ -14487,7 +14691,8 @@ OS::String OS::popString(const String& def, bool valueof_enabled)
 
 OS_EValueType OS::getType(int offs)
 {
-	return core->getStackValue(offs).type;
+	Core::Value value = core->getStackValue(offs);
+	return (OS_EValueType)OS_VALUE_TYPE(value);
 }
 
 OS_EValueType OS::getTypeById(int id)
@@ -14510,7 +14715,7 @@ OS::String OS::getTypeStrById(int id)
 
 bool OS::isType(OS_EValueType type, int offs)
 {
-	return core->getStackValue(offs).type == type;
+	return OS_VALUE_TYPE(core->getStackValue(offs)) == type;
 }
 
 bool OS::isNull(int offs)
@@ -14520,7 +14725,7 @@ bool OS::isNull(int offs)
 
 bool OS::isObject(int offs)
 {
-	switch(core->getStackValue(offs).type){
+	switch(OS_VALUE_TYPE(core->getStackValue(offs))){
 	case OS_VALUE_TYPE_OBJECT:
 		// case OS_VALUE_TYPE_ARRAY:
 		return true;
@@ -14531,14 +14736,14 @@ bool OS::isObject(int offs)
 bool OS::isUserdata(int crc, int offs, int prototype_crc)
 {
 	Core::Value val = core->getStackValue(offs);
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		if(val.v.userdata->crc == crc){
+		if(OS_VALUE_VARIANT(val).userdata->crc == crc){
 			return true;
 		}
-		if(prototype_crc && val.v.userdata->prototype 
-			&& core->isValuePrototypeOfUserdata(val.v.userdata->prototype, prototype_crc))
+		if(prototype_crc && OS_VALUE_VARIANT(val).userdata->prototype 
+			&& core->isValuePrototypeOfUserdata(OS_VALUE_VARIANT(val).userdata->prototype, prototype_crc))
 		{
 			return true;
 		}
@@ -14549,16 +14754,16 @@ bool OS::isUserdata(int crc, int offs, int prototype_crc)
 void * OS::toUserdata(int crc, int offs, int prototype_crc)
 {
 	Core::Value val = core->getStackValue(offs);
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		if(val.v.userdata->crc == crc){
-			return val.v.userdata->ptr;
+		if(OS_VALUE_VARIANT(val).userdata->crc == crc){
+			return OS_VALUE_VARIANT(val).userdata->ptr;
 		}
-		if(prototype_crc && val.v.userdata->prototype 
-			&& core->isValuePrototypeOfUserdata(val.v.userdata->prototype, prototype_crc))
+		if(prototype_crc && OS_VALUE_VARIANT(val).userdata->prototype 
+			&& core->isValuePrototypeOfUserdata(OS_VALUE_VARIANT(val).userdata->prototype, prototype_crc))
 		{
-			return val.v.userdata->ptr;
+			return OS_VALUE_VARIANT(val).userdata->ptr;
 		}
 	}
 	return NULL;
@@ -14567,18 +14772,18 @@ void * OS::toUserdata(int crc, int offs, int prototype_crc)
 void OS::clearUserdata(int crc, int offs, int prototype_crc)
 {
 	Core::Value val = core->getStackValue(offs);
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		if(val.v.userdata->crc == crc){ // && val.v.userdata->ptr){
-			core->clearValue(val.v.value);
+		if(OS_VALUE_VARIANT(val).userdata->crc == crc){ // && val.v.userdata->ptr){
+			core->clearValue(OS_VALUE_VARIANT(val).value);
 			// val.v.userdata->ptr = NULL;
 			return;
 		}
-		if(prototype_crc && val.v.userdata->prototype 
-			&& core->isValuePrototypeOfUserdata(val.v.userdata->prototype, prototype_crc))
+		if(prototype_crc && OS_VALUE_VARIANT(val).userdata->prototype 
+			&& core->isValuePrototypeOfUserdata(OS_VALUE_VARIANT(val).userdata->prototype, prototype_crc))
 		{
-			core->clearValue(val.v.value);
+			core->clearValue(OS_VALUE_VARIANT(val).value);
 			return;
 		}
 	}
@@ -14707,13 +14912,13 @@ void OS::setProperty(int offs, const Core::String& name, bool anonymous_setter_e
 void OS::addProperty()
 {
 	Core::Value value = core->getStackValue(-2);
-	switch(value.type){
+	switch(OS_VALUE_TYPE(value)){
 	case OS_VALUE_TYPE_ARRAY:
-		core->insertValue(value.v.arr->values.count, -1);
+		core->insertValue(OS_VALUE_VARIANT(value).arr->values.count, -1);
 		break;
 
 	case OS_VALUE_TYPE_OBJECT:
-		core->insertValue(value.v.object->table ? value.v.object->table->next_index : 0, -1);
+		core->insertValue(OS_VALUE_VARIANT(value).object->table ? OS_VALUE_VARIANT(value).object->table->next_index : 0, -1);
 		break;
 	}
 	setProperty(false, false);
@@ -14763,7 +14968,7 @@ void OS::setPrototype(int userdata_crc)
 int OS::getValueId(int offs)
 {
 	Core::Value val = core->getStackValue(offs);
-	switch(val.type){
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
@@ -14771,10 +14976,10 @@ int OS::getValueId(int offs)
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return val.v.value->value_id;
+		return OS_VALUE_VARIANT(val).value->value_id;
 
 	case OS_VALUE_TYPE_WEAKREF:
-		return val.v.value_id;
+		return OS_VALUE_VARIANT(val).value_id;
 	}
 	return 0;
 }
@@ -14804,9 +15009,9 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Prop
 	}
 #endif
 
-	if(table_value->type == OS_VALUE_TYPE_ARRAY && index.index.type == OS_VALUE_TYPE_NUMBER){
+	if(table_value->type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(index.index)){
 		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
-		int i = (int)index.index.v.number;
+		int i = (int)OS_VALUE_NUMBER(index.index);
 		if((i >= 0 || (i += ((GCArrayValue*)table_value)->values.count) >= 0) && i < ((GCArrayValue*)table_value)->values.count){
 			result = ((GCArrayValue*)table_value)->values[i];
 		}else{
@@ -14831,7 +15036,7 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Prop
 			}
 		}
 	}
-	if(index.index.type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == index.index.v.string){
+	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index.index).string){
 		result = table_value->prototype;
 		return true;
 	}
@@ -14853,7 +15058,7 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Prop
 
 bool OS::Core::getPropertyValue(Value& result, const Value& table_value, const PropertyIndex& index, bool prototype_enabled)
 {
-	switch(table_value.type){
+	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
 		return false;
 
@@ -14872,7 +15077,7 @@ bool OS::Core::getPropertyValue(Value& result, const Value& table_value, const P
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return getPropertyValue(result, table_value.v.value, index, prototype_enabled);
+		return getPropertyValue(result, OS_VALUE_VARIANT(table_value).value, index, prototype_enabled);
 	}
 	return false;
 }
@@ -14881,7 +15086,7 @@ bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index, bo
 {
 	Value value;
 	if(getPropertyValue(value, table_value, index, prototype_enabled)){
-		return value.type != OS_VALUE_TYPE_NULL;
+		return OS_VALUE_TYPE(value) != OS_VALUE_TYPE_NULL;
 	}
 	if(!anonymous_getter_enabled && !named_getter_enabled){
 		return false;
@@ -14889,11 +15094,11 @@ bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index, bo
 	if(hasSpecialPrefix(index.index)){
 		return false;
 	}
-	if(index.index.type == OS_VALUE_TYPE_STRING && named_getter_enabled){
+	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_getter_enabled){
 		const void * buf1 = strings->__getAt.toChar();
 		int size1 = strings->__getAt.getDataSize();
-		const void * buf2 = index.index.v.string->toChar();
-		int size2 = index.index.v.string->getDataSize();
+		const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
+		int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 		GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
 		if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 			return true;
@@ -14914,11 +15119,11 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 			return pushValue(value);
 		}
 		if((anonymous_getter_enabled || named_getter_enabled) && !hasSpecialPrefix(index.index)){
-			if(index.index.type == OS_VALUE_TYPE_STRING && named_getter_enabled){
+			if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_getter_enabled){
 				const void * buf1 = strings->__getAt.toChar();
 				int size1 = strings->__getAt.getDataSize();
-				const void * buf2 = index.index.v.string->toChar();
-				int size2 = index.index.v.string->getDataSize();
+				const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
+				int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
 				if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 					pushValue(value);
@@ -14929,8 +15134,8 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 			}
 			if(anonymous_getter_enabled && getPropertyValue(value, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 				// auto_create = false;
-				if(value.type == OS_VALUE_TYPE_OBJECT){
-					table_value = value.v.value;
+				if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
+					table_value = OS_VALUE_VARIANT(value).value;
 					continue;
 				}
 				pushValue(value);
@@ -14942,7 +15147,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 					pushBool(true);
 					call(2, 1);
 				}
-				if(auto_create && stack_values.lastElement().type == OS_VALUE_TYPE_NULL){
+				if(auto_create && OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_NULL){
 					pop();
 					setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
 				}
@@ -14961,7 +15166,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create)
 {
 	GCValue * proto;
-	switch(self.type){
+	switch(OS_VALUE_TYPE(self)){
 	case OS_VALUE_TYPE_NUMBER:
 		proto = prototypes[PROTOTYPE_NUMBER];
 		break;
@@ -14982,11 +15187,11 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 			return pushValue(value);
 		}
 		if((anonymous_getter_enabled || named_getter_enabled) && !hasSpecialPrefix(index.index)){
-			if(index.index.type == OS_VALUE_TYPE_STRING && named_getter_enabled){
+			if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_getter_enabled){
 				const void * buf1 = strings->__getAt.toChar();
 				int size1 = strings->__getAt.getDataSize();
-				const void * buf2 = index.index.v.string->toChar();
-				int size2 = index.index.v.string->getDataSize();
+				const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
+				int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
 				if(getPropertyValue(value, proto, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 					pushValue(value);
@@ -14997,8 +15202,8 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 			}
 			if(anonymous_getter_enabled && getPropertyValue(value, proto, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 				// auto_create = false;
-				if(value.type == OS_VALUE_TYPE_OBJECT){
-					proto = value.v.value;
+				if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
+					proto = OS_VALUE_VARIANT(value).value;
 					continue;
 				}
 				pushValue(value);
@@ -15010,7 +15215,7 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 					pushBool(true);
 					call(2, 1);
 				}
-				if(auto_create && stack_values.lastElement().type == OS_VALUE_TYPE_NULL){
+				if(auto_create && OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_NULL){
 					pop();
 					setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
 				}
@@ -15028,7 +15233,7 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 
 void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create)
 {
-	switch(table_value.type){
+	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
 		break;
 
@@ -15057,7 +15262,7 @@ void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, 
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return pushPropertyValue(table_value.v.value, index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
+		return pushPropertyValue(OS_VALUE_VARIANT(table_value).value, index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
 	}
 	pushNull();
 }
@@ -15199,9 +15404,9 @@ int OS::Core::execute()
 		Instruction instruction = *(stack_func = this->stack_func)->opcodes++;
 		// Value * stack_func_locals = this->stack_func_locals
 #ifdef OS_DEBUG
-		OpcodeType opcode = (OpcodeType)GET_OPCODE(instruction);
+		OpcodeType opcode = (OpcodeType)OS_GET_OPCODE_WITH_CC(instruction);
 #else
-		unsigned int opcode = GET_OPCODE(instruction);
+		unsigned int opcode = OS_GET_OPCODE_WITH_CC(instruction);
 #endif
 #if 0
 		{
@@ -15213,445 +15418,445 @@ int OS::Core::execute()
 #endif
 		OS_PROFILE_BEGIN_OPCODE(opcode);
 		switch(opcode){
+		// case 0: case 1: case 2: case 3:
 		default:
 			error(OS_E_ERROR, "Unknown opcode, program is corrupted!!!");
 			allocator->setTerminated();
 			break;
 
-		case OP_LOGIC_BOOL:
+		OS_CASE_OPCODE_ALL(OP_LOGIC_BOOL):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction); // inverse
-				c = GETARG_C(instruction); // if opcode
-				res = (int)valueToBool(stack_func_locals[a]) ^ b;
-				if(!c){
+				// b = GETARG_B(instruction); // inverse
+				// c = GETARG_C(instruction); // if opcode
+				res = (int)valueToBool(stack_func_locals[a]) ^ OS_GETARG_B(instruction);
+				if(!(OS_GETARG_C(instruction))){
 					stack_func_locals[a] = res != 0;
 					break;
 				}
 #ifdef OS_DEBUG
 				instruction = stack_func->opcodes[0];
-				opcode = (OpcodeType)GET_OPCODE(instruction);
+				opcode = (OpcodeType)OS_GET_OPCODE_TYPE(instruction);
 				OS_ASSERT(opcode == OP_JUMP);
 #endif
 				if(res){
 					stack_func->opcodes++;
 				}else{
 					instruction = stack_func->opcodes[0];
-					b = GETARG_sBx(instruction);
+					int b = OS_GETARG_sBx(instruction);
 					stack_func->opcodes += b + 1;
 				}
 				break;
 			}
 
-		case OP_LOGIC_PTR_EQ:
+		OS_CASE_OPCODE_ALL(OP_LOGIC_PTR_EQ):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
 				
 				// left_value = & ARG_B_VALUE(a);
 				// b = a + 1;
 				// right_value = & ARG_C_VALUE(b);
 				left_value = &stack_func_locals[a];
-				right_value = &stack_func_locals[a+1];
+				right_value = left_value + 1;
 
-				b = GETARG_B(instruction); // inverse
-				c = GETARG_C(instruction); // if opcode
+				// b = GETARG_B(instruction); // inverse
+				// c = GETARG_C(instruction); // if opcode
 
-				res = (int)isEqualExactly(*left_value, *right_value) ^ b;
-				if(!c){
+				res = (int)isEqualExactly(*left_value, *right_value) ^ OS_GETARG_B(instruction);
+				if(!(OS_GETARG_C(instruction))){
 					stack_func_locals[a] = res != 0;
 					break;
 				}
 #ifdef OS_DEBUG
 				instruction = stack_func->opcodes[0];
-				opcode = (OpcodeType)GET_OPCODE(instruction);
+				opcode = (OpcodeType)OS_GET_OPCODE_TYPE(instruction);
 				OS_ASSERT(opcode == OP_JUMP);
 #endif
 				if(res){
 					stack_func->opcodes++;
 				}else{
 					instruction = stack_func->opcodes[0];
-					b = GETARG_sBx(instruction);
+					int b = OS_GETARG_sBx(instruction);
 					stack_func->opcodes += b + 1;
 				}
 				break;
 			}
 
-		case OP_LOGIC_EQ:
+		OS_CASE_OPCODE_ALL(OP_LOGIC_EQ):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
 				
 				// left_value = & ARG_B_VALUE(a);
 				// b = a + 1;
 				// right_value = & ARG_C_VALUE(b);
 				left_value = &stack_func_locals[a];
-				right_value = &stack_func_locals[a+1];
+				right_value = left_value + 1;
 
-				b = GETARG_B(instruction); // inverse
-				c = GETARG_C(instruction); // if opcode
+				int b = OS_GETARG_B(instruction); // inverse
+				// c = GETARG_C(instruction); // if opcode
 
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					res = (int)(left_value->v.number == right_value->v.number) ^ b;
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					res = (int)(OS_VALUE_NUMBER(*left_value) == OS_VALUE_NUMBER(*right_value)) ^ b;
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
-					OS_ASSERT(stack_values.lastElement().type == OS_VALUE_TYPE_BOOL);
-					res = stack_values.buf[--stack_values.count].v.boolean ^ b;
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
+					OS_ASSERT(OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_BOOL);
+					res = OS_VALUE_VARIANT(stack_values.buf[--stack_values.count]).boolean ^ b;
 				}
-				if(!c){
+				if(!(OS_GETARG_C(instruction))){
 					stack_func_locals[a] = res != 0;
 					break;
 				}
 #ifdef OS_DEBUG
 				instruction = stack_func->opcodes[0];
-				opcode = (OpcodeType)GET_OPCODE(instruction);
+				opcode = (OpcodeType)OS_GET_OPCODE_TYPE(instruction);
 				OS_ASSERT(opcode == OP_JUMP);
 #endif
 				if(res){
 					stack_func->opcodes++;
 				}else{
 					instruction = stack_func->opcodes[0];
-					b = GETARG_sBx(instruction);
+					b = OS_GETARG_sBx(instruction);
 					stack_func->opcodes += b + 1;
 				}
 				break;
 			}
 
-		case OP_LOGIC_GREATER:
+		OS_CASE_OPCODE_ALL(OP_LOGIC_GREATER):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
 				
 				// left_value = & ARG_B_VALUE(a);
 				// b = a + 1;
 				// right_value = & ARG_C_VALUE(b);
 				left_value = &stack_func_locals[a];
-				right_value = &stack_func_locals[a+1];
+				right_value = left_value + 1;
 
-				b = GETARG_B(instruction); // inverse
-				c = GETARG_C(instruction); // if opcode
+				int b = OS_GETARG_B(instruction); // inverse
+				// c = GETARG_C(instruction); // if opcode
 
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					res = (int)(left_value->v.number > right_value->v.number) ^ b;
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					res = (int)(OS_VALUE_NUMBER(*left_value) > OS_VALUE_NUMBER(*right_value)) ^ b;
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
-					OS_ASSERT(stack_values.lastElement().type == OS_VALUE_TYPE_BOOL);
-					res = stack_values.buf[--stack_values.count].v.boolean ^ b;
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
+					OS_ASSERT(OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_BOOL);
+					res = OS_VALUE_VARIANT(stack_values.buf[--stack_values.count]).boolean ^ b;
 				}
-				if(!c){
+				if(!(OS_GETARG_C(instruction))){
 					stack_func_locals[a] = res != 0;
 					break;
 				}
 #ifdef OS_DEBUG
 				instruction = stack_func->opcodes[0];
-				opcode = (OpcodeType)GET_OPCODE(instruction);
+				opcode = (OpcodeType)OS_GET_OPCODE_TYPE(instruction);
 				OS_ASSERT(opcode == OP_JUMP);
 #endif
 				if(res){
 					stack_func->opcodes++;
 				}else{
 					instruction = stack_func->opcodes[0];
-					b = GETARG_sBx(instruction);
+					b = OS_GETARG_sBx(instruction);
 					stack_func->opcodes += b + 1;
 				}
 				break;
 			}
 
-		case OP_LOGIC_GE:
+		OS_CASE_OPCODE_ALL(OP_LOGIC_GE):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
 				
 				// left_value = & ARG_B_VALUE(a);
 				// b = a + 1;
 				// right_value = & ARG_C_VALUE(b);
 				left_value = &stack_func_locals[a];
-				right_value = &stack_func_locals[a+1];
+				right_value = left_value + 1;
 
-				b = GETARG_B(instruction); // inverse
-				c = GETARG_C(instruction); // if opcode
+				int b = OS_GETARG_B(instruction); // inverse
+				// c = GETARG_C(instruction); // if opcode
 
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					res = (int)(left_value->v.number >= right_value->v.number) ^ b;
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					res = (int)(OS_VALUE_NUMBER(*left_value) >= OS_VALUE_NUMBER(*right_value)) ^ b;
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
-					OS_ASSERT(stack_values.lastElement().type == OS_VALUE_TYPE_BOOL);
-					res = stack_values.buf[--stack_values.count].v.boolean ^ b;
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
+					OS_ASSERT(OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_BOOL);
+					res = OS_VALUE_VARIANT(stack_values.buf[--stack_values.count]).boolean ^ b;
 				}
-				if(!c){
+				if(!(OS_GETARG_C(instruction))){
 					stack_func_locals[a] = res != 0;
 					break;
 				}
 #ifdef OS_DEBUG
 				instruction = stack_func->opcodes[0];
-				opcode = (OpcodeType)GET_OPCODE(instruction);
+				opcode = (OpcodeType)OS_GET_OPCODE_TYPE(instruction);
 				OS_ASSERT(opcode == OP_JUMP);
 #endif
 				if(res){
 					stack_func->opcodes++;
 				}else{
 					instruction = stack_func->opcodes[0];
-					b = GETARG_sBx(instruction);
+					b = OS_GETARG_sBx(instruction);
 					stack_func->opcodes += b + 1;
 				}
 				break;
 			}
 
-		case OP_JUMP:
+		OS_CASE_OPCODE(OP_JUMP):
 			{
-				b = GETARG_sBx(instruction);
-				stack_func->opcodes += b;
+				stack_func->opcodes += OS_GETARG_sBx(instruction);
 				break;
 			}
 
-		case OP_BIT_NOT:
+		OS_CASE_OPCODE_ALL(OP_BIT_NOT):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				left_value = & ARG_B_VALUE(b);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] =  ~(OS_INT)left_value->v.number;
+				b = OS_GETARG_B(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value)){
+					OS_SET_VALUE_NUMBER(stack_func_locals[a],  ~(OS_INT)OS_VALUE_NUMBER(*left_value));
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_PLUS:
+		OS_CASE_OPCODE_ALL(OP_PLUS):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				left_value = & ARG_B_VALUE(b);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] =  *left_value; // left_value->v.number;
+				b = OS_GETARG_B(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value)){
+					stack_func_locals[a] =  *left_value; // OS_VALUE_NUMBER(*left_value);
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_NEG:
+		OS_CASE_OPCODE_ALL(OP_NEG):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				left_value = & ARG_B_VALUE(b);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = -left_value->v.number;
+				b = OS_GETARG_B(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value)){
+					stack_func_locals[a] = -OS_VALUE_NUMBER(*left_value);
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_BIT_AND:
+		OS_CASE_OPCODE_ALL(OP_BIT_AND):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = (OS_INT)left_value->v.number & (OS_INT)right_value->v.number;
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					stack_func_locals[a] = (OS_INT)OS_VALUE_NUMBER(*left_value) & (OS_INT)OS_VALUE_NUMBER(*right_value);
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_BIT_OR:
+		OS_CASE_OPCODE_ALL(OP_BIT_OR):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = (OS_INT)left_value->v.number | (OS_INT)right_value->v.number;
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					stack_func_locals[a] = (OS_INT)OS_VALUE_NUMBER(*left_value) | (OS_INT)OS_VALUE_NUMBER(*right_value);
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_BIT_XOR:
+		OS_CASE_OPCODE_ALL(OP_BIT_XOR):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = (OS_INT)left_value->v.number ^ (OS_INT)right_value->v.number;
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					stack_func_locals[a] = (OS_INT)OS_VALUE_NUMBER(*left_value) ^ (OS_INT)OS_VALUE_NUMBER(*right_value);
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_ADD: // +
+		OS_CASE_OPCODE_ALL(OP_ADD): // +
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = left_value->v.number + right_value->v.number;
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					OS_SET_VALUE_NUMBER(stack_func_locals[a], OS_VALUE_NUMBER(*left_value) + OS_VALUE_NUMBER(*right_value));
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_SUB: // -
+		OS_CASE_OPCODE_ALL(OP_SUB): // -
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = left_value->v.number - right_value->v.number;
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					OS_SET_VALUE_NUMBER(stack_func_locals[a], OS_VALUE_NUMBER(*left_value) - OS_VALUE_NUMBER(*right_value));
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_MUL: // *
+		OS_CASE_OPCODE_ALL(OP_MUL): // *
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = left_value->v.number * right_value->v.number;
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					OS_SET_VALUE_NUMBER(stack_func_locals[a], OS_VALUE_NUMBER(*left_value) * OS_VALUE_NUMBER(*right_value));
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_DIV: // /
+		OS_CASE_OPCODE_ALL(OP_DIV): // /
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					if(!right_value->v.number){
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					if(!OS_VALUE_NUMBER(*right_value)){
+						errorDivisionByZero();
+						OS_SET_VALUE_NUMBER(stack_func_locals[a], 0.0); // TODO: NaN or null ???
+					}else{
+						OS_SET_VALUE_NUMBER(stack_func_locals[a], OS_VALUE_NUMBER(*left_value) / OS_VALUE_NUMBER(*right_value));
+					}
+				}else{
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
+					stack_func_locals[a] = stack_values.buf[--stack_values.count];
+				}
+				break;
+			}
+
+		OS_CASE_OPCODE_ALL(OP_MOD): // %
+			{
+				a = OS_GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					if(!OS_VALUE_NUMBER(*right_value)){
 						errorDivisionByZero();
 						stack_func_locals[a] = (OS_NUMBER)0.0; // TODO: NaN ???
 					}else{
-						stack_func_locals[a] = left_value->v.number / right_value->v.number;
+						stack_func_locals[a] = OS_MATH_MOD_OPERATOR(OS_VALUE_NUMBER(*left_value), OS_VALUE_NUMBER(*right_value));
 					}
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_MOD: // %
+		OS_CASE_OPCODE_ALL(OP_LSHIFT): // <<
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					if(!right_value->v.number){
-						errorDivisionByZero();
-						stack_func_locals[a] = (OS_NUMBER)0.0; // TODO: NaN ???
-					}else{
-						stack_func_locals[a] = OS_MATH_MOD_OPERATOR(left_value->v.number, right_value->v.number);
-					}
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					stack_func_locals[a] = (OS_INT)OS_VALUE_NUMBER(*left_value) << (OS_INT)OS_VALUE_NUMBER(*right_value);
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_LSHIFT: // <<
+		OS_CASE_OPCODE_ALL(OP_RSHIFT): // >>
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = (OS_INT)left_value->v.number << (OS_INT)right_value->v.number;
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					stack_func_locals[a] = (OS_INT)OS_VALUE_NUMBER(*left_value) >> (OS_INT)OS_VALUE_NUMBER(*right_value);
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_RSHIFT: // >>
+		OS_CASE_OPCODE_ALL(OP_POW): // **
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = (OS_INT)left_value->v.number >> (OS_INT)right_value->v.number;
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				left_value = & OS_GETARG_B_VALUE();
+				right_value = & OS_GETARG_C_VALUE();
+				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
+					stack_func_locals[a] = OS_MATH_POW_OPERATOR(OS_VALUE_NUMBER(*left_value), OS_VALUE_NUMBER(*right_value));
 				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
+					pushOpResultValue((OpcodeType)OS_TO_OPCODE_TYPE(opcode), *left_value, *right_value);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 				}
 				break;
 			}
 
-		case OP_POW: // **
+		OS_CASE_OPCODE(OP_NEW_FUNCTION):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				left_value = & ARG_B_VALUE(b);
-				right_value = & ARG_C_VALUE(c);
-				if(left_value->type == OS_VALUE_TYPE_NUMBER && right_value->type == OS_VALUE_TYPE_NUMBER){
-					stack_func_locals[a] = OS_MATH_POW_OPERATOR(left_value->v.number, right_value->v.number);
-				}else{
-					pushOpResultValue((OpcodeType)opcode, *left_value, *right_value);
-					stack_func_locals[a] = stack_values.buf[--stack_values.count];
-				}
-				break;
-			}
-
-		case OP_NEW_FUNCTION:
-			{
-				a = GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
+				b = OS_GETARG_B(instruction);
 				prog = stack_func->func->prog;
 				OS_ASSERT(b > 0 && b < prog->num_functions);
 				FunctionDecl * func_decl = prog->functions + b;
@@ -15662,14 +15867,14 @@ int OS::Core::execute()
 				break;
 			}
 
-		case OP_CALL:
+		OS_CASE_OPCODE(OP_CALL):
 			{
 				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
+				b = OS_GETARG_B(instruction);
 				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
-				c = GETARG_C(instruction);
+				c = OS_GETARG_C(instruction);
 				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
 				call(stack_func->locals_stack_pos + a, b, c, NULL, true);
 				continue;
@@ -15715,14 +15920,14 @@ int OS::Core::execute()
 			}
 #endif
 
-		case OP_CALL_METHOD:
+		OS_CASE_OPCODE(OP_CALL_METHOD):
 			{
 				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
+				b = OS_GETARG_B(instruction);
 				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
-				c = GETARG_C(instruction);
+				c = OS_GETARG_C(instruction);
 				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
 				pushPropertyValue(stack_func_locals[a], PropertyIndex(stack_func_locals[a + 1]), true, true, true, false);
 				stack_func_locals[a + 1] = stack_func_locals[a]; // this
@@ -15773,17 +15978,17 @@ int OS::Core::execute()
 			}
 #endif
 
-		case OP_SUPER_CALL:
+		OS_CASE_OPCODE(OP_SUPER_CALL):
 			{
 				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
+				b = OS_GETARG_B(instruction);
 				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
-				c = GETARG_C(instruction);
+				c = OS_GETARG_C(instruction);
 				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
-				OS_ASSERT(stack_func_locals[a].type == OS_VALUE_TYPE_NULL);
-				OS_ASSERT(stack_func_locals[a + 1].type == OS_VALUE_TYPE_NULL);
+				OS_ASSERT(OS_VALUE_TYPE(stack_func_locals[a]) == OS_VALUE_TYPE_NULL);
+				OS_ASSERT(OS_VALUE_TYPE(stack_func_locals[a + 1]) == OS_VALUE_TYPE_NULL);
 
 				GCValue * proto = NULL;
 				GCFunctionValue * func_value = stack_func->func;
@@ -15809,42 +16014,51 @@ int OS::Core::execute()
 				continue;
 			}
 
-		case OP_MOVE:
+		OS_CASE_OPCODE_ALL(OP_MOVE):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				stack_func_locals[a] = ARG_B_VALUE(b);
+				b = OS_GETARG_B(instruction);
+#if OS_MAX_GENERIC_CONST_INDEX == 0
+				stack_func_locals[a] = stack_func_locals[b];
+#else
+				stack_func_locals[a] = OS_GETARG_B_VALUE();
+#endif
 				break;
 			}
 
-		case OP_MOVE2:
+		OS_CASE_OPCODE_ALL(OP_MOVE2):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				stack_func_locals[a] = ARG_B_VALUE(b);
-				stack_func_locals[a + 1] = ARG_C_VALUE(c);
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+#if OS_MAX_GENERIC_CONST_INDEX == 0
+				stack_func_locals[a] = stack_func_locals[b];
+				stack_func_locals[a + 1] = stack_func_locals[c];
+#else
+				stack_func_locals[a] = OS_GETARG_B_VALUE();
+				stack_func_locals[a + 1] = OS_GETARG_C_VALUE();
+#endif
 				break;
 			}
 
-		case OP_GET_XCONST:
+		OS_CASE_OPCODE(OP_GET_XCONST):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_Bx(instruction);
+				b = OS_GETARG_Bx(instruction);
 				OS_ASSERT(b >= 0 && b < stack_func->func->prog->num_numbers + stack_func->func->prog->num_strings + CONST_STD_VALUES);
 				stack_func_locals[a] = stack_func_prog_values[b];
 				break;
 			}
 
-		case OP_GET_UPVALUE:
+		OS_CASE_OPCODE(OP_GET_UPVALUE):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction); // local
-				up_count = GETARG_C(instruction);
+				b = OS_GETARG_B(instruction); // local
+				up_count = OS_GETARG_C(instruction);
 				OS_ASSERT(up_count <= stack_func->func->func_decl->max_up_count);
 				Locals * func_locals = stack_func->locals;
 				OS_ASSERT(up_count <= func_locals->num_parents);
@@ -15854,12 +16068,12 @@ int OS::Core::execute()
 				break;
 			}
 
-		case OP_SET_UPVALUE:
+		OS_CASE_OPCODE(OP_SET_UPVALUE):
 			{
-				a = GETARG_A(instruction); // local
-				b = GETARG_B(instruction);
+				a = OS_GETARG_A(instruction); // local
+				b = OS_GETARG_B(instruction);
 				OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
-				up_count = GETARG_C(instruction);
+				up_count = OS_GETARG_C(instruction);
 				OS_ASSERT(up_count <= stack_func->func->func_decl->max_up_count);
 				Locals * func_locals = stack_func->locals;
 				OS_ASSERT(up_count <= func_locals->num_parents);
@@ -15869,18 +16083,18 @@ int OS::Core::execute()
 				break;
 			}
 
-		case OP_GET_PROPERTY:
+		OS_CASE_OPCODE_ALL(OP_GET_PROPERTY):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
+				b = OS_GETARG_B(instruction);
 				OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
-				c = GETARG_C(instruction);
-				// pushPropertyValue(stack_func_locals[b], PropertyIndex(ARG_C_VALUE(c)), true, true, true, false);
+				c = OS_GETARG_C(instruction);
+				// pushPropertyValue(stack_func_locals[b], PropertyIndex(OS_GETARG_C_VALUE(instruction)), true, true, true, false);
 				Value& obj = stack_func_locals[b];
-				const PropertyIndex index(ARG_C_VALUE(c));
+				const PropertyIndex index(OS_GETARG_C_VALUE());
 				const bool anonymous_getter_enabled = true, named_getter_enabled = true, prototype_enabled = true, auto_create = false;
-				switch(obj.type){
+				switch(OS_VALUE_TYPE(obj)){
 				case OS_VALUE_TYPE_NULL:
 				default:
 					stack_func_locals[a] = Value();
@@ -15893,11 +16107,12 @@ int OS::Core::execute()
 					break;
 
 				case OS_VALUE_TYPE_ARRAY:
-					if(index.index.type == OS_VALUE_TYPE_NUMBER){
-						OS_ASSERT(dynamic_cast<GCArrayValue*>(obj.v.value));
-						int i = (int)index.index.v.number;
-						if((i >= 0 || (i += ((GCArrayValue*)obj.v.value)->values.count) >= 0) && i < ((GCArrayValue*)obj.v.value)->values.count){
-							stack_func_locals[a] = ((GCArrayValue*)obj.v.value)->values[i];
+					if(OS_IS_VALUE_NUMBER(index.index)){
+						OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
+						int i = (int)OS_VALUE_NUMBER(index.index);
+						if((i >= 0 || (i += ((GCArrayValue*)OS_VALUE_VARIANT(obj).value)->values.count) >= 0) 
+							&& i < ((GCArrayValue*)OS_VALUE_VARIANT(obj).value)->values.count){
+							stack_func_locals[a] = ((GCArrayValue*)OS_VALUE_VARIANT(obj).value)->values[i];
 						}else{
 							stack_func_locals[a] = Value();
 						}
@@ -15912,7 +16127,7 @@ int OS::Core::execute()
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
 					{
-						GCValue * self = obj.v.value;
+						GCValue * self = OS_VALUE_VARIANT(obj).value;
 						GCValue * table_value = self;
 						for(;;){
 							if(getPropertyValue(value, table_value, index, prototype_enabled)){
@@ -15920,11 +16135,11 @@ int OS::Core::execute()
 								break;
 							}
 							if((anonymous_getter_enabled || named_getter_enabled) && !hasSpecialPrefix(index.index)){
-								if(index.index.type == OS_VALUE_TYPE_STRING && named_getter_enabled){
+								if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_getter_enabled){
 									const void * buf1 = strings->__getAt.toChar();
 									int size1 = strings->__getAt.getDataSize();
-									const void * buf2 = index.index.v.string->toChar();
-									int size2 = index.index.v.string->getDataSize();
+									const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
+									int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 									GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
 									if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 										pushValue(value);
@@ -15936,8 +16151,8 @@ int OS::Core::execute()
 								}
 								if(anonymous_getter_enabled && getPropertyValue(value, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 									// auto_create = false;
-									if(value.type == OS_VALUE_TYPE_OBJECT){
-										table_value = value.v.value;
+									if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
+										table_value = OS_VALUE_VARIANT(value).value;
 										continue;
 									}
 									pushValue(value);
@@ -15949,7 +16164,7 @@ int OS::Core::execute()
 										pushBool(true);
 										call(2, 1);
 									}
-									if(auto_create && stack_values.lastElement().type == OS_VALUE_TYPE_NULL){
+									if(auto_create && OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_NULL){
 										pop();
 										setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
 									}
@@ -15971,40 +16186,186 @@ int OS::Core::execute()
 				break;
 			}
 
-		case OP_SET_PROPERTY:
+		OS_CASE_OPCODE_ALL(OP_SET_PROPERTY):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
-				c = GETARG_C(instruction);
-				setPropertyValue(stack_func_locals[a], PropertyIndex(ARG_B_VALUE(b)), ARG_C_VALUE(c), true, true);
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				Value& obj = stack_func_locals[a];
+				Value& index = OS_GETARG_B_VALUE();
+				if(OS_IS_VALUE_NUMBER(index) && OS_VALUE_TYPE(obj) == OS_VALUE_TYPE_ARRAY){
+					OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
+					GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(obj).value;
+					int i = (int)OS_VALUE_NUMBER(index);
+					if(i >= 0 || (i += arr->values.count) >= 0){
+						while(i >= arr->values.count){
+							allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
+						}
+						OS_ASSERT(i < arr->values.count);
+						arr->values[i] = OS_GETARG_C_VALUE();
+					}
+					OS_PROFILE_END_OPCODE(opcode);
+					continue;
+				}
+#if 1
+				setPropertyValue(obj, PropertyIndex(index), OS_GETARG_C_VALUE(), true, true);
+				// setPropertyValue(stack_func_locals[a], PropertyIndex(OS_GETARG_B_VALUE()), OS_GETARG_C_VALUE(), true, true);
+#else			// inline setPropertyValue
+				Value& obj = stack_func_locals[b];
+				const PropertyIndex index(OS_GETARG_B_VALUE());
+				const bool anonymous_setter_enabled = true, named_setter_enabled = true;
+
+				switch(OS_VALUE_TYPE(obj)){
+				default:
+				case OS_VALUE_TYPE_NULL:
+				case OS_VALUE_TYPE_BOOL:
+				case OS_VALUE_TYPE_NUMBER:
+					OS_PROFILE_END_OPCODE(opcode);
+					continue;
+
+				case OS_VALUE_TYPE_STRING:
+					// return setPropertyValue(prototypes[PROTOTYPE_STRING], index, value, setter_enabled);
+					// return;
+
+				case OS_VALUE_TYPE_ARRAY:
+				case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_USERDATA:
+				case OS_VALUE_TYPE_USERPTR:
+				case OS_VALUE_TYPE_FUNCTION:
+				case OS_VALUE_TYPE_CFUNCTION:
+					break;
+				}
+
+				GCValue * table_value = OS_VALUE_VARIANT(obj).value;
+
+				// TODO: correct ???
+				Value value = OS_GETARG_C_VALUE();
+				gcAddToGreyList(value);
+
+				if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
+					OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index.index).string));
+					switch(OS_VALUE_TYPE(value)){
+					case OS_VALUE_TYPE_FUNCTION:
+						OS_ASSERT(dynamic_cast<GCFunctionValue*>(OS_VALUE_VARIANT(value).func));
+						if(!OS_VALUE_VARIANT(value).func->name){
+							OS_VALUE_VARIANT(value).func->name = OS_VALUE_VARIANT(index.index).string;
+						}
+						break;
+
+					case OS_VALUE_TYPE_CFUNCTION:
+						OS_ASSERT(dynamic_cast<GCCFunctionValue*>(OS_VALUE_VARIANT(value).cfunc));
+						if(!OS_VALUE_VARIANT(value).cfunc->name){
+							OS_VALUE_VARIANT(value).cfunc->name = OS_VALUE_VARIANT(index.index).string;
+						}
+						break;
+					}
+				}
+
+				Property * prop = NULL;
+				Table * table = table_value->table;
+				if(table && (prop = table->get(index))){
+					prop->value = value;
+					return;
+				}
+
+				if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index.index).string){
+					switch(table_value->type){
+					case OS_VALUE_TYPE_STRING:
+					case OS_VALUE_TYPE_ARRAY:
+					case OS_VALUE_TYPE_OBJECT:
+					case OS_VALUE_TYPE_FUNCTION:
+						table_value->prototype = OS_VALUE_VARIANT(value).value;
+						break;
+
+					case OS_VALUE_TYPE_USERDATA:
+					case OS_VALUE_TYPE_USERPTR:
+					case OS_VALUE_TYPE_CFUNCTION:
+						// TODO: warning???
+						break;
+					}
+					return;
+				}
+
+				if(table_value->type == OS_VALUE_TYPE_ARRAY){
+					OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
+					GCArrayValue * arr = (GCArrayValue*)table_value;
+					int i = (int)valueToInt(index.index);
+					if(i < 0) i += arr->values.count;
+					if(i >= 0){
+						while(i >= arr->values.count){
+							allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
+						}
+						OS_ASSERT(i < arr->values.count);
+						arr->values[i] = value;
+					}
+					return;
+				}
+
+				if((anonymous_setter_enabled || named_setter_enabled) && !hasSpecialPrefix(index.index)){
+					Value func;
+					if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_setter_enabled){
+						const void * buf1 = strings->__setAt.toChar();
+						int size1 = strings->__setAt.getDataSize();
+						const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
+						int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
+						GCStringValue * setter_name = newStringValue(buf1, size1, buf2, size2);
+						if(getPropertyValue(func, table_value, PropertyIndex(setter_name, PropertyIndex::KeepStringIndex()), true)){
+							pushValue(func);
+							pushValue(table_value);
+							pushValue(value);
+							call(1, 0);
+							return;
+						}
+					}
+					if(anonymous_setter_enabled && getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), true)){
+						pushValue(func);
+						pushValue(table_value);
+						pushValue(index.index);
+						pushValue(value);
+						call(2, 0);
+						return;
+					}
+				}
+				if(table_value->type == OS_VALUE_TYPE_STRING){
+					// TODO: trigger error???
+					return;
+				}
+				if(!table){
+					table_value->table = table = newTable(OS_DBG_FILEPOS_START);
+				}
+				prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index);
+				prop->value = value;
+				addTableProperty(table, prop);
+				// setTableValue(table, index, value);
+#endif
 				break;
 			}
 
-		case OP_NEW_OBJECT:
+		OS_CASE_OPCODE(OP_NEW_OBJECT):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
 				GCValue * gc_value = newObjectValue();
 				stack_func_locals[a] = gc_value;
 				break;
 			}
 
-		case OP_NEW_ARRAY:
+		OS_CASE_OPCODE(OP_NEW_ARRAY):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
+				b = OS_GETARG_B(instruction);
 				GCValue * gc_value = newArrayValue(b);
 				stack_func_locals[a] = gc_value;
 				break;
 			}
 
-		case OP_MULTI:
+		OS_CASE_OPCODE(OP_MULTI):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				c = GETARG_C(instruction);
+				c = OS_GETARG_C(instruction);
 				switch(c){
 				case OP_MULTI_GET_ARGUMENTS:
 					if(stack_func->arguments){
@@ -16043,11 +16404,11 @@ int OS::Core::execute()
 				break;
 			}
 
-		case OP_RETURN:
+		OS_CASE_OPCODE(OP_RETURN):
 			{
-				a = GETARG_A(instruction);
+				a = OS_GETARG_A(instruction);
 				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = GETARG_B(instruction);
+				b = OS_GETARG_B(instruction);
 				OS_ASSERT(b >= 0 && a+b <= stack_func->func->func_decl->stack_size);
 				// c = GETARG_C(instruction);
 				// OS_ASSERT(c == 0 || c == 1);
@@ -16065,13 +16426,15 @@ int OS::Core::execute()
 						if(cur_ret_values > 0){
 							OS_MEMMOVE(stack_values.buf + stack_func->locals_stack_pos, stack_func_locals + a, sizeof(Value) * cur_ret_values);
 						}
-						OS_MEMSET(stack_values.buf + stack_func->locals_stack_pos + cur_ret_values, 0, sizeof(Value) * (need_ret_values - cur_ret_values));
+						// OS_MEMSET(stack_values.buf + stack_func->locals_stack_pos + cur_ret_values, 0, sizeof(Value) * (need_ret_values - cur_ret_values));
+						OS_SET_NULL_VALUES(stack_values.buf + stack_func->locals_stack_pos + cur_ret_values, need_ret_values - cur_ret_values);
 					}
 				}
 				OS_ASSERT(call_stack_funcs.count > 0 && &call_stack_funcs[call_stack_funcs.count-1] == stack_func);
 				if(stack_func->caller_stack_size > stack_values.count){
 					OS_ASSERT(stack_func->caller_stack_size <= stack_values.capacity);
-					OS_MEMSET(stack_values.buf + stack_values.count, 0, sizeof(Value) * (stack_func->caller_stack_size - stack_values.count));
+					// OS_MEMSET(stack_values.buf + stack_values.count, 0, sizeof(Value) * (stack_func->caller_stack_size - stack_values.count));
+					OS_SET_NULL_VALUES(stack_values.buf + stack_values.count, stack_func->caller_stack_size - stack_values.count);
 				}
 				stack_values.count = stack_func->caller_stack_size;
 				call_stack_funcs.count--;
@@ -17118,7 +17481,7 @@ void OS::initGlobalFunctions()
 		{
 			OS_ASSERT(params == 2);
 			Core::Value right_value = os->core->getStackValue(-params+1);
-			switch(right_value.type){
+			switch(OS_VALUE_TYPE(right_value)){
 			case OS_VALUE_TYPE_NULL:
 				// null value has no prototype
 				break;
@@ -17131,7 +17494,7 @@ void OS::initGlobalFunctions()
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_FUNCTION:
-				right_value.v.value->prototype = os->core->getStackValue(-params).getGCValue();
+				OS_VALUE_VARIANT(right_value).value->prototype = os->core->getStackValue(-params).getGCValue();
 				break;
 
 			case OS_VALUE_TYPE_USERDATA:
@@ -17381,11 +17744,11 @@ void OS::initObjectClass()
 			OS_ASSERT(closure_values == 2);
 			Core::Value self_var = os->core->getStackValue(-closure_values + 0);
 			int * pi = (int*)os->toUserdata(array_iterator_crc, -closure_values + 1);
-			OS_ASSERT(self_var.type == OS_VALUE_TYPE_ARRAY && pi && pi[1]);
-			if(pi[0] >= 0 && pi[0] < self_var.v.arr->values.count){
+			OS_ASSERT(OS_VALUE_TYPE(self_var) == OS_VALUE_TYPE_ARRAY && pi && pi[1]);
+			if(pi[0] >= 0 && pi[0] < OS_VALUE_VARIANT(self_var).arr->values.count){
 				os->pushBool(true);
 				os->pushNumber(pi[0]);
-				os->core->pushValue(self_var.v.arr->values[pi[0]]);
+				os->core->pushValue(OS_VALUE_VARIANT(self_var).arr->values[pi[0]]);
 				pi[0] += pi[1];
 				return 3;
 			}
@@ -17395,13 +17758,13 @@ void OS::initObjectClass()
 		static int iterator(OS * os, int params, bool ascending)
 		{
 			Core::Value self_var = os->core->getStackValue(-params-1);
-			if(self_var.type == OS_VALUE_TYPE_ARRAY){
-				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self_var.v.arr));
+			if(OS_VALUE_TYPE(self_var) == OS_VALUE_TYPE_ARRAY){
+				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
 				os->core->pushValue(self_var);
 
 				int * pi = (int*)os->pushUserdata(array_iterator_crc, sizeof(int)*2);
 				OS_ASSERT(pi);
-				pi[0] = ascending ? 0 : self_var.v.arr->values.count-1;
+				pi[0] = ascending ? 0 : OS_VALUE_VARIANT(self_var).arr->values.count-1;
 				pi[1] = ascending ? 1 : -1;
 
 				os->pushCFunction(arrayIteratorStep, 2);
@@ -17441,10 +17804,10 @@ void OS::initObjectClass()
 			int(*objcomp)(OS*, const void*, const void*, void*), void * user_param = NULL)
 		{
 			Core::Value self_var = os->core->getStackValue(-params-1);
-			if(self_var.type == OS_VALUE_TYPE_ARRAY){
-				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self_var.v.arr));
+			if(OS_VALUE_TYPE(self_var) == OS_VALUE_TYPE_ARRAY){
+				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
 				if(arrcomp){
-					os->core->sortArray(self_var.v.arr, arrcomp, user_param);
+					os->core->sortArray(OS_VALUE_VARIANT(self_var).arr, arrcomp, user_param);
 				}
 				os->core->pushValue(self_var);
 				return 1;
@@ -17512,10 +17875,10 @@ void OS::initObjectClass()
 		static int ksort(OS * os, int params, int, int, void*)
 		{
 			Core::Value self_var = os->core->getStackValue(-params-1);
-			if(self_var.type == OS_VALUE_TYPE_ARRAY){
-				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self_var.v.arr));
+			if(OS_VALUE_TYPE(self_var) == OS_VALUE_TYPE_ARRAY){
+				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
 				if(params > 0){
-					userSortArrayByKeys(os, self_var.v.arr, params, false);
+					userSortArrayByKeys(os, OS_VALUE_VARIANT(self_var).arr, params, false);
 				}else{
 					// os->core->sortArray(self_var.v.arr, arrcomp);
 					// array is always sorted by keys so it's nothing to do
@@ -17541,16 +17904,16 @@ void OS::initObjectClass()
 		static int krsort(OS * os, int params, int, int, void*)
 		{
 			Core::Value self_var = os->core->getStackValue(-params-1);
-			if(self_var.type == OS_VALUE_TYPE_ARRAY){
-				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self_var.v.arr));
+			if(OS_VALUE_TYPE(self_var) == OS_VALUE_TYPE_ARRAY){
+				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
 				if(params > 0){
-					userSortArrayByKeys(os, self_var.v.arr, params, true);
+					userSortArrayByKeys(os, OS_VALUE_VARIANT(self_var).arr, params, true);
 				}else{
-					int mid = self_var.v.arr->values.count/2;
-					for(int i = 0, j = self_var.v.arr->values.count-1; i < mid; i++, j--){
-						Core::Value tmp = self_var.v.arr->values[i];
-						self_var.v.arr->values[i] = self_var.v.arr->values[j];
-						self_var.v.arr->values[j] = tmp;
+					int mid = OS_VALUE_VARIANT(self_var).arr->values.count/2;
+					for(int i = 0, j = OS_VALUE_VARIANT(self_var).arr->values.count-1; i < mid; i++, j--){
+						Core::Value tmp = OS_VALUE_VARIANT(self_var).arr->values[i];
+						OS_VALUE_VARIANT(self_var).arr->values[i] = OS_VALUE_VARIANT(self_var).arr->values[j];
+						OS_VALUE_VARIANT(self_var).arr->values[j] = tmp;
 					}
 				}
 				os->core->pushValue(self_var);
@@ -17574,9 +17937,9 @@ void OS::initObjectClass()
 		static int length(OS * os, int params, int closure_values, int, void*)
 		{
 			Core::Value self_var = os->core->getStackValue(-params-closure_values-1);
-			if(self_var.type == OS_VALUE_TYPE_ARRAY){
-				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self_var.v.arr));
-				os->pushNumber(self_var.v.arr->values.count);
+			if(OS_VALUE_TYPE(self_var) == OS_VALUE_TYPE_ARRAY){
+				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
+				os->pushNumber(OS_VALUE_VARIANT(self_var).arr->values.count);
 				return 1;
 			}
 			Core::GCValue * self = self_var.getGCValue();
@@ -17615,13 +17978,13 @@ void OS::initObjectClass()
 		{
 			// allow usage with parameter valueOf(v)
  			Core::Value self_var = os->core->getStackValue(-params-closure_values-1 + (params > 0));
-			switch(self_var.type){
+			switch(OS_VALUE_TYPE(self_var)){
 			case OS_VALUE_TYPE_NULL:
 				os->pushString(os->core->strings->typeof_null);
 				return 1;
 
 			case OS_VALUE_TYPE_BOOL:
-				os->pushString(self_var.v.boolean ? os->core->strings->syntax_true : os->core->strings->syntax_false);
+				os->pushString(OS_VALUE_VARIANT(self_var).boolean ? os->core->strings->syntax_true : os->core->strings->syntax_false);
 				return 1;
 
 			case OS_VALUE_TYPE_NUMBER:
@@ -17680,7 +18043,7 @@ void OS::initObjectClass()
 							os->core->setPropertyValue(os->core->check_recursion, value, Core::Value(true), false, false);
 						}
 						Core::String value_str = os->core->valueToString(value, true);
-						if(value.type == OS_VALUE_TYPE_STRING){
+						if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_STRING){
 							appendQuotedString(buf, value_str);
 						}else{
 							buf += value_str;
@@ -17706,14 +18069,14 @@ void OS::initObjectClass()
 						if(i > 0){
 							buf += OS_TEXT(",");
 						}
-						if(prop->index.type == OS_VALUE_TYPE_NUMBER){
-							if(prop->index.v.number != (OS_FLOAT)need_index){
-								buf += String(os, prop->index.v.number, OS_AUTO_PRECISION);
+						if(OS_VALUE_TYPE(prop->index) == OS_VALUE_TYPE_NUMBER){
+							if(OS_VALUE_NUMBER(prop->index) != (OS_FLOAT)need_index){
+								buf += String(os, OS_VALUE_NUMBER(prop->index), OS_AUTO_PRECISION);
 								buf += OS_TEXT(":");
 							}
-							need_index = (int)(prop->index.v.number + 1);
-						}else if(prop->index.type == OS_VALUE_TYPE_STRING){
-							OS_ASSERT(!prop->index.v.string->table);
+							need_index = (int)(OS_VALUE_NUMBER(prop->index) + 1);
+						}else if(OS_VALUE_TYPE(prop->index) == OS_VALUE_TYPE_STRING){
+							OS_ASSERT(!OS_VALUE_VARIANT(prop->index).string->table);
 							appendQuotedString(buf, os->core->valueToString(prop->index));
 							buf += OS_TEXT(":");
 						}else{
@@ -17739,7 +18102,7 @@ void OS::initObjectClass()
 						}
 
 						Core::String value_str = os->core->valueToString(prop->value, true);
-						if(prop->value.type == OS_VALUE_TYPE_STRING){
+						if(OS_VALUE_TYPE(prop->value) == OS_VALUE_TYPE_STRING){
 							appendQuotedString(buf, value_str);
 						}else{
 							buf += value_str;
@@ -17757,11 +18120,10 @@ void OS::initObjectClass()
 			Core::Value self_var = os->core->getStackValue(-params-1);
 			Core::Value value = os->core->getStackValue(-params);
 			OS_INT num_index = 0;
-			switch(self_var.type){
+			switch(OS_VALUE_TYPE(self_var)){
 			case OS_VALUE_TYPE_ARRAY:
-				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self_var.v.arr));
-				os->vectorAddItem(self_var.v.arr->values, value OS_DBG_FILEPOS);
-				// os->pushNumber(self_var.v.arr->values.count);
+				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
+				os->vectorAddItem(OS_VALUE_VARIANT(self_var).arr->values, value OS_DBG_FILEPOS);
 				os->core->pushValue(value);
 				return 1;
 
@@ -17770,7 +18132,7 @@ void OS::initObjectClass()
 			case OS_VALUE_TYPE_USERPTR:
 			case OS_VALUE_TYPE_FUNCTION:
 			case OS_VALUE_TYPE_CFUNCTION:
-				num_index = self_var.v.object->table ? self_var.v.object->table->next_index : 0;
+				num_index = OS_VALUE_VARIANT(self_var).object->table ? OS_VALUE_VARIANT(self_var).object->table->next_index : 0;
 				break;
 
 			default:
@@ -17785,12 +18147,12 @@ void OS::initObjectClass()
 		static int pop(OS * os, int params, int, int, void*)
 		{
 			Core::Value self_var = os->core->getStackValue(-params-1);
-			switch(self_var.type){
+			switch(OS_VALUE_TYPE(self_var)){
 			case OS_VALUE_TYPE_ARRAY:
-				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self_var.v.arr));
-				if(self_var.v.arr->values.count > 0){
-					os->core->pushValue(self_var.v.arr->values.lastElement());
-					os->vectorRemoveAtIndex(self_var.v.arr->values, self_var.v.arr->values.count-1);
+				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
+				if(OS_VALUE_VARIANT(self_var).arr->values.count > 0){
+					os->core->pushValue(OS_VALUE_VARIANT(self_var).arr->values.lastElement());
+					os->vectorRemoveAtIndex(OS_VALUE_VARIANT(self_var).arr->values, OS_VALUE_VARIANT(self_var).arr->values.count-1);
 					return 1;
 				}
 				return 0;
@@ -17800,10 +18162,10 @@ void OS::initObjectClass()
 			case OS_VALUE_TYPE_USERPTR:
 			case OS_VALUE_TYPE_FUNCTION:
 			case OS_VALUE_TYPE_CFUNCTION:
-				if(self_var.v.object->table && self_var.v.object->table->count > 0){
-					os->core->pushValue(self_var.v.object->table->last->value);
-					Core::PropertyIndex index = *self_var.v.object->table->last;
-					os->core->deleteValueProperty(self_var.v.object, index, false, false, false);
+				if(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->count > 0){
+					os->core->pushValue(OS_VALUE_VARIANT(self_var).object->table->last->value);
+					Core::PropertyIndex index = *OS_VALUE_VARIANT(self_var).object->table->last;
+					os->core->deleteValueProperty(OS_VALUE_VARIANT(self_var).object, index, false, false, false);
 					return 1;
 				}
 				break;
@@ -17839,10 +18201,10 @@ void OS::initObjectClass()
 		{
 			int start, len, size;
 			Core::Value self_var = os->core->getStackValue(-params-1);
-			switch(self_var.type){
+			switch(OS_VALUE_TYPE(self_var)){
 			case OS_VALUE_TYPE_OBJECT:
-				OS_ASSERT(dynamic_cast<Core::GCObjectValue*>(self_var.v.object));
-				size = self_var.v.object->table ? self_var.v.object->table->count : 0;
+				OS_ASSERT(dynamic_cast<Core::GCObjectValue*>(OS_VALUE_VARIANT(self_var).object));
+				size = OS_VALUE_VARIANT(self_var).object->table ? OS_VALUE_VARIANT(self_var).object->table->count : 0;
 				break;
 
 			default:
@@ -17886,9 +18248,9 @@ void OS::initObjectClass()
 				os->core->pushValue(self_var);
 				return 1;
 			}
-			OS_ASSERT(self_var.v.object->table && self_var.v.object->table->first);
-			Core::GCObjectValue * object = os->core->pushObjectValue(self_var.v.object->prototype);
-			Core::Property * prop = self_var.v.object->table->first;
+			OS_ASSERT(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->first);
+			Core::GCObjectValue * object = os->core->pushObjectValue(OS_VALUE_VARIANT(self_var).object->prototype);
+			Core::Property * prop = OS_VALUE_VARIANT(self_var).object->table->first;
 			int i = 0;
 			for(; i < start; i++){
 				prop = prop->next;
@@ -17916,13 +18278,13 @@ void OS::initObjectClass()
 			if(is_array || os->isObject(offs-1)){
 				for(int i = 0; i < params; i++){
 					Core::Value value = os->core->getStackValue(offs+i);
-					switch(value.type){
+					switch(OS_VALUE_TYPE(value)){
 					case OS_VALUE_TYPE_ARRAY:
 						{
-							OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(value.v.arr));
-							for(int j = 0; j < value.v.arr->values.count; j++){
+							OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(value).arr));
+							for(int j = 0; j < OS_VALUE_VARIANT(value).arr->values.count; j++){
 								os->pushStackValue(offs-1);
-								os->core->pushValue(value.v.arr->values[j]);
+								os->core->pushValue(OS_VALUE_VARIANT(value).arr->values[j]);
 								os->addProperty();
 							}
 							break;
@@ -17930,9 +18292,9 @@ void OS::initObjectClass()
 
 					case OS_VALUE_TYPE_OBJECT:
 						{
-							OS_ASSERT(dynamic_cast<Core::GCObjectValue*>(value.v.object));
-							if(value.v.object->table){
-								Core::Property * prop = value.v.object->table->first;
+							OS_ASSERT(dynamic_cast<Core::GCObjectValue*>(OS_VALUE_VARIANT(value).object));
+							if(OS_VALUE_VARIANT(value).object->table){
+								Core::Property * prop = OS_VALUE_VARIANT(value).object->table->first;
 								for(; prop; prop = prop->next){
 									os->pushStackValue(offs-1);
 									if(is_array){
@@ -17958,11 +18320,11 @@ void OS::initObjectClass()
 		static int getKeys(OS * os, int params, int, int, void*)
 		{
 			Core::Value value = os->core->getStackValue(-params-1);
-			switch(value.type){
+			switch(OS_VALUE_TYPE(value)){
 			case OS_VALUE_TYPE_ARRAY:
 				{
-					Core::GCArrayValue * arr = os->core->pushArrayValue(value.v.arr->values.count);
-					for(int i = 0; i < value.v.arr->values.count; i++){
+					Core::GCArrayValue * arr = os->core->pushArrayValue(OS_VALUE_VARIANT(value).arr->values.count);
+					for(int i = 0; i < OS_VALUE_VARIANT(value).arr->values.count; i++){
 						os->vectorAddItem(arr->values, Core::Value(i) OS_DBG_FILEPOS);
 					}
 					return 1;
@@ -17970,9 +18332,9 @@ void OS::initObjectClass()
 
 			case OS_VALUE_TYPE_OBJECT:
 				{
-					if(value.v.object->table){
-						Core::GCArrayValue * arr = os->core->pushArrayValue(value.v.object->table->count);
-						Core::Property * prop = value.v.object->table->first;
+					if(OS_VALUE_VARIANT(value).object->table){
+						Core::GCArrayValue * arr = os->core->pushArrayValue(OS_VALUE_VARIANT(value).object->table->count);
+						Core::Property * prop = OS_VALUE_VARIANT(value).object->table->first;
 						for(int i = 0; prop; prop = prop->next, i++){
 							os->vectorAddItem(arr->values, prop->index OS_DBG_FILEPOS);
 						}
@@ -17988,16 +18350,16 @@ void OS::initObjectClass()
 		static int getValues(OS * os, int params, int, int, void*)
 		{
 			Core::Value value = os->core->getStackValue(-params-1);
-			switch(value.type){
+			switch(OS_VALUE_TYPE(value)){
 			case OS_VALUE_TYPE_ARRAY:
 				os->core->pushValue(value);
 				return 1;
 
 			case OS_VALUE_TYPE_OBJECT:
 				{
-					if(value.v.object->table){
-						Core::GCArrayValue * arr = os->core->pushArrayValue(value.v.object->table->count);
-						Core::Property * prop = value.v.object->table->first;
+					if(OS_VALUE_VARIANT(value).object->table){
+						Core::GCArrayValue * arr = os->core->pushArrayValue(OS_VALUE_VARIANT(value).object->table->count);
+						Core::Property * prop = OS_VALUE_VARIANT(value).object->table->first;
 						for(int i = 0; prop; prop = prop->next, i++){
 							os->vectorAddItem(arr->values, prop->value OS_DBG_FILEPOS);
 						}
@@ -18014,7 +18376,7 @@ void OS::initObjectClass()
 		{
 			Core::Value val = os->core->getStackValue(-params-1);
 			Core::GCValue * value, * new_value;
-			switch(val.type){
+			switch(OS_VALUE_TYPE(val)){
 			case OS_VALUE_TYPE_NULL:
 			case OS_VALUE_TYPE_BOOL:
 			case OS_VALUE_TYPE_NUMBER:
@@ -18024,8 +18386,8 @@ void OS::initObjectClass()
 
 			case OS_VALUE_TYPE_ARRAY:
 				{
-					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(val.v.value));
-					value = val.v.value;
+					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(val).value));
+					value = OS_VALUE_VARIANT(val).value;
 					Core::GCArrayValue * arr = (Core::GCArrayValue*)value;
 					new_value = os->core->pushArrayValue(arr->values.count);
 					new_value->prototype = value->prototype;
@@ -18040,7 +18402,7 @@ void OS::initObjectClass()
 				}
 
 			case OS_VALUE_TYPE_OBJECT:
-				value = val.v.value;
+				value = OS_VALUE_VARIANT(val).value;
 				new_value = os->core->pushObjectValue(value->prototype);
 				break;
 
@@ -18048,7 +18410,7 @@ void OS::initObjectClass()
 			case OS_VALUE_TYPE_USERDATA:
 			case OS_VALUE_TYPE_USERPTR:
 			case OS_VALUE_TYPE_CFUNCTION:
-				value = val.v.value;
+				value = OS_VALUE_VARIANT(val).value;
 				new_value = os->core->pushValue(value);
 				break;
 
@@ -18069,12 +18431,12 @@ void OS::initObjectClass()
 			if(params < 2) return 0;
 			Core::Value left_value = os->core->getStackValue(-params + 0);
 			Core::Value right_value = os->core->getStackValue(-params + 1);
-			switch(left_value.type){
+			switch(OS_VALUE_TYPE(left_value)){
 			case OS_VALUE_TYPE_NULL:
 			case OS_VALUE_TYPE_BOOL:
 			case OS_VALUE_TYPE_NUMBER:
 			case OS_VALUE_TYPE_STRING:
-				switch(right_value.type){
+				switch(OS_VALUE_TYPE(right_value)){
 				case OS_VALUE_TYPE_NULL:
 				case OS_VALUE_TYPE_BOOL:
 				case OS_VALUE_TYPE_NUMBER:
@@ -18090,7 +18452,7 @@ void OS::initObjectClass()
 			case OS_VALUE_TYPE_USERPTR:
 			case OS_VALUE_TYPE_FUNCTION:
 			case OS_VALUE_TYPE_CFUNCTION:
-				switch(right_value.type){
+				switch(OS_VALUE_TYPE(right_value)){
 				case OS_VALUE_TYPE_STRING:
 				case OS_VALUE_TYPE_ARRAY:
 				case OS_VALUE_TYPE_OBJECT:
@@ -18098,7 +18460,8 @@ void OS::initObjectClass()
 				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
-					os->pushNumber(left_value.v.value > right_value.v.value ? 1 : (left_value.v.value < right_value.v.value ? -1 : 0));
+					os->pushNumber(OS_VALUE_VARIANT(left_value).value > OS_VALUE_VARIANT(right_value).value ? 1 
+						: (OS_VALUE_VARIANT(left_value).value < OS_VALUE_VARIANT(right_value).value ? -1 : 0));
 					return 1;
 				}
 				break;
@@ -18146,10 +18509,10 @@ void OS::initArrayClass()
 		{
 			int start, len, size;
 			Core::Value self_var = os->core->getStackValue(-params-1);
-			switch(self_var.type){
+			switch(OS_VALUE_TYPE(self_var)){
 			case OS_VALUE_TYPE_ARRAY:
-				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self_var.v.arr));
-				size = self_var.v.arr->values.count;
+				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
+				size = OS_VALUE_VARIANT(self_var).arr->values.count;
 				break;
 
 			default:
@@ -18195,7 +18558,7 @@ void OS::initArrayClass()
 			}
 			Core::GCArrayValue * arr = os->core->pushArrayValue(len);
 			for(int i = 0; i < len; i++){
-				os->vectorAddItem(arr->values, self_var.v.arr->values[start+i] OS_DBG_FILEPOS);
+				os->vectorAddItem(arr->values, OS_VALUE_VARIANT(self_var).arr->values[start+i] OS_DBG_FILEPOS);
 			}
 			return 1;
 		}
@@ -18313,10 +18676,10 @@ void OS::initFunctionClass()
 			os->pushStackValue(offs); // first param - new this
 
 			Core::Value array_var = os->core->getStackValue(offs+1);
-			if(array_var.type == OS_VALUE_TYPE_ARRAY){
-				int count = array_var.v.arr->values.count;
+			if(OS_VALUE_TYPE(array_var) == OS_VALUE_TYPE_ARRAY){
+				int count = OS_VALUE_VARIANT(array_var).arr->values.count;
 				for(int i = 0; i < count; i++){
-					os->core->pushValue(array_var.v.arr->values[i]);
+					os->core->pushValue(OS_VALUE_VARIANT(array_var).arr->values[i]);
 				}
 				return os->call(count, need_ret_values);
 			}
@@ -18332,14 +18695,14 @@ void OS::initFunctionClass()
 		{
 			Core::Value save_env;
 			Core::Value func = os->core->getStackValue(-params-1);
-			if(func.type == OS_VALUE_TYPE_FUNCTION){
-				save_env = func.v.func->env;
-				func.v.func->env = os->core->getStackValue(-params).getGCValue();
+			if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_FUNCTION){
+				save_env = OS_VALUE_VARIANT(func).func->env;
+				OS_VALUE_VARIANT(func).func->env = os->core->getStackValue(-params).getGCValue();
 			}
 			os->remove(-params);
 			int r = apply(os, params-1, 0, need_ret_values, NULL);
-			if(func.type == OS_VALUE_TYPE_FUNCTION){
-				func.v.func->env = save_env;
+			if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_FUNCTION){
+				OS_VALUE_VARIANT(func).func->env = save_env;
 			}
 			return r;
 		}
@@ -18348,14 +18711,14 @@ void OS::initFunctionClass()
 		{
 			Core::Value save_env;
 			Core::Value func = os->core->getStackValue(-params-1);
-			if(func.type == OS_VALUE_TYPE_FUNCTION){
-				save_env = func.v.func->env;
-				func.v.func->env = os->core->getStackValue(-params).getGCValue();
+			if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_FUNCTION){
+				save_env = OS_VALUE_VARIANT(func).func->env;
+				OS_VALUE_VARIANT(func).func->env = os->core->getStackValue(-params).getGCValue();
 			}
 			os->remove(-params);
 			int r = call(os, params-1, 0, need_ret_values, NULL);
-			if(func.type == OS_VALUE_TYPE_FUNCTION){
-				func.v.func->env = save_env;
+			if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_FUNCTION){
+				OS_VALUE_VARIANT(func).func->env = save_env;
 			}
 			return r;
 		}
@@ -19133,11 +19496,11 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 	} */
 	OS_ASSERT(start_pos >= OS_TOP_STACK_NULL_VALUES && call_params >= 2 && start_pos + call_params <= stack_values.count);
 	Value& func = stack_values[start_pos];
-	switch(func.type){
+	switch(OS_VALUE_TYPE(func)){
 	case OS_VALUE_TYPE_FUNCTION:
 		{
-			OS_ASSERT(dynamic_cast<GCFunctionValue*>(func.v.func));
-			GCFunctionValue * func_value = func.v.func;
+			OS_ASSERT(dynamic_cast<GCFunctionValue*>(OS_VALUE_VARIANT(func).func));
+			GCFunctionValue * func_value = OS_VALUE_VARIANT(func).func;
 			FunctionDecl * func_decl = func_value->func_decl;
 			// int params = call_params - 1; // skip func
 			// int num_extra_params = params > func_decl->num_params ? params - func_decl->num_params : 0;
@@ -19196,7 +19559,8 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 
 			int clear_values = func_decl->stack_size - call_params;
 			if(clear_values > 0){
-				OS_MEMSET(func_locals->values + call_params, 0, sizeof(Value) * clear_values); 
+				// OS_MEMSET(func_locals->values + call_params, 0, sizeof(Value) * clear_values); 
+				OS_SET_NULL_VALUES(func_locals->values + call_params, clear_values); 
 			}
 
 			stack_func->need_ret_values = ret_values;
@@ -19206,7 +19570,7 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 			if(self_for_proto){
 				stack_func->self_for_proto = self_for_proto;
 			}else if(!(stack_func->self_for_proto = func_locals->values[PRE_VAR_THIS].getGCValue())){
-				switch(func_locals->values->type){
+				switch(OS_VALUE_TYPE(*func_locals->values)){
 				case OS_VALUE_TYPE_BOOL:
 					stack_func->self_for_proto = prototypes[PROTOTYPE_BOOL];
 					break;
@@ -19237,10 +19601,10 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 
 	case OS_VALUE_TYPE_CFUNCTION:
 		{
-			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(func.v.cfunc));
+			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(OS_VALUE_VARIANT(func).cfunc));
 			OS_ASSERT(start_pos + call_params <= stack_values.count);
 			int save_stack_size = stack_values.count;
-			GCCFunctionValue * cfunc_value = func.v.cfunc;
+			GCCFunctionValue * cfunc_value = OS_VALUE_VARIANT(func).cfunc;
 			if(cfunc_value->num_closure_values > 0){
 				reserveStackValues(start_pos + call_params + cfunc_value->num_closure_values);
 				Value * closure_values = (Value*)(cfunc_value + 1);
@@ -19270,7 +19634,8 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 					if(cur_ret_values > 0){
 						OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * cur_ret_values);
 					}
-					OS_MEMSET(stack_values.buf + start_pos + cur_ret_values, 0, sizeof(Value) * (ret_values - cur_ret_values));
+					// OS_MEMSET(stack_values.buf + start_pos + cur_ret_values, 0, sizeof(Value) * (ret_values - cur_ret_values));
+					OS_SET_NULL_VALUES(stack_values.buf + start_pos + cur_ret_values, ret_values - cur_ret_values);
 				}
 			}
 			if(save_stack_size > stack_values.count){
@@ -19279,7 +19644,8 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 					OS_MEMSET(stack_values.buf + start_pos + ret_values, 0, sizeof(Value) * clear_values);
 				} */
 				OS_ASSERT(save_stack_size <= stack_values.capacity);
-				OS_MEMSET(stack_values.buf + stack_values.count, 0, sizeof(Value) * (save_stack_size - stack_values.count));
+				// OS_MEMSET(stack_values.buf + stack_values.count, 0, sizeof(Value) * (save_stack_size - stack_values.count));
+				OS_SET_NULL_VALUES(stack_values.buf + stack_values.count, save_stack_size - stack_values.count);
 			}
 			stack_values.count = save_stack_size;
 			return ret_values;
@@ -19287,7 +19653,7 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 
 	case OS_VALUE_TYPE_OBJECT:
 		{
-			GCValue * object = initObjectInstance(pushObjectValue(func.v.value));
+			GCValue * object = initObjectInstance(pushObjectValue(OS_VALUE_VARIANT(func).value));
 			object->is_object_instance = true;
 			object->external_ref_count++;
 
@@ -19302,7 +19668,8 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 			if(ret_values > 0){
 				stack_values.buf[start_pos] = object;
 				if(ret_values > 1){					
-					OS_MEMSET(stack_values.buf + start_pos + 1, 0, sizeof(Value) * (ret_values - 1));
+					// OS_MEMSET(stack_values.buf + start_pos + 1, 0, sizeof(Value) * (ret_values - 1));
+					OS_SET_NULL_VALUES(stack_values.buf + start_pos + 1, ret_values - 1);
 				}
 			}
 			object->external_ref_count--;
@@ -19327,7 +19694,8 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 	}
 	// OS_ASSERT(false);
 	OS_ASSERT(start_pos + ret_values <= stack_values.count);
-	OS_MEMSET(stack_values.buf + start_pos, 0, sizeof(Value) * ret_values);
+	// OS_MEMSET(stack_values.buf + start_pos, 0, sizeof(Value) * ret_values);
+	OS_SET_NULL_VALUES(stack_values.buf + start_pos, ret_values);
 	return ret_values;
 }
 
