@@ -2706,7 +2706,10 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list)
 		if(!writeOpcodes(scope, list[i])){
 			return false;
 		}
-#if 1
+#if 0
+		if(list[i]->list.count > 0){
+			start = prog_opcodes.count+1;
+		}
 		if(prog_opcodes.count > start){
 			Instruction prev = prog_opcodes[prog_opcodes.count - 2];
 			if(OS_GET_OPCODE_TYPE(prev) == OP_MOVE){
