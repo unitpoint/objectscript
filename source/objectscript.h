@@ -2134,7 +2134,7 @@ namespace ObjectScript
 				void writeOpcodeAt(OS_U32 opcode, int pos);
 
 				bool writeOpcodes(Scope*, Expression*);
-				bool writeOpcodes(Scope*, ExpressionList&);
+				bool writeOpcodes(Scope*, ExpressionList&, bool optimization_enabled = false);
 
 				void writeJumpOpcodeOld(int offs);
 				void fixJumpOpcodeOld(StreamWriter * writer, int offs, int pos);

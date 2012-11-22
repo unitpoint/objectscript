@@ -1,0 +1,1 @@
+..\Release\profile_benchmark.exe scripts\spectral-norm.os 200 > profile-spectral-norm.txt

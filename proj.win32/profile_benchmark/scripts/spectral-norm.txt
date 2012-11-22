@@ -1,5 +1,5 @@
 
-[FILE] spectral-norm.os
+[FILE] scripts\spectral-norm.os
 [1] var start_time = getTimeSec()
 
 begin function

@@ -176,7 +176,7 @@ begin function
 
     new object 2: # (50)
     set property: # (50) [var a (8)] = const string "powerful" (-47)
-    set property: # (50) [const string ", time: " (-34)] = const string "greate" (-48)
+    set property: # (50) [const number 7 (-10)] = const string "greate" (-48)
     move: var b (9) = # (50)
 
 

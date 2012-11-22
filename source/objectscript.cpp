@@ -2699,18 +2699,14 @@ void OS::Core::Compiler::fixJumpOpcode(int offs, int pos)
 	prog_opcodes[pos] = instruction;
 }
 
-bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list)
+bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list, bool optimization_enabled)
 {
-	int start = prog_opcodes.count+0;
+	int start = prog_opcodes.count + 2;
 	for(int i = 0; i < list.count; i++){
 		if(!writeOpcodes(scope, list[i])){
 			return false;
 		}
-#if 0
-		if(list[i]->list.count > 0){
-			start = prog_opcodes.count+1;
-		}
-		if(prog_opcodes.count > start){
+		if(optimization_enabled && prog_opcodes.count >= start){
 			Instruction prev = prog_opcodes[prog_opcodes.count - 2];
 			if(OS_GET_OPCODE_TYPE(prev) == OP_MOVE){
 				Instruction cur = prog_opcodes[prog_opcodes.count - 1];
@@ -2742,7 +2738,6 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list)
 				}
 			}
 		}
-#endif
 	}
 	return true;
 }
@@ -2818,7 +2813,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_CODE_LIST:
 	case EXP_TYPE_PARAMS:
 	case EXP_TYPE_POP_VALUE:
-		if(!writeOpcodes(scope, exp->list)){
+		if(!writeOpcodes(scope, exp->list, exp->type == EXP_TYPE_CODE_LIST || exp->type == EXP_TYPE_PARAMS)){
 			return false;
 		}
 		break;
@@ -2838,7 +2833,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			scope->locals_compiled.count = scope->num_locals;
 
 			scope->opcodes_pos = getOpcodePos();
-			if(!writeOpcodes(scope, exp->list)){
+			if(!writeOpcodes(scope, exp->list, true)){
 				return false;
 			}
 			writeOpcodeABC(OP_RETURN, 0, 0, 1); // return auto
@@ -2860,7 +2855,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			Scope * scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
 			int start_code_pos = getOpcodePos();
-			if(!writeOpcodes(scope, exp->list)){
+			if(!writeOpcodes(scope, exp->list, true)){
 				return false;
 			}
 			if(exp->type == EXP_TYPE_LOOP_SCOPE){
@@ -2910,7 +2905,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			switch(exp_compare->type){
 			case EXP_TYPE_LOGIC_PTR_EQ:
 			case EXP_TYPE_LOGIC_PTR_NE:
-				if(!writeOpcodes(scope, exp_compare->list)){
+				if(!writeOpcodes(scope, exp_compare->list, true)){
 					return false;
 				}
 				opcode = OP_LOGIC_PTR_EQ;
@@ -2919,7 +2914,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 
 			case EXP_TYPE_LOGIC_EQ:
 			case EXP_TYPE_LOGIC_NE:
-				if(!writeOpcodes(scope, exp_compare->list)){
+				if(!writeOpcodes(scope, exp_compare->list, true)){
 					return false;
 				}
 				opcode = OP_LOGIC_EQ;
@@ -2928,7 +2923,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 
 			case EXP_TYPE_LOGIC_LE:
 			case EXP_TYPE_LOGIC_GREATER:
-				if(!writeOpcodes(scope, exp_compare->list)){
+				if(!writeOpcodes(scope, exp_compare->list, true)){
 					return false;
 				}
 				opcode = OP_LOGIC_GREATER;
@@ -2937,7 +2932,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 
 			case EXP_TYPE_LOGIC_GE:
 			case EXP_TYPE_LOGIC_LESS:
-				if(!writeOpcodes(scope, exp_compare->list)){
+				if(!writeOpcodes(scope, exp_compare->list, true)){
 					return false;
 				}
 				opcode = OP_LOGIC_GE;
@@ -3043,7 +3038,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_LOGIC_PTR_EQ:
 	case EXP_TYPE_LOGIC_PTR_NE:
 		OS_ASSERT(exp->list.count == 2);
-		if(!writeOpcodes(scope, exp->list)){
+		if(!writeOpcodes(scope, exp->list, true)){
 			return false;
 		}
 		writeDebugInfo(exp);
@@ -3053,7 +3048,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_LOGIC_EQ:
 	case EXP_TYPE_LOGIC_NE:
 		OS_ASSERT(exp->list.count == 2);
-		if(!writeOpcodes(scope, exp->list)){
+		if(!writeOpcodes(scope, exp->list, true)){
 			return false;
 		}
 		writeDebugInfo(exp);
@@ -3063,7 +3058,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_LOGIC_LE:
 	case EXP_TYPE_LOGIC_GREATER:
 		OS_ASSERT(exp->list.count == 2);
-		if(!writeOpcodes(scope, exp->list)){
+		if(!writeOpcodes(scope, exp->list, true)){
 			return false;
 		}
 		writeDebugInfo(exp);
@@ -3073,7 +3068,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_LOGIC_GE:
 	case EXP_TYPE_LOGIC_LESS:
 		OS_ASSERT(exp->list.count == 2);
-		if(!writeOpcodes(scope, exp->list)){
+		if(!writeOpcodes(scope, exp->list, true)){
 			return false;
 		}
 		writeDebugInfo(exp);
@@ -13893,7 +13888,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				}
 				break;
 			}
-			core->error(OS_E_ERROR, String::format(core->allocator, OS_TEXT("Op %s is not found!"), method_name.toChar()));
+			core->error(OS_E_ERROR, String::format(core->allocator, OS_TEXT("Method %s is not found!"), method_name.toChar()));
 			core->pushNull();
 		}
 	};
@@ -16098,8 +16093,23 @@ int OS::Core::execute()
 				// pushPropertyValue(stack_func_locals[b], PropertyIndex(OS_GETARG_C_VALUE(instruction)), true, true, true, false);
 				Value& obj = stack_func_locals[b];
 				const PropertyIndex index(OS_GETARG_C_VALUE());
+				int obj_type = OS_VALUE_TYPE(obj);
+				if(OS_IS_VALUE_NUMBER(index.index) && obj_type == OS_VALUE_TYPE_ARRAY){
+					OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
+					GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(obj).value;
+					int i = (int)OS_VALUE_NUMBER(index.index);
+					if((i >= 0 || (i += arr->values.count) >= 0) && i < arr->values.count){
+						stack_func_locals[a] = arr->values[i];
+					}else{
+						stack_func_locals[a] = Value();
+					}
+					break;
+				}
+				/* if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && obj_type == OS_VALUE_TYPE_OBJECT){
+					
+				} */
 				const bool anonymous_getter_enabled = true, named_getter_enabled = true, prototype_enabled = true, auto_create = false;
-				switch(OS_VALUE_TYPE(obj)){
+				switch(obj_type){
 				case OS_VALUE_TYPE_NULL:
 				default:
 					stack_func_locals[a] = Value();
@@ -16112,17 +16122,18 @@ int OS::Core::execute()
 					break;
 
 				case OS_VALUE_TYPE_ARRAY:
-					if(OS_IS_VALUE_NUMBER(index.index)){
+					OS_ASSERT(!OS_IS_VALUE_NUMBER(index.index));
+					/* if(OS_IS_VALUE_NUMBER(index.index)){
 						OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
+						GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(obj).value;
 						int i = (int)OS_VALUE_NUMBER(index.index);
-						if((i >= 0 || (i += ((GCArrayValue*)OS_VALUE_VARIANT(obj).value)->values.count) >= 0) 
-							&& i < ((GCArrayValue*)OS_VALUE_VARIANT(obj).value)->values.count){
-							stack_func_locals[a] = ((GCArrayValue*)OS_VALUE_VARIANT(obj).value)->values[i];
+						if((i >= 0 || (i += arr->values.count) >= 0) && i < arr->values.count){
+							stack_func_locals[a] = arr->values[i];
 						}else{
 							stack_func_locals[a] = Value();
 						}
 						break;
-					}
+					} */
 					// no break
 
 				case OS_VALUE_TYPE_STRING:

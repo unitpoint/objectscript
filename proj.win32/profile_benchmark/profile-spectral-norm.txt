@@ -1,0 +1,55 @@
+1.274223601
+time: 2.641
+OS script full time: 2.651831 secs
+            gc time: 0.000130 secs (0.00%)
+
+=== GET_PROPERTY, executed count: 1600416
+sum time: 1.030048 secs (38.84%), avg time of 100000 times: 0.064361
+
+=== ADD, executed count: 6408810
+sum time: 0.211075 secs (7.96%), avg time of 100000 times: 0.003294
+
+=== MUL, executed count: 4800400
+sum time: 0.155076 secs (5.85%), avg time of 100000 times: 0.003230
+
+=== MOVE2, executed count: 3216577
+sum time: 0.115528 secs (4.36%), avg time of 100000 times: 0.003592
+
+=== SUB, executed count: 3200001
+sum time: 0.085539 secs (3.23%), avg time of 100000 times: 0.002673
+
+=== RETURN, executed count: 1600065
+sum time: 0.075810 secs (2.86%), avg time of 100000 times: 0.004738
+
+=== JUMP, executed count: 1616453
+sum time: 0.064996 secs (2.45%), avg time of 100000 times: 0.004021
+
+=== DIV, executed count: 1600001
+sum time: 0.057713 secs (2.18%), avg time of 100000 times: 0.003607
+
+=== LOGIC_GREATER, executed count: 1616453
+sum time: 0.057330 secs (2.16%), avg time of 100000 times: 0.003547
+
+=== MOVE, executed count: 1616307
+sum time: 0.056174 secs (2.12%), avg time of 100000 times: 0.003475
+
+=== CALL, executed count: 1600062
+sum time: 0.056132 secs (2.12%), avg time of 100000 times: 0.003508
+
+=== GET_UPVALUE, executed count: 1600045
+sum time: 0.054435 secs (2.05%), avg time of 100000 times: 0.003402
+
+=== SET_PROPERTY, executed count: 8207
+sum time: 0.006125 secs (0.23%), avg time of 100000 times: 0.074637
+
+=== NEW_FUNCTION, executed count: 7
+sum time: 0.000004 secs (0.00%), avg time of 100000 times: 0.051315
+
+=== NEW_OBJECT, executed count: 5
+sum time: 0.000001 secs (0.00%), avg time of 100000 times: 0.020526
+
+=== CALL_METHOD, executed count: 9
+sum time: 0.000001 secs (0.00%), avg time of 100000 times: 0.005702
+
+=== ALL OPCODES, executed count: 30483822
+sum time: 2.025987 secs (76.40%), avg time of 100000 times: 0.006646
