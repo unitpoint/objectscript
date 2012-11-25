@@ -717,7 +717,11 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
 	}
 	if(precision == OS_AUTO_PRECISION){
 		/* %G already handles removing trailing zeros from the fractional part, yay */ 
+#if 1
+		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%G"), a);
+#else
 		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.*G"), 17, a);
+#endif
 		return dst;
 	}
 	int n = OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.*f"), precision, a);
@@ -1319,6 +1323,7 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 	case OPERATOR_BIT_OR:   return OS_TEXT("OPERATOR_BIT_OR");
 	case OPERATOR_BIT_XOR:  return OS_TEXT("OPERATOR_BIT_XOR");
 	case OPERATOR_BIT_NOT:  return OS_TEXT("OPERATOR_BIT_NOT");
+	case OPERATOR_COMPARE:  return OS_TEXT("OPERATOR_COMPARE");
 	case OPERATOR_ADD:      return OS_TEXT("OPERATOR_ADD");
 	case OPERATOR_SUB:      return OS_TEXT("OPERATOR_SUB");
 	case OPERATOR_MUL:      return OS_TEXT("OPERATOR_MUL");
@@ -1443,6 +1448,7 @@ bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 		case OS::Core::Tokenizer::OPERATOR_BIT_OR:  // |
 		case OS::Core::Tokenizer::OPERATOR_BIT_XOR: // ^
 		case OS::Core::Tokenizer::OPERATOR_BIT_NOT: // ~
+		case OS::Core::Tokenizer::OPERATOR_COMPARE: // <=>
 		case OS::Core::Tokenizer::OPERATOR_ADD: // +
 		case OS::Core::Tokenizer::OPERATOR_SUB: // -
 		case OS::Core::Tokenizer::OPERATOR_MUL: // *
@@ -1511,6 +1517,7 @@ OS::Core::Tokenizer::OperatorDesc OS::Core::Tokenizer::operator_desc[] =
 	{ OPERATOR_BIT_XOR, OS_TEXT("^") },
 	{ OPERATOR_BIT_NOT, OS_TEXT("~") },
 	{ OPERATOR_CONCAT, OS_TEXT("..") },
+	{ OPERATOR_COMPARE, OS_TEXT("<=>") },
 	{ OPERATOR_ADD, OS_TEXT("+") },
 	{ OPERATOR_SUB, OS_TEXT("-") },
 	{ OPERATOR_MUL, OS_TEXT("*") },
@@ -2118,6 +2125,7 @@ bool OS::Core::Compiler::Expression::isBinaryOperator() const
 	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
 	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
 
+	case EXP_TYPE_COMPARE:    // <=>
 	case EXP_TYPE_ADD: // +
 	case EXP_TYPE_SUB: // -
 	case EXP_TYPE_MUL: // *
@@ -2501,6 +2509,7 @@ void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Com
 	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
 	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
 	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
+	case EXP_TYPE_COMPARE: // <=>
 	case EXP_TYPE_ADD: // +
 	case EXP_TYPE_SUB: // -
 	case EXP_TYPE_MUL: // *
@@ -3100,6 +3109,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_BIT_XOR:
 
 	// case EXP_TYPE_CONCAT:
+	case EXP_TYPE_COMPARE:
 	case EXP_TYPE_ADD:
 	case EXP_TYPE_SUB:
 	case EXP_TYPE_MUL:
@@ -3564,6 +3574,7 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::getExpressionType(TokenTy
 	case Tokenizer::OPERATOR_BIT_OR: return EXP_TYPE_BIT_OR;
 	case Tokenizer::OPERATOR_BIT_XOR: return EXP_TYPE_BIT_XOR;
 	case Tokenizer::OPERATOR_BIT_NOT: return EXP_TYPE_BIT_NOT;
+	case Tokenizer::OPERATOR_COMPARE: return EXP_TYPE_COMPARE;
 	case Tokenizer::OPERATOR_ADD: return EXP_TYPE_ADD;
 	case Tokenizer::OPERATOR_SUB: return EXP_TYPE_SUB;
 	case Tokenizer::OPERATOR_MUL: return EXP_TYPE_MUL;
@@ -3634,6 +3645,7 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::getOpcodeLevel(ExpressionTyp
 	case EXP_TYPE_LOGIC_LE:  // <=
 	case EXP_TYPE_LOGIC_GREATER: // >
 	case EXP_TYPE_LOGIC_LESS:    // <
+	case EXP_TYPE_COMPARE:	 // <=>
 		return OP_LEVEL_7;
 
 	case EXP_TYPE_BIT_OR:  // |
@@ -4627,6 +4639,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			case EXP_TYPE_BIT_AND:
 			case EXP_TYPE_BIT_OR:
 			case EXP_TYPE_BIT_XOR:
+			case EXP_TYPE_COMPARE: // <=>
 			case EXP_TYPE_ADD: // +
 			case EXP_TYPE_SUB: // -
 			case EXP_TYPE_MUL: // *
@@ -5192,6 +5205,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_BIT_AND:
 	case EXP_TYPE_BIT_OR:
 	case EXP_TYPE_BIT_XOR:
+	case EXP_TYPE_COMPARE:
 	case EXP_TYPE_ADD: // +
 	case EXP_TYPE_SUB: // -
 	case EXP_TYPE_MUL: // *
@@ -6896,6 +6910,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 
 		} lib = {this, token};
 
+		if(exp_type == EXP_TYPE_CONCAT){
+			return lib.newExpression(String(allocator->core->newStringValue(left_exp->toString(), right_exp->toString())), left_exp, right_exp);
+		}else if(left_exp->type != EXP_TYPE_CONST_STRING && right_exp->type != EXP_TYPE_CONST_STRING)
 		switch(exp_type){
 		case EXP_TYPE_CONCAT:    // ..
 			return lib.newExpression(String(allocator->core->newStringValue(left_exp->toString(), right_exp->toString())), left_exp, right_exp);
@@ -7253,6 +7270,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::OPERATOR_BIT_OR:  // |
 		case Tokenizer::OPERATOR_BIT_XOR: // ^
 		case Tokenizer::OPERATOR_BIT_NOT: // ~
+		case Tokenizer::OPERATOR_COMPARE: // <=>
 		case Tokenizer::OPERATOR_ADD: // +
 		case Tokenizer::OPERATOR_SUB: // -
 		case Tokenizer::OPERATOR_MUL: // *
@@ -8192,6 +8210,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_CONCAT: // ..
 		return OS_TEXT("operator ..");
 
+	case EXP_TYPE_COMPARE:    // <=>
+		return OS_TEXT("operator <=>");
+
 	case EXP_TYPE_ADD: // +
 		return OS_TEXT("operator +");
 
@@ -8667,6 +8688,7 @@ OS::Core::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType e
 	case Compiler::EXP_TYPE_BIT_XOR: return OP_BIT_XOR;
 
 	// case Compiler::EXP_TYPE_CONCAT: return OP_CONCAT;
+	case Compiler::EXP_TYPE_COMPARE: return OP_COMPARE;
 	case Compiler::EXP_TYPE_ADD: return OP_ADD;
 	case Compiler::EXP_TYPE_SUB: return OP_SUB;
 	case Compiler::EXP_TYPE_MUL: return OP_MUL;
@@ -13779,13 +13801,13 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 				core->call(0, 1);
 				return;
 			}
-			core->error(OS_E_ERROR, String::format(core->allocator, OS_TEXT("Op %s is not found!"), method_name.toChar()));
+			core->error(OS_E_ERROR, String::format(core->allocator, OS_TEXT("Method %s is not found"), method_name.toChar()));
 		}
 	};
 
 	// opcode = (OpcodeType)OS_TO_OPCODE_TYPE(opcode);
 	switch(OS_VALUE_TYPE(value)){
-	case OS_VALUE_TYPE_STRING:
+	// case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_BOOL:
@@ -13802,12 +13824,15 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 		OS_ASSERT(false);
 		return pushNull();
 
+	default:
+	/*
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
+	*/
 		switch(opcode){
 		case OP_BIT_NOT:
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitnot, value);
@@ -13836,15 +13861,17 @@ bool OS::Core::isEqualExactly(const Value& left_value, const Value& right_value)
 		case OS_VALUE_TYPE_BOOL:
 			return OS_VALUE_VARIANT(left_value).boolean == OS_VALUE_VARIANT(right_value).boolean;
 
+		default:
+		/*
 		case OS_VALUE_TYPE_STRING:
 			// the same strings always share one instance, so check only gc value ptr
-
 		case OS_VALUE_TYPE_ARRAY:
 		case OS_VALUE_TYPE_OBJECT:
 		case OS_VALUE_TYPE_USERDATA:
 		case OS_VALUE_TYPE_USERPTR:
 		case OS_VALUE_TYPE_FUNCTION:
 		case OS_VALUE_TYPE_CFUNCTION:
+		*/
 			return OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value;
 
 		case OS_VALUE_TYPE_WEAKREF:
@@ -13873,9 +13900,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					core->call(3, 1);
 					return;
 				}
-				if(is_left_side){
+				if(is_left_side && OS_VALUE_TYPE(left_value) != OS_VALUE_TYPE(right_value)){
 					switch(OS_VALUE_TYPE(right_value)){
-					// case OS_VALUE_TYPE_STRING:
+					case OS_VALUE_TYPE_STRING:
 					case OS_VALUE_TYPE_ARRAY:
 					case OS_VALUE_TYPE_OBJECT:
 					case OS_VALUE_TYPE_USERDATA:
@@ -13896,6 +13923,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 	// opcode = (OpcodeType)OS_TO_OPCODE_TYPE(opcode);
 	int is_gc_left_value = 0;
 	switch(OS_VALUE_TYPE(left_value)){
+	/*
 	case OS_VALUE_TYPE_STRING:
 		if(OS_VALUE_TYPE(right_value) == OS_VALUE_TYPE_STRING){
 			switch(opcode){
@@ -13935,7 +13963,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		}
 		is_gc_left_value ^= 1;
 		// no break
-
+	*/
 	case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_BOOL:
@@ -13943,7 +13971,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		case OS_VALUE_TYPE_NULL:
 		case OS_VALUE_TYPE_NUMBER:
 		case OS_VALUE_TYPE_BOOL:
-		case OS_VALUE_TYPE_STRING:
+		// case OS_VALUE_TYPE_STRING:
 			switch(opcode){
 			case OP_COMPARE:
 				return pushNumber(valueToNumber(left_value) - valueToNumber(right_value));
@@ -13983,7 +14011,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					OS_NUMBER right = valueToNumber(right_value);
 					if(!right){
 						errorDivisionByZero();
-						return pushNumber((OS_NUMBER)0.0);
+						return pushNull(); // pushNumber((OS_NUMBER)0.0);
 					}
 					return pushNumber(valueToNumber(left_value) / right);
 				}
@@ -13993,7 +14021,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					OS_NUMBER right = valueToNumber(right_value);
 					if(!right){
 						errorDivisionByZero();
-						return pushNumber((OS_NUMBER)0.0);
+						return pushNull(); // pushNumber((OS_NUMBER)0.0);
 					}
 					return pushNumber(OS_MATH_MOD_OPERATOR(valueToNumber(left_value), right));
 				}
@@ -14013,12 +14041,15 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		is_gc_left_value ^= 1;
 		// no break
 
+	default:
+	/*
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
+	*/
 		is_gc_left_value ^= 1;
 		switch(opcode){
 		case OP_COMPARE:
@@ -14036,9 +14067,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					}
 				}
 			}
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 
 		case OP_LOGIC_PTR_EQ:
@@ -14059,9 +14090,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					}
 				}
 			}
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
-			}else{
+			}else */ {
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			}
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) == (OS_NUMBER)0.0;
@@ -14082,9 +14113,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					}
 				}
 			}
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
-			}else{
+			}else */ {
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			}
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) >= (OS_NUMBER)0.0;
@@ -14105,78 +14136,78 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					}
 				}
 			}
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
-			}else{
+			}else */ {
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			}
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) > (OS_NUMBER)0.0;
 			return;
 
 		case OP_BIT_AND:
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, left_value, right_value, true);
 
 		case OP_BIT_OR:
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, left_value, right_value, true);
 
 		case OP_BIT_XOR:
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, left_value, right_value, true);
 
 		case OP_ADD: // +
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__add, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__add, left_value, right_value, true);
 
 		case OP_SUB: // -
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, left_value, right_value, true);
 
 		case OP_MUL: // *
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, left_value, right_value, true);
 
 		case OP_DIV: // /
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__div, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__div, left_value, right_value, true);
 
 		case OP_MOD: // %
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, left_value, right_value, true);
 
 		case OP_LSHIFT: // <<
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, left_value, right_value, true);
 
 		case OP_RSHIFT: // >>
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, left_value, right_value, true);
 
 		case OP_POW: // **
-			if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, left_value, right_value, false);
-			}
+			} */
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, left_value, right_value, true);
 		}
 	}
@@ -15723,6 +15754,7 @@ int OS::Core::execute()
 				break;
 			}
 
+		OS_CASE_OPCODE_ALL(OP_COMPARE): // <=>
 		OS_CASE_OPCODE_ALL(OP_SUB): // -
 			{
 				a = OS_GETARG_A(instruction);
@@ -15768,7 +15800,8 @@ int OS::Core::execute()
 				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
 					if(!OS_VALUE_NUMBER(*right_value)){
 						errorDivisionByZero();
-						OS_SET_VALUE_NUMBER(stack_func_locals[a], 0.0); // TODO: NaN or null ???
+						// OS_SET_VALUE_NUMBER(stack_func_locals[a], 0.0); // TODO: NaN or null ???
+						OS_SET_VALUE_NULL(stack_func_locals[a]);
 					}else{
 						OS_SET_VALUE_NUMBER(stack_func_locals[a], OS_VALUE_NUMBER(*left_value) / OS_VALUE_NUMBER(*right_value));
 					}
@@ -15790,7 +15823,8 @@ int OS::Core::execute()
 				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
 					if(!OS_VALUE_NUMBER(*right_value)){
 						errorDivisionByZero();
-						stack_func_locals[a] = (OS_NUMBER)0.0; // TODO: NaN ???
+						// stack_func_locals[a] = (OS_NUMBER)0.0; // TODO: NaN ???
+						OS_SET_VALUE_NULL(stack_func_locals[a]);
 					}else{
 						stack_func_locals[a] = OS_MATH_MOD_OPERATOR(OS_VALUE_NUMBER(*left_value), OS_VALUE_NUMBER(*right_value));
 					}
@@ -18447,21 +18481,33 @@ void OS::initObjectClass()
 			if(params < 2) return 0;
 			Core::Value left_value = os->core->getStackValue(-params + 0);
 			Core::Value right_value = os->core->getStackValue(-params + 1);
+			/* if(OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE(right_value)){
+				os->pushNumber(0);
+				return 1;
+			} */
 			switch(OS_VALUE_TYPE(left_value)){
 			case OS_VALUE_TYPE_NULL:
 			case OS_VALUE_TYPE_BOOL:
 			case OS_VALUE_TYPE_NUMBER:
-			case OS_VALUE_TYPE_STRING:
+			// case OS_VALUE_TYPE_STRING:
 				switch(OS_VALUE_TYPE(right_value)){
 				case OS_VALUE_TYPE_NULL:
 				case OS_VALUE_TYPE_BOOL:
 				case OS_VALUE_TYPE_NUMBER:
-				case OS_VALUE_TYPE_STRING:
+				// case OS_VALUE_TYPE_STRING:
 					os->core->pushOpResultValue(Core::OP_COMPARE, left_value, right_value);
 					return 1;
 				}
 				break;
 
+			default:
+				if(OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE(right_value)){
+					os->pushNumber(OS_VALUE_VARIANT(left_value).value > OS_VALUE_VARIANT(right_value).value ? 1 
+						: (OS_VALUE_VARIANT(left_value).value < OS_VALUE_VARIANT(right_value).value ? -1 : 0));
+					return 1;
+				}
+				break;
+			/*
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_USERDATA:
@@ -18481,8 +18527,9 @@ void OS::initObjectClass()
 					return 1;
 				}
 				break;
+			*/
 			}
-			os->triggerError(String::format(os, OS_TEXT("Can't compare '%s' with '%s'!"), os->getTypeStr(-params + 0).toChar(), os->getTypeStr(-params + 1).toChar()));
+			os->triggerError(String::format(os, OS_TEXT("attempt to compare '%s' with '%s'"), os->getTypeStr(-params + 0).toChar(), os->getTypeStr(-params + 1).toChar()));
 			return 0;
 		}
 	};

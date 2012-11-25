@@ -253,7 +253,6 @@ namespace ObjectScript
 	{
 		// binary operators
 
-		OP_COMPARE,			// return int
 		OP_LOGIC_PTR_EQ,	// ===
 		OP_LOGIC_PTR_NE,	// !==
 		OP_LOGIC_EQ,		// ==
@@ -267,6 +266,7 @@ namespace ObjectScript
 		OP_BIT_OR,	// |
 		OP_BIT_XOR,	// ^
 
+		OP_COMPARE, // <=>
 		OP_ADD, // +
 		OP_SUB, // -
 		OP_MUL, // *
@@ -990,6 +990,7 @@ namespace ObjectScript
 					OPERATOR_LOGIC_LE,  // <=
 					OPERATOR_LOGIC_GREATER, // >
 					OPERATOR_LOGIC_LESS,    // <
+					OPERATOR_COMPARE,		// <=>
 					OPERATOR_LOGIC_NOT,     // !
 
 					OPERATOR_INC,     // ++
@@ -1608,6 +1609,7 @@ namespace ObjectScript
 				OP_BIT_OR,
 				OP_BIT_XOR,
 
+				OP_COMPARE, // <=>
 				OP_ADD, // +
 				OP_SUB, // -
 				OP_MUL, // *
@@ -1623,8 +1625,7 @@ namespace ObjectScript
 				OP_PLUS,
 				OP_NEG,
 
-				OPCODE_COUNT,
-				OP_COMPARE		// virtual opcode
+				OPCODE_COUNT
 			};
 
 			class Compiler
@@ -1753,6 +1754,7 @@ namespace ObjectScript
 					EXP_TYPE_BIT_XOR_ASSIGN, // ^=
 					EXP_TYPE_BIT_NOT_ASSIGN, // ~=
 
+					EXP_TYPE_COMPARE, // <=>
 					EXP_TYPE_ADD, // +
 					EXP_TYPE_SUB, // -
 					EXP_TYPE_MUL, // *
