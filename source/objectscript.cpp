@@ -12111,6 +12111,9 @@ OS::String OS::resolvePath(const String& filename, const String& cur_path)
 			resolved_path = cur_path + OS_PATH_SEPARATOR + filename;
 		}
 	}
+	if(isFileExist(resolved_path)){
+		return resolved_path;
+	}
 	resolved_path = changeFilenameExt(resolved_path, OS_SOURCECODE_EXT);
 	if(isFileExist(resolved_path)){
 		return resolved_path;
@@ -13700,7 +13703,7 @@ bool OS::Core::pushValueOf(Value val)
 				core->check_recursion->gc_color = GC_BLACK;
 			}
 		}
-	} finalizer = {this};
+	} finalizer = {this}; (void)finalizer;
 
 	bool prototype_enabled = true;
 	Value func;
@@ -14067,9 +14070,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					}
 				}
 			}
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 
 		case OP_LOGIC_PTR_EQ:
@@ -14090,9 +14093,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					}
 				}
 			}
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
-			}else */ {
+			}else{
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			}
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) == (OS_NUMBER)0.0;
@@ -14113,9 +14116,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					}
 				}
 			}
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
-			}else */ {
+			}else{
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			}
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) >= (OS_NUMBER)0.0;
@@ -14136,78 +14139,78 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					}
 				}
 			}
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, false);
-			}else */ {
+			}else{
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value, true);
 			}
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) > (OS_NUMBER)0.0;
 			return;
 
 		case OP_BIT_AND:
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, left_value, right_value, true);
 
 		case OP_BIT_OR:
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, left_value, right_value, true);
 
 		case OP_BIT_XOR:
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, left_value, right_value, true);
 
 		case OP_ADD: // +
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__add, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__add, left_value, right_value, true);
 
 		case OP_SUB: // -
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, left_value, right_value, true);
 
 		case OP_MUL: // *
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, left_value, right_value, true);
 
 		case OP_DIV: // /
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__div, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__div, left_value, right_value, true);
 
 		case OP_MOD: // %
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, left_value, right_value, true);
 
 		case OP_LSHIFT: // <<
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, left_value, right_value, true);
 
 		case OP_RSHIFT: // >>
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, left_value, right_value, true);
 
 		case OP_POW: // **
-			/* if(!is_gc_left_value || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
+			if(!is_gc_left_value){ // || OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE_STRING){
 				return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, left_value, right_value, false);
-			} */
+			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, left_value, right_value, true);
 		}
 	}
@@ -18402,8 +18405,15 @@ void OS::initObjectClass()
 			Core::Value value = os->core->getStackValue(-params-1);
 			switch(OS_VALUE_TYPE(value)){
 			case OS_VALUE_TYPE_ARRAY:
-				os->core->pushValue(value);
-				return 1;
+				{
+					Core::GCArrayValue * arr = os->core->pushArrayValue(OS_VALUE_VARIANT(value).arr->values.count);
+					for(int i = 0; i < OS_VALUE_VARIANT(value).arr->values.count; i++){
+						os->vectorAddItem(arr->values, OS_VALUE_VARIANT(value).arr->values[i] OS_DBG_FILEPOS);
+					}
+					return 1;
+				}
+				// os->core->pushValue(value);
+				// return 1;
 
 			case OS_VALUE_TYPE_OBJECT:
 				{
@@ -18703,6 +18713,110 @@ void OS::initStringClass()
 			return 1;
 		}
 
+		static int replace(OS * os, int params, int, int, void*)
+		{
+			OS::String subject = os->toString(-params-1);
+			int subject_len = subject.getLen();
+			if(params >= 1){
+				/* if(os->isObject(-params)){
+					Core::Value search = os->core->getStackValue(-params);
+					Core::GCValue * search_gcvalue = search.getGCValue();
+					if(search_gcvalue->table && search_gcvalue->table->count > 0){
+						Core::Property * prop = search_gcvalue->table->first;
+						for(int i = 0; prop; prop = prop->next, i++){
+							bool is_key_string = OS_VALUE_TYPE(prop->index) == OS_VALUE_TYPE_STRING;
+							OS::String search = is_key_string ? OS_VALUE_VARIANT(prop->index).string :  os->core->valueToStringOS(prop->value);
+							int search_len = search.getLen();
+							if(search_len <= subject_len){
+								OS::String replace = is_key_string ? os->core->valueToStringOS(prop->value) : OS::String(os);
+								int replace_len = replace.getLen();
+
+								const OS_CHAR * subject_str = subject.toChar();
+								const OS_CHAR * search_str = search.toChar();
+					
+								OS::Core::StringBuffer buf(os);
+								bool found = false;
+								int start = 0;
+								for(int i = 0; i < subject_len-search_len;){
+									if(OS_MEMCMP(subject_str + i, search_str, sizeof(OS_CHAR)*search_len) == 0){
+										buf.append(subject_str + start, i - start);
+										buf.append(replace);
+										i += search_len;
+										start = i;
+										found = true;
+									}else{
+										i++;
+									}
+								}
+								if(found){
+									buf.append(subject_str + start, subject_len - start);
+									os->pushString(buf);
+									return 1;
+								}
+							}
+							
+						}
+					}
+				}else
+				*/{
+					OS::String search = os->toString(-params);
+					int search_len = search.getLen();
+					if(search_len > 0 && search_len <= subject_len){
+						OS::String replace = params >= 2 ? os->toString(-params+1) : OS::String(os);
+						int replace_len = replace.getLen();
+
+						const OS_CHAR * subject_str = subject.toChar();
+						const OS_CHAR * search_str = search.toChar();
+					
+						OS::Core::StringBuffer buf(os);
+						bool found = false;
+						int start = 0;
+						for(int i = 0; i < subject_len-search_len+1;){
+							if(OS_MEMCMP(subject_str + i, search_str, sizeof(OS_CHAR)*search_len) == 0){
+								buf.append(subject_str + start, i - start);
+								buf.append(replace);
+								i += search_len;
+								start = i;
+								found = true;
+							}else{
+								i++;
+							}
+						}
+						if(found){
+							buf.append(subject_str + start, subject_len - start);
+							os->pushString(buf);
+							return 1;
+						}
+					}
+				}
+			}
+			os->pushString(subject);
+			return 1;
+		}
+
+		static int find(OS * os, int params, int, int, void*)
+		{
+			OS::String subject = os->toString(-params-1);
+			int subject_len = subject.getLen();
+			if(params >= 1){
+				OS::String search = os->toString(-params);
+				int search_len = search.getLen();
+				if(search_len > 0 && search_len <= subject_len){
+					const OS_CHAR * subject_str = subject.toChar();
+					const OS_CHAR * search_str = search.toChar();
+					int end = subject_len - search_len + 1;
+					int i = params >= 2 ? os->toInt(-params+1) : 0;
+					for(; i < end;){
+						if(OS_MEMCMP(subject_str + i, search_str, sizeof(OS_CHAR)*search_len) == 0){
+							os->pushNumber(i);
+							return 1;
+						}
+					}
+				}
+			}
+			return 0;
+		}
+
 		static int cmp(OS * os, int params, int, int, void*)
 		{
 			if(params < 2) return 0;
@@ -18716,6 +18830,8 @@ void OS::initStringClass()
 		{core->strings->__cmp, String::cmp},
 		{core->strings->__len, String::length},
 		{OS_TEXT("sub"), String::sub},
+		{OS_TEXT("find"), String::find},
+		{OS_TEXT("replace"), String::replace},
 		// {OS_TEXT("__get@length"), String::length},
 		{}
 	};
@@ -19161,7 +19277,7 @@ void OS::initMathModule()
 			return p * OS_RADIANS_PER_DEGREE;
 		}
 	};
-	FuncDef list[] = {
+	static FuncDef list[] = {
 		{OS_TEXT("min"), Math::min_func},
 		{OS_TEXT("max"), Math::max_func},
 		def(OS_TEXT("abs"), Math::abs),
