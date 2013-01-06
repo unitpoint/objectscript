@@ -13,6 +13,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "profile_benchmark", "profil
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "osbind", "osbind\osbind.vcxproj", "{2A1B3553-CE78-47C3-A7E1-3B8D758963FC}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "os-fcgi", "os-fcgi\os-fcgi.vcxproj", "{96B201A1-0A51-418A-98E5-07D4286D4145}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -43,6 +45,10 @@ Global
 		{2A1B3553-CE78-47C3-A7E1-3B8D758963FC}.Debug|Win32.Build.0 = Debug|Win32
 		{2A1B3553-CE78-47C3-A7E1-3B8D758963FC}.Release|Win32.ActiveCfg = Release|Win32
 		{2A1B3553-CE78-47C3-A7E1-3B8D758963FC}.Release|Win32.Build.0 = Release|Win32
+		{96B201A1-0A51-418A-98E5-07D4286D4145}.Debug|Win32.ActiveCfg = Debug|Win32
+		{96B201A1-0A51-418A-98E5-07D4286D4145}.Debug|Win32.Build.0 = Debug|Win32
+		{96B201A1-0A51-418A-98E5-07D4286D4145}.Release|Win32.ActiveCfg = Release|Win32
+		{96B201A1-0A51-418A-98E5-07D4286D4145}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
