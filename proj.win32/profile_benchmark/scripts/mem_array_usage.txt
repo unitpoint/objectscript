@@ -1,0 +1,132 @@
+
+[FILE] mem_array_usage.os
+[1] var function range(a, b){
+
+begin function
+  begin locals 8, stack 13
+    0 _F (param)
+    1 this (param)
+    2 _E
+    3 _G
+    4 range
+    5 memory_get_usage
+    6 start_memory
+    7 array
+  end locals
+  begin function
+    begin locals 7, stack 11
+      0 _F (param)
+      1 this (param)
+      2 a (param)
+      3 b (param)
+      4 _E
+      5 _G
+      6 arr
+    end locals
+
+[2] var arr = {}
+
+    new object 0: # (7)
+    move: var arr (6) = # (7)
+
+
+[3] for(; a <= b; a++){
+
+    begin scope
+
+      begin loop
+        begin if
+          begin bool exp
+            move: # (7) = param a (2)
+            move: # (8) = param b (3)
+            # (7) = # (7) [logic <=] # (8)
+            # (7) = [logic not] # (7)
+          end bool exp
+          begin then
+            break
+          end then
+        end if ret values 0
+
+
+[4] arr[] = a
+
+        begin scope
+          begin call method
+            move: # (7) = param a (2)
+            move: # (8) = var arr (6)
+            move: # (9) = const string "__setempty" (-6)
+            move: # (10) = # (7)
+          end call method: start 8, params 3, ret values 0
+        end scope ret values 0
+
+
+[3] for(; a <= b; a++){
+
+        param a (2) = param a (2) [operator +] const number 1 (-4)
+      end loop ret values 0
+    end scope ret values 0
+
+
+[6] return arr
+
+    return: var arr (6), count 1
+  end function: var range (4), index 1
+
+
+[9] var function memory_get_usage()
+
+  begin function
+    begin locals 4, stack 7
+      0 _F (param)
+      1 this (param)
+      2 _E
+      3 _G
+    end locals
+
+[11] return GC.allocatedBytes - GC.cachedBytes
+
+      get property: # (4) = var _E (2) [const string "GC" (-7)]
+      get property: # (4) = # (4) [const string "allocatedBytes" (-8)]
+      get property: # (5) = var _E (2) [const string "GC" (-7)]
+      get property: # (5) = # (5) [const string "cachedBytes" (-9)]
+      # (4) = # (4) [operator -] # (5)
+    return: # (4), count 1
+  end function: var memory_get_usage (5), index 2
+
+
+[14] var start_memory = memory_get_usage()
+
+  begin call
+    move: # (8) = var memory_get_usage (5)
+    move: # (9) = const null (-1)
+  end call: start 8, params 2, ret values 1
+  move: var start_memory (6) = # (8)
+
+
+[15] var array = range(1, 100000)
+
+  begin call
+    move: # (8) = var range (4)
+    move: # (9) = const null (-1)
+    move: # (10) = const number 1 (-4)
+    move: # (11) = const number 100000 (-5)
+  end call: start 8, params 4, ret values 1
+  move: var array (7) = # (8)
+
+
+[16] printf("%d bytes\n", memory_get_usage() - start_memory)
+
+  begin call method
+    move: # (8) = var _E (2)
+    move: # (9) = const string "printf" (-10)
+    move: # (10) = const string "%d bytes
+" (-11)
+    begin call
+      move: # (11) = var memory_get_usage (5)
+      move: # (12) = const null (-1)
+    end call: start 11, params 2, ret values 1
+    # (11) = # (11) [operator -] var start_memory (6)
+  end call method: start 8, params 4, ret values 0
+
+  return: var _E (2), count 1
+end function: <<->> (0), index 0
