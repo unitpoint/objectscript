@@ -302,32 +302,60 @@ print "Planet should be Mars: "..planet
 planet = "Mercury"
 print "Planet should be Mercury: "..planet
 
+function compareValues(a, b){
+	var x, y = numberof(a), numberof(b)
+	x && y && return x <=> y
+	x, y = stringof(a), stringof(b)
+	x && y && return x <=> y
+	return a <=> b
+}
+
+function Object.__getdim(i, count){
+	return this.sub(i, count)
+}
+
+function String.__get(i){
+	return this.sub(i, 1)
+}
+
 print "Sorted array"
 print([9 4 0 276 15 39 3].sort())
 
+function Object.do(func){
+	func.call(this)
+	return this
+}
+
 print "User sorted array by keys"
-print([0 1 2 3 4 5 6 7 8 9].ksort{|a b| (a%3) - (b%3)})
+print([0 1 2 3 4 5 6 7 8 9].do {||
+	var keys = this.keys.sort{|a b| (a % 3) <=> (b % 3)}
+	var values = this.clone()
+	for(var k, v in keys){
+		this[v] = values[v]
+	}
+})
 
 print "Sorted array (reverse)"
-print([9 4 0 276 15 39 3].rsort())
+print([9 4 0 276 15 39 3].sort{|a b| b <=> a})
 
 print "User sorted array"
-print([9 4 0 276 15 39 3].sort{|a b| (a % 10) - (b % 10)})
+print([9 4 0 276 15 39 3].sort{|a b| (a % 10) <=> (b % 10)})
 
 print "Sorted object by values"
 print({b=9 4 d=0 c=276 15 a=39 3}.sort())
 
+/* function Object.sortBy(func){
+	this.sort {|a b| func(a) <=> func(b)}
+} */
+
 print "Sorted object by values (reverse)"
-print({b=9 4 d=0 c=276 15 a=39 3}.rsort())
+print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b| b <=> a})
 
 print "Sorted object by keys"
-print({b=9 4 d=0 c=276 15 a=39 3}.ksort())
+print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b ka kb| compareValues(ka kb) })
 
 print "Sorted object by keys (reverse)"
-print({b=9 4 d=0 c=276 15 a=39 3}.krsort())
-
-print "User sorted object by keys (reverse)"
-print({b=9 4 d=0 c=276 15 a=39 3}.krsort{|a b| (a % 10) - (b % 10)})
+print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b ka kb| compareValues(kb ka) })
 
 var function testFunc(arg1, arg2){
 	var testFunc2 = {|arg1 arg2 arg3|

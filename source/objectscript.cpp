@@ -17888,6 +17888,7 @@ void OS::initObjectClass()
 			return smartSort(os, params, Core::compareUserArrayValues, Core::compareUserPropValues);
 		}
 
+		/*
 		static int rsort(OS * os, int params, int, int, void*)
 		{
 			if(params < 1){
@@ -17986,6 +17987,7 @@ void OS::initObjectClass()
 			}
 			return 0;
 		}
+		*/
 
 		static int length(OS * os, int params, int closure_values, int, void*)
 		{
@@ -18555,9 +18557,9 @@ void OS::initObjectClass()
 		{core->strings->func_valueOf, Object::valueOf},
 		{core->strings->func_clone, Object::clone},
 		{OS_TEXT("sort"), Object::sort},
-		{OS_TEXT("rsort"), Object::rsort},
-		{OS_TEXT("ksort"), Object::ksort},
-		{OS_TEXT("krsort"), Object::krsort},
+		// {OS_TEXT("rsort"), Object::rsort},
+		// {OS_TEXT("ksort"), Object::ksort},
+		// {OS_TEXT("krsort"), Object::krsort},
 		{core->strings->func_push, Object::push},
 		{OS_TEXT("pop"), Object::pop},
 		{OS_TEXT("hasOwnProperty"), Object::hasOwnProperty},
@@ -18925,11 +18927,15 @@ void OS::initFunctionClass()
 		}
 		*/
 
-		static int iterator(OS * os, int params, int, int need_ret_values, void*)
+		/* static int iterator(OS * os, int params, int, int need_ret_values, void*)
 		{
-			os->pushStackValue(-params-1); // self as func
+			OS::Core::Value self = os->core->getStackValue(-params-1);
+			if(self.getGCValue() == os->core->prototypes[PROTOTYPE_FUNCTION]){
+				os->core->pushStackValue(self);	
+			}
+			os->core->pushStackValue(self); // self as func
 			return 1;
-		}
+		} */
 	};
 	FuncDef list[] = {
 		{OS_TEXT("apply"), Function::apply},
@@ -18938,7 +18944,7 @@ void OS::initFunctionClass()
 		{OS_TEXT("callEnv"), Function::callEnv},
 		// {OS_TEXT("__get@") OS_ENV_VAR_NAME, Function::getEnv},
 		// {OS_TEXT("__set@") OS_ENV_VAR_NAME, Function::setEnv},
-		{core->strings->__iter, Function::iterator},
+		// {core->strings->__iter, Function::iterator},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_FUNCTION]);
@@ -19490,7 +19496,13 @@ void OS::initPreScript()
 {
 	eval(OS_AUTO_TEXT(
 		// it's ObjectScript code here
-		Object.__get@length = function(){ return #this }
+		function Object.__get@length(){ return #this }
+		function Function.__iter(){
+			if(this === Function){
+				return super()
+			}
+			return this
+		}
 
 		modules_loaded = {}
 		function require(filename, required){
