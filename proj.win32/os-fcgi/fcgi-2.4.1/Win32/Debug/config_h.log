@@ -1,0 +1,4 @@
+﻿  Performing Custom Build Tools
+  Скопировано файлов:         1.
+LINK : error LNK2001: неразрешенный внешний символ "_mainCRTStartup"
+.\Debug\config_h.exe : fatal error LNK1120: 1 неразрешенных внешних элементов

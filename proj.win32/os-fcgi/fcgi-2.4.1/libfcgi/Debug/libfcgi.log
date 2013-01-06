@@ -1,0 +1,78 @@
+﻿  os_win32.c
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(353): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdlib.h(433): см. объявление "getenv"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(367): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdlib.h(433): см. объявление "getenv"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(491): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdlib.h(433): см. объявление "getenv"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(655): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\string.h(188): см. объявление "strncpy"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(754): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\string.h(105): см. объявление "strcpy"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(755): warning C4996: 'strcat': This function or variable may be unsafe. Consider using strcat_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\string.h(110): см. объявление "strcat"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(824): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\string.h(188): см. объявление "strncpy"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(875): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\string.h(105): см. объявление "strcpy"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(876): warning C4996: 'strcat': This function or variable may be unsafe. Consider using strcat_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\string.h(110): см. объявление "strcat"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(1491): warning C4244: =: преобразование "time_t" в "int", возможна потеря данных
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(1509): warning C4244: -=: преобразование "time_t" в "int", возможна потеря данных
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\os_win32.c(1510): warning C4244: =: преобразование "time_t" в "int", возможна потеря данных
+  fcgiapp.c
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(516): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(545): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(675): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(680): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(685): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(699): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(704): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(709): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(720): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(741): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(760): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(789): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(793): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(807): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(812): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(1483): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(371): см. объявление "sprintf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgiapp.c(2092): warning C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdlib.h(433): см. объявление "getenv"
+  fcgi_stdio.c
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgi_stdio.c(253): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\string.h(157): см. объявление "strerror"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgi_stdio.c(298): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(234): см. объявление "fopen"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgi_stdio.c(338): warning C4996: 'freopen': This function or variable may be unsafe. Consider using freopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(249): см. объявление "freopen"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgi_stdio.c(344): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(234): см. объявление "fopen"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgi_stdio.c(376): warning C4996: 'setbuf': This function or variable may be unsafe. Consider using setvbuf instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(313): см. объявление "setbuf"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgi_stdio.c(737): warning C4996: 'tmpfile': This function or variable may be unsafe. Consider using tmpfile_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(338): см. объявление "tmpfile"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgi_stdio.c(758): warning C4996: 'fileno': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _fileno. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(723): см. объявление "fileno"
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgi_stdio.c(765): warning C4996: 'fdopen': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _fdopen. See online help for details.
+          c:\program files (x86)\microsoft visual studio 10.0\vc\include\stdio.h(721): см. объявление "fdopen"
+  Создание кода...
+  fcgio.cpp
+c:\sources\os\proj.win32\os-insight\fcgi-2.4.1\libfcgi\fcgio.cpp(112): warning C4244: аргумент: преобразование "std::streamsize" в "int", возможна потеря данных
+  libfcgi.vcxproj -> C:\Sources\OS\proj.win32\os-insight\fcgi-2.4.1\Win32\.\..\libfcgi\Debug\libfcgi.lib
