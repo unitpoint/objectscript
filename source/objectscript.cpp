@@ -9733,7 +9733,7 @@ bool OS::Core::deleteTableProperty(Table * table, const PropertyIndex& index)
 	return false;
 }
 
-void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled)
+void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool del_enabled, bool prototype_enabled)
 {
 	Table * table = table_value->table;
 	if(table && deleteTableProperty(table, index)){
@@ -9770,9 +9770,9 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 		}
 		return;
 	}
-	if((anonymous_del_enabled || named_del_enabled) && !hasSpecialPrefix(index.index)){
+	if(del_enabled && !hasSpecialPrefix(index.index)){
 		Value value;
-		if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_del_enabled){
+		if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
 			const void * buf1 = strings->__delAt.toChar();
 			int size1 = strings->__delAt.getDataSize();
 			const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
@@ -9788,7 +9788,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 				return;
 			}
 		}
-		if(anonymous_del_enabled && getPropertyValue(value, table_value, PropertyIndex(strings->__del, PropertyIndex::KeepStringIndex()), prototype_enabled)
+		if(getPropertyValue(value, table_value, PropertyIndex(strings->__del, PropertyIndex::KeepStringIndex()), prototype_enabled)
 			&& value.isFunction())
 		{
 			pushValue(value);
@@ -9799,7 +9799,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 	}
 }
 
-void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled)
+void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex& index, bool del_enabled, bool prototype_enabled)
 {
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
@@ -9807,13 +9807,13 @@ void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex
 
 	case OS_VALUE_TYPE_BOOL:
 		if(prototype_enabled){
-			return deleteValueProperty(prototypes[PROTOTYPE_BOOL], index, anonymous_del_enabled, named_del_enabled, prototype_enabled);
+			return deleteValueProperty(prototypes[PROTOTYPE_BOOL], index, del_enabled, prototype_enabled);
 		}
 		return;
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(prototype_enabled){
-			return deleteValueProperty(prototypes[PROTOTYPE_NUMBER], index, anonymous_del_enabled, named_del_enabled, prototype_enabled);
+			return deleteValueProperty(prototypes[PROTOTYPE_NUMBER], index, del_enabled, prototype_enabled);
 		}
 		return;
 
@@ -9824,7 +9824,7 @@ void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return deleteValueProperty(OS_VALUE_VARIANT(table_value).value, index, anonymous_del_enabled, named_del_enabled, prototype_enabled);
+		return deleteValueProperty(OS_VALUE_VARIANT(table_value).value, index, del_enabled, prototype_enabled);
 	}
 }
 
@@ -9835,11 +9835,11 @@ void OS::Core::copyTableProperties(Table * dst, Table * src)
 	}
 }
 
-void OS::Core::copyTableProperties(GCValue * dst_value, GCValue * src_value, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::Core::copyTableProperties(GCValue * dst_value, GCValue * src_value, bool setter_enabled)
 {
 	if(src_value->table){
 		for(Property * prop = src_value->table->first; prop; prop = prop->next){
-			setPropertyValue(dst_value, *prop, prop->value, anonymous_setter_enabled, named_setter_enabled);
+			setPropertyValue(dst_value, *prop, prop->value, setter_enabled);
 		}
 	}
 }
@@ -11055,8 +11055,10 @@ OS::Core::Strings::Strings(OS * allocator)
 	__object(allocator, OS_TEXT("__object")),
 	__get(allocator, OS_TEXT("__get")),
 	__set(allocator, OS_TEXT("__set")),
+	__isset(allocator, OS_TEXT("__isset")),
 	__getAt(allocator, OS_TEXT("__get@")),
 	__setAt(allocator, OS_TEXT("__set@")),
+	__issetAt(allocator, OS_TEXT("__isset@")),
 	__del(allocator, OS_TEXT("__del")),
 	__delAt(allocator, OS_TEXT("__del@")),
 	__getempty(allocator, OS_TEXT("__getempty")),
@@ -11846,6 +11848,7 @@ bool OS::init(MemoryManager * p_manager)
 		initObjectClass();
 		initArrayClass();
 		initStringClass();
+		// initStringBufferClass();
 		initFunctionClass();
 		initMathModule();
 		initGCModule();
@@ -11906,13 +11909,13 @@ bool OS::Core::init()
 
 	strings = new (malloc(sizeof(Strings) OS_DBG_FILEPOS)) Strings(allocator);
 
-	setGlobalValue(OS_TEXT("Object"), Value(prototypes[PROTOTYPE_OBJECT]), false, false);
-	setGlobalValue(OS_TEXT("Boolean"), Value(prototypes[PROTOTYPE_BOOL]), false, false);
-	setGlobalValue(OS_TEXT("Number"), Value(prototypes[PROTOTYPE_NUMBER]), false, false);
-	setGlobalValue(OS_TEXT("String"), Value(prototypes[PROTOTYPE_STRING]), false, false);
-	setGlobalValue(OS_TEXT("Array"), Value(prototypes[PROTOTYPE_ARRAY]), false, false);
-	setGlobalValue(OS_TEXT("Function"), Value(prototypes[PROTOTYPE_FUNCTION]), false, false);
-	setGlobalValue(OS_TEXT("Userdata"), Value(prototypes[PROTOTYPE_USERDATA]), false, false);
+	setGlobalValue(OS_TEXT("Object"), Value(prototypes[PROTOTYPE_OBJECT]), false);
+	setGlobalValue(OS_TEXT("Boolean"), Value(prototypes[PROTOTYPE_BOOL]), false);
+	setGlobalValue(OS_TEXT("Number"), Value(prototypes[PROTOTYPE_NUMBER]), false);
+	setGlobalValue(OS_TEXT("String"), Value(prototypes[PROTOTYPE_STRING]), false);
+	setGlobalValue(OS_TEXT("Array"), Value(prototypes[PROTOTYPE_ARRAY]), false);
+	setGlobalValue(OS_TEXT("Function"), Value(prototypes[PROTOTYPE_FUNCTION]), false);
+	setGlobalValue(OS_TEXT("Userdata"), Value(prototypes[PROTOTYPE_USERDATA]), false);
 
 	/*
 		SAFE usage of user function arguments 
@@ -12969,7 +12972,7 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 	return false;
 }
 
-void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value value, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value value, bool setter_enabled)
 {
 #if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
 	if(table_value != check_recursion && index.index.type == OS_VALUE_TYPE_NULL){
@@ -13051,9 +13054,9 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 		return;
 	}
 
-	if((anonymous_setter_enabled || named_setter_enabled) && !hasSpecialPrefix(index.index)){
+	if(setter_enabled && !hasSpecialPrefix(index.index)){
 		Value func;
-		if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_setter_enabled){
+		if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
 			const void * buf1 = strings->__setAt.toChar();
 			int size1 = strings->__setAt.getDataSize();
 			const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
@@ -13067,7 +13070,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 				return;
 			}
 		}
-		if(anonymous_setter_enabled && getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), true)){
+		if(getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), true)){
 			pushValue(func);
 			pushValue(table_value);
 			pushValue(index.index);
@@ -13089,7 +13092,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	// setTableValue(table, index, value);
 }
 
-void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, Value value, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, Value value, bool setter_enabled)
 {
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
@@ -13113,7 +13116,7 @@ void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, V
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return setPropertyValue(OS_VALUE_VARIANT(table_value).value, index, value, anonymous_setter_enabled, named_setter_enabled);
+		return setPropertyValue(OS_VALUE_VARIANT(table_value).value, index, value, setter_enabled);
 	}
 }
 
@@ -13691,7 +13694,7 @@ bool OS::Core::pushValueOf(Value val)
 	if(++check_recursion->external_ref_count == 1 && check_recursion->table){
 		clearTable(check_recursion->table);
 	}
-	setPropertyValue(check_recursion, val, Value(true), false, false);
+	setPropertyValue(check_recursion, val, Value(true), false);
 	struct Finalizer { 
 		Core * core; 
 		~Finalizer()
@@ -14218,14 +14221,14 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 	pushNull();
 }
 
-void OS::Core::setGlobalValue(const String& name, Value value, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::Core::setGlobalValue(const String& name, Value value, bool setter_enabled)
 {
-	setPropertyValue(global_vars, Core::PropertyIndex(name), value, anonymous_setter_enabled, named_setter_enabled);
+	setPropertyValue(global_vars, Core::PropertyIndex(name), value, setter_enabled);
 }
 
-void OS::Core::setGlobalValue(const OS_CHAR * name, Value value, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::Core::setGlobalValue(const OS_CHAR * name, Value value, bool setter_enabled)
 {
-	setGlobalValue(String(allocator, name), value, anonymous_setter_enabled, named_setter_enabled);
+	setGlobalValue(String(allocator, name), value, setter_enabled);
 }
 
 int OS::Core::getStackOffs(int offs)
@@ -14893,13 +14896,13 @@ bool OS::is(int value_offs, int prototype_offs)
 	return core->isValueInstanceOf(core->getStackValue(value_offs), core->getStackValue(prototype_offs));
 }
 
-void OS::setProperty(bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setProperty(bool setter_enabled)
 {
 	if(core->stack_values.count >= 3){
 		Core::Value object = core->stack_values[core->stack_values.count - 3];
 		Core::Value index = core->stack_values[core->stack_values.count - 2];
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
-		core->setPropertyValue(object, Core::PropertyIndex(index), value, anonymous_setter_enabled, named_setter_enabled);
+		core->setPropertyValue(object, Core::PropertyIndex(index), value, setter_enabled);
 		pop(3);
 	}else{
 		// error
@@ -14907,17 +14910,17 @@ void OS::setProperty(bool anonymous_setter_enabled, bool named_setter_enabled)
 	}
 }
 
-void OS::setProperty(const OS_CHAR * name, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setProperty(const OS_CHAR * name, bool setter_enabled)
 {
-	setProperty(Core::String(this, name), anonymous_setter_enabled, named_setter_enabled);
+	setProperty(Core::String(this, name), setter_enabled);
 }
 
-void OS::setProperty(const Core::String& name, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setProperty(const Core::String& name, bool setter_enabled)
 {
 	if(core->stack_values.count >= 2){
 		Core::Value object = core->stack_values[core->stack_values.count - 2];
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
-		core->setPropertyValue(object, Core::PropertyIndex(name), value, anonymous_setter_enabled, named_setter_enabled);
+		core->setPropertyValue(object, Core::PropertyIndex(name), value, setter_enabled);
 		pop(2);
 	}else{
 		// error
@@ -14925,17 +14928,17 @@ void OS::setProperty(const Core::String& name, bool anonymous_setter_enabled, bo
 	}
 }
 
-void OS::setProperty(int offs, const OS_CHAR * name, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setProperty(int offs, const OS_CHAR * name, bool setter_enabled)
 {
-	setProperty(offs, Core::String(this, name), anonymous_setter_enabled, named_setter_enabled);
+	setProperty(offs, Core::String(this, name), setter_enabled);
 }
 
-void OS::setProperty(int offs, const Core::String& name, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setProperty(int offs, const Core::String& name, bool setter_enabled)
 {
 	if(core->stack_values.count >= 1){
 		Core::Value object = core->getStackValue(offs);
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
-		core->setPropertyValue(object, Core::PropertyIndex(name), value, anonymous_setter_enabled, named_setter_enabled);
+		core->setPropertyValue(object, Core::PropertyIndex(name), value, setter_enabled);
 		pop();
 	}else{
 		// error
@@ -14955,24 +14958,24 @@ void OS::addProperty()
 		core->insertValue(OS_VALUE_VARIANT(value).object->table ? OS_VALUE_VARIANT(value).object->table->next_index : 0, -1);
 		break;
 	}
-	setProperty(false, false);
+	setProperty(false);
 }
 
-void OS::deleteProperty(bool anonymous_del_enabled, bool named_del_enabled)
+void OS::deleteProperty(bool del_enabled)
 {
-	core->deleteValueProperty(core->getStackValue(-2), core->getStackValue(-1), anonymous_del_enabled, named_del_enabled, false);
+	core->deleteValueProperty(core->getStackValue(-2), core->getStackValue(-1), del_enabled, false);
 	pop(2);
 }
 
-void OS::deleteProperty(const OS_CHAR * name, bool anonymous_del_enabled, bool named_del_enabled)
+void OS::deleteProperty(const OS_CHAR * name, bool del_enabled)
 {
-	deleteProperty(Core::String(this, name), anonymous_del_enabled, named_del_enabled);
+	deleteProperty(Core::String(this, name), del_enabled);
 }
 
-void OS::deleteProperty(const Core::String& name, bool anonymous_del_enabled, bool named_del_enabled)
+void OS::deleteProperty(const Core::String& name, bool del_enabled)
 {
 	pushString(name);
-	deleteProperty(anonymous_del_enabled, named_del_enabled);
+	deleteProperty(del_enabled);
 }
 
 void OS::getPrototype()
@@ -15116,35 +15119,53 @@ bool OS::Core::getPropertyValue(Value& result, const Value& table_value, const P
 	return false;
 }
 
-bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled)
 {
 	Value value;
 	if(getPropertyValue(value, table_value, index, prototype_enabled)){
-		return OS_VALUE_TYPE(value) != OS_VALUE_TYPE_NULL;
+		return true; // OS_VALUE_TYPE(value) != OS_VALUE_TYPE_NULL;
 	}
-	if(!anonymous_getter_enabled && !named_getter_enabled){
+	if(!getter_enabled || hasSpecialPrefix(index.index)){
 		return false;
 	}
-	if(hasSpecialPrefix(index.index)){
-		return false;
-	}
-	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_getter_enabled){
-		const void * buf1 = strings->__getAt.toChar();
-		int size1 = strings->__getAt.getDataSize();
+	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
 		const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
 		int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
-		GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-		if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
-			return true;
+		{
+			const void * buf1 = strings->__issetAt.toChar();
+			int size1 = strings->__issetAt.getDataSize();
+			GCStringValue * isset_name = newStringValue(buf1, size1, buf2, size2);
+			if(getPropertyValue(value, table_value, PropertyIndex(isset_name, PropertyIndex::KeepStringIndex()), prototype_enabled)
+				&& value.isFunction())
+			{
+				pushValue(value);
+				pushValue(table_value);
+				call(0, 1);
+				return allocator->popBool();
+			}
+		}
+		{
+			const void * buf1 = strings->__getAt.toChar();
+			int size1 = strings->__getAt.getDataSize();
+			GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
+			if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+				return true;
+			}
 		}
 	}
-	if(anonymous_getter_enabled){
-		// TODO: add __isset method ???
+	if(getPropertyValue(value, table_value, PropertyIndex(strings->__isset, PropertyIndex::KeepStringIndex()), prototype_enabled)
+		&& value.isFunction())
+	{
+		pushValue(value);
+		pushValue(table_value);
+		pushValue(index.index);
+		call(1, 1);
+		return allocator->popBool();
 	}
 	return false;
 }
 
-void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create)
+void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled)
 {
 	GCValue * self = table_value;
 	for(;;){
@@ -15152,8 +15173,8 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 		if(getPropertyValue(value, table_value, index, prototype_enabled)){
 			return pushValue(value);
 		}
-		if((anonymous_getter_enabled || named_getter_enabled) && !hasSpecialPrefix(index.index)){
-			if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_getter_enabled){
+		if(getter_enabled && !hasSpecialPrefix(index.index)){
+			if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
 				const void * buf1 = strings->__getAt.toChar();
 				int size1 = strings->__getAt.getDataSize();
 				const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
@@ -15166,8 +15187,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 					return;
 				}
 			}
-			if(anonymous_getter_enabled && getPropertyValue(value, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
-				// auto_create = false;
+			if(getPropertyValue(value, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 				if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
 					table_value = OS_VALUE_VARIANT(value).value;
 					continue;
@@ -15175,29 +15195,16 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 				pushValue(value);
 				pushValue(self);
 				pushValue(index.index);
-				if(!auto_create){
-					call(1, 1);
-				}else{
-					pushBool(true);
-					call(2, 1);
-				}
-				if(auto_create && OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_NULL){
-					pop();
-					setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
-				}
+				call(1, 1);
 				return;
 			}
-		}
-		if(auto_create){
-			setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
-			return;
 		}
 		break;
 	}
 	return pushNull();
 }
 
-void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create)
+void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled)
 {
 	GCValue * proto;
 	switch(OS_VALUE_TYPE(self)){
@@ -15220,8 +15227,8 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 		if(prototype_enabled && getPropertyValue(value, proto, index, prototype_enabled)){
 			return pushValue(value);
 		}
-		if((anonymous_getter_enabled || named_getter_enabled) && !hasSpecialPrefix(index.index)){
-			if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_getter_enabled){
+		if(getter_enabled && !hasSpecialPrefix(index.index)){
+			if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
 				const void * buf1 = strings->__getAt.toChar();
 				int size1 = strings->__getAt.getDataSize();
 				const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
@@ -15234,8 +15241,7 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 					return;
 				}
 			}
-			if(anonymous_getter_enabled && getPropertyValue(value, proto, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
-				// auto_create = false;
+			if(getPropertyValue(value, proto, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 				if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
 					proto = OS_VALUE_VARIANT(value).value;
 					continue;
@@ -15243,29 +15249,16 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 				pushValue(value);
 				pushValue(self);
 				pushValue(index.index);
-				if(!auto_create){
-					call(1, 1);
-				}else{
-					pushBool(true);
-					call(2, 1);
-				}
-				if(auto_create && OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_NULL){
-					pop();
-					setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
-				}
+				call(1, 1);
 				return;
 			}
-		}
-		if(auto_create){
-			setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
-			return;
 		}
 		break;
 	}
 	return pushNull();
 }
 
-void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create)
+void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled)
 {
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
@@ -15273,20 +15266,20 @@ void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, 
 
 	case OS_VALUE_TYPE_BOOL:
 		/* if(prototype_enabled){
-			return pushPropertyValue(prototypes[PROTOTYPE_BOOL], index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
+			return pushPropertyValue(prototypes[PROTOTYPE_BOOL], index, getter_enabled, prototype_enabled);
 		}
 		break; */
 
 	case OS_VALUE_TYPE_NUMBER:
 		/* if(prototype_enabled){
-			return pushPropertyValue(prototypes[PROTOTYPE_NUMBER], index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
+			return pushPropertyValue(prototypes[PROTOTYPE_NUMBER], index, getter_enabled, prototype_enabled);
 		}
 		break; */
-		return pushPropertyValueForPrimitive(table_value, index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
+		return pushPropertyValueForPrimitive(table_value, index, getter_enabled, prototype_enabled);
 
 	case OS_VALUE_TYPE_STRING:
 		/* if(prototype_enabled){
-			return pushPropertyValue(prototypes[PROTOTYPE_STRING], index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
+			return pushPropertyValue(prototypes[PROTOTYPE_STRING], index, getter_enabled, prototype_enabled);
 		}
 		break; */
 
@@ -15296,18 +15289,18 @@ void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, 
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return pushPropertyValue(OS_VALUE_VARIANT(table_value).value, index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
+		return pushPropertyValue(OS_VALUE_VARIANT(table_value).value, index, getter_enabled, prototype_enabled);
 	}
 	pushNull();
 }
 
-void OS::getProperty(bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getProperty(bool getter_enabled, bool prototype_enabled)
 {
 	if(core->stack_values.count >= 2){
 		Core::Value object = core->stack_values[core->stack_values.count - 2];
 		Core::Value index = core->stack_values[core->stack_values.count - 1];
 		// core->stack_values.count -= 2;
-		core->pushPropertyValue(object, Core::PropertyIndex(index), anonymous_getter_enabled, named_getter_enabled, prototype_enabled, false);
+		core->pushPropertyValue(object, Core::PropertyIndex(index), getter_enabled, prototype_enabled);
 		core->removeStackValues(-3, 2);
 	}else{
 		// error
@@ -15316,26 +15309,26 @@ void OS::getProperty(bool anonymous_getter_enabled, bool named_getter_enabled, b
 	}
 }
 
-void OS::getProperty(const OS_CHAR * name, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getProperty(const OS_CHAR * name, bool getter_enabled, bool prototype_enabled)
 {
-	getProperty(Core::String(this, name), anonymous_getter_enabled, named_getter_enabled, prototype_enabled);
+	getProperty(Core::String(this, name), getter_enabled, prototype_enabled);
 }
 
-void OS::getProperty(const Core::String& name, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getProperty(const Core::String& name, bool getter_enabled, bool prototype_enabled)
 {
 	pushString(name);
-	getProperty(anonymous_getter_enabled, named_getter_enabled, prototype_enabled);
+	getProperty(getter_enabled, prototype_enabled);
 }
 
-void OS::getProperty(int offs, const OS_CHAR * name, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getProperty(int offs, const OS_CHAR * name, bool getter_enabled, bool prototype_enabled)
 {
-	getProperty(offs, Core::String(this, name), anonymous_getter_enabled, named_getter_enabled, prototype_enabled);
+	getProperty(offs, Core::String(this, name), getter_enabled, prototype_enabled);
 }
 
-void OS::getProperty(int offs, const Core::String& name, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getProperty(int offs, const Core::String& name, bool getter_enabled, bool prototype_enabled)
 {
 	pushStackValue(offs);
-	getProperty(name, anonymous_getter_enabled, named_getter_enabled, prototype_enabled);
+	getProperty(name, getter_enabled, prototype_enabled);
 }
 
 void OS::Core::releaseLocals(Locals * locals)
@@ -15966,7 +15959,7 @@ int OS::Core::execute()
 				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
 				c = OS_GETARG_C(instruction);
 				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
-				pushPropertyValue(stack_func_locals[a], PropertyIndex(stack_func_locals[a + 1]), true, true, true, false);
+				pushPropertyValue(stack_func_locals[a], PropertyIndex(stack_func_locals[a + 1]), true, true);
 				stack_func_locals[a + 1] = stack_func_locals[a]; // this
 				stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
 				call(stack_func->locals_stack_pos + a, b, c, NULL, true);
@@ -16145,7 +16138,7 @@ int OS::Core::execute()
 				/* if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && obj_type == OS_VALUE_TYPE_OBJECT){
 					
 				} */
-				const bool anonymous_getter_enabled = true, named_getter_enabled = true, prototype_enabled = true, auto_create = false;
+				const bool getter_enabled = true, prototype_enabled = true;
 				switch(obj_type){
 				case OS_VALUE_TYPE_NULL:
 				default:
@@ -16154,7 +16147,7 @@ int OS::Core::execute()
 
 				case OS_VALUE_TYPE_BOOL:
 				case OS_VALUE_TYPE_NUMBER:
-					pushPropertyValueForPrimitive(obj, index, anonymous_getter_enabled, named_getter_enabled, prototype_enabled, auto_create);
+					pushPropertyValueForPrimitive(obj, index, getter_enabled, prototype_enabled);
 					stack_func_locals[a] = stack_values.buf[--stack_values.count];
 					break;
 
@@ -16187,8 +16180,8 @@ int OS::Core::execute()
 								stack_func_locals[a] = value;
 								break;
 							}
-							if((anonymous_getter_enabled || named_getter_enabled) && !hasSpecialPrefix(index.index)){
-								if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_getter_enabled){
+							if(getter_enabled && !hasSpecialPrefix(index.index)){
+								if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
 									const void * buf1 = strings->__getAt.toChar();
 									int size1 = strings->__getAt.getDataSize();
 									const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
@@ -16202,8 +16195,7 @@ int OS::Core::execute()
 										break;
 									}
 								}
-								if(anonymous_getter_enabled && getPropertyValue(value, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
-									// auto_create = false;
+								if(getPropertyValue(value, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
 									if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
 										table_value = OS_VALUE_VARIANT(value).value;
 										continue;
@@ -16211,24 +16203,10 @@ int OS::Core::execute()
 									pushValue(value);
 									pushValue(self);
 									pushValue(index.index);
-									if(!auto_create){
-										call(1, 1);
-									}else{
-										pushBool(true);
-										call(2, 1);
-									}
-									if(auto_create && OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_NULL){
-										pop();
-										setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
-									}
+									call(1, 1);
 									stack_func_locals[a] = stack_values.buf[--stack_values.count];
 									break;
 								}
-							}
-							if(auto_create){
-								setPropertyValue(self, index, Value(pushObjectValue()), false, false); 
-								stack_func_locals[a] = stack_values.buf[--stack_values.count];
-								break;
 							}
 							stack_func_locals[a] = Value();
 							break;
@@ -16262,12 +16240,12 @@ int OS::Core::execute()
 					continue;
 				}
 #if 1
-				setPropertyValue(obj, PropertyIndex(index), OS_GETARG_C_VALUE(), true, true);
+				setPropertyValue(obj, PropertyIndex(index), OS_GETARG_C_VALUE(), true);
 				// setPropertyValue(stack_func_locals[a], PropertyIndex(OS_GETARG_B_VALUE()), OS_GETARG_C_VALUE(), true, true);
 #else			// inline setPropertyValue
 				Value& obj = stack_func_locals[b];
 				const PropertyIndex index(OS_GETARG_B_VALUE());
-				const bool anonymous_setter_enabled = true, named_setter_enabled = true;
+				const bool setter_enabled = true;
 
 				switch(OS_VALUE_TYPE(obj)){
 				default:
@@ -16355,9 +16333,9 @@ int OS::Core::execute()
 					return;
 				}
 
-				if((anonymous_setter_enabled || named_setter_enabled) && !hasSpecialPrefix(index.index)){
+				if(setter_enabled && !hasSpecialPrefix(index.index)){
 					Value func;
-					if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && named_setter_enabled){
+					if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
 						const void * buf1 = strings->__setAt.toChar();
 						int size1 = strings->__setAt.getDataSize();
 						const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
@@ -16371,7 +16349,7 @@ int OS::Core::execute()
 							return;
 						}
 					}
-					if(anonymous_setter_enabled && getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), true)){
+					if(getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), true)){
 						pushValue(func);
 						pushValue(table_value);
 						pushValue(index.index);
@@ -16675,13 +16653,13 @@ void OS::setErrorHandler(int code)
 	remove(-2);
 }
 
-void OS::setFunc(const FuncDef& def, bool anonymous_setter_enabled, bool named_setter_enabled, int closure_values, void * user_param)
+void OS::setFunc(const FuncDef& def, bool setter_enabled, int closure_values, void * user_param)
 {
 	const FuncDef list[] = {def, {}};
-	setFuncs(list, anonymous_setter_enabled, named_setter_enabled, closure_values, user_param);
+	setFuncs(list, setter_enabled, closure_values, user_param);
 }
 
-void OS::setFuncs(const FuncDef * list, bool anonymous_setter_enabled, bool named_setter_enabled, int closure_values, void * user_param)
+void OS::setFuncs(const FuncDef * list, bool setter_enabled, int closure_values, void * user_param)
 {
 	for(; list->func; list++){
 		pushStackValue(-1);
@@ -16691,63 +16669,63 @@ void OS::setFuncs(const FuncDef * list, bool anonymous_setter_enabled, bool name
 			pushStackValue(-2-closure_values);
 		}
 		pushCFunction(list->func, closure_values, list->user_param ? list->user_param : user_param);
-		setProperty(anonymous_setter_enabled, named_setter_enabled);
+		setProperty(setter_enabled);
 	}
 }
 
-void OS::setNumber(const NumberDef& def, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setNumber(const NumberDef& def, bool setter_enabled)
 {
 	const NumberDef list[] = {def, {}};
-	setNumbers(list, anonymous_setter_enabled, named_setter_enabled);
+	setNumbers(list, setter_enabled);
 }
 
-void OS::setNumbers(const NumberDef * list, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setNumbers(const NumberDef * list, bool setter_enabled)
 {
 	for(; list->name; list++){
 		pushStackValue(-1);
 		pushString(list->name);
 		pushNumber(list->value);
-		setProperty(anonymous_setter_enabled, named_setter_enabled);
+		setProperty(setter_enabled);
 	}
 }
 
-void OS::setString(const StringDef& def, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setString(const StringDef& def, bool setter_enabled)
 {
 	const StringDef list[] = {def, {}};
-	setStrings(list, anonymous_setter_enabled, named_setter_enabled);
+	setStrings(list, setter_enabled);
 }
 
-void OS::setStrings(const StringDef * list, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setStrings(const StringDef * list, bool setter_enabled)
 {
 	for(; list->name; list++){
 		pushStackValue(-1);
 		pushString(list->name);
 		pushString(list->value);
-		setProperty(anonymous_setter_enabled, named_setter_enabled);
+		setProperty(setter_enabled);
 	}
 }
 
-void OS::setNull(const NullDef& def, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setNull(const NullDef& def, bool setter_enabled)
 {
 	const NullDef list[] = {def, {}};
-	setNulls(list, anonymous_setter_enabled, named_setter_enabled);
+	setNulls(list, setter_enabled);
 }
 
-void OS::setNulls(const NullDef * list, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setNulls(const NullDef * list, bool setter_enabled)
 {
 	for(; list->name; list++){
 		pushStackValue(-1);
 		pushString(list->name);
 		pushNull();
-		setProperty(anonymous_setter_enabled, named_setter_enabled);
+		setProperty(setter_enabled);
 	}
 }
 
-void OS::getObject(const OS_CHAR * name, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getObject(const OS_CHAR * name, bool getter_enabled, bool prototype_enabled)
 {
 	pushStackValue(-1); // 2: copy parent object
 	pushString(name);	// 3: index
-	getProperty(anonymous_getter_enabled, named_getter_enabled, prototype_enabled); // 2: value
+	getProperty(getter_enabled, prototype_enabled); // 2: value
 	if(isObject()){
 		remove(-2);		// 1: remove parent object
 		return;
@@ -16757,56 +16735,56 @@ void OS::getObject(const OS_CHAR * name, bool anonymous_getter_enabled, bool nam
 	pushStackValue(-2);	// 3: copy parent object
 	pushString(name);	// 4: index
 	pushStackValue(-3);	// 5: copy result object
-	setProperty(anonymous_getter_enabled, named_getter_enabled); // 2: parent + result
+	setProperty(getter_enabled); // 2: parent + result
 	remove(-2);			// 1: remove parent object
 }
 
-void OS::getGlobalObject(const OS_CHAR * name, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getGlobalObject(const OS_CHAR * name, bool getter_enabled, bool prototype_enabled)
 {
 	pushGlobals();
-	getObject(name, anonymous_getter_enabled, named_getter_enabled, prototype_enabled);
+	getObject(name, getter_enabled, prototype_enabled);
 }
 
-void OS::getModule(const OS_CHAR * name, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getModule(const OS_CHAR * name, bool getter_enabled, bool prototype_enabled)
 {
-	getGlobalObject(name, anonymous_getter_enabled, named_getter_enabled, prototype_enabled);
+	getGlobalObject(name, getter_enabled, prototype_enabled);
 	pushStackValue(-1);
 	pushGlobals();
 	setPrototype();
 }
 
-void OS::getGlobal(const OS_CHAR * name, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getGlobal(const OS_CHAR * name, bool getter_enabled, bool prototype_enabled)
 {
-	getGlobal(Core::String(this, name), anonymous_getter_enabled, named_getter_enabled, prototype_enabled);
+	getGlobal(Core::String(this, name), getter_enabled, prototype_enabled);
 }
 
-void OS::getGlobal(const Core::String& name, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled)
+void OS::getGlobal(const Core::String& name, bool getter_enabled, bool prototype_enabled)
 {
 	pushGlobals();
 	pushString(name);
-	getProperty(anonymous_getter_enabled, named_getter_enabled, prototype_enabled);
+	getProperty(getter_enabled, prototype_enabled);
 }
 
-void OS::setGlobal(const OS_CHAR * name, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setGlobal(const OS_CHAR * name, bool setter_enabled)
 {
-	setGlobal(Core::String(this, name), anonymous_setter_enabled, named_setter_enabled);
+	setGlobal(Core::String(this, name), setter_enabled);
 }
 
-void OS::setGlobal(const Core::String& name, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setGlobal(const Core::String& name, bool setter_enabled)
 {
 	if(core->stack_values.count >= 1){
 		Core::Value object = core->global_vars;
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
 		Core::Value index = core->pushStringValue(name);
-		core->setPropertyValue(object, Core::PropertyIndex(index), value, anonymous_setter_enabled, named_setter_enabled);
+		core->setPropertyValue(object, Core::PropertyIndex(index), value, setter_enabled);
 		pop(2);
 	}
 }
 
-void OS::setGlobal(const FuncDef& func, bool anonymous_setter_enabled, bool named_setter_enabled)
+void OS::setGlobal(const FuncDef& func, bool setter_enabled)
 {
 	pushCFunction(func.func, func.user_param);
-	setGlobal(func.name, anonymous_setter_enabled, named_setter_enabled);
+	setGlobal(func.name, setter_enabled);
 }
 
 static const OS_CHAR DIGITS[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -17526,7 +17504,7 @@ void OS::initGlobalFunctions()
 		static int deleteOp(OS * os, int params, int, int, void*)
 		{
 			OS_ASSERT(params == 2);
-			os->core->deleteValueProperty(os->core->getStackValue(-params), os->core->getStackValue(-params+1), true, true, false);
+			os->core->deleteValueProperty(os->core->getStackValue(-params), os->core->getStackValue(-params+1), true, false);
 			return 0;
 		}
 
@@ -17564,7 +17542,7 @@ void OS::initGlobalFunctions()
 		{
 			if(params != 2) return 0;
 			Core::GCValue * self = os->core->getStackValue(-params+1).getGCValue();
-			bool has_property = self && os->core->hasProperty(self, os->core->getStackValue(-params), true, true, true);
+			bool has_property = self && os->core->hasProperty(self, os->core->getStackValue(-params), true, true);
 			os->pushBool(has_property);
 			return 1;
 		}
@@ -17704,29 +17682,25 @@ void OS::initObjectClass()
 	{
 		static int rawget(OS * os, int params, int, int, void*)
 		{
-			bool anonymous_getter_enabled = false, named_getter_enabled = false, prototype_enabled = false;
+			bool getter_enabled = false, prototype_enabled = false;
 			switch(params){
 			case 0:
 				break;
 
 			default:
-				os->pop(params-4);
-				// no break
-
-			case 4:
-				prototype_enabled = os->popBool(false);
+				os->pop(params-3);
 				// no break
 
 			case 3:
-				named_getter_enabled = os->popBool(false);
+				prototype_enabled = os->popBool(false);
 				// no break
 
 			case 2:
-				anonymous_getter_enabled = os->popBool(false);
+				getter_enabled = os->popBool(false);
 				// no break
 
 			case 1:
-				os->getProperty(anonymous_getter_enabled, named_getter_enabled, prototype_enabled);
+				os->getProperty(getter_enabled, prototype_enabled);
 				return 1;
 			}
 			return 0;
@@ -17734,25 +17708,21 @@ void OS::initObjectClass()
 
 		static int rawset(OS * os, int params, int, int, void*)
 		{
-			bool anonymous_getter_enabled = false, named_getter_enabled = false;
+			bool getter_enabled = false;
 			switch(params){
 			case 0:
 				break;
 
 			default:
-				os->pop(params-4);
-				// no break
-
-			case 4:
-				named_getter_enabled = os->popBool(false);
+				os->pop(params-3);
 				// no break
 
 			case 3:
-				anonymous_getter_enabled = os->popBool(false);
+				getter_enabled = os->popBool(false);
 				// no break
 
 			case 2:
-				os->setProperty(anonymous_getter_enabled, named_getter_enabled);
+				os->setProperty(getter_enabled);
 			}
 			return 0;
 		}
@@ -18095,7 +18065,7 @@ void OS::initObjectClass()
 						}
 						Core::GCValue * gcvalue = value.getGCValue();
 						if(gcvalue && gcvalue->table && gcvalue->table->count){
-							os->core->setPropertyValue(os->core->check_recursion, value, Core::Value(true), false, false);
+							os->core->setPropertyValue(os->core->check_recursion, value, Core::Value(true), false);
 						}
 						Core::String value_str = os->core->valueToString(value, true);
 						if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_STRING){
@@ -18140,7 +18110,7 @@ void OS::initObjectClass()
 								buf += OS_TEXT("<<RECURSION>>");
 							}else{
 								if(gcvalue && gcvalue->table && gcvalue->table->count){
-									os->core->setPropertyValue(os->core->check_recursion, prop->index, Core::Value(true), false, false);
+									os->core->setPropertyValue(os->core->check_recursion, prop->index, Core::Value(true), false);
 								}
 								buf += os->core->valueToString(prop->index, true);
 							}
@@ -18153,7 +18123,7 @@ void OS::initObjectClass()
 						}
 						Core::GCValue * gcvalue = prop->value.getGCValue();
 						if(gcvalue && gcvalue->table && gcvalue->table->count){
-							os->core->setPropertyValue(os->core->check_recursion, prop->value, Core::Value(true), false, false);
+							os->core->setPropertyValue(os->core->check_recursion, prop->value, Core::Value(true), false);
 						}
 
 						Core::String value_str = os->core->valueToString(prop->value, true);
@@ -18193,7 +18163,7 @@ void OS::initObjectClass()
 			default:
 				return 0;
 			}
-			os->core->setPropertyValue(self_var, Core::PropertyIndex(num_index), value, false, false);
+			os->core->setPropertyValue(self_var, Core::PropertyIndex(num_index), value, false);
 			// os->pushNumber(self_var.v.object->table->count);
 			os->core->pushValue(value);
 			return 1;
@@ -18220,7 +18190,7 @@ void OS::initObjectClass()
 				if(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->count > 0){
 					os->core->pushValue(OS_VALUE_VARIANT(self_var).object->table->last->value);
 					Core::PropertyIndex index = *OS_VALUE_VARIANT(self_var).object->table->last;
-					os->core->deleteValueProperty(OS_VALUE_VARIANT(self_var).object, index, false, false, false);
+					os->core->deleteValueProperty(OS_VALUE_VARIANT(self_var).object, index, false, false);
 					return 1;
 				}
 				break;
@@ -18234,7 +18204,7 @@ void OS::initObjectClass()
 			Core::Value index = os->core->getStackValue(-params);
 			Core::GCValue * self = self_var.getGCValue();
 			if(self){
-				os->pushBool( os->core->hasProperty(self, index, true, true, false) );
+				os->pushBool( os->core->hasProperty(self, index, true, false) );
 				return 1;
 			}
 			return 0;
@@ -18246,7 +18216,7 @@ void OS::initObjectClass()
 			Core::Value index = os->core->getStackValue(-params);
 			Core::GCValue * self = self_var.getGCValue();
 			if(self){
-				os->pushBool( os->core->hasProperty(self, index, true, true, true) );
+				os->pushBool( os->core->hasProperty(self, index, true, true) );
 				return 1;
 			}
 			return 0;
@@ -18319,7 +18289,7 @@ void OS::initObjectClass()
 				os->vectorAddItem(captured_items, prop->value OS_DBG_FILEPOS);
 			}
 			for(i = 0; i < len; i++){
-				os->core->setPropertyValue(object, captured_items[i*2], captured_items[i*2+1], false, false);
+				os->core->setPropertyValue(object, captured_items[i*2], captured_items[i*2+1], false);
 			}
 			os->vectorClear(captured_items);
 			return 1;
@@ -18647,6 +18617,28 @@ void OS::initArrayClass()
 	pop();
 }
 
+/*
+OS_DECL_USER_CLASS(OS::StringBuffer);
+
+void OS::initStringBufferClass()
+{
+	struct Lib
+	{
+		static int __construct(OS * os, int params, int, int, void * user_param)
+		{
+			// CtypeValue<StringBuffer*>::push(os, new StringBuffer(os));
+			return 1;
+		}
+	};
+
+	OS::FuncDef funcs[] = {
+		{OS_TEXT("__construct"), Lib::__construct},
+		{}
+	};
+	registerUserClass<OS::StringBuffer>(this, funcs);
+}
+*/
+
 void OS::initStringClass()
 {
 	struct String
@@ -18806,9 +18798,9 @@ void OS::initStringClass()
 				if(search_len > 0 && search_len <= subject_len){
 					const OS_CHAR * subject_str = subject.toChar();
 					const OS_CHAR * search_str = search.toChar();
-					int end = subject_len - search_len + 1;
+					int end = subject_len - search_len;
 					int i = params >= 2 ? os->toInt(-params+1) : 0;
-					for(; i < end;){
+					for(; i <= end;){
 						if(OS_MEMCMP(subject_str + i, search_str, sizeof(OS_CHAR)*search_len) == 0){
 							os->pushNumber(i);
 							return 1;
@@ -18834,7 +18826,6 @@ void OS::initStringClass()
 		{OS_TEXT("sub"), String::sub},
 		{OS_TEXT("find"), String::find},
 		{OS_TEXT("replace"), String::replace},
-		// {OS_TEXT("__get@length"), String::length},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_STRING]);
@@ -19553,7 +19544,7 @@ OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
 					Property * prop = object_props->table->first;
 					for(; prop; prop = prop->next){
 						core->pushCloneValue(prop->value);
-						core->setPropertyValue(object, *prop, core->stack_values.lastElement(), true, true);
+						core->setPropertyValue(object, *prop, core->stack_values.lastElement(), true);
 						core->pop();
 					}
 				}
@@ -19585,7 +19576,7 @@ void OS::Core::pushArguments(StackFunction * stack_func)
 		if(stack_func->rest_arguments){
 			GCArrayValue * arr = stack_func->rest_arguments;
 			for(i = 0; i < arr->values.count; i++){
-				setPropertyValue(args, PropertyIndex(args->values.count), arr->values[i], false, false);
+				setPropertyValue(args, PropertyIndex(args->values.count), arr->values[i], false);
 			}
 		}
 		stack_func->arguments = args;
@@ -19602,16 +19593,16 @@ void OS::Core::pushArgumentsWithNames(StackFunction * stack_func)
 	FunctionDecl * func_decl = stack_func->func->func_decl;
 	int num_params = stack_func->num_params;
 	for(i = PRE_VARS; i < num_params; i++){ // skip func & this
-		setPropertyValue(args, PropertyIndex(func_decl->locals[i].name.string, PropertyIndex::KeepStringIndex()), func_locals->values[i], false, false);
+		setPropertyValue(args, PropertyIndex(func_decl->locals[i].name.string, PropertyIndex::KeepStringIndex()), func_locals->values[i], false);
 	}
 	if(num_params < func_decl->num_params){
 		for(; i < func_decl->num_params; i++){
-			setPropertyValue(args, PropertyIndex(func_decl->locals[i].name.string, PropertyIndex::KeepStringIndex()), Value(), false, false);
+			setPropertyValue(args, PropertyIndex(func_decl->locals[i].name.string, PropertyIndex::KeepStringIndex()), Value(), false);
 		}
 	}else if(stack_func->rest_arguments){
 		GCArrayValue * arr = stack_func->rest_arguments;
 		for(i = 0; i < arr->values.count; i++){
-			setPropertyValue(args, Value(args->table ? args->table->next_index : 0), arr->values[i], false, false);
+			setPropertyValue(args, Value(args->table ? args->table->next_index : 0), arr->values[i], false);
 		}
 	}
 }
@@ -19652,28 +19643,28 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 		}
 
 		GCObjectValue * obj = pushObjectValue();
-		setPropertyValue(obj, PropertyIndex(name_str, PropertyIndex::KeepStringIndex()), stack_func->func->name ? stack_func->func->name : lambda_str.string, false, false);
-		setPropertyValue(obj, PropertyIndex(function_str, PropertyIndex::KeepStringIndex()), stack_func->func, false, false);
+		setPropertyValue(obj, PropertyIndex(name_str, PropertyIndex::KeepStringIndex()), stack_func->func->name ? stack_func->func->name : lambda_str.string, false);
+		setPropertyValue(obj, PropertyIndex(function_str, PropertyIndex::KeepStringIndex()), stack_func->func, false);
 
 		const String& filename = prog->filename.getDataSize() ? prog->filename : core_str;
-		setPropertyValue(obj, PropertyIndex(file_str, PropertyIndex::KeepStringIndex()), filename.string, false, false);
+		setPropertyValue(obj, PropertyIndex(file_str, PropertyIndex::KeepStringIndex()), filename.string, false);
 
 		Program::DebugInfoItem * debug_info = NULL;
 		if(prog->filename.getDataSize() && prog->debug_info.count > 0){
 			int opcode_pos = stack_func->opcodes - prog->opcodes.buf; // .getPos() + stack_func->func->func_decl->opcodes_pos;
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
-		setPropertyValue(obj, PropertyIndex(line_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->line : Value(), false, false);
-		setPropertyValue(obj, PropertyIndex(pos_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->pos : Value(), false, false);
-		setPropertyValue(obj, PropertyIndex(token_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->token.string : Value(), false, false);
+		setPropertyValue(obj, PropertyIndex(line_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->line : Value(), false);
+		setPropertyValue(obj, PropertyIndex(pos_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->pos : Value(), false);
+		setPropertyValue(obj, PropertyIndex(token_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->token.string : Value(), false);
 
-		setPropertyValue(obj, PropertyIndex(object_str, PropertyIndex::KeepStringIndex()), stack_func->locals->values[PRE_VAR_THIS], false, false);
+		setPropertyValue(obj, PropertyIndex(object_str, PropertyIndex::KeepStringIndex()), stack_func->locals->values[PRE_VAR_THIS], false);
 
 		pushArgumentsWithNames(stack_func);
-		setPropertyValue(obj, PropertyIndex(arguments_str, PropertyIndex::KeepStringIndex()), stack_values.lastElement(), false, false);
+		setPropertyValue(obj, PropertyIndex(arguments_str, PropertyIndex::KeepStringIndex()), stack_values.lastElement(), false);
 		pop(); // remove args
 
-		setPropertyValue(arr, Value(arr->values.count), obj, false, false);
+		setPropertyValue(arr, Value(arr->values.count), obj, false);
 		pop(); // remove obj
 	}
 }

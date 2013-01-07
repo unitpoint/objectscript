@@ -42,10 +42,10 @@ public:
 				pushStackValue(-1);
 				pushString(value, split - value);
 				pushString(split + 1);
-				setProperty(false, false);
+				setProperty(false);
 			}
 		}
-		setGlobal(var_name, false, false);
+		setGlobal(var_name, false);
 	}
 
 	void printf(const OS_CHAR * fmt, ...)

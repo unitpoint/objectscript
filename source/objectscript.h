@@ -2381,8 +2381,10 @@ namespace ObjectScript
 				String __object;
 				String __get;
 				String __set;
+				String __isset;
 				String __getAt;
 				String __setAt;
+				String __issetAt;
 				String __del;
 				String __delAt;
 				String __getempty;
@@ -2704,8 +2706,8 @@ namespace ObjectScript
 			void pushOpResultValue(OpcodeType opcode, const Value& left_value, const Value& right_value);
 			bool isEqualExactly(const Value& left_value, const Value& right_value);
 
-			void setGlobalValue(const String& name, Value value, bool anonymous_setter_enabled, bool named_setter_enabled);
-			void setGlobalValue(const OS_CHAR * name, Value value, bool anonymous_setter_enabled, bool named_setter_enabled);
+			void setGlobalValue(const String& name, Value value, bool setter_enabled);
+			void setGlobalValue(const OS_CHAR * name, Value value, bool setter_enabled);
 
 			int getStackOffs(int offs);
 			Value getStackValue(int offs);
@@ -2755,11 +2757,11 @@ namespace ObjectScript
 			Property * removeTableProperty(Table * table, const PropertyIndex& index);
 			void changePropertyIndex(Table * table, Property * prop, const PropertyIndex& new_index);
 			bool deleteTableProperty(Table * table, const PropertyIndex& index);
-			void deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled);
-			void deleteValueProperty(const Value& table_value, const PropertyIndex& index, bool anonymous_del_enabled, bool named_del_enabled, bool prototype_enabled);
+			void deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool del_enabled, bool prototype_enabled);
+			void deleteValueProperty(const Value& table_value, const PropertyIndex& index, bool del_enabled, bool prototype_enabled);
 			
 			void copyTableProperties(Table * dst, Table * src);
-			void copyTableProperties(GCValue * dst_value, GCValue * src_value, bool anonymous_setter_enabled, bool named_setter_enabled);
+			void copyTableProperties(GCValue * dst_value, GCValue * src_value, bool setter_enabled);
 
 			void sortTable(Table * table, int(*comp)(OS*, const void*, const void*, void*), void* = NULL, bool reorder_keys = false);
 			void sortArray(GCArrayValue * arr, int(*comp)(OS*, const void*, const void*, void*), void* = NULL);
@@ -2786,17 +2788,17 @@ namespace ObjectScript
 			bool hasSpecialPrefix(const Value&);
 
 			Property * setTableValue(Table * table, const PropertyIndex& index, Value val);
-			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool anonymous_setter_enabled, bool named_setter_enabled);
-			void setPropertyValue(Value table_value, const PropertyIndex& index, Value val, bool anonymous_setter_enabled, bool named_setter_enabled);
+			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool setter_enabled);
+			void setPropertyValue(Value table_value, const PropertyIndex& index, Value val, bool setter_enabled);
 
 			bool getPropertyValue(Value& result, Table * table, const PropertyIndex& index);
 			bool getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled);
 			bool getPropertyValue(Value& result, const Value& table_value, const PropertyIndex& index, bool prototype_enabled);
 
-			bool hasProperty(GCValue * table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled);
-			void pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create);
-			void pushPropertyValueForPrimitive(Value self, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create);
-			void pushPropertyValue(Value table_value, const PropertyIndex& index, bool anonymous_getter_enabled, bool named_getter_enabled, bool prototype_enabled, bool auto_create);
+			bool hasProperty(GCValue * table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
+			void pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
+			void pushPropertyValueForPrimitive(Value self, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
+			void pushPropertyValue(Value table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
 
 			void setPrototype(Value val, Value proto, int userdata_crc);
 			void pushPrototype(Value val);
@@ -2842,6 +2844,7 @@ namespace ObjectScript
 		void initArrayClass();
 		void initFunctionClass();
 		void initStringClass();
+		// void initStringBufferClass();
 		void initMathModule();
 		void initGCModule();
 		void initLangTokenizerModule();
@@ -2886,6 +2889,19 @@ namespace ObjectScript
 			String trim(bool trim_left = true, bool trim_right = true) const;
 		};
 
+		/*
+		class StringBuffer: public Core::StringBuffer
+		{
+			typedef Core::StringBuffer super;
+
+		protected:
+
+		public:
+
+			StringBuffer(OS * os): super(os){};
+		};
+		*/
+
 		static OS * create(MemoryManager* = NULL);
 
 		template <class T>
@@ -2917,32 +2933,32 @@ namespace ObjectScript
 		void setTerminated(bool = true, int = 0);
 		void resetTerminated();
 
-		void getProperty(bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
-		void getProperty(const OS_CHAR*, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
-		void getProperty(const Core::String&, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
-		void getProperty(int offs, const OS_CHAR*, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
-		void getProperty(int offs, const Core::String&, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
+		void getProperty(bool getter_enabled = true, bool prototype_enabled = true);
+		void getProperty(const OS_CHAR*, bool getter_enabled = true, bool prototype_enabled = true);
+		void getProperty(const Core::String&, bool getter_enabled = true, bool prototype_enabled = true);
+		void getProperty(int offs, const OS_CHAR*, bool getter_enabled = true, bool prototype_enabled = true);
+		void getProperty(int offs, const Core::String&, bool getter_enabled = true, bool prototype_enabled = true);
 		
-		void setProperty(bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setProperty(const OS_CHAR*, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setProperty(const Core::String&, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setProperty(int offs, const OS_CHAR*, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setProperty(int offs, const Core::String&, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+		void setProperty(bool setter_enabled = true);
+		void setProperty(const OS_CHAR*, bool setter_enabled = true);
+		void setProperty(const Core::String&, bool setter_enabled = true);
+		void setProperty(int offs, const OS_CHAR*, bool setter_enabled = true);
+		void setProperty(int offs, const Core::String&, bool setter_enabled = true);
 		void addProperty();
 
-		void deleteProperty(bool anonymous_del_enabled = true, bool named_del_enabled = true);
-		void deleteProperty(const OS_CHAR*, bool anonymous_del_enabled = true, bool named_del_enabled = true);
-		void deleteProperty(const Core::String&, bool anonymous_del_enabled = true, bool named_del_enabled = true);
+		void deleteProperty(bool del_enabled = true);
+		void deleteProperty(const OS_CHAR*, bool del_enabled = true);
+		void deleteProperty(const Core::String&, bool del_enabled = true);
 
-		void getGlobal(const OS_CHAR*, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
-		void getGlobal(const Core::String&, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
+		void getGlobal(const OS_CHAR*, bool getter_enabled = true, bool prototype_enabled = true);
+		void getGlobal(const Core::String&, bool getter_enabled = true, bool prototype_enabled = true);
 
-		void setGlobal(const OS_CHAR*, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setGlobal(const Core::String&, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+		void setGlobal(const OS_CHAR*, bool setter_enabled = true);
+		void setGlobal(const Core::String&, bool setter_enabled = true);
 
 		struct FuncDef;
 		
-		void setGlobal(const FuncDef& func, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+		void setGlobal(const FuncDef& func, bool setter_enabled = true);
 
 		void getPrototype();
 		void setPrototype();
@@ -3081,18 +3097,18 @@ namespace ObjectScript
 			const OS_CHAR * name;
 		};
 		
-		void setFuncs(const FuncDef * list, bool anonymous_setter_enabled = true, bool named_setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
-		void setFunc(const FuncDef& def, bool anonymous_setter_enabled = true, bool named_setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
-		void setNumbers(const NumberDef * list, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setNumber(const NumberDef& def, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setStrings(const StringDef * list, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setString(const StringDef& def, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setNulls(const NullDef * list, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
-		void setNull(const NullDef& def, bool anonymous_setter_enabled = true, bool named_setter_enabled = true);
+		void setFuncs(const FuncDef * list, bool setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
+		void setFunc(const FuncDef& def, bool setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
+		void setNumbers(const NumberDef * list, bool setter_enabled = true);
+		void setNumber(const NumberDef& def, bool setter_enabled = true);
+		void setStrings(const StringDef * list, bool setter_enabled = true);
+		void setString(const StringDef& def, bool setter_enabled = true);
+		void setNulls(const NullDef * list, bool setter_enabled = true);
+		void setNull(const NullDef& def, bool setter_enabled = true);
 
-		void getObject(const OS_CHAR * name, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
-		void getGlobalObject(const OS_CHAR * name, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
-		void getModule(const OS_CHAR * name, bool anonymous_getter_enabled = true, bool named_getter_enabled = true, bool prototype_enabled = true);
+		void getObject(const OS_CHAR * name, bool getter_enabled = true, bool prototype_enabled = true);
+		void getGlobalObject(const OS_CHAR * name, bool getter_enabled = true, bool prototype_enabled = true);
+		void getModule(const OS_CHAR * name, bool getter_enabled = true, bool prototype_enabled = true);
 
 		void triggerError(int code, const OS_CHAR * message);
 		void triggerError(int code, const String& message);
@@ -3138,8 +3154,6 @@ namespace ObjectScript
 
 		virtual void printf(const OS_CHAR * fmt, ...);
 
-		// virtual void onEnterGC();
-		// virtual void onExitGC();
 	};
 
 } // namespace ObjectScript
