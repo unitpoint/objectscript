@@ -223,11 +223,11 @@ struct CtypeValue<TestStruct>
 	
 		os->pushStackValue();
 		os->pushNumber(p.a);
-		os->setProperty("a", false, false);
+		os->setProperty("a");
 				
 		os->pushStackValue();
 		os->pushNumber(p.b);
-		os->setProperty("b", false, false);
+		os->setProperty("b");
 	}
 };
 

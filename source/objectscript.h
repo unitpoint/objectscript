@@ -38,6 +38,8 @@
 
 #if !defined __GNUC__ || defined IW_SDK
 #include <new.h>
+#elif defined(__GNUC__)
+#include <new>
 #else
 inline void *operator new(size_t, void * p){ return p; }
 inline void operator delete(void *, void *){}
@@ -1349,8 +1351,6 @@ namespace ObjectScript
 			struct WeakRef { WeakRef(){} };
 
 			template <class T> struct NumberType { enum { FLOAT = 0 }; };
-			template <> struct NumberType<double> { enum { FLOAT = 1 }; };
-			template <> struct NumberType<float> { enum { FLOAT = 1 }; };
 
 /* Microsoft compiler on a Pentium (32 bit) ? */
 #if defined(_MSC_VER) && defined(_M_IX86)
@@ -3155,6 +3155,9 @@ namespace ObjectScript
 		virtual void printf(const OS_CHAR * fmt, ...);
 
 	};
+
+	template <> struct OS::Core::NumberType<double> { enum { FLOAT = 1 }; };
+	template <> struct OS::Core::NumberType<float> { enum { FLOAT = 1 }; };
 
 } // namespace ObjectScript
 
