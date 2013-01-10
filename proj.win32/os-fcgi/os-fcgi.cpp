@@ -42,10 +42,10 @@ public:
 				pushStackValue(-1);
 				pushString(value, split - value);
 				pushString(split + 1);
-				setProperty(false);
+				setProperty();
 			}
 		}
-		setGlobal(var_name, false);
+		setGlobal(var_name);
 	}
 
 	void printf(const OS_CHAR * fmt, ...)
@@ -64,7 +64,7 @@ public:
 		initEnv("_ENV", environ);
 		
 		getGlobal("_SERVER");
-		getProperty("SCRIPT_FILENAME", false, false);
+		getProperty("SCRIPT_FILENAME");
 		String script_filename = popString();
 		
 		require(script_filename, true);
