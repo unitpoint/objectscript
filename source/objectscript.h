@@ -38,6 +38,8 @@
 
 #if !defined __GNUC__ || defined IW_SDK
 #include <new.h>
+#elif defined(__GNUC__)
+#include <new>
 #else
 inline void *operator new(size_t, void * p){ return p; }
 inline void operator delete(void *, void *){}
