@@ -9345,7 +9345,8 @@ void OS::Core::PropertyIndex::convertIndexStringToNumber()
 
 bool OS::Core::PropertyIndex::isEqual(const PropertyIndex& b) const
 {
-	switch(OS_VALUE_TYPE(index)){
+	int type = OS_VALUE_TYPE(index);
+	switch(type){
 	case OS_VALUE_TYPE_NULL:
 		return OS_VALUE_TYPE(b.index) == OS_VALUE_TYPE_NULL;
 
@@ -9355,7 +9356,7 @@ bool OS::Core::PropertyIndex::isEqual(const PropertyIndex& b) const
 	case OS_VALUE_TYPE_NUMBER:
 		return OS_VALUE_TYPE(b.index) == OS_VALUE_TYPE_NUMBER && OS_VALUE_NUMBER(index) == OS_VALUE_NUMBER(b.index);
 	}
-	return OS_VALUE_TYPE(index) == OS_VALUE_TYPE(b.index) && OS_VALUE_VARIANT(index).value == OS_VALUE_VARIANT(b.index).value;
+	return type == OS_VALUE_TYPE(b.index) && OS_VALUE_VARIANT(index).value == OS_VALUE_VARIANT(b.index).value;
 }
 
 bool OS::Core::GCStringValue::isEqual(int hash, const void * b, int size) const
@@ -19274,7 +19275,7 @@ void OS::initMathModule()
 			return p * OS_RADIANS_PER_DEGREE;
 		}
 	};
-	static FuncDef list[] = {
+	FuncDef list[] = {
 		{OS_TEXT("min"), Math::min_func},
 		{OS_TEXT("max"), Math::max_func},
 		def(OS_TEXT("abs"), Math::abs),
@@ -19804,14 +19805,12 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 				OS_MEMCPY(closure_values, stack_values.buf + start_pos + call_params, sizeof(Value)*cfunc_value->num_closure_values);
 			}
 #endif
-			if(ret_values > 0){
+			if(ret_values == 1){
+				stack_values.buf[start_pos] = stack_values.buf[stack_values.count - cur_ret_values];
+			}else if(ret_values > 0){
 				Value * stack_func_locals = stack_values.buf + stack_values.count - cur_ret_values;
 				if(ret_values <= cur_ret_values){
-					if(ret_values == 1){
-						stack_values.buf[start_pos] = stack_func_locals[0];
-					}else{
-						OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * ret_values);
-					}
+					OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * ret_values);
 				}else{
 					if(cur_ret_values > 0){
 						OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * cur_ret_values);
