@@ -1351,8 +1351,6 @@ namespace ObjectScript
 			struct WeakRef { WeakRef(){} };
 
 			template <class T> struct NumberType { enum { FLOAT = 0 }; };
-			template <> struct NumberType<double> { enum { FLOAT = 1 }; };
-			template <> struct NumberType<float> { enum { FLOAT = 1 }; };
 
 /* Microsoft compiler on a Pentium (32 bit) ? */
 #if defined(_MSC_VER) && defined(_M_IX86)
@@ -3143,6 +3141,9 @@ namespace ObjectScript
 		// virtual void onEnterGC();
 		// virtual void onExitGC();
 	};
+
+	template <> struct OS::Core::NumberType<double> { enum { FLOAT = 1 }; };
+	template <> struct OS::Core::NumberType<float> { enum { FLOAT = 1 }; };
 
 } // namespace ObjectScript
 
