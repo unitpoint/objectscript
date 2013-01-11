@@ -342,15 +342,46 @@ void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
 
 struct FunctionDataChain
 {
+	void * ptr;
+	int data_size;
+	// int data_hash;
 	FunctionDataChain * next;
+
 	FunctionDataChain();
 	virtual ~FunctionDataChain();
+
+	FunctionDataChain * find();
+	void registerFunctionData();
 };
 
 template <class F> struct FunctionData: public FunctionDataChain
 {
 	F f;
-	FunctionData(F _f): f(_f){}
+	FunctionData(F _f): f(_f)
+	{
+		ptr = &f;
+		data_size = sizeof(f);
+		// data_hash = ObjectScript::OS::Utils::keyToHash(ptr, data_size);
+	}
+
+	FunctionData(const FunctionData& _f): f(_f.f)
+	{
+		ptr = &f;
+		data_size = _f.data_size;
+		// data_hash = _f.data_hash;
+	}
+
+	static FunctionData * create(F _f)
+	{
+		FunctionData<F> f(_f);
+		FunctionDataChain * found = f.find();
+		if(found){
+			return dynamic_cast<FunctionData<F>*>(found);
+		}
+		FunctionData<F> * ret = new FunctionData<F>(f);
+		ret->registerFunctionData();
+		return ret;
+	}
 };
 
 // =====================================================================

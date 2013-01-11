@@ -114,7 +114,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
         FCGX_Finish_r(&request); // Завершаем запрос
 
-		finalizeAllBinds();
+		// finalizeAllBinds();
 #elif 1
         FCGX_FPrintF(request.out, "Content-type: text/html\r\n\r\n<TITLE>fastcgi</TITLE>\n<H1>Fastcgi: Hello world.</H1>\n");
 

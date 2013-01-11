@@ -44,7 +44,7 @@ struct OS_BIND_FUNC_CLASS_NAME
 	{ 
 		OS::FuncDef def = {name, 
 			OS_BIND_FUNC_RUN_CLASS_NAME<R, T OS_BIND_FUNC_PARMS_COMMA OS_BIND_FUNC_PARMS>::run, 
-			&(new FunctionData<F>(f))->f}; 
+			&(FunctionData<F>::create(f))->f}; 
 		return def; 
 	}
 };
