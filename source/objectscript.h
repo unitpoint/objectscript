@@ -49,7 +49,7 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
-#if defined _DEBUG && !defined OS_RELEASE
+#if defined _DEBUG && !defined OS_RELEASE && !defined OS_DEBUG
 #define OS_DEBUG
 #endif
 
@@ -1350,7 +1350,7 @@ namespace ObjectScript
 
 			struct WeakRef { WeakRef(){} };
 
-			template <class T> struct NumberType { enum { FLOAT = 0 }; };
+			// template <class T> struct NumberType { enum { FLOAT = 0 }; };
 
 /* Microsoft compiler on a Pentium (32 bit) ? */
 #if defined(_MSC_VER) && defined(_M_IX86)
@@ -2600,7 +2600,7 @@ namespace ObjectScript
 			void gcInitGreyList();
 			void gcResetGreyList();
 			void gcAddToGreyList(GCValue*);
-			void gcAddToGreyList(Value);
+			void gcAddToGreyList(const Value&);
 			void gcRemoveFromGreyList(GCValue*);
 			void gcMarkProgram(Program * prog);
 			void gcMarkTable(Table * table);
@@ -2789,7 +2789,7 @@ namespace ObjectScript
 
 			Property * setTableValue(Table * table, const PropertyIndex& index, Value val);
 			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool setter_enabled);
-			void setPropertyValue(Value table_value, const PropertyIndex& index, Value val, bool setter_enabled);
+			void setPropertyValue(const Value& table_value, const PropertyIndex& index, const Value& val, bool setter_enabled);
 
 			bool getPropertyValue(Value& result, Table * table, const PropertyIndex& index);
 			bool getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled);
@@ -2800,8 +2800,8 @@ namespace ObjectScript
 			void pushPropertyValueForPrimitive(Value self, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
 			void pushPropertyValue(Value table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
 
-			void setPrototype(Value val, Value proto, int userdata_crc);
-			void pushPrototype(Value val);
+			void setPrototype(const Value& val, const Value& proto, int userdata_crc);
+			void pushPrototype(const Value& val);
 
 			void pushBackTrace(int skip_funcs, int max_trace_funcs);
 			void pushArguments(StackFunction*);
@@ -3156,8 +3156,8 @@ namespace ObjectScript
 
 	};
 
-	template <> struct OS::Core::NumberType<double> { enum { FLOAT = 1 }; };
-	template <> struct OS::Core::NumberType<float> { enum { FLOAT = 1 }; };
+	// template <> struct OS::Core::NumberType<double> { enum { FLOAT = 1 }; };
+	// template <> struct OS::Core::NumberType<float> { enum { FLOAT = 1 }; };
 
 } // namespace ObjectScript
 

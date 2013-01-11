@@ -664,9 +664,9 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 				result = 0;
 				return false;
 			}
-			m = 1.0f;
+			m = (OS_FLOAT)1.0;
 			for(int i = 0; i < pow; i++){
-				m *= 10.0f;
+				m *= (OS_FLOAT)10.0;
 			}
 			if(div){
 				float_val /= m;
@@ -706,11 +706,11 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
 {
 	if(precision <= 0) {
 		if(precision < 0) {
-			OS_FLOAT p = 10.0;
+			OS_FLOAT p = (OS_FLOAT)10.0;
 			for(int i = -precision-1; i > 0; i--){
-				p *= 10.0;
+				p *= (OS_FLOAT)10.0;
 			}
-			a = ::floor(a / p + 0.5) * p;
+			a = ::floor(a / p + (OS_FLOAT)0.5) * p;
 		}
 		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.f"), a);
 		return dst;
@@ -6881,16 +6881,21 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 				return exp;
 			}
 
-			Expression * newExpression(OS_FLOAT val, Expression * left_exp, Expression * right_exp)
+			Expression * newExpression(double val, Expression * left_exp, Expression * right_exp)
 			{
-				token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(token->text_data, String(compiler->allocator, val), Tokenizer::NUMBER, token->line, token->pos);
-				token->setFloat(val);
+				token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(token->text_data, String(compiler->allocator, (OS_FLOAT)val, OS_AUTO_PRECISION), Tokenizer::NUMBER, token->line, token->pos);
+				token->setFloat((OS_FLOAT)val);
 				Expression * exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NUMBER, token);
 				exp->ret_values = 1;
 				token->release();
 				compiler->allocator->deleteObj(left_exp);
 				compiler->allocator->deleteObj(right_exp);
 				return exp;
+			}
+
+			Expression * newExpression(float val, Expression * left_exp, Expression * right_exp)
+			{
+				return newExpression((double)val, left_exp, right_exp);
 			}
 
 			Expression * newExpression(OS_INT val, Expression * left_exp, Expression * right_exp)
@@ -10605,7 +10610,7 @@ OS::Core::String OS::Core::valueToString(const Value& val, bool valueof_enabled)
 		return OS_VALUE_VARIANT(val).boolean ? strings->syntax_true : strings->syntax_false;
 
 	case OS_VALUE_TYPE_NUMBER:
-		return String(allocator, OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
+		return String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
 
 	case OS_VALUE_TYPE_STRING:
 		return String(OS_VALUE_VARIANT(val).string);
@@ -10628,7 +10633,7 @@ OS::String OS::Core::valueToStringOS(const Value& val, bool valueof_enabled)
 		return OS::String(allocator, OS_VALUE_VARIANT(val).boolean ? strings->syntax_true : strings->syntax_false);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return OS::String(allocator, OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
+		return OS::String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
 
 	case OS_VALUE_TYPE_STRING:
 		return OS::String(allocator, OS_VALUE_VARIANT(val).string);
@@ -10660,7 +10665,7 @@ bool OS::Core::isValueString(const Value& val, String * out)
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = String(allocator, OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
+			*out = String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
 		}
 		return true;
 
@@ -10696,7 +10701,7 @@ bool OS::Core::isValueStringOS(const Value& val, OS::String * out)
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = OS::String(allocator, OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
+			*out = OS::String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
 		}
 		return true;
 
@@ -12338,7 +12343,7 @@ void OS::Core::gcMarkStackFunction(StackFunction * stack_func)
 	}
 }
 
-void OS::Core::gcAddToGreyList(Value val)
+void OS::Core::gcAddToGreyList(const Value& val)
 {
 	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_STRING:
@@ -12449,16 +12454,6 @@ void OS::Core::gcMarkValue(GCValue * value)
 		break;
 	}
 }
-
-/*
-void OS::onEnterGC()
-{
-}
-
-void OS::onExitGC()
-{
-}
-*/
 
 int OS::Core::gcStep()
 {
@@ -13044,8 +13039,8 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
 		GCArrayValue * arr = (GCArrayValue*)table_value;
 		int i = (int)valueToInt(index.index);
-		if(i < 0) i += arr->values.count;
-		if(i >= 0){
+		// if(i < 0) i += arr->values.count;
+		if(i >= 0 || (i += arr->values.count) >= 0){
 			while(i >= arr->values.count){
 				allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
 			}
@@ -13093,7 +13088,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	// setTableValue(table, index, value);
 }
 
-void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, Value value, bool setter_enabled)
+void OS::Core::setPropertyValue(const Value& table_value, const PropertyIndex& index, const Value& value, bool setter_enabled)
 {
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
@@ -13121,7 +13116,7 @@ void OS::Core::setPropertyValue(Value table_value, const PropertyIndex& index, V
 	}
 }
 
-void OS::Core::pushPrototype(Value val)
+void OS::Core::pushPrototype(const Value& val)
 {
 	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
@@ -13148,7 +13143,7 @@ void OS::Core::pushPrototype(Value val)
 	}
 }
 
-void OS::Core::setPrototype(Value val, Value proto, int userdata_crc)
+void OS::Core::setPrototype(const Value& val, const Value& proto, int userdata_crc)
 {
 	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_NULL:
@@ -18097,7 +18092,7 @@ void OS::initObjectClass()
 						}
 						if(OS_VALUE_TYPE(prop->index) == OS_VALUE_TYPE_NUMBER){
 							if(OS_VALUE_NUMBER(prop->index) != (OS_FLOAT)need_index){
-								buf += String(os, OS_VALUE_NUMBER(prop->index), OS_AUTO_PRECISION);
+								buf += String(os, (OS_FLOAT)OS_VALUE_NUMBER(prop->index), OS_AUTO_PRECISION);
 								buf += OS_TEXT(":");
 							}
 							need_index = (int)(OS_VALUE_NUMBER(prop->index) + 1);
@@ -19180,7 +19175,7 @@ void OS::initMathModule()
 		{
 			if(!params) return 0;
 			int e;
-			os->pushNumber(::frexp(os->toNumber(-params), &e));
+			os->pushNumber(::frexp((double)os->toNumber(-params), &e));
 			os->pushNumber(e);
 			return 2;
 		}
@@ -19257,7 +19252,7 @@ void OS::initMathModule()
 				if(base == 10){
 					os->pushNumber(::log10(x));
 				}else{
-					os->pushNumber(::log(x)/::log(base));
+					os->pushNumber(::log(x)/::log((double)base));
 				}
 			}else{
 				os->pushNumber(::log(x));
@@ -20205,11 +20200,33 @@ static FunctionDataChain * function_data_first = NULL;
 
 FunctionDataChain::FunctionDataChain()
 { 
-	next = function_data_first;
-	function_data_first = this;
+	// next = function_data_first;
+	// function_data_first = this;
+	next = NULL;
+	ptr = NULL;
+	data_size = 0;
+	// data_hash = 0;
 }
+
 FunctionDataChain::~FunctionDataChain()
 {
+}
+
+FunctionDataChain * FunctionDataChain::find()
+{
+	FunctionDataChain * cur = function_data_first;
+	for(; cur; cur = cur->next){
+		if(cur->data_size == data_size && OS_MEMCMP(cur->ptr, ptr, data_size) == 0){
+			return cur;
+		}
+	}
+	return NULL;
+}
+
+void FunctionDataChain::registerFunctionData()
+{
+	next = function_data_first;
+	function_data_first = this;
 }
 
 void ObjectScript::finalizeAllBinds()
