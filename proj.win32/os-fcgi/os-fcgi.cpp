@@ -56,11 +56,146 @@ public:
 		va_end(ap);
 	}
 
+	void setSmartProperty(const OS_CHAR * name)
+	{
+		int offs = getAbsoluteOffs(-2);
+		bool index = false;
+		const OS_CHAR * cur = name;
+		for(; *cur; cur++){
+			if(*cur == (index ? OS_TEXT(']') : OS_TEXT('[')) || *cur == OS_TEXT('.')){
+				if(cur > name){
+					// newObject();
+					// pushStackValue(-3);
+					pushString(name, cur - name);
+					// pushStackValue(-3);
+					// setProperty();
+					// move(-1, -2);
+					// remove(-3);
+				}
+				if(*cur == OS_TEXT('[')){
+					index = true;
+				}else if(*cur == OS_TEXT(']')){
+					index = false;
+				}
+				name = cur + 1;
+			}
+		}
+		if(*name){
+			// setProperty(name);
+			pushString(name);
+		}
+		int count = getAbsoluteOffs(-2) - offs;
+		for(int i = 0; i < count-1; i++){
+			newObject();
+			pushStackValue();
+			setProperty(offs, toString(offs + 2 + i));
+			move(-1, offs);
+			remove(offs + 1);
+		}
+		String prop_name = toString();
+		remove(offs + 2, count);
+		setProperty(prop_name);
+	}
+
 	void processRequest(FCGX_Request * p_request)
 	{
 		request = p_request;
 
 		initEnv("_SERVER", request->envp);
+
+		newObject();
+		setGlobal("_POST");
+		
+		newObject();
+		setGlobal("_GET");
+		
+		newObject();
+		setGlobal("_FILES");
+		
+		newObject();
+		setGlobal("_COOKIE");
+
+#define OS_AUTO_TEXT(exp) OS_TEXT(#exp)
+		eval(OS_AUTO_TEXT(
+			if('HTTP_COOKIE' in _SERVER)
+			for(var k, v in _SERVER.HTTP_COOKIE.split(';')){
+				v = v.trim().split('=')
+				if(#v == 2){
+					_COOKIE[v[0]] = v[1]
+				}
+			}	
+		));
+		
+		getGlobal("_SERVER");
+		getProperty("CONTENT_LENGTH");
+		int content_length = popInt();
+
+		int post_max_size = 1024*1024*8;
+		if(content_length > post_max_size){
+			FCGX_FPrintF(request->out, "POST Content-Length of %d bytes exceeds the limit of %d bytes", content_length, post_max_size);
+			return;
+		}
+
+		getGlobal("_SERVER");
+		getProperty("CONTENT_TYPE");
+		String content_type = popString();
+
+		const char * multipart_form_data = "multipart/form-data;";
+		int multipart_form_data_len = strlen(multipart_form_data);
+
+		MPFD::Parser POSTParser = MPFD::Parser();
+		if(content_length > 0 && content_type.getLen() > 0 && strncmp(content_type.toChar(), multipart_form_data, multipart_form_data_len) == 0){
+			POSTParser.SetTempDirForFileUpload("/tmp");
+			// POSTParser.SetMaxCollectedDataLength(20*1024);
+			POSTParser.SetContentType(content_type.toChar());
+
+			int max_temp_buf_size = (int)(1024*1024*0.1);
+			int temp_buf_size = content_length < max_temp_buf_size ? content_length : max_temp_buf_size;
+			char * temp_buf = new char[temp_buf_size + 1];
+			for(int cur_len; (cur_len = FCGX_GetStr(temp_buf, temp_buf_size, request->in)) > 0;){
+				POSTParser.AcceptSomeData(temp_buf, cur_len);
+			}
+			delete [] temp_buf;
+			temp_buf = NULL;
+			
+			// POSTParser.SetExternalDataBuffer(buf, len);
+			POSTParser.FinishData();
+
+			std::map<std::string, MPFD::Field *> fields = POSTParser.GetFieldsMap();
+			// FCGX_FPrintF(request->out, "Have %d fields<p>\n", fields.size());
+
+			std::map<std::string, MPFD::Field *>::iterator it;
+			for(it = fields.begin(); it != fields.end(); it++){
+				MPFD::Field * field = fields[it->first];
+				if(field->GetType() == MPFD::Field::TextType){
+					getGlobal("_POST");
+					pushString(field->GetTextTypeContent().c_str());
+					setSmartProperty(it->first.c_str());
+				}else{
+					getGlobal("_FILES");
+					newObject();
+					{
+						pushStackValue();
+						pushString(field->GetFileName().c_str());
+						setProperty("name");
+						
+						pushStackValue();
+						pushString(field->GetFileMimeType().c_str());
+						setProperty("type");
+						
+						pushStackValue();
+						pushString(field->GetTempFileNameEx().c_str());
+						setProperty("tmp_name");
+						
+						pushStackValue();
+						pushNumber(getFileSize(field->GetTempFileNameEx().c_str()));
+						setProperty("size");
+					}
+					setSmartProperty(it->first.c_str());
+				}
+			}
+		}
+		
 		initEnv("_ENV", environ);
 		
 		getGlobal("_SERVER");
@@ -115,7 +250,7 @@ int _tmain(int argc, _TCHAR* argv[])
         FCGX_Finish_r(&request); // Завершаем запрос
 
 		// finalizeAllBinds();
-#elif 1
+#elif 0
         FCGX_FPrintF(request.out, "Content-type: text/html\r\n\r\n<TITLE>fastcgi</TITLE>\n<H1>Fastcgi: Hello world.</H1>\n");
 
         PrintEnv(request.out, "Request environment", request.envp);
@@ -162,6 +297,9 @@ int _tmain(int argc, _TCHAR* argv[])
 		}
         FCGX_Finish_r(&request); // Завершаем запрос
 #else
+        FCGX_FPrintF(request.out, "Content-type: text/html\r\n\r\n<TITLE>fastcgi</TITLE>\n<H1>Fastcgi: Hello world.</H1>\n");
+		char *contentLength = FCGX_GetParam("CONTENT_LENGTH", request.envp);
+		int len = contentLength ? strtol(contentLength, NULL, 10) : 0;
         if (len <= 0) {
             FCGX_FPrintF(request.out, "No data from standard input.<p>\n");
         }
