@@ -3146,6 +3146,7 @@ namespace ObjectScript
 		virtual EFileUseType checkFileUsage(const String& sourcecode_filename, const String& compiled_filename);
 
 		virtual bool isFileExist(const OS_CHAR * filename);
+		virtual int getFileSize(const OS_CHAR * filename);
 		virtual void * openFile(const OS_CHAR * filename, const OS_CHAR * mode);
 		virtual int readFile(void * buf, int size, void * f);
 		virtual int writeFile(const void * buf, int size, void * f);

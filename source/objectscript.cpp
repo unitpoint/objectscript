@@ -11201,6 +11201,17 @@ bool OS::isFileExist(const OS_CHAR * filename)
 	return false;
 }
 
+int OS::getFileSize(const OS_CHAR * filename)
+{
+	void * f = openFile(filename, "rb");
+	if(f){
+		int size = seekFile(f, 0, SEEK_END);
+		closeFile(f);
+		return size;
+	}
+	return 0;
+}
+
 void * OS::openFile(const OS_CHAR * filename, const OS_CHAR * mode)\
 {
 	return fopen(filename, mode);
@@ -12961,11 +12972,16 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 	}
 	OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(value).string));
 	GCStringValue * string = OS_VALUE_VARIANT(value).string;
+#if 0
+	// the first char is always exists because of any string data is null terminated
+	return string->toChar()[0] == OS_TEXT('_');
+#else
 	if(string->getLen() >= 2){
 		const OS_CHAR * s = string->toChar();
 		return s[0] == OS_TEXT('_') && s[1] == OS_TEXT('_');
 	}
 	return false;
+#endif
 }
 
 void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value value, bool setter_enabled)
@@ -12977,7 +12993,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 #endif
 	// TODO: correct ???
 	gcAddToGreyList(value);
-
+	
 	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
 		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index.index).string));
 		switch(OS_VALUE_TYPE(value)){
@@ -18641,19 +18657,8 @@ void OS::initStringClass()
 	{
 		static int length(OS * os, int params, int, int, void*)
 		{
-			Core::Value self_var = os->core->getStackValue(-params-1);
-			Core::GCValue * self = self_var.getGCValue();
-			if(self){
-				if(self->type == OS_VALUE_TYPE_STRING){
-					Core::GCStringValue * string = (Core::GCStringValue*)self;
-					os->pushNumber(string->getLen());
-					// os->pushNumber(os->core->valueToString(self).getDataSize() / sizeof(OS_CHAR));
-					return 1;
-				}
-				// os->core->pushOpResultValue(Core::OP_LENGTH, self_var);
-				return 0;
-			}
-			return 0;
+			os->pushNumber(os->toString(-params-1).getLen());
+			return 1;
 		}
 
 		static int sub(OS * os, int params, int, int, void*)
@@ -18815,6 +18820,62 @@ void OS::initStringClass()
 			os->pushNumber(left.cmp(right));
 			return 1;
 		}
+
+		static int trim(OS * os, int params, int, int, void*)
+		{
+			OS::String str = os->toString(-params - 1); // this
+			os->pushString(str.trim(
+				params >= 1 ? os->toBool(-params + 0) : true, 
+				params >= 2 ? os->toBool(-params + 1) : true));
+			return 1;
+		}
+		
+		static int split(OS * os, int params, int, int, void*)
+		{
+			int offs = os->getAbsoluteOffs(-params-1);
+			
+			os->newArray();
+			int count = 0;
+			
+			OS::String subject = os->toString(offs);
+			int subject_len = subject.getLen();
+			if(params >= 1){
+				OS::String search = os->toString(offs+1);
+				int search_len = search.getLen();
+				if(search_len > 0 && search_len <= subject_len){
+					const OS_CHAR * subject_str = subject.toChar();
+					const OS_CHAR * search_str = search.toChar();
+					
+					bool found = false;
+					int start = 0;
+					for(int i = 0; i < subject_len-search_len+1;){
+						if(OS_MEMCMP(subject_str + i, search_str, sizeof(OS_CHAR)*search_len) == 0){
+							os->pushStackValue();
+							os->pushNumber(count++);
+							os->pushString(subject_str + start, i - start);
+							os->setProperty();
+							i += search_len;
+							start = i;
+							found = true;
+						}else{
+							i++;
+						}
+					}
+					if(found){
+						os->pushStackValue();
+						os->pushNumber(count++);
+						os->pushString(subject_str + start, subject_len - start);
+						os->setProperty();
+						return 1;
+					}
+				}
+			}
+			os->pushStackValue();
+			os->pushNumber(0);
+			os->pushString(subject);
+			os->setProperty();
+			return 1;
+		}
 	};
 	FuncDef list[] = {
 		{core->strings->__cmp, String::cmp},
@@ -18822,6 +18883,8 @@ void OS::initStringClass()
 		{OS_TEXT("sub"), String::sub},
 		{OS_TEXT("find"), String::find},
 		{OS_TEXT("replace"), String::replace},
+		{OS_TEXT("trim"), String::trim},
+		{OS_TEXT("split"), String::split},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_STRING]);
