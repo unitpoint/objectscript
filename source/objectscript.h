@@ -2900,6 +2900,7 @@ namespace ObjectScript
 		virtual void initPostScript();
 
 		template<class Core> friend struct CtypeValue;
+		template<class Core> friend struct CtypeUserClass;
 		template<class Core> friend struct UserDataDestructor;
 
 	public:
