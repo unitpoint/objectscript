@@ -2873,7 +2873,7 @@ namespace ObjectScript
 		void setProperty(const Core::String&, bool setter_enabled = true);
 		void setProperty(int offs, const OS_CHAR*, bool setter_enabled = true);
 		void setProperty(int offs, const Core::String&, bool setter_enabled = true);
-		void addProperty();
+		void addProperty(bool setter_enabled = true);
 
 		void deleteProperty(bool del_enabled = true);
 		void deleteProperty(const OS_CHAR*, bool del_enabled = true);

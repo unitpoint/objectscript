@@ -13020,7 +13020,7 @@ void OS::Core::pushPrototype(const Value& val)
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		pushValue(OS_VALUE_VARIANT(val).value);
+		pushValue(OS_VALUE_VARIANT(val).value->prototype);
 		return;
 	}
 }
@@ -14753,7 +14753,7 @@ void OS::setProperty(int offs, const Core::String& name, bool setter_enabled)
 	}
 }
 
-void OS::addProperty()
+void OS::addProperty(bool setter_enabled)
 {
 	Core::Value value = core->getStackValue(-2);
 	switch(OS_VALUE_TYPE(value)){
@@ -14762,10 +14762,14 @@ void OS::addProperty()
 		break;
 
 	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
 		core->insertValue(OS_VALUE_VARIANT(value).object->table ? OS_VALUE_VARIANT(value).object->table->next_index : 0, -1);
 		break;
 	}
-	setProperty(false);
+	setProperty(setter_enabled);
 }
 
 void OS::deleteProperty(bool del_enabled)
@@ -14789,7 +14793,9 @@ void OS::getPrototype()
 {
 	if(core->stack_values.count >= 1){
 		core->pushPrototype(core->stack_values.lastElement());
+		remove(-2);
 	}else{
+		pop();
 		pushNull();
 	}
 }
@@ -17677,37 +17683,13 @@ void OS::initObjectClass()
 			if(!self){
 				return 0;
 			}
+			Core::StringBuffer buf(os);
 			switch(self->type){
-			case OS_VALUE_TYPE_USERDATA:
-			case OS_VALUE_TYPE_USERPTR:
-				{
-					Core::StringBuffer str(os);
-					str += OS_TEXT("<");
-					str += os->core->strings->typeof_userdata;
-					str += OS_TEXT(":");
-					str += Core::String(os, (OS_INT)self->value_id);
-					str += OS_TEXT(">");
-					os->pushString(str);
-					return 1;
-				}
-
-			case OS_VALUE_TYPE_FUNCTION:
-			case OS_VALUE_TYPE_CFUNCTION:
-				{
-					Core::StringBuffer str(os);
-					str += OS_TEXT("<");
-					str += os->core->strings->typeof_function;
-					str += OS_TEXT(":");
-					str += Core::String(os, (OS_INT)self->value_id);
-					str += OS_TEXT(">");
-					os->pushString(str);
-					return 1;
-				}
 			case OS_VALUE_TYPE_ARRAY:
 				{
 					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self));
 					Core::GCArrayValue * arr = (Core::GCArrayValue*)self;
-					Core::StringBuffer buf(os);
+					// Core::StringBuffer buf(os);
 					buf += OS_TEXT("[");
 					Core::Value temp;
 					for(int i = 0; i < arr->values.count; i++){
@@ -17735,13 +17717,41 @@ void OS::initObjectClass()
 					return 1;
 				}
 
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+				buf += OS_TEXT("<");
+				buf += os->core->strings->typeof_userdata;
+				buf += OS_TEXT(":");
+				buf += Core::String(os, (OS_INT)self->value_id);
+				buf += OS_TEXT(">");
+				if(!self->table || !self->table->count){
+					os->pushString(buf);
+					return 1;
+				}
+				// buf += OS_TEXT(" ");
+				goto dump_object;
+
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+				buf += OS_TEXT("<");
+				buf += os->core->strings->typeof_function;
+				buf += OS_TEXT(":");
+				buf += Core::String(os, (OS_INT)self->value_id);
+				buf += OS_TEXT(">");
+				if(!self->table || !self->table->count){
+					os->pushString(buf);
+					return 1;
+				}
+				// buf += OS_TEXT(" ");
+				goto dump_object;
+
 			case OS_VALUE_TYPE_OBJECT:
 				if(!self->table || !self->table->count){
 					os->pushString(OS_TEXT("{}"));
 					return 1;
 				}
 				{
-					Core::StringBuffer buf(os);
+dump_object:
 					buf += OS_TEXT("{");
 					int need_index = 0;
 					Core::Property * prop = self->table->first;
@@ -18313,6 +18323,14 @@ void OS::initStringBufferClass()
 
 		static int valueOf(OS * os, int params, int, int, void * user_param)
 		{
+			if(os->isUserdata(CtypeId<Core::StringBuffer>::getId(), -params-1)){
+				int offs = os->getAbsoluteOffs(-params-1);
+				os->pushStackValue(offs);
+				os->getPrototype();
+				os->getProperty(os->core->strings->func_valueOf);
+				os->pushStackValue(offs);
+				return os->call(0, 1);
+			}
 			OS_GET_SELF(Core::StringBuffer*);
 			os->pushString(self->toString());
 			return 1;
