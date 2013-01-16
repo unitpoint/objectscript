@@ -314,6 +314,7 @@ int OS_SNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
 	return ret;
 }
 
+/*
 static bool OS_ISNAN(float a)
 {
 	volatile float b = a;
@@ -325,6 +326,7 @@ static bool OS_ISNAN(double a)
 	volatile double b = a;
 	return b != b;
 }
+*/
 
 #include <float.h>
 #include <limits.h>
@@ -447,8 +449,8 @@ static inline double toLittleEndianByteOrder(double val)
 
 #define fromLittleEndianByteOrder toLittleEndianByteOrder
 
-static const OS_INT32 nan_data = 0x7fc00000;
-static const float nan_float = fromLittleEndianByteOrder(*(float*)&nan_data);
+// static const OS_INT32 nan_data = 0x7fc00000;
+// static const float nan_float = fromLittleEndianByteOrder(*(float*)&nan_data);
 
 static inline void parseSpaces(const OS_CHAR *& str)
 {
@@ -2888,7 +2890,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			int prog_func_index = scope->prog_func_index; // prog_functions.indexOf(scope);
 			OS_ASSERT(prog_func_index >= 0);
 			
-			int pos = writeOpcodeABC(OP_NEW_FUNCTION, exp->slots.a, prog_func_index, 0);
+			int pos = writeOpcodeABC(OP_NEW_FUNCTION, exp->slots.a, prog_func_index, 0); (void)pos;
 
 			allocator->vectorReserveCapacity(scope->locals_compiled, scope->num_locals OS_DBG_FILEPOS);
 			scope->locals_compiled.count = scope->num_locals;
@@ -4473,7 +4475,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 			OS_ASSERT(exp->list.count == 2);
 			exp->list[0] = expectExpressionValues(exp->list[0], 1);
 			exp->list[1] = expectExpressionValues(exp->list[1], 1);
-			Expression * left_exp = exp->list[0];
+			// Expression * left_exp = exp->list[0];
 			Expression * right_exp = exp->list[1];
 			ExpressionType exp_type = EXP_TYPE_GET_PROPERTY;
 			switch(right_exp->type){
@@ -6037,7 +6039,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishQuestionOperator(Scop
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectDeleteExpression(Scope * scope)
 {
 	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_delete);
-	TokenData * save_token = recent_token;
+	// TokenData * save_token = recent_token;
 	if(!expectToken()){
 		return NULL;
 	}
@@ -7097,9 +7099,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 	switch(var_exp->type){
 	case EXP_TYPE_CALL_DIM:
 		{
-			Expression * name_exp = var_exp->list[0];
+			// Expression * name_exp = var_exp->list[0];
 			Expression * params = var_exp->list[1];
-			OS_ASSERT(params->type == EXP_TYPE_PARAMS);
+			OS_ASSERT(params->type == EXP_TYPE_PARAMS); (void)params;
 			allocator->vectorInsertAtIndex(var_exp->list, 0, value_exp OS_DBG_FILEPOS);
 			var_exp->type = EXP_TYPE_SET_DIM;
 			var_exp->ret_values = value_exp->ret_values-1;
@@ -9333,12 +9335,14 @@ void * OS::Core::FileStreamReader::readBytesAtPos(void * buf, int len, int pos)
 // =====================================================================
 // =====================================================================
 
+/*
 static bool isDecString(const OS_CHAR * str, int len)
 {
 	OS_INT val;
 	const OS_CHAR * end = str + len;
 	return parseSimpleDec(str, val) && str == end;
 }
+*/
 
 OS::Core::PropertyIndex::PropertyIndex(const PropertyIndex& p_index): index(p_index.index)
 {
@@ -11206,12 +11210,12 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_static(allocator, OS_TEXT("static")),
 	syntax_debugger(allocator, OS_TEXT("debugger")),
 	syntax_debuglocals(allocator, OS_TEXT("debuglocals")),
-	var_func(allocator, OS_FUNC_VAR_NAME),
-	var_this(allocator, OS_THIS_VAR_NAME),
-	var_env(allocator, OS_ENV_VAR_NAME),
 #ifdef OS_GLOBAL_VAR_ENABLED
 	var_globals(allocator, OS_GLOBALS_VAR_NAME),
 #endif
+	var_func(allocator, OS_FUNC_VAR_NAME),
+	var_this(allocator, OS_THIS_VAR_NAME),
+	var_env(allocator, OS_ENV_VAR_NAME),
 	var_temp_prefix(allocator, OS_TEXT("#")),
 
 	__dummy__(0)
@@ -17313,7 +17317,7 @@ void OS::initGlobalFunctions()
 					continue;
 				}
 
-				const OS_CHAR * fmt_start = fmt; 
+				// const OS_CHAR * fmt_start = fmt; 
 				// Process flags
 				int flags = 0;
 				for(;;){
@@ -17821,7 +17825,7 @@ void OS::initObjectClass()
 			Core::Table::IteratorState * iter = (Core::Table::IteratorState*)p;
 			if(iter->table){
 				Core::GCValue * self = self_var.getGCValue();
-				OS_ASSERT(self && iter->table == self->table);
+				OS_ASSERT(self && iter->table == self->table); (void)self;
 				if(iter->prop){
 					os->pushBool(true);
 					os->core->pushValue(iter->prop->index);
