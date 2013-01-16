@@ -933,10 +933,6 @@ namespace ObjectScript
 				void reserveCapacity(int new_capacity);
 			};
 
-			// template<class StringBuffer> friend struct CtypeValue;
-			// template<class StringBuffer> friend struct CtypeUserClass;
-			// template<class StringBuffer> friend struct UserDataDestructor;
-
 			class File
 			{
 			protected:
@@ -963,10 +959,6 @@ namespace ObjectScript
 				int write(const Core::String&);
 			};
 
-			// template<class File> friend struct CtypeValue;
-			// template<class File> friend struct CtypeUserClass;
-			// template<class File> friend struct UserDataDestructor;
-
 			class Tokenizer
 			{
 			public:
@@ -975,11 +967,8 @@ namespace ObjectScript
 				{
 					ERROR_NOTHING,
 					ERROR_MULTI_LINE_COMMENT, // multi line comment not end
-					// ERROR_CONST_VECTOR_3,       // cant parse const vec3
-					// ERROR_CONST_VECTOR_4,     // cant parse const vec4
 					ERROR_CONST_STRING,             // string not end
 					ERROR_CONST_STRING_ESCAPE_CHAR, // string escape error
-					// ERROR_NAME,               // error name, _ - this is error
 					ERROR_SYNTAX
 				};
 
@@ -1003,17 +992,10 @@ namespace ObjectScript
 					COMMENT_MULTI_LINE,
 
 					NAME,           // [a..z_$][a..z0..9_$]*
-					// DOT_NAME,       // used in compiler [NAME].[NAME]... - for types
-					// IDENTIFER,      // used in compiler [NAME]
-					// DOT_IDENTIFER,  // used in compiler [NAME].[NAME]... - for types
 
 					STRING,         // ["].*?["]
 
-					// NUM_INT,        // -?[0..9]+
 					NUMBER,      // -?[0..9][.]?[0..9]+(e[+-]?[0..9]+)?
-					// NUM_VECTOR_3,   // 'NUMBER NUMBER NUMBER'
-					// NUM_VECTOR_4,   // 'NUMBER NUMBER NUMBER NUMBER'
-					// NULL,           // used in compiler
 
 					// [not real operators]
 					OPERATOR,
@@ -1115,8 +1097,6 @@ namespace ObjectScript
 					{
 						// OS_INT int_value;
 						OS_FLOAT float_value;
-						// OS_FLOAT * vec3;
-						// OS_FLOAT * vec4;
 					};
 
 					~TokenData();
@@ -1157,8 +1137,6 @@ namespace ObjectScript
 				TextData * text_data;
 
 				int cur_line, cur_pos;
-				// bool loaded;
-				// bool compiled;
 
 				Vector<TokenData*> tokens;
 				Error error;
@@ -1256,7 +1234,6 @@ namespace ObjectScript
 			enum EGCColor
 			{
 				GC_WHITE,
-				// GC_WHITE_WHITE,
 				GC_GREY,
 				GC_BLACK
 			};
@@ -1270,7 +1247,6 @@ namespace ObjectScript
 
 				Table * table;
 
-				// Value * gc_grey_prev;
 				GCValue * gc_grey_next;
 #ifdef OS_DEBUG
 				int gc_time;
@@ -1353,17 +1329,13 @@ namespace ObjectScript
 				OS_CHAR * toChar() const { return (OS_CHAR*)(this + 1); }
 				OS_BYTE * toBytes() const { return (OS_BYTE*)(this + 1); }
 				void * toMemory() const { return (void*)(this + 1); }
-				// bool isExternal() const { return str != (OS_CHAR*)(this+1); }
 
 				static GCStringValue * alloc(OS*, const void *, int data_size OS_DBG_FILEPOS_DECL);
 				static GCStringValue * alloc(OS*, const void * buf1, int len1, const void * buf2, int len2 OS_DBG_FILEPOS_DECL);
-				// static GCStringValue * alloc(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 				static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b OS_DBG_FILEPOS_DECL);
-				// static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b, GCStringValue * c);
 
 				bool isNumber(OS_NUMBER*) const;
 				OS_NUMBER toNumber() const;
-				// bool isNumber(OS_FLOAT*) const;
 
 				int cmp(GCStringValue*) const;
 				int cmp(const OS_CHAR*) const;
@@ -1371,7 +1343,6 @@ namespace ObjectScript
 
 				bool isEqual(int hash, const void * b, int size) const;
 				bool isEqual(int hash, const void * buf1, int size1, const void * buf2, int size2) const;
-				// bool isEqual(int hash, const void * buf1, int size1, const void * buf2, int size2, const void * buf3, int size3) const;
 
 				void calcHash();
 			};
@@ -1395,8 +1366,6 @@ namespace ObjectScript
 			struct GCFunctionValue;
 
 			struct WeakRef { WeakRef(){} };
-
-			// template <class T> struct NumberType { enum { FLOAT = 0 }; };
 
 /* Microsoft compiler on a Pentium (32 bit) ? */
 #if defined(_MSC_VER) && defined(_M_IX86)
@@ -1478,22 +1447,6 @@ namespace ObjectScript
 				} u;
 #endif
 #endif // OS_NUMBER_NAN_TRICK
-				/*
-				union {
-					int boolean;
-					OS_NUMBER number;
-					int value_id;
-					GCValue * value;
-					GCObjectValue * object;
-					GCArrayValue * arr;
-					GCStringValue * string;
-					GCUserdataValue * userdata;
-					GCFunctionValue * func;
-					GCCFunctionValue * cfunc;
-				} v;
-
-				OS_EValueType type;
-				*/
 
 				Value();
 				Value(bool);
@@ -1606,8 +1559,6 @@ namespace ObjectScript
 			};
 
 			enum {
-				// OP_MULTI_NEW_ARRAY,
-				// OP_MULTI_NEW_OBJECT,
 				OP_MULTI_GET_ARGUMENTS,
 				OP_MULTI_GET_REST_ARGUMENTS,
 				OP_MULTI_SUPER,
@@ -1620,9 +1571,6 @@ namespace ObjectScript
 				OP_NEW_FUNCTION,
 				OP_NEW_ARRAY,
 				OP_NEW_OBJECT,
-				// OP_GET_ARGUMENTS,
-				// OP_GET_REST_ARGUMENTS,
-				// OP_GET_SUPER,
 				OP_RETURN,
 				OP_JUMP,
 				OP_MULTI,
@@ -1864,7 +1812,6 @@ namespace ObjectScript
 					OS_U16 up_scope_count;
 					OS_U16 index;
 					ELocalVarType type;
-					// bool is_param;
 
 					LocalVarDesc();
 				};
@@ -1877,7 +1824,6 @@ namespace ObjectScript
 					LocalVarDesc local_var;
 					OS_U16 active_locals;
 					OS_U16 ret_values;
-					// OS_U16 target_local;
 					struct {
 						OS_INT16 a, b, c;
 					} slots;
@@ -1946,7 +1892,6 @@ namespace ObjectScript
 					// used by function scope
 					int prog_func_index;
 					Vector<LocalVar> locals;
-					// Vector<LocalVar> func_locals;
 					Vector<LocalVarCompiled> locals_compiled;
 					int num_params;
 					int num_locals;
@@ -1976,11 +1921,7 @@ namespace ObjectScript
 					void addLocalVar(const String& name, LocalVarDesc&);
 
 					int allocTempVar();
-					// int allocTempVar(int, int);
 					void popTempVar(int count = 1);
-
-					// int newTempVar();
-					// int newTempVar(int, int);
 				};
 
 				enum ErrorType {
@@ -2044,7 +1985,6 @@ namespace ObjectScript
 				int recent_printed_line;
 
 				// code generation
-				// Program * prog;
 				Table * prog_numbers_table;
 				Table * prog_strings_table;
 				Table * prog_debug_strings_table;
@@ -2056,8 +1996,6 @@ namespace ObjectScript
 				MemStreamWriter * prog_debug_info;
 				int prog_num_debug_infos;
 				int prog_max_up_count;
-
-				// int prog_stack_size;
 
 				bool isError();
 				void resetError();
@@ -2098,10 +2036,7 @@ namespace ObjectScript
 					bool allow_binary_operator;
 					bool allow_in_operator;
 					bool allow_assing;
-					// bool allow_left_side_params;
-					// bool allow_right_side_params;
 					bool allow_params;
-					// bool allow_var;
 					bool allow_auto_call;
 					bool allow_call;
 					bool allow_nop_result;
@@ -2141,9 +2076,7 @@ namespace ObjectScript
 				Expression * expectFunctionExpression(Scope*);
 				Expression * expectFunctionSugarExpression(Scope*);
 				Expression * expectExtendsExpression(Scope*);
-				// Expression * expectCloneExpression(Scope*);
 				Expression * expectDeleteExpression(Scope*);
-				// Expression * expectValueOfExpression(Scope*, ExpressionType exp_type);
 				Expression * expectVarExpression(Scope*);
 				Expression * expectObjectOrFunctionExpression(Scope*, const Params& p, bool allow_finish_exp = true);
 				Expression * expectArrayExpression(Scope*, const Params& p);
@@ -2172,7 +2105,6 @@ namespace ObjectScript
 
 				void writeJumpOpcode(int offs);
 				void fixJumpOpcode(int offs, int pos);
-				// void fixJumpOpcode(int offs, int pos, int opcode);
 
 				int getOpcodePos();
 				int writeOpcode(OS_U32 opcode);
@@ -2210,7 +2142,6 @@ namespace ObjectScript
 					String name;
 					int start_code_pos;
 					int end_code_pos;
-					// Value * value;
 
 					LocalVar(const String&);
 					~LocalVar();
@@ -2231,8 +2162,6 @@ namespace ObjectScript
 				int opcodes_pos;
 				int opcodes_size;
 
-				// Program * prog; // retained for value of function type
-
 				FunctionDecl(); // Program*);
 				~FunctionDecl();
 			};
@@ -2250,10 +2179,7 @@ namespace ObjectScript
 				OS * allocator;
 				String filename;
 
-				// GCStringValue ** const_strings;
 				int num_strings;
-				
-				// OS_NUMBER * const_numbers;
 				int num_numbers;
 
 				Value * const_values;
@@ -2262,7 +2188,6 @@ namespace ObjectScript
 				int num_functions;
 
 				Vector<OS_U32> opcodes;
-				// MemStreamReader * opcodes;
 
 				struct DebugInfoItem
 				{
@@ -2274,8 +2199,6 @@ namespace ObjectScript
 					DebugInfoItem(int opcode_pos, int line, int pos, const String&);
 				};
 				Vector<DebugInfoItem> debug_info;
-
-				// int gc_time;
 
 				Program(OS * allocator);
 
@@ -2321,15 +2244,9 @@ namespace ObjectScript
 				FunctionDecl * func_decl;
 
 				Value * values;
-				// int num_locals;
-
 				bool is_stack_locals;
 				
 				int num_parents;
-				// Locals * parent;
-
-				// Locals();
-				// ~Locals();
 
 				Locals ** getParents();
 				Locals * getParent(int i);
@@ -2341,31 +2258,19 @@ namespace ObjectScript
 			struct StackFunction
 			{
 				GCFunctionValue * func;
-				// Value self; // allow primitive type for self 
 				GCValue * self_for_proto;
 
 				Locals * locals;
 				int num_params; // func + this + params
-				// int num_extra_params;
 
 				GCArrayValue * arguments;
 				GCArrayValue * rest_arguments;
 				
 				int caller_stack_size;
 				int locals_stack_pos;
-				// int stack_pos;
 				
 				int need_ret_values;
-
-				// int opcode_offs;
-
-				// cached values
-
-				// MemStreamReader opcodes;
 				OS_U32 * opcodes;
-				
-				// StackFunction();
-				// ~StackFunction();
 			};
 
 			struct StringRef
@@ -2413,8 +2318,6 @@ namespace ObjectScript
 				Values();
 				~Values();
 
-				// Value * add(Value * obj);
-				// Value * remove(int value_id);
 				GCValue * get(int value_id);
 			};
 
@@ -2540,7 +2443,6 @@ namespace ObjectScript
 			StringRefs string_refs;
 			UserptrRefs userptr_refs;
 
-			// Table * string_values_table;
 			GCObjectValue * check_recursion;
 			Value global_vars;
 			Value user_pool;
@@ -2560,7 +2462,6 @@ namespace ObjectScript
 
 			GCObjectValue * prototypes[PROTOTYPE_COUNT];
 
-			// Vector<Value> stack_values;
 			struct StackValues {
 				Value * buf;
 				int capacity;
@@ -2587,11 +2488,8 @@ namespace ObjectScript
 			Vector<StackFunction> call_stack_funcs;
 			StackFunction * stack_func;
 			Value * stack_func_locals;
-			// int num_stack_func_locals;
 			int stack_func_env_index;
 			Value * stack_func_prog_values;
-			// OS_NUMBER * stack_func_prog_numbers;
-			// GCStringValue ** stack_func_prog_strings;
 
 			GCValue * gc_grey_list_first;
 			bool gc_grey_root_initialized;
@@ -2663,7 +2561,6 @@ namespace ObjectScript
 			void gcFinishMarkPhase();
 			void gcFull();
 
-			// void clearValue(Value&);
 			void clearValue(GCValue*);
 			void deleteValue(GCValue*);
 
@@ -2674,14 +2571,9 @@ namespace ObjectScript
 			GCFunctionValue * newFunctionValue(StackFunction*, Program*, FunctionDecl*, Value env);
 			void clearFunctionValue(GCFunctionValue*);
 
-			// Locals * newLocals(int num_parents);
 			void releaseLocals(Locals*);
 			void deleteLocals(Locals*);
 			void clearStackFunction(StackFunction*);
-
-			// GCValue * newValue();
-			// Value newBoolValue(bool);
-			// Value newNumberValue(OS_FLOAT);
 
 			GCStringValue * newStringValue(const String&);
 			GCStringValue * newStringValue(const String&, const String&);
@@ -2716,8 +2608,6 @@ namespace ObjectScript
 			void copyValue(int raw_from, int raw_to);
 			void insertValue(Value val, int offs);
 			void pushNull();
-			// void pushTrue();
-			// void pushFalse();
 			void pushBool(bool);
 			void pushNumber(OS_INT32);
 			void pushNumber(OS_INT64);
@@ -2881,7 +2771,6 @@ namespace ObjectScript
 
 		virtual ~OS();
 
-		// bool init(ObjectScriptExtention * ext, MemoryManager * manager);
 		virtual void shutdown();
 
 		void qsort(void *base, unsigned num, unsigned width, int (*comp)(OS*, const void *, const void *, void*), void*);
@@ -2899,8 +2788,6 @@ namespace ObjectScript
 		virtual void initPreScript();
 		virtual void initPostScript();
 
-		// template<class Core> friend struct CtypeValue;
-		// template<class Core> friend struct CtypeUserClass;
 		template<class Core> friend struct UserDataDestructor;
 
 	public:
@@ -2930,7 +2817,6 @@ namespace ObjectScript
 			String(OS*, const OS_CHAR*, int len, bool trim_left, bool trim_right);
 			String(OS*, const void*, int size);
 			String(OS*, const void * buf1, int len1, const void * buf2, int len2);
-			// String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 			String(OS*, OS_INT value);
 			String(OS*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
 			~String();
@@ -3036,8 +2922,6 @@ namespace ObjectScript
 		void releaseValueById(int id);
 
 		void clone(int offs = -1);
-
-		// int pushArrayNumbers(int offs = -1);
 
 		int getStackSize();
 		int getAbsoluteOffs(int offs);
@@ -3200,10 +3084,6 @@ namespace ObjectScript
 		virtual void printf(const OS_CHAR * fmt, ...);
 
 	};
-
-	// template <> struct OS::Core::NumberType<double> { enum { FLOAT = 1 }; };
-	// template <> struct OS::Core::NumberType<float> { enum { FLOAT = 1 }; };
-
 } // namespace ObjectScript
 
 #endif // __OBJECT_SCRIPT_H__
