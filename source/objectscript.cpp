@@ -18736,7 +18736,7 @@ void OS::initArrayClass()
 namespace ObjectScript {
 
 template <> struct CtypeName<OS::Core::StringBuffer>{ static const OS_CHAR * getName(){ return OS_TEXT("StringBuffer"); } };
-template <> struct CtypeValue<OS::Core::StringBuffer*>: public CtypeUserClass<OS::Core::StringBuffer*>{};
+template <> struct CtypeValue<OS::Core::StringBuffer*>: public CtypeUserClass<OS::StringBuffer*>{};
 template <> struct UserDataDestructor<OS::Core::StringBuffer>
 {
 	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
@@ -19143,7 +19143,7 @@ int OS::Core::File::write(const Core::String& str)
 namespace ObjectScript {
 
 template <> struct CtypeName<OS::Core::File>{ static const OS_CHAR * getName(){ return OS_TEXT("File"); } };
-template <> struct CtypeValue<OS::Core::File*>: public CtypeUserClass<OS::Core::File*>{};
+template <> struct CtypeValue<OS::Core::File*>: public CtypeUserClass<OS::File*>{};
 template <> struct UserDataDestructor<OS::Core::File>
 { 
 	static void dtor(ObjectScript::OS * os, void * data, void * user_param)

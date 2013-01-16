@@ -933,9 +933,9 @@ namespace ObjectScript
 				void reserveCapacity(int new_capacity);
 			};
 
-			template<class StringBuffer> friend struct CtypeValue;
-			template<class StringBuffer> friend struct CtypeUserClass;
-			template<class StringBuffer> friend struct UserDataDestructor;
+			// template<class StringBuffer> friend struct CtypeValue;
+			// template<class StringBuffer> friend struct CtypeUserClass;
+			// template<class StringBuffer> friend struct UserDataDestructor;
 
 			class File
 			{
@@ -963,9 +963,9 @@ namespace ObjectScript
 				int write(const Core::String&);
 			};
 
-			template<class File> friend struct CtypeValue;
-			template<class File> friend struct CtypeUserClass;
-			template<class File> friend struct UserDataDestructor;
+			// template<class File> friend struct CtypeValue;
+			// template<class File> friend struct CtypeUserClass;
+			// template<class File> friend struct UserDataDestructor;
 
 			class Tokenizer
 			{
@@ -2899,11 +2899,14 @@ namespace ObjectScript
 		virtual void initPreScript();
 		virtual void initPostScript();
 
-		template<class Core> friend struct CtypeValue;
-		template<class Core> friend struct CtypeUserClass;
+		// template<class Core> friend struct CtypeValue;
+		// template<class Core> friend struct CtypeUserClass;
 		template<class Core> friend struct UserDataDestructor;
 
 	public:
+
+		typedef Core::StringBuffer StringBuffer;
+		typedef Core::File File;
 
 		class String: public Core::String // this string retains OS
 		{
