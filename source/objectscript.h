@@ -2905,8 +2905,8 @@ namespace ObjectScript
 
 	public:
 
-		typedef Core::StringBuffer StringBuffer;
-		typedef Core::File File;
+		typedef Core::StringBuffer CoreStringBuffer;
+		typedef Core::File CoreFile;
 
 		class String: public Core::String // this string retains OS
 		{
