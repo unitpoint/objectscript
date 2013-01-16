@@ -18729,9 +18729,9 @@ void OS::initArrayClass()
 	pop();
 }
 
-template <> struct CtypeName<OS::Core::StringBuffer>{ static const OS_CHAR * getName(){ return OS_TEXT("StringBuffer"); } };
-template <> struct CtypeValue<OS::Core::StringBuffer*>: public CtypeUserClass<OS::Core::StringBuffer*>{};
-template <> struct UserDataDestructor<OS::Core::StringBuffer>
+template <> struct ObjectScript::CtypeName<OS::Core::StringBuffer>{ static const OS_CHAR * getName(){ return OS_TEXT("StringBuffer"); } };
+template <> struct ObjectScript::CtypeValue<OS::Core::StringBuffer*>: public CtypeUserClass<OS::Core::StringBuffer*>{};
+template <> struct ObjectScript::UserDataDestructor<OS::Core::StringBuffer>
 {
 	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
 	{
@@ -19133,10 +19133,9 @@ int OS::Core::File::write(const Core::String& str)
 }
 
 
-template <> struct CtypeName<OS::Core::File>{ static const OS_CHAR * getName(){ return OS_TEXT("File"); } };
-template <> struct CtypeValue<OS::Core::File*>: public CtypeUserClass<OS::Core::File*>{};
-// template <> void ObjectScript::userObjectDestructor<OS::Core::File>(OS::Core::File * p){ delete p; }
-template <> struct UserDataDestructor<OS::Core::File>
+template <> struct ObjectScript::CtypeName<OS::Core::File>{ static const OS_CHAR * getName(){ return OS_TEXT("File"); } };
+template <> struct ObjectScript::CtypeValue<OS::Core::File*>: public CtypeUserClass<OS::Core::File*>{};
+template <> struct ObjectScript::UserDataDestructor<OS::Core::File>
 { 
 	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
 	{
