@@ -725,7 +725,7 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
 		return dst;
 	}
 	int n = OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.*f"), precision, a);
-	OS_ASSERT(n >= 1 && !OS_STRSTR(dst, OS_TEXT(".")) || dst[n-1] != '0');
+	OS_ASSERT(n >= 1 && !OS_STRSTR(dst, OS_TEXT(".")) || dst[n-1] != '0'); (void)n;
 	return dst;
 }
 
@@ -1071,17 +1071,43 @@ OS_NUMBER OS::Core::String::toNumber() const
 OS::Core::StringBuffer::StringBuffer(OS * p_allocator)
 {
 	allocator = p_allocator;
+	// allocator->retain();
+	cacheStr = NULL;
+}
+
+OS::Core::StringBuffer::StringBuffer(const StringBuffer& buf)
+{
+	allocator = buf.allocator;
+	cacheStr = NULL;
+	append(buf);
+	// allocator->retain();
 }
 
 OS::Core::StringBuffer::~StringBuffer()
 {
+	freeCacheStr();
 	allocator->vectorClear(*this);
+	// allocator->release();
+}
+
+void OS::Core::StringBuffer::reserveCapacity(int new_capacity)
+{
+	if(capacity < new_capacity){
+		capacity = capacity > 0 ? capacity*2 : 4;
+		if(capacity < new_capacity){
+			capacity = new_capacity; // (capacity+3) & ~3;
+		}
+		OS_BYTE * new_buf = (OS_BYTE*)allocator->malloc(sizeof(OS_BYTE)*capacity OS_DBG_FILEPOS);
+		OS_ASSERT(new_buf);
+		OS_MEMCPY(new_buf, buf, sizeof(buf[0]) * count);
+		allocator->free(buf);
+		buf = new_buf;
+	}
 }
 
 OS::Core::StringBuffer& OS::Core::StringBuffer::append(OS_CHAR c)
 {
-	allocator->vectorAddItem(*this, c OS_DBG_FILEPOS);
-	return *this;
+	return append((const void*)&c, sizeof(c));
 }
 
 OS::Core::StringBuffer& OS::Core::StringBuffer::append(const OS_CHAR * str)
@@ -1091,13 +1117,20 @@ OS::Core::StringBuffer& OS::Core::StringBuffer::append(const OS_CHAR * str)
 
 OS::Core::StringBuffer& OS::Core::StringBuffer::append(const OS_CHAR * str, int len)
 {
-	allocator->vectorReserveCapacity(*this, count + len OS_DBG_FILEPOS);
-	OS_MEMCPY(buf + count, str, len * sizeof(OS_CHAR));
-	count += len;
+	return append((const void*)str, len * sizeof(OS_CHAR));
+}
+
+OS::Core::StringBuffer& OS::Core::StringBuffer::append(const void * buf, int size)
+{
+	freeCacheStr();
+	// allocator->vectorReserveCapacity(*this, count + size OS_DBG_FILEPOS);
+	reserveCapacity(count + size);
+	OS_MEMCPY(this->buf + count, buf, size);
+	count += size;
 	return *this;
 }
 
-OS::Core::StringBuffer& OS::Core::StringBuffer::append(const String& str)
+OS::Core::StringBuffer& OS::Core::StringBuffer::append(const Core::String& str)
 {
 	return append(str.toChar(), str.getLen());
 }
@@ -1107,7 +1140,7 @@ OS::Core::StringBuffer& OS::Core::StringBuffer::append(const StringBuffer& buf)
 	return append(buf.buf, buf.count);
 }
 
-OS::Core::StringBuffer& OS::Core::StringBuffer::operator+=(const String& str)
+OS::Core::StringBuffer& OS::Core::StringBuffer::operator+=(const Core::String& str)
 {
 	return append(str);
 }
@@ -1117,19 +1150,36 @@ OS::Core::StringBuffer& OS::Core::StringBuffer::operator+=(const OS_CHAR * str)
 	return append(str);
 }
 
-OS::Core::StringBuffer::operator OS::Core::String() const
+OS::Core::StringBuffer::operator OS::Core::String()
 {
 	return toString();
 }
 
-OS::Core::String OS::Core::StringBuffer::toString() const
+OS::Core::String OS::Core::StringBuffer::toString()
 {
-	return String(allocator, buf, count);
+	return Core::String(toGCStringValue());
 }
 
-OS::Core::GCStringValue * OS::Core::StringBuffer::toGCStringValue() const
+OS::String OS::Core::StringBuffer::toStringOS()
 {
-	return allocator->core->newStringValue(buf, count);
+	return OS::String(allocator, toGCStringValue());
+}
+
+void OS::Core::StringBuffer::freeCacheStr()
+{
+	if(cacheStr){
+		cacheStr->external_ref_count--;
+		cacheStr = NULL;
+	}
+}
+
+OS::Core::GCStringValue * OS::Core::StringBuffer::toGCStringValue()
+{
+	if(!cacheStr){
+		cacheStr = allocator->core->newStringValue(buf, count);
+		cacheStr->external_ref_count++;
+	}
+	return cacheStr;
 }
 
 // =====================================================================
@@ -1844,7 +1894,7 @@ bool OS::Core::Tokenizer::parseLines()
 			}
 			// parse operator
 			if(0 && (*str == OS_TEXT('-') || *str == OS_TEXT('+')) && (str[1] >= OS_TEXT('0') && str[1] <= OS_TEXT('9'))){
-				int i = 0;
+				// int i = 0;
 			}else{
 				int i;
 				for(i = 0; i < operator_count; i++){
@@ -2702,8 +2752,10 @@ void OS::Core::Compiler::writeJumpOpcode(int offs)
 void OS::Core::Compiler::fixJumpOpcode(int offs, int pos)
 {
 	Instruction instruction = prog_opcodes[pos];
+#ifdef OS_DEBUG
 	OpcodeType opcode = (OpcodeType)OS_GET_OPCODE_TYPE(instruction);
 	OS_ASSERT(opcode == OP_JUMP);
+#endif
 	OS_SETARG_sBx(instruction, offs);
 	prog_opcodes[pos] = instruction;
 }
@@ -2812,7 +2864,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	default:
 		{
 			ExpressionType exp_type = exp->type;
-			OS_ASSERT(false);
+			OS_ASSERT(false); (void)exp_type;
 			return false;;
 		}
 
@@ -3347,10 +3399,10 @@ bool OS::Core::Compiler::compile()
 		OS::String filename(allocator, tokenizer->getTextData()->filename);
 		bool is_eval = filename.getDataSize() == 0;
 
-		if(!is_eval && 
+		if((!is_eval || allocator->core->settings.create_debug_eval_opcodes) && 
 			allocator->core->settings.create_debug_opcodes)
 		{
-			Core::StringBuffer dump(allocator);
+			StringBuffer dump(allocator);
 			OS_ASSERT(dynamic_cast<Scope*>(exp));
 			exp->debugPrint(dump, this, dynamic_cast<Scope*>(exp), 0);
 			OS::String dump_filename = allocator->getDebugOpcodesFilename(filename);
@@ -3390,7 +3442,7 @@ bool OS::Core::Compiler::compile()
 
 		return true;
 	}else{
-		Core::StringBuffer dump(allocator);
+		StringBuffer dump(allocator);
 		dump += OS_TEXT("Error");
 		switch(error){
 		default:
@@ -8516,6 +8568,7 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		GCStringValue * string = buf.toGCStringValue();
 		string->external_ref_count++;
 		const_values[i + num_numbers + CONST_STD_VALUES] = string;
+		buf.freeCacheStr();
 	}
 
 	functions = (FunctionDecl*)allocator->malloc(sizeof(FunctionDecl) * num_functions OS_DBG_FILEPOS);
@@ -8579,6 +8632,7 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 			debuginfo_reader->readBytes((void*)buf.buf, data_size);
 			buf.count = data_size/sizeof(OS_CHAR);
 			allocator->vectorAddItem(strings, buf.toString() OS_DBG_FILEPOS);
+			buf.freeCacheStr();
 		}
 
 		allocator->vectorReserveCapacity(debug_info, num_debug_infos OS_DBG_FILEPOS);
@@ -11205,8 +11259,19 @@ int OS::getFileSize(const OS_CHAR * filename)
 {
 	void * f = openFile(filename, "rb");
 	if(f){
-		int size = seekFile(f, 0, SEEK_END);
+		int size = getFileSize(f);
 		closeFile(f);
+		return size;
+	}
+	return 0;
+}
+
+int OS::getFileSize(void * f)
+{
+	if(f){
+		int pos = seekFile(f, 0, SEEK_CUR);
+		int size = seekFile(f, 0, SEEK_END);
+		seekFile(f, pos, SEEK_SET);
 		return size;
 	}
 	return 0;
@@ -11220,7 +11285,7 @@ void * OS::openFile(const OS_CHAR * filename, const OS_CHAR * mode)\
 int OS::readFile(void * buf, int size, void * f)
 {
 	if(f){
-		return fread(buf, size, 1, (FILE*)f);
+		return fread(buf, size, 1, (FILE*)f) * size;
 	}
 	return 0;
 }
@@ -11228,7 +11293,7 @@ int OS::readFile(void * buf, int size, void * f)
 int OS::writeFile(const void * buf, int size, void * f)
 {
 	if(f){
-		return fwrite(buf, size, 1, (FILE*)f);
+		return fwrite(buf, size, 1, (FILE*)f) * size;
 	}
 	return 0;
 }
@@ -11818,6 +11883,7 @@ OS::Core::Core(OS * p_allocator)
 	settings.create_compiled_file = true;
 	settings.create_debug_info = true;
 	settings.create_debug_opcodes = true;
+	settings.create_debug_eval_opcodes = false;
 	settings.primary_compiled_file = false;
 
 	gcInitGreyList();
@@ -11865,8 +11931,9 @@ bool OS::init(MemoryManager * p_manager)
 		initObjectClass();
 		initArrayClass();
 		initStringClass();
-		// initStringBufferClass();
+		initStringBufferClass();
 		initFunctionClass();
+		initFileClass();
 		initMathModule();
 		initGCModule();
 		initLangTokenizerModule();
@@ -13421,6 +13488,7 @@ OS::Core::GCUserdataValue * OS::Core::newUserPointerValue(int crc, void * ptr, O
 			OS_ASSERT(dynamic_cast<GCUserdataValue*>(userptr_value));
 			if(userptr_value->ptr == ptr){ // && userptr_value->crc == crc){
 				OS_ASSERT(userptr_value->crc == crc);
+				OS_ASSERT(userptr_value->dtor == dtor);
 				if(userptr_value->crc != crc){
 					if(!prev){
 						userptr_refs.heads[slot] = next;
@@ -18396,8 +18464,6 @@ void OS::initObjectClass()
 					}
 					return 1;
 				}
-				// os->core->pushValue(value);
-				// return 1;
 
 			case OS_VALUE_TYPE_OBJECT:
 				{
@@ -18412,6 +18478,39 @@ void OS::initObjectClass()
 					}
 					return 1;
 				}
+			}
+			return 0;
+		}
+
+
+		static int join(OS * os, int params, int, int, void*)
+		{
+			Core::StringBuffer buf(os);
+			String str = params >= 1 ? os->toString(-params+0) : String(os);
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_ARRAY:
+				for(int i = 0; i < OS_VALUE_VARIANT(self_var).arr->values.count; i++){
+					if(i > 0){
+						buf.append(str);
+					}
+					buf.append(os->core->valueToString(OS_VALUE_VARIANT(self_var).arr->values[i], true));
+				}
+				os->pushString(buf);
+				return 1;
+
+			case OS_VALUE_TYPE_OBJECT:
+				if(OS_VALUE_VARIANT(self_var).object->table){
+					Core::Property * prop = OS_VALUE_VARIANT(self_var).object->table->first;
+					for(int i = 0; prop; prop = prop->next, i++){
+						if(i > 0){
+							buf.append(str);
+						}
+						buf.append(os->core->valueToString(prop->value, true));
+					}
+				}
+				os->pushString(buf);
+				return 1;
 			}
 			return 0;
 		}
@@ -18547,8 +18646,9 @@ void OS::initObjectClass()
 		{OS_TEXT("hasOwnProperty"), Object::hasOwnProperty},
 		{OS_TEXT("hasProperty"), Object::hasProperty},
 		{OS_TEXT("merge"), Object::merge},
-		{OS_TEXT("getKeys"), Object::getKeys},
-		{OS_TEXT("getValues"), Object::getValues},
+		{OS_TEXT("join"), Object::join},
+		// {OS_TEXT("getKeys"), Object::getKeys},
+		// {OS_TEXT("getValues"), Object::getValues},
 		{OS_TEXT("__get@keys"), Object::getKeys},
 		{OS_TEXT("__get@values"), Object::getValues},
 		{}
@@ -18629,8 +18729,18 @@ void OS::initArrayClass()
 	pop();
 }
 
-/*
-OS_DECL_USER_CLASS(OS::StringBuffer);
+template <> struct CtypeName<OS::Core::StringBuffer>{ static const OS_CHAR * getName(){ return OS_TEXT("StringBuffer"); } };
+template <> struct CtypeValue<OS::Core::StringBuffer*>: public CtypeUserClass<OS::Core::StringBuffer*>{};
+template <> struct UserDataDestructor<OS::Core::StringBuffer>
+{
+	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
+	{
+		OS_ASSERT(data && dynamic_cast<OS::Core::StringBuffer*>((OS::Core::StringBuffer*)data));
+		OS::Core::StringBuffer * buf = (OS::Core::StringBuffer*)data;
+		buf->~StringBuffer();
+		os->free(buf);
+	}
+};
 
 void OS::initStringBufferClass()
 {
@@ -18638,18 +18748,53 @@ void OS::initStringBufferClass()
 	{
 		static int __construct(OS * os, int params, int, int, void * user_param)
 		{
-			// CtypeValue<StringBuffer*>::push(os, new StringBuffer(os));
+			Core::StringBuffer * self = new (os->malloc(sizeof(Core::StringBuffer) OS_DBG_FILEPOS)) Core::StringBuffer(os);
+			for(int i = 0; i < params; i++){
+				self->append(os->toString(-params + i));
+			}
+			CtypeValue<Core::StringBuffer*>::push(os, self);
+			return 1;
+		}
+
+		static int append(OS * os, int params, int, int, void * user_param)
+		{
+			OS_GET_SELF(Core::StringBuffer*);
+			for(int i = 0; i < params; i++){
+				self->append(os->toString(-params + i));
+			}
+			CtypeValue<Core::StringBuffer*>::push(os, self);
+			return 1;
+		}
+
+		static int valueOf(OS * os, int params, int, int, void * user_param)
+		{
+			OS_GET_SELF(Core::StringBuffer*);
+			os->pushString(self->toString());
+			return 1;
+		}
+
+		static int len(OS * os, int params, int, int, void * user_param)
+		{
+			OS_GET_SELF(Core::StringBuffer*);
+			os->pushNumber(self->count);
 			return 1;
 		}
 	};
 
 	OS::FuncDef funcs[] = {
 		{OS_TEXT("__construct"), Lib::__construct},
+		{OS_TEXT("append"), Lib::append},
+		{core->strings->func_valueOf, Lib::valueOf},
+		{core->strings->__len, Lib::len},
+		// {OS_TEXT("printf"), Lib::printf},
 		{}
 	};
-	registerUserClass<OS::StringBuffer>(this, funcs);
+	registerUserClass<Core::StringBuffer>(this, funcs);
+
+	getGlobal(CtypeName<Core::StringBuffer>::getName());
+	core->pushValue(core->prototypes[Core::PROTOTYPE_STRING]);
+	setPrototype(CtypeId<Core::StringBuffer>::getId());
 }
-*/
 
 void OS::initStringClass()
 {
@@ -18769,7 +18914,7 @@ void OS::initStringClass()
 						for(int i = 0; i < subject_len-search_len+1;){
 							if(OS_MEMCMP(subject_str + i, search_str, sizeof(OS_CHAR)*search_len) == 0){
 								buf.append(subject_str + start, i - start);
-								buf.append(replace);
+								buf.append(replace, replace_len);
 								i += search_len;
 								start = i;
 								found = true;
@@ -18890,6 +19035,180 @@ void OS::initStringClass()
 	core->pushValue(core->prototypes[Core::PROTOTYPE_STRING]);
 	setFuncs(list);
 	pop();
+}
+
+OS::Core::File::File(OS * p_os)
+{
+	os = p_os; // ->retain();
+	f = NULL;
+}
+
+OS::Core::File::~File()
+{
+	close();
+	// os->release();
+}
+
+bool OS::Core::File::open(const OS_CHAR * filename, const OS_CHAR * mode)
+{
+	close();
+	f = os->openFile(filename, mode);
+	return isOpen();
+}
+
+void OS::Core::File::close()
+{
+	os->closeFile(f);
+	f = NULL;
+}
+
+int OS::Core::File::getSize() const
+{
+	return os->getFileSize(f);
+}
+
+int OS::Core::File::getPos() const
+{
+	return os->seekFile(f, 0, SEEK_CUR);
+}
+
+void OS::Core::File::setPos(int pos)
+{
+	os->seekFile(f, pos, SEEK_SET);
+}
+
+bool OS::Core::File::isOpen() const
+{
+	return f != NULL;
+}
+
+OS::Core::String OS::Core::File::read()
+{
+	return read(getSize() - getPos());
+}
+
+OS::Core::String OS::Core::File::read(int len)
+{
+	if(!f || len <= 0){
+		return OS::Core::String(os);
+	}
+
+	int buf_size = len, max_buf_size = 1024*1024*1;
+	if(buf_size > max_buf_size){
+		buf_size = max_buf_size;
+	}
+	void * temp = os->malloc(buf_size OS_DBG_FILEPOS);
+	struct AutoFree { OS * os; void * temp; ~AutoFree(){ os->free(temp); } } auto_free = {os, temp}; (void)auto_free;
+
+	if(len == buf_size){
+		len = os->readFile(temp, len, f);
+		if(len == 0){
+			// TODO:: error ?!
+		}
+		return OS::Core::String(os, temp, len);
+	}
+	
+	Core::StringBuffer buf(os);
+	buf.reserveCapacity(len);
+	while(len > 0){
+		int cur_len = os->readFile(temp, len < buf_size ? len : buf_size, f);
+		if(cur_len == 0){
+			// TODO:: error ?!
+			break;
+		}
+		buf.append(temp, cur_len);
+		len -= cur_len;
+	}
+	return buf.toString();
+}
+
+int OS::Core::File::write(const void * data, int len)
+{
+	return os->writeFile(data, len, f);
+}
+
+int OS::Core::File::write(const Core::String& str)
+{
+	return write(str.toChar(), str.getLen() * sizeof(OS_CHAR));
+}
+
+
+template <> struct CtypeName<OS::Core::File>{ static const OS_CHAR * getName(){ return OS_TEXT("File"); } };
+template <> struct CtypeValue<OS::Core::File*>: public CtypeUserClass<OS::Core::File*>{};
+// template <> void ObjectScript::userObjectDestructor<OS::Core::File>(OS::Core::File * p){ delete p; }
+template <> struct UserDataDestructor<OS::Core::File>
+{ 
+	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
+	{
+		OS_ASSERT(data && dynamic_cast<OS::Core::File*>((OS::Core::File*)data));
+		OS::Core::File * buf = (OS::Core::File*)data;
+		buf->~File();
+		os->free(buf);
+	}
+};
+
+void OS::initFileClass()
+{
+	struct Lib
+	{
+		static int __construct(OS * os, int params, int, int, void * user_param)
+		{
+			Core::File * self = new (os->malloc(sizeof(Core::File) OS_DBG_FILEPOS)) Core::File(os);
+			if(params >= 2){
+				self->open(os->toString(-params), os->toString(-params+1));
+			}else if(params >= 1){
+				self->open(os->toString(-params));
+			}
+			CtypeValue<Core::File*>::push(os, self);
+			return 1;
+		}
+		
+		static int open(OS * os, int params, int, int, void * user_param)
+		{
+			OS_GET_SELF(Core::File*);
+			if(params > 0){
+				os->pushBool(self->open(os->toString(-params), params >= 2 ? os->toString(-params+1).toChar() : OS_TEXT("rt")));
+				return 1;
+			}
+			return 0;
+		}
+		
+		static int read(OS * os, int params, int, int, void * user_param)
+		{
+			OS_GET_SELF(Core::File*);
+			if(params > 0){
+				os->pushString(self->read(os->toInt(-params)));
+			}else{
+				os->pushString(self->read());
+			}
+			return 1;
+		}
+		
+		static int write(OS * os, int params, int, int, void * user_param)
+		{
+			OS_GET_SELF(Core::File*);
+			if(params > 0){
+				int len = self->write(os->toString(-params));
+				os->pushNumber(len);
+				return 1;
+			}
+			return 0;
+		}
+	};
+
+	OS::FuncDef funcs[] = {
+		{OS_TEXT("__construct"), Lib::__construct},
+		{OS_TEXT("open"), Lib::open},
+		def(OS_TEXT("close"), &Core::File::close),
+		{OS_TEXT("read"), Lib::read},
+		{OS_TEXT("write"), Lib::write},
+		def(OS_TEXT("__get@isOpen"), &Core::File::isOpen),
+		def(OS_TEXT("__get@size"), &Core::File::getSize),
+		def(OS_TEXT("__get@pos"), &Core::File::getPos),
+		def(OS_TEXT("__set@pos"), &Core::File::setPos),
+		{}
+	};
+	registerUserClass<Core::File>(this, funcs);
 }
 
 void OS::initFunctionClass()
@@ -19091,7 +19410,7 @@ double OS::Core::getRand()
 
 double OS::Core::getRand(double up)
 {
-	return ::floor(getRand()*(up-1) + 0.5f);
+	return ::floor(getRand()*(up-1) + 0.5);
 }
 
 double OS::Core::getRand(double min, double max)
@@ -19099,8 +19418,8 @@ double OS::Core::getRand(double min, double max)
 	return getRand() * (max - min) + min;
 }
 
-#define OS_MATH_PI ((OS_NUMBER)3.1415926535897932384626433832795)
-#define OS_RADIANS_PER_DEGREE (OS_MATH_PI/180.0f)
+#define OS_MATH_PI 3.1415926535897932384626433832795
+#define OS_RADIANS_PER_DEGREE (OS_MATH_PI/180.0)
 
 void OS::initMathModule()
 {
@@ -19366,7 +19685,7 @@ void OS::initMathModule()
 		{}
 	};
 	NumberDef numbers[] = {
-		{OS_TEXT("PI"), OS_MATH_PI},
+		{OS_TEXT("PI"), (OS_NUMBER)OS_MATH_PI},
 		{OS_TEXT("MAX_NUMBER"), OS_MAX_NUMBER},
 		{}
 	};
@@ -19573,6 +19892,10 @@ void OS::initPostScript()
 		// it's ObjectScript code here
 		Object.__setempty = Object.push
 		Object.__getempty = Object.pop
+		
+		function StringBuffer.printf(){
+			this.append(sprintf.apply(_E, arguments))
+		}
 	));
 }
 
@@ -20076,6 +20399,9 @@ int OS::getSetting(OS_ESettings setting)
 	case OS_SETTING_CREATE_DEBUG_OPCODES:
 		return core->settings.create_debug_opcodes;
 
+	case OS_SETTING_CREATE_DEBUG_EVAL_OPCODES:
+		return core->settings.create_debug_eval_opcodes;
+
 	case OS_SETTING_CREATE_COMPILED_FILE:
 		return core->settings.create_compiled_file;
 
@@ -20103,11 +20429,17 @@ int OS::setSetting(OS_ESettings setting, int value)
 	case OS_SETTING_CREATE_DEBUG_OPCODES:
 		return Lib::ret(core->settings.create_debug_opcodes, value);
 
+	case OS_SETTING_CREATE_DEBUG_EVAL_OPCODES:
+		return Lib::ret(core->settings.create_debug_eval_opcodes, value);
+
 	case OS_SETTING_CREATE_COMPILED_FILE:
 		return Lib::ret(core->settings.create_compiled_file, value);
 
 	case OS_SETTING_PRIMARY_COMPILED_FILE:
 		return Lib::ret(core->settings.primary_compiled_file, value);
+
+	default:
+		OS_ASSERT(false);
 	}
 	return -1;
 }

@@ -206,6 +206,7 @@ namespace ObjectScript
 	enum OS_ESettings
 	{
 		OS_SETTING_CREATE_DEBUG_OPCODES,
+		OS_SETTING_CREATE_DEBUG_EVAL_OPCODES,
 		OS_SETTING_CREATE_DEBUG_INFO,
 		OS_SETTING_CREATE_COMPILED_FILE,
 		OS_SETTING_PRIMARY_COMPILED_FILE,
@@ -824,7 +825,7 @@ namespace ObjectScript
 			};
 
 			struct GCStringValue;
-			class StringBuffer;
+
 			class String
 			{
 			public:
@@ -897,29 +898,72 @@ namespace ObjectScript
 				OS_NUMBER toNumber() const;
 			};
 
-			class StringBuffer: public Vector<OS_CHAR>
+			class StringBuffer: public Vector<OS_BYTE>
 			{
+				void operator=(const StringBuffer&); // disabled operator, no body
+
+			protected:
+
+				Core::GCStringValue * cacheStr;
+
 			public:
 
 				OS * allocator;
 
 				StringBuffer(OS*);
+				StringBuffer(const StringBuffer&);
 				~StringBuffer();
 
 				StringBuffer& append(OS_CHAR);
 				StringBuffer& append(const OS_CHAR*);
 				StringBuffer& append(const OS_CHAR*, int len);
-				StringBuffer& append(const String&);
+				StringBuffer& append(const void*, int size);
+				StringBuffer& append(const Core::String&);
 				StringBuffer& append(const StringBuffer&);
 
-				StringBuffer& operator+=(const String&);
+				StringBuffer& operator+=(const Core::String&);
 				StringBuffer& operator+=(const OS_CHAR*);
 
-				operator String() const;
-				String toString() const;
+				operator Core::String();
+				Core::String toString();
+				OS::String toStringOS();
 
-				GCStringValue * toGCStringValue() const;
+				Core::GCStringValue * toGCStringValue();
+				void freeCacheStr();
+				void reserveCapacity(int new_capacity);
 			};
+
+			template<class StringBuffer> friend struct CtypeValue;
+			template<class StringBuffer> friend struct UserDataDestructor;
+
+			class File
+			{
+			protected:
+
+				OS * os;
+				void * f;
+
+			public:
+
+				File(OS*);
+				virtual ~File();
+
+				bool open(const OS_CHAR * filename, const OS_CHAR * mode = "rb");
+				void close();
+
+				bool isOpen() const;
+				int getSize() const;
+				int getPos() const;
+				void setPos(int);
+
+				String read();
+				String read(int len);
+				int write(const void * data, int len);
+				int write(const Core::String&);
+			};
+
+			template<class File> friend struct CtypeValue;
+			template<class File> friend struct UserDataDestructor;
 
 			class Tokenizer
 			{
@@ -2567,6 +2611,7 @@ namespace ObjectScript
 
 			struct {
 				bool create_debug_opcodes;
+				bool create_debug_eval_opcodes;
 				bool create_debug_info;
 				bool create_compiled_file;
 				bool primary_compiled_file;
@@ -2844,12 +2889,16 @@ namespace ObjectScript
 		void initArrayClass();
 		void initFunctionClass();
 		void initStringClass();
-		// void initStringBufferClass();
+		void initStringBufferClass();
+		void initFileClass();
 		void initMathModule();
 		void initGCModule();
 		void initLangTokenizerModule();
-		void initPreScript();
-		void initPostScript();
+		virtual void initPreScript();
+		virtual void initPostScript();
+
+		template<class Core> friend struct CtypeValue;
+		template<class Core> friend struct UserDataDestructor;
 
 	public:
 
@@ -2857,6 +2906,7 @@ namespace ObjectScript
 		{
 			typedef Core::String super;
 			friend class Core;
+			friend class StringBuffer;
 
 		protected:
 
@@ -2888,19 +2938,6 @@ namespace ObjectScript
 
 			String trim(bool trim_left = true, bool trim_right = true) const;
 		};
-
-		/*
-		class StringBuffer: public Core::StringBuffer
-		{
-			typedef Core::StringBuffer super;
-
-		protected:
-
-		public:
-
-			StringBuffer(OS * os): super(os){};
-		};
-		*/
 
 		static OS * create(MemoryManager* = NULL);
 
@@ -3147,6 +3184,7 @@ namespace ObjectScript
 
 		virtual bool isFileExist(const OS_CHAR * filename);
 		virtual int getFileSize(const OS_CHAR * filename);
+		virtual int getFileSize(void * f);
 		virtual void * openFile(const OS_CHAR * filename, const OS_CHAR * mode);
 		virtual int readFile(void * buf, int size, void * f);
 		virtual int writeFile(const void * buf, int size, void * f);

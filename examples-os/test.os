@@ -409,5 +409,22 @@ printf("def: %v, decimal: %d, string: %s, def:%v\n", "John", 123.45678, 123.4567
 printf("number: %n, float: %f, float(%%.2f): %.2f, float(%%.-1f): %.-1f\n", math.round(123.45678, 2), math.round(123.45678, 2), 123.45678, 123.45678)
 printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54321))
 
+;{
+	print "StringBuffer usage"
+	var buf = StringBuffer(123, "abc", "def")
+	buf.append(4.5, "-append")
+	buf.printf("-%v\n", 123.4567)
+	str = toString(buf)
+	echo str
+}
+
+;{
+	print "File usage"
+	var f = File("c:/Sources/OS/examples-os/test.os", "rb")
+	str = f.read() // 50)
+	// f.close()
+	echo str
+}
+
 terminate()
 print "This text is never printed"
