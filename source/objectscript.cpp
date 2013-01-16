@@ -3003,7 +3003,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				break;
 
 			default:
-				if(exp_compare->type == EXP_TYPE_LOGIC_NOT || exp_compare->type == OP_LOGIC_BOOL){
+				if(exp_compare->type == EXP_TYPE_LOGIC_NOT || exp_compare->type == EXP_TYPE_LOGIC_BOOL){
 					if(!writeOpcodes(scope, exp_compare->list)){
 						return false;
 					}
@@ -18733,9 +18733,11 @@ void OS::initArrayClass()
 	pop();
 }
 
-template <> struct ObjectScript::CtypeName<OS::Core::StringBuffer>{ static const OS_CHAR * getName(){ return OS_TEXT("StringBuffer"); } };
-template <> struct ObjectScript::CtypeValue<OS::Core::StringBuffer*>: public CtypeUserClass<OS::Core::StringBuffer*>{};
-template <> struct ObjectScript::UserDataDestructor<OS::Core::StringBuffer>
+namespace ObjectScript {
+
+template <> struct CtypeName<OS::Core::StringBuffer>{ static const OS_CHAR * getName(){ return OS_TEXT("StringBuffer"); } };
+template <> struct CtypeValue<OS::Core::StringBuffer*>: public CtypeUserClass<OS::Core::StringBuffer*>{};
+template <> struct UserDataDestructor<OS::Core::StringBuffer>
 {
 	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
 	{
@@ -18745,6 +18747,8 @@ template <> struct ObjectScript::UserDataDestructor<OS::Core::StringBuffer>
 		os->free(buf);
 	}
 };
+
+} // namespace ObjectScript
 
 void OS::initStringBufferClass()
 {
@@ -19136,10 +19140,11 @@ int OS::Core::File::write(const Core::String& str)
 	return write(str.toChar(), str.getLen() * sizeof(OS_CHAR));
 }
 
+namespace ObjectScript {
 
-template <> struct ObjectScript::CtypeName<OS::Core::File>{ static const OS_CHAR * getName(){ return OS_TEXT("File"); } };
-template <> struct ObjectScript::CtypeValue<OS::Core::File*>: public CtypeUserClass<OS::Core::File*>{};
-template <> struct ObjectScript::UserDataDestructor<OS::Core::File>
+template <> struct CtypeName<OS::Core::File>{ static const OS_CHAR * getName(){ return OS_TEXT("File"); } };
+template <> struct CtypeValue<OS::Core::File*>: public CtypeUserClass<OS::Core::File*>{};
+template <> struct UserDataDestructor<OS::Core::File>
 { 
 	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
 	{
@@ -19149,6 +19154,8 @@ template <> struct ObjectScript::UserDataDestructor<OS::Core::File>
 		os->free(buf);
 	}
 };
+
+} // namespace ObjectScript
 
 void OS::initFileClass()
 {
