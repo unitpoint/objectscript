@@ -48,15 +48,23 @@ template <class T> struct PlainType { typedef typename RemovePtr<typename Remove
 
 // =====================================================================
 
-template <class T> int getCtypeId(){ static int id = (int)&id; return id; }
-template <class T> int getInstanceId(){ static int id = (int)&id; return id; }
+template <class T>
+struct CtypeId
+{
+	static int getId(){ static int id = (int)(intptr_t)&id; return id; }
+	static int getInstanceId(){ static int id = (int)(intptr_t)&id; return id; }
+};
 
-template <class T> const OS_CHAR * getCtypeName();
+template <class T>
+struct CtypeName
+{
+	static const OS_CHAR * getName();
+};
 
 // =====================================================================
 
 #define OS_DECL_CTYPE(type) OS_DECL_CTYPE_NAME(type, #type)
-#define OS_DECL_CTYPE_NAME(type, name) template <> inline const OS_CHAR * getCtypeName<type>(){ return name; }
+#define OS_DECL_CTYPE_NAME(type, name) template <> struct CtypeName<type> { static const OS_CHAR * getName(){ return name; } };
 
 // =====================================================================
 
@@ -235,15 +243,21 @@ template <class T> void pushCtypeValue(ObjectScript::OS * os, T obj)
 
 // =====================================================================
 
-template <class T> void userObjectDestructor(T * p)
+template <class T> struct UserObjectDestructor
 {
-	// delete p;
-}
+	static void	dtor(T * p)
+	{
+		// delete p;
+	}
+};
 
-template <class T> void userObjectDestructor(ObjectScript::OS * os, void * data, void * user_param)
+template <class T> struct UserDataDestructor
 {
-	userObjectDestructor<T>((T*)data);
-}
+	static void	dtor(ObjectScript::OS * os, void * data, void * user_param)
+	{
+		UserObjectDestructor<T>::dtor((T*)data);
+	}
+};
 
 template <class T> struct CtypeUserClass{};
 template <class T> struct CtypeUserClass<T*>
@@ -253,17 +267,17 @@ template <class T> struct CtypeUserClass<T*>
 
 	static bool isValid(const type p){ return p != NULL; }
 	static type def(ObjectScript::OS*){ return type(); }
-	static type getArg(ObjectScript::OS * os, int offs){ return (type)os->toUserdata(getInstanceId<ttype>(), offs, getCtypeId<ttype>()); }
+	static type getArg(ObjectScript::OS * os, int offs){ return (type)os->toUserdata(CtypeId<ttype>::getInstanceId(), offs, CtypeId<ttype>::getId()); }
 	static void push(ObjectScript::OS * os, const type val)
 	{
 		// pushCtypeValue(os, val);
-		os->pushUserPointer(getInstanceId<ttype>(), val, userObjectDestructor<ttype>);
+		os->pushUserPointer(CtypeId<ttype>::getInstanceId(), val, UserDataDestructor<ttype>::dtor);
 		os->pushStackValue();
-		os->getGlobal(getCtypeName<ttype>());
-		if(!os->isUserdata(getCtypeId<ttype>(), -1)){
+		os->getGlobal(CtypeName<ttype>::getName());
+		if(!os->isUserdata(CtypeId<ttype>::getId(), -1)){
 			os->pop(2);
 		}else{
-			os->setPrototype(getInstanceId<ttype>());
+			os->setPrototype(CtypeId<ttype>::getInstanceId());
 		}
 	}
 };
@@ -271,21 +285,21 @@ template <class T> struct CtypeUserClass<T*>
 #define OS_DECL_USER_CLASS(type) \
 	OS_DECL_CTYPE(type); \
 	template <> struct CtypeValue<type*>: public CtypeUserClass<type*>{}; \
-	template <> void userObjectDestructor<type>(type * p){ delete p; }
+	template <> struct UserObjectDestructor<type>{ static void dtor(type * p){ delete p; } };
 
 // =====================================================================
 
 #define OS_GET_TEMPLATE_SELF(argType) \
 	argType self = CtypeValue< typename RemoveConst<argType>::type >::getArg(os, -params-1); \
 	if(!self){ \
-		os->triggerError(ObjectScript::OS::String(os, getCtypeName< typename PlainType<argType>::type >())+" 'this' must not be null"); \
+		os->triggerError(ObjectScript::OS::String(os, CtypeName< typename PlainType<argType>::type >::getName())+" 'this' must not be null"); \
 		return 0; \
 	}
 
 #define OS_GET_SELF(argType) \
 	argType self = CtypeValue< RemoveConst<argType>::type >::getArg(os, -params-1); \
 	if(!self){ \
-		os->triggerError(ObjectScript::OS::String(os, getCtypeName< PlainType<argType>::type >())+" 'this' must not be null"); \
+		os->triggerError(ObjectScript::OS::String(os, CtypeName< PlainType<argType>::type >::getName())+" 'this' must not be null"); \
 		return 0; \
 	}
 
@@ -295,7 +309,7 @@ template <class T> struct CtypeUserClass<T*>
 	OS_ASSERT(num > 0); \
 	typename CtypeValue< typename RemoveConst<argType>::type >::type arg##num = cur_param_offs < 0 ? CtypeValue< typename RemoveConst<argType>::type >::getArg(os, cur_param_offs) : CtypeValue< typename RemoveConst<argType>::type >::def(os); \
 	if(!CtypeValue< typename RemoveConst<argType>::type >::isValid(arg##num)){ \
-		os->triggerError(ObjectScript::OS::String(os, getCtypeName< typename PlainType<argType>::type >())+" expected"); \
+		os->triggerError(ObjectScript::OS::String(os, CtypeName< typename PlainType<argType>::type >::getName())+" expected"); \
 		return 0; \
 	} cur_param_offs++
 
@@ -303,7 +317,7 @@ template <class T> struct CtypeUserClass<T*>
 	OS_ASSERT(num > 0); \
 	CtypeValue< RemoveConst<argType>::type >::type arg##num = cur_param_offs < 0 ? CtypeValue< RemoveConst<argType>::type >::getArg(os, cur_param_offs) : CtypeValue< RemoveConst<argType>::type >::def(os); \
 	if(!CtypeValue< RemoveConst<argType>::type >::isValid(arg##num)){ \
-		os->triggerError(ObjectScript::OS::String(os, getCtypeName< PlainType<argType>::type >())+" expected"); \
+		os->triggerError(ObjectScript::OS::String(os, CtypeName< PlainType<argType>::type >::getName())+" expected"); \
 		return 0; \
 	} cur_param_offs++
 
@@ -315,8 +329,8 @@ template <class T>
 void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
 {
 	os->pushGlobals();
-	os->pushString(getCtypeName<T>());
-	os->pushUserdata(getCtypeId<T>(), 0);
+	os->pushString(CtypeName<T>::getName());
+	os->pushUserdata(CtypeId<T>::getId(), 0);
 	os->setFuncs(list);
 	os->setProperty();
 }
@@ -325,12 +339,12 @@ template <class T, class Prototype>
 void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
 {
 	os->pushGlobals();
-	os->pushString(getCtypeName<T>());
-	os->pushUserdata(getCtypeId<T>(), 0);
+	os->pushString(CtypeName<T>::getName());
+	os->pushUserdata(CtypeId<T>::getId(), 0);
 	os->setFuncs(list);
 	os->pushStackValue();
-	os->getGlobal(getCtypeName<Prototype>());
-	os->setPrototype(getCtypeId<T>());
+	os->getGlobal(CtypeName<Prototype>::getName());
+	os->setPrototype(CtypeId<T>::getId());
 	os->setProperty();
 }
 
