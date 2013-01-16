@@ -632,9 +632,6 @@ namespace ObjectScript
 			}
 		}
 
-		template<class Core> friend struct CtypeValue;
-		template<class Core> friend struct UserDataDestructor;
-
 		class Core
 		{
 		public:
@@ -937,6 +934,7 @@ namespace ObjectScript
 			};
 
 			template<class StringBuffer> friend struct CtypeValue;
+			template<class StringBuffer> friend struct CtypeUserClass;
 			template<class StringBuffer> friend struct UserDataDestructor;
 
 			class File
@@ -966,6 +964,7 @@ namespace ObjectScript
 			};
 
 			template<class File> friend struct CtypeValue;
+			template<class File> friend struct CtypeUserClass;
 			template<class File> friend struct UserDataDestructor;
 
 			class Tokenizer
@@ -2899,6 +2898,9 @@ namespace ObjectScript
 		void initLangTokenizerModule();
 		virtual void initPreScript();
 		virtual void initPostScript();
+
+		template<class Core> friend struct CtypeValue;
+		template<class Core> friend struct UserDataDestructor;
 
 	public:
 
