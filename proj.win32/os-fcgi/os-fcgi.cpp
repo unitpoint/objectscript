@@ -9,7 +9,6 @@
 
 #include "../../source/objectscript.h"
 #include "../../source/os-binder.h"
-// #include <string>
 #include "fcgi-2.4.1/include/fcgi_stdio.h"
 #include <stdlib.h>
 #include "MPFDParser-1.0/Parser.h"
@@ -214,7 +213,7 @@ public:
 	}
 };
 
-static void PrintEnv(FCGX_Stream *out, char *label, char **envp)
+static void printEnv(FCGX_Stream *out, char *label, char **envp)
 {
     FCGX_FPrintF(out, "%s:<br>\n<pre>\n", label);
     for( ; *envp != NULL; envp++) {
@@ -223,25 +222,27 @@ static void PrintEnv(FCGX_Stream *out, char *label, char **envp)
     FCGX_FPrintF(out, "</pre><p>\n");
 }
 
+#ifdef _MSC_VER
 int _tmain(int argc, _TCHAR* argv[])
+#else
+int main(int argc, char * argv[])
+#endif
 {
-	std::string port=":9000"; // Задаем номер порта TCP
-    int  listenQueueBacklog = 400; // Глубина стека запросов
-    // FCGX_Stream *in, *out, *err;
-    // FCGX_ParamArray envp;
+	const char * port = ":9000";
+    int listen_queue_backlog = 400;
 
-    if(FCGX_Init()){ // Инициализируем библиотеку перед работой.
+	if(FCGX_Init()){
 		exit(1); 
 	}
 
-    int  listen_socket = FCGX_OpenSocket(port.c_str(), listenQueueBacklog); // Открываем новый слушающий сокет
+    int  listen_socket = FCGX_OpenSocket(port, listen_queue_backlog);
     if(listen_socket < 0){
 		exit(1);
 	}
 
     FCGX_Request request;
     if(FCGX_InitRequest(&request, listen_socket, 0)){
-		exit(1); // Инициализируем структуру запроса
+		exit(1);
 	}
 
 	const char * multipartFormData = "multipart/form-data;";
@@ -255,14 +256,14 @@ int _tmain(int argc, _TCHAR* argv[])
 		os->processRequest(&request);
 		os->release();
 
-        FCGX_Finish_r(&request); // Завершаем запрос
+        FCGX_Finish_r(&request);
 
 		// finalizeAllBinds();
 #elif 0
         FCGX_FPrintF(request.out, "Content-type: text/html\r\n\r\n<TITLE>fastcgi</TITLE>\n<H1>Fastcgi: Hello world.</H1>\n");
 
-        PrintEnv(request.out, "Request environment", request.envp);
-        PrintEnv(request.out, "Initial environment", environ);
+        printEnv(request.out, "Request environment", request.envp);
+        printEnv(request.out, "Initial environment", environ);
 
 		char *contentLength = FCGX_GetParam("CONTENT_LENGTH", request.envp);
 		int len = contentLength ? strtol(contentLength, NULL, 10) : 0;
@@ -303,7 +304,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		}else{
             FCGX_FPrintF(request.out, "No data from standard input.<p>\n");
 		}
-        FCGX_Finish_r(&request); // Завершаем запрос
+        FCGX_Finish_r(&request);
 #else
         FCGX_FPrintF(request.out, "Content-type: text/html\r\n\r\n<TITLE>fastcgi</TITLE>\n<H1>Fastcgi: Hello world.</H1>\n");
 		char *contentLength = FCGX_GetParam("CONTENT_LENGTH", request.envp);
@@ -336,7 +337,7 @@ int _tmain(int argc, _TCHAR* argv[])
             }
             FCGX_FPrintF(request.out, "\n</pre><p>\n");
         }
-        FCGX_Finish_r(&request); // Завершаем запрос
+        FCGX_Finish_r(&request);
 #endif
     }
 
