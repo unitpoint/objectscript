@@ -237,11 +237,13 @@ int main(int argc, char * argv[])
 
     int  listen_socket = FCGX_OpenSocket(port, listen_queue_backlog);
     if(listen_socket < 0){
+		printf("listen_socket < 0 \n");
 		exit(1);
 	}
 
     FCGX_Request request;
     if(FCGX_InitRequest(&request, listen_socket, 0)){
+		printf("error init request \n");
 		exit(1);
 	}
 
