@@ -1,16 +1,18 @@
 // os-insight.cpp: определяет точку входа для консольного приложения.
 //
 
+#ifdef _MSC_VER
 #include "stdafx.h"
+#include <Windows.h>
+#pragma comment (lib, "Ws2_32.lib")
+#endif
+
 #include "../../source/objectscript.h"
 #include "../../source/os-binder.h"
-#include <Windows.h>
-#include <string>
+// #include <string>
 #include "fcgi-2.4.1/include/fcgi_stdio.h"
 #include <stdlib.h>
-#include "MPFDParser-1.0\Parser.h"
-
-#pragma comment (lib, "Ws2_32.lib")
+#include "MPFDParser-1.0/Parser.h"
 
 using namespace ObjectScript;
 
@@ -29,6 +31,12 @@ public:
 	FCGX_OS()
 	{
 		request = NULL;
+	}
+
+	void initPreScript()
+	{
+		// setSetting(OS_SETTING_CREATE_DEBUG_EVAL_OPCODES, true);
+		OS::initPreScript();
 	}
 
 	void initEnv(const char * var_name, char ** envp)
