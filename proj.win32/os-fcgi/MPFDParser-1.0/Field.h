@@ -8,8 +8,10 @@
 #define	_FIELD_H
 
 #include "Exception.h"
-// #include <iostream>
-// #include <fstream>
+#ifdef FSTREAM_FILE
+#include <iostream>
+#include <fstream>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <sstream>
@@ -60,8 +62,11 @@ namespace MPFD {
 
         int type;
         char * FieldContent;
-        // std::ofstream file;
+#ifndef FSTREAM_FILE
 		FILE * file;
+#else
+        std::ofstream file;
+#endif
     };
 }
 #endif	/* _FIELD_H */
