@@ -6,7 +6,7 @@ SOURCES	 += MPFDParser-1.0/Parser.cpp MPFDParser-1.0/Field.cpp MPFDParser-1.0/Ex
 OBJECTS  := $(patsubst %.cpp,%.o,$(SOURCES))
 OBJECTS  := $(patsubst %.c,%.o,$(OBJECTS))
 CPPFLAGS += $(patsubst %,-D%,$(DEFINES))
-CPPFLAGS += -Ifcgi-2.4.1/include -IMPFDParser-1.0
+CPPFLAGS += -Ifcgi-2.4.1 -Ifcgi-2.4.1/include -IMPFDParser-1.0
 LD        = $(CXX)
 LDLIBS    = -lm -lstdc++
 
