@@ -213,6 +213,7 @@ public:
 	}
 };
 
+#if 0
 static void printEnv(FCGX_Stream *out, char *label, char **envp)
 {
     FCGX_FPrintF(out, "%s:<br>\n<pre>\n", label);
@@ -221,6 +222,7 @@ static void printEnv(FCGX_Stream *out, char *label, char **envp)
     }
     FCGX_FPrintF(out, "</pre><p>\n");
 }
+#endif
 
 #ifdef _MSC_VER
 int _tmain(int argc, _TCHAR* argv[])
