@@ -13772,6 +13772,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 				return;
 			}
 			core->error(OS_E_ERROR, String::format(core->allocator, OS_TEXT("Method %s is not found"), method_name.toChar()));
+			core->pushNull();
 		}
 	};
 
