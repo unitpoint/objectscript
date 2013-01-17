@@ -141,10 +141,11 @@ inline void operator delete(void *, void *){}
 #define OS_VERSION OS_TEXT("0.99-vm4")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
-#define OS_SOURCECODE_EXT OS_TEXT(".os")
-#define OS_COMPILED_EXT OS_TEXT(".osc")
-#define OS_DEBUG_INFO_EXT OS_TEXT(".osd")
-#define OS_DEBUG_OPCODES_EXT OS_TEXT(".txt")
+#define OS_EXT_SOURCECODE OS_TEXT(".os")
+#define OS_EXT_TEMPLATE OS_TEXT(".osh")
+#define OS_EXT_COMPILED OS_TEXT(".osc")
+#define OS_EXT_DEBUG_INFO OS_TEXT(".osd")
+#define OS_EXT_DEBUG_OPCODES OS_TEXT(".txt")
 
 #define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
 
@@ -228,6 +229,13 @@ namespace ObjectScript
 		// internal
 		OS_VALUE_TYPE_WEAKREF,
 		OS_VALUE_TYPE_UNKNOWN,
+	};
+
+	enum OS_ESourceCodeType
+	{
+		OS_SOURCECODE_AUTO,
+		OS_SOURCECODE_PLAIN,
+		OS_SOURCECODE_TEMPLATE
 	};
 
 	enum // OS_ValueRegister
@@ -994,6 +1002,8 @@ namespace ObjectScript
 					NAME,           // [a..z_$][a..z0..9_$]*
 
 					STRING,         // ["].*?["]
+					OUTPUT_STRING,
+					OUTPUT_NEXT_VALUE,
 
 					NUMBER,      // -?[0..9][.]?[0..9]+(e[+-]?[0..9]+)?
 
@@ -1162,7 +1172,7 @@ namespace ObjectScript
 				TokenData * addToken(const String& token, TokenType type, int line, int pos OS_DBG_FILEPOS_DECL);
 
 				bool parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces);
-				bool parseLines();
+				bool parseLines(OS_ESourceCodeType source_code_type, bool check_utf8_bom);
 
 			public:
 
@@ -1186,7 +1196,7 @@ namespace ObjectScript
 				bool getSettingSaveComment() const { return settings.save_comments; }
 				void setSettingSaveComment(bool value){ settings.save_comments = value; }
 
-				bool parseText(const OS_CHAR * text, int len, const String& filename);
+				bool parseText(const OS_CHAR * text, int len, const String& filename, OS_ESourceCodeType source_code_type, bool check_utf8_bom);
 
 				int getNumTokens() const { return tokens.count; }
 				TokenData * getToken(int i) const { return tokens[i]; }
@@ -2370,6 +2380,8 @@ namespace ObjectScript
 				String func_valueOf;
 				String func_clone;
 				String func_concat;
+				String func_echo;
+				String func_require;
 
 				String typeof_null;
 				String typeof_boolean;
@@ -2986,16 +2998,16 @@ namespace ObjectScript
 		int getSetting(OS_ESettings);
 		int setSetting(OS_ESettings, int);
 
-		bool compileFile(const String& filename, bool required = false);
-		bool compile(const String& str);
-		bool compile();
+		bool compileFile(const String& filename, bool required = false, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		bool compile(const String& str, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		bool compile(OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
 		int call(int params = 0, int ret_values = 0);
-		int eval(const OS_CHAR * str, int params = 0, int ret_values = 0);
-		int eval(const String& str, int params = 0, int ret_values = 0);
+		int eval(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		int eval(const String& str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
-		int require(const OS_CHAR * filename, bool required = false, int ret_values = 0);
-		int require(const String& filename, bool required = false, int ret_values = 0);
+		int require(const OS_CHAR * filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		int require(const String& filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
 		void getErrorHandler(int code);
 		void setErrorHandler(int code = OS_E_ALL);

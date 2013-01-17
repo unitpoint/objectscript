@@ -1597,7 +1597,7 @@ void OS::Core::Tokenizer::insertToken(int i, TokenData * token OS_DBG_FILEPOS_DE
 	getAllocator()->vectorInsertAtIndex(tokens, i, token OS_DBG_FILEPOS_PARAM);
 }
 
-bool OS::Core::Tokenizer::parseText(const OS_CHAR * text, int len, const String& filename)
+bool OS::Core::Tokenizer::parseText(const OS_CHAR * text, int len, const String& filename, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	OS_ASSERT(text_data->lines.count == 0);
 
@@ -1621,11 +1621,11 @@ bool OS::Core::Tokenizer::parseText(const OS_CHAR * text, int len, const String&
 #else
 		const OS_CHAR * line_end = str;
 		for(; line_end < str_end && *line_end != OS_TEXT('\n'); line_end++);
-		allocator->vectorAddItem(text_data->lines, String(allocator, str, line_end - str, false, true) OS_DBG_FILEPOS);
+		allocator->vectorAddItem(text_data->lines, String(allocator, str, line_end - str) OS_DBG_FILEPOS);
 		str = line_end+1;
 #endif
 	}
-	return parseLines();
+	return parseLines(source_code_type, check_utf8_bom);
 }
 
 void OS::Core::Tokenizer::TokenData::setFloat(OS_FLOAT value)
@@ -1666,21 +1666,74 @@ bool OS::Core::Tokenizer::parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool 
 	return false;
 }
 
-bool OS::Core::Tokenizer::parseLines()
+bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	OS * allocator = getAllocator();
 	cur_line = cur_pos = 0;
+	bool template_enabled = source_code_type == OS_SOURCECODE_TEMPLATE;
+	bool is_template = template_enabled;
 	for(; cur_line < text_data->lines.count; cur_line++){
 		// parse line
 		const OS_CHAR * line_start = text_data->lines[cur_line].toChar();
 		const OS_CHAR * str = line_start;
 
 		cur_pos = 0;
+		if(!cur_line){
+			if(check_utf8_bom){
+				OS_ASSERT(sizeof(OS_CHAR) == sizeof(char));
+				if(str[0] == '\xef' && str[1] == '\xbb' && str[2] == '\xbf'){
+					line_start += 3;
+					str = line_start;
+				}
+			}
+			if(source_code_type == OS_SOURCECODE_AUTO){
+				if(str[0] == OS_TEXT('<') && str[1] == OS_TEXT('%')){
+					source_code_type = OS_SOURCECODE_TEMPLATE;
+					template_enabled = true;
+					is_template = false;
+					str += 2;
+				}
+			}
+		}
+
 		for(;;){
+			if(template_enabled && is_template){
+				StringBuffer s(allocator);
+				for(;;){
+					const OS_CHAR * line_pos = str;
+					const OS_CHAR * open_os_tag = OS_STRSTR(str, OS_TEXT("<%"));
+					if(open_os_tag){
+						s.append(line_pos, open_os_tag - line_pos);
+						addToken(s, OUTPUT_STRING, cur_line, str - line_start OS_DBG_FILEPOS);
+						str = open_os_tag + 2;
+						is_template = false;
+
+						if(str[0] == OS_TEXT('=')){
+							addToken(String(allocator, str, 1), OUTPUT_NEXT_VALUE, cur_line, str - line_pos OS_DBG_FILEPOS);
+							str++;
+						}
+						break;
+					}
+					s.append(line_pos);
+					s.append(OS_TEXT("\n"));
+					if(cur_line >= text_data->lines.count){
+						addToken(s, OUTPUT_STRING, cur_line, str - line_pos OS_DBG_FILEPOS);
+						return true;
+					}
+					str = line_start = text_data->lines[++cur_line].toChar();
+				}
+			}
+
 			// skip spaces
 			parseSpaces(str);
 			if(!*str){
 				break;
+			}
+
+			if(template_enabled && !is_template && str[0] == OS_TEXT('%') && str[1] == OS_TEXT('>')){
+				str += 2;
+				is_template = true;
+				continue;
 			}
 
 			if(*str == OS_TEXT('"') || *str == OS_TEXT('\'')){ // begin string
@@ -7839,6 +7892,36 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		exp->active_locals = scope->function->num_locals;
 		readToken();
 		return finishValueExpression(scope, exp, p);
+
+	case Tokenizer::OUTPUT_STRING:
+	case Tokenizer::OUTPUT_NEXT_VALUE:
+		{
+			TokenData * globals_name_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), 
+				allocator->core->strings->var_globals, Tokenizer::NAME, token->line, token->pos);
+			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, globals_name_token);
+			exp->ret_values = 1;
+			exp->active_locals = scope->function->num_locals;
+
+			TokenData * name_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), 
+				allocator->core->strings->func_echo, Tokenizer::NAME, token->line, token->pos);
+			Expression * exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, name_token);
+			exp2->ret_values = 1;
+			exp2->active_locals = scope->function->num_locals;
+
+			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_INDIRECT, token, exp, exp2 OS_DBG_FILEPOS);
+			exp->ret_values = 1;
+
+			name_token->release();
+			globals_name_token->release();
+
+			if(recent_token->type == Tokenizer::OUTPUT_STRING){
+				recent_token->type = Tokenizer::STRING;
+			}else{
+				recent_token->type = Tokenizer::NAME;
+				readToken();
+			}
+			return finishValueExpression(scope, exp, p);
+		}
 	}
 	setError(ERROR_EXPECT_EXPRESSION, token);
 	return NULL;
@@ -10994,6 +11077,8 @@ OS::Core::Strings::Strings(OS * allocator)
 	func_valueOf(allocator, OS_TEXT("valueOf")),
 	func_clone(allocator, OS_TEXT("clone")),
 	func_concat(allocator, OS_TEXT("concat")),
+	func_echo(allocator, OS_TEXT("echo")),
+	func_require(allocator, OS_TEXT("require")),
 
 	typeof_null(allocator, OS_TEXT("null")),
 	typeof_boolean(allocator, OS_TEXT("boolean")),
@@ -12033,11 +12118,11 @@ OS::String OS::resolvePath(const String& filename, const String& cur_path)
 	if(isFileExist(resolved_path)){
 		return resolved_path;
 	}
-	resolved_path = changeFilenameExt(resolved_path, OS_SOURCECODE_EXT);
+	resolved_path = changeFilenameExt(resolved_path, OS_EXT_SOURCECODE);
 	if(isFileExist(resolved_path)){
 		return resolved_path;
 	}
-	resolved_path = changeFilenameExt(resolved_path, OS_COMPILED_EXT);
+	resolved_path = changeFilenameExt(resolved_path, OS_EXT_COMPILED);
 	if(isFileExist(resolved_path)){
 		return resolved_path;
 	}
@@ -12047,21 +12132,21 @@ OS::String OS::resolvePath(const String& filename, const String& cur_path)
 
 OS::String OS::getCompiledFilename(const OS::String& resolved_filename)
 {
-	return changeFilenameExt(resolved_filename, OS_COMPILED_EXT);
+	return changeFilenameExt(resolved_filename, OS_EXT_COMPILED);
 }
 
 OS::String OS::getDebugInfoFilename(const String& resolved_filename)
 {
-	return changeFilenameExt(resolved_filename, OS_DEBUG_INFO_EXT);
+	return changeFilenameExt(resolved_filename, OS_EXT_DEBUG_INFO);
 }
 
 OS::String OS::getDebugOpcodesFilename(const String& resolved_filename)
 {
 	if(resolved_filename.getDataSize()){
-		return changeFilenameExt(resolved_filename, OS_DEBUG_OPCODES_EXT);
+		return changeFilenameExt(resolved_filename, OS_EXT_DEBUG_OPCODES);
 	}
 	static int num_evals = 0;
-	return String(this, Core::String::format(this, OS_TEXT("eval-%d%s"), ++num_evals, OS_DEBUG_OPCODES_EXT));
+	return String(this, Core::String::format(this, OS_TEXT("eval-%d%s"), ++num_evals, OS_EXT_DEBUG_OPCODES));
 }
 
 OS::String OS::resolvePath(const String& filename)
@@ -17205,8 +17290,16 @@ void OS::initGlobalFunctions()
 			if(params < 1){
 				return 0;
 			}
-			bool required = params > 1 ? os->toBool(-params+1) : false;
-			os->compileFile(os->toString(-params), required);
+			String filename = os->toString(-params);
+			bool required = params >= 2 ? os->toBool(-params+1) : false;
+			
+			OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO;
+			if(params >= 3){
+				source_code_type = (OS_ESourceCodeType)os->toInt(-params+2);
+			}
+			bool check_utf8_bom = params >= 3 ? os->toBool(-params+2) : true;
+
+			os->compileFile(filename, required, source_code_type, check_utf8_bom);
 			return 1;
 		}
 
@@ -17366,6 +17459,13 @@ void OS::initGlobalFunctions()
 			return 1;
 		}
 
+		static int userdataOf(OS * os, int params, int, int, void*)
+		{
+			if(params < 1) return 0;
+			os->core->pushUserdataOf(os->core->getStackValue(-params));
+			return 1;
+		}
+
 		static int functionOf(OS * os, int params, int, int, void*)
 		{
 			if(params < 1) return 0;
@@ -17406,6 +17506,7 @@ void OS::initGlobalFunctions()
 		{OS_TEXT("stringOf"), Lib::stringOf},
 		{OS_TEXT("arrayOf"), Lib::arrayOf},
 		{OS_TEXT("objectOf"), Lib::objectOf},
+		{OS_TEXT("userdataOf"), Lib::userdataOf},
 		{OS_TEXT("functionOf"), Lib::functionOf},
 		{OS_TEXT("toBool"), Lib::toBool},
 		{OS_TEXT("toNumber"), Lib::toNumber},
@@ -17428,6 +17529,9 @@ void OS::initGlobalFunctions()
 		{OS_TEXT("E_ERROR"), OS_E_ERROR},
 		{OS_TEXT("E_WARNING"), OS_E_WARNING},
 		{OS_TEXT("E_NOTICE"), OS_E_NOTICE},
+		{OS_TEXT("SOURCECODE_AUTO"), OS_SOURCECODE_AUTO},
+		{OS_TEXT("SOURCECODE_PLAIN"), OS_SOURCECODE_PLAIN},
+		{OS_TEXT("SOURCECODE_TEMPLATE"), OS_SOURCECODE_TEMPLATE},
 		{}
 	};
 	pushGlobals();
@@ -17888,6 +17992,17 @@ dump_object:
 			return 0;
 		}
 
+		static int hasProperties(OS * os, int params, int, int, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			Core::GCValue * self = self_var.getGCValue();
+			if(self){
+				os->pushBool(self->table && self->table->count > 0);
+				return 1;
+			}
+			return 0;
+		}
+
 		static int sub(OS * os, int params, int, int, void*)
 		{
 			int start, len, size;
@@ -18198,6 +18313,7 @@ dump_object:
 		{OS_TEXT("pop"), Object::pop},
 		{OS_TEXT("hasOwnProperty"), Object::hasOwnProperty},
 		{OS_TEXT("hasProperty"), Object::hasProperty},
+		{OS_TEXT("hasProperties"), Object::hasProperties},
 		{OS_TEXT("merge"), Object::merge},
 		{OS_TEXT("join"), Object::join},
 		{OS_TEXT("__get@keys"), Object::getKeys},
@@ -19288,18 +19404,26 @@ void OS::initLangTokenizerModule()
 
 		static int parseText(OS * os, int params, int, int, void*)
 		{
+			if(params < 1){
+				return 0;
+			}
 			String str = os->toString(-params);
 			if(str.getDataSize() == 0){
 				return 0;
 			}
 			Core::Tokenizer tokenizer(os);
-			tokenizer.parseText(str.toChar(), str.getLen(), String(os));
+			tokenizer.parseText(str.toChar(), str.getLen(), String(os),
+				params >= 2 ? (OS_ESourceCodeType)os->toInt(-params+1) : OS_SOURCECODE_AUTO,
+				params >= 3 ? os->toBool(-params+2) : true);
 			pushTokensAsObject(os, tokenizer);
 			return 1;
 		}
 
 		static int parseFile(OS * os, int params, int, int, void*)
 		{
+			if(params < 1){
+				return 0;
+			}
 			String filename = os->resolvePath(os->toString(-params));
 			if(filename.getDataSize() == 0){
 				return 0;
@@ -19312,7 +19436,9 @@ void OS::initLangTokenizerModule()
 			file_data.writeFromStream(&file);
 
 			Core::Tokenizer tokenizer(os);
-			tokenizer.parseText((OS_CHAR*)file_data.buffer.buf, file_data.buffer.count, filename);
+			tokenizer.parseText((OS_CHAR*)file_data.buffer.buf, file_data.buffer.count, filename,
+				params >= 2 ? (OS_ESourceCodeType)os->toInt(-params+1) : OS_SOURCECODE_AUTO,
+				params >= 3 ? os->toBool(-params+2) : true);
 
 			pushTokensAsObject(os, tokenizer);
 			return 1;
@@ -19354,12 +19480,12 @@ void OS::initPreScript()
 		}
 
 		modules_loaded = {}
-		function require(filename, required){
+		function require(filename, required, source_code_type, check_utf8_bom){
 			filename = resolvePath(filename)
 				return filename && (modules_loaded.rawget(filename) 
 					|| function(){
 						modules_loaded[filename] = {} // block recursive require
-						modules_loaded[filename] = compileFile(filename, required)()
+						modules_loaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
 						return modules_loaded[filename]
 					}())
 		}
@@ -19723,7 +19849,7 @@ int OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool al
 	return ret_values;
 }
 
-bool OS::compileFile(const String& p_filename, bool required)
+bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	String filename = resolvePath(p_filename);
 	String compiled_filename = getCompiledFilename(filename);
@@ -19782,28 +19908,32 @@ bool OS::compileFile(const String& p_filename, bool required)
 	Core::MemStreamWriter file_data(this);
 	file_data.writeFromStream(&file);
 
+	if(source_code_type == OS_SOURCECODE_AUTO && getFilenameExt(filename) == OS_EXT_TEMPLATE){
+		source_code_type = OS_SOURCECODE_TEMPLATE;
+	}
+
 	Core::Tokenizer tokenizer(this);
-	tokenizer.parseText((OS_CHAR*)file_data.buffer.buf, file_data.buffer.count, filename);
+	tokenizer.parseText((OS_CHAR*)file_data.buffer.buf, file_data.buffer.count, filename, source_code_type, check_utf8_bom);
 
 	Core::Compiler compiler(&tokenizer);
 	return compiler.compile();
 }
 
-bool OS::compile(const String& str)
+bool OS::compile(const String& str, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	if(str.getDataSize() == 0){
 		return false;
 	}
 	Core::Tokenizer tokenizer(this);
-	tokenizer.parseText(str.toChar(), str.getLen(), String(this));
+	tokenizer.parseText(str.toChar(), str.getLen(), String(this), source_code_type, check_utf8_bom);
 
 	Core::Compiler compiler(&tokenizer);
 	return compiler.compile();
 }
 
-bool OS::compile()
+bool OS::compile(OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	return compile(popString());
+	return compile(popString(), source_code_type, check_utf8_bom);
 }
 
 int OS::call(int params, int ret_values)
@@ -19811,31 +19941,33 @@ int OS::call(int params, int ret_values)
 	return core->call(params, ret_values);
 }
 
-int OS::eval(const OS_CHAR * str, int params, int ret_values)
+int OS::eval(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	return eval(String(this, str), params, ret_values);
+	return eval(String(this, str), params, ret_values, source_code_type, check_utf8_bom);
 }
 
-int OS::eval(const String& str, int params, int ret_values)
+int OS::eval(const String& str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	compile(str);
+	compile(str, source_code_type, check_utf8_bom);
 	pushNull();
 	move(-2, 2, -2-params);
 	return core->call(params, ret_values);
 }
 
-int OS::require(const OS_CHAR * filename, bool required, int ret_values)
+int OS::require(const OS_CHAR * filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	return require(String(this, filename), required, ret_values);
+	return require(String(this, filename), required, ret_values, source_code_type, check_utf8_bom);
 }
 
-int OS::require(const String& filename, bool required, int ret_values)
+int OS::require(const String& filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	getGlobal(OS_TEXT("require"));
+	getGlobal(core->strings->func_require);
 	pushGlobals();
 	pushString(filename);
 	pushBool(required);
-	return call(2, ret_values);
+	pushNumber(source_code_type);
+	pushBool(check_utf8_bom);
+	return call(4, ret_values);
 }
 
 int OS::getSetting(OS_ESettings setting)
