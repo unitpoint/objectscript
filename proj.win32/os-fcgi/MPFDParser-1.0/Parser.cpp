@@ -40,8 +40,7 @@ void MPFD::Parser::SetContentType(const std::string type) {
 
 
     int bp = type.find("boundary=");
-
-    if (bp == std::string::npos) {
+	if (bp == (int)std::string::npos) {
         throw MPFD::Exception(std::string("Cannot find boundary in Content-type: \"") + type + std::string("\""));
     }
 
@@ -189,12 +188,12 @@ void MPFD::Parser::_ParseHeaders(std::string headers) {
     }
 
     // Find name
-    long name_pos = headers.find("name=\"");
-    if (name_pos == std::string::npos) {
+    int name_pos = headers.find("name=\"");
+    if (name_pos == (int)std::string::npos) {
         throw Exception(std::string("Accepted headers of field does not contain \"name=\".\nThe headers are: \"") + headers + std::string("\""));
     } else {
-        long name_end_pos = headers.find("\"", name_pos + 6);
-        if (name_end_pos == std::string::npos) {
+        int name_end_pos = headers.find("\"", name_pos + 6);
+        if (name_end_pos == (int)std::string::npos) {
             throw Exception(std::string("Cannot find closing quote of \"name=\" attribute.\nThe headers are: \"") + headers + std::string("\""));
         } else {
             ProcessingFieldName = headers.substr(name_pos + 6, name_end_pos - (name_pos + 6));
@@ -203,16 +202,16 @@ void MPFD::Parser::_ParseHeaders(std::string headers) {
 
 
         // find filename if exists
-        long filename_pos = headers.find("filename=\"");
-        if (filename_pos == std::string::npos) {
+        int filename_pos = headers.find("filename=\"");
+        if (filename_pos == (int)std::string::npos) {
             Fields[ProcessingFieldName]->SetType(Field::TextType);
         } else {
             Fields[ProcessingFieldName]->SetType(Field::FileType);
             Fields[ProcessingFieldName]->SetTempDir(TempDirForFileUpload);
             Fields[ProcessingFieldName]->SetUploadedFilesStorage(WhereToStoreUploadedFiles);
 
-            long filename_end_pos = headers.find("\"", filename_pos + 10);
-            if (filename_end_pos == std::string::npos) {
+            int filename_end_pos = headers.find("\"", filename_pos + 10);
+            if (filename_end_pos == (int)std::string::npos) {
                 throw Exception(std::string("Cannot find closing quote of \"filename=\" attribute.\nThe headers are: \"") + headers + std::string("\""));
             } else {
                 std::string filename = headers.substr(filename_pos + 10, filename_end_pos - (filename_pos + 10));
@@ -220,10 +219,10 @@ void MPFD::Parser::_ParseHeaders(std::string headers) {
             }
 
             // find Content-Type if exists
-            long content_type_pos = headers.find("Content-Type: ");
-            if (content_type_pos != std::string::npos) {
-                long content_type_end_pos = 0;
-                for (int i = content_type_pos + 14; (i < headers.length()) && (!content_type_end_pos); i++) {
+            int content_type_pos = headers.find("Content-Type: ");
+            if (content_type_pos != (int)std::string::npos) {
+                int content_type_end_pos = 0;
+                for (int i = content_type_pos + 14; (i < (int)headers.length()) && (!content_type_end_pos); i++) {
                     if ((headers[i] == ' ') || (headers[i] == 10) || (headers[i] == 13)) {
                         content_type_end_pos = i - 1;
                     }
