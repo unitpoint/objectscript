@@ -245,11 +245,6 @@ int main(int argc, char * argv[])
 		exit(1);
 	}
 
-	const char * multipartFormData = "multipart/form-data;";
-	int multipartFormDataLen = strlen(multipartFormData);
-	
-	int maxPostDataLen = 5*1024*1024;
-
     while(FCGX_Accept_r(&request) == 0){
 #if 1
 		FCGX_OS * os = OS::create(new FCGX_OS());
@@ -265,12 +260,17 @@ int main(int argc, char * argv[])
         printEnv(request.out, "Request environment", request.envp);
         printEnv(request.out, "Initial environment", environ);
 
+		int maxPostDataLen = 5*1024*1024;
 		char *contentLength = FCGX_GetParam("CONTENT_LENGTH", request.envp);
 		int len = contentLength ? strtol(contentLength, NULL, 10) : 0;
 		if(len > maxPostDataLen){
 			FCGX_FPrintF(request.out, "Max post data len: %d > %d\n", len, maxPostDataLen);
 			continue;
 		}
+		
+		const char * multipartFormData = "multipart/form-data;";
+		int multipartFormDataLen = strlen(multipartFormData);
+	
 		char * contentType = FCGX_GetParam("CONTENT_TYPE", request.envp);
 		if(contentType && len > 0 && strncmp(contentType, multipartFormData, multipartFormDataLen) == 0){
 			MPFD::Parser POSTParser = MPFD::Parser();
