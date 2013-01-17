@@ -2860,8 +2860,8 @@ namespace ObjectScript
 		OS * retain();
 		void release();
 
-		void * malloc(int size OS_DBG_FILEPOS_DECL);
-		void free(void * p);
+		virtual void * malloc(int size OS_DBG_FILEPOS_DECL);
+		virtual void free(void * p);
 
 		int getAllocatedBytes();
 		int getMaxAllocatedBytes();
