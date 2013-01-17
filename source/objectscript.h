@@ -188,8 +188,8 @@ inline void operator delete(void *, void *){}
 #endif
 
 #ifndef OS_PROFILE_BEGIN_OPCODE
-#define OS_PROFILE_BEGIN_OPCODE
-#define OS_PROFILE_END_OPCODE
+#define OS_PROFILE_BEGIN_OPCODE(a)
+#define OS_PROFILE_END_OPCODE(a)
 #endif
 
 #ifndef OS_PROFILE_BEGIN_GC
