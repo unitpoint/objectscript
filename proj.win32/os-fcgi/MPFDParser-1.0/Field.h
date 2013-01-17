@@ -8,7 +8,9 @@
 #define	_FIELD_H
 
 #include "Exception.h"
-#ifdef FSTREAM_FILE
+#ifndef FSTREAM_FILE
+#include <stdio.h>
+#else
 #include <iostream>
 #include <fstream>
 #endif
