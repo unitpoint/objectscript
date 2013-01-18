@@ -17282,7 +17282,13 @@ void OS::initGlobalFunctions()
 			if(params < 1){
 				return 0;
 			}
-			os->compile(os->toString(-params));
+			String text = os->toString(-params);
+			OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO;
+			if(params >= 2){
+				source_code_type = (OS_ESourceCodeType)os->toInt(-params+1);
+			}
+			bool check_utf8_bom = params >= 3 ? os->toBool(-params+2) : true;
+			os->compile(text, source_code_type, check_utf8_bom);
 			return 1;
 		}
 
@@ -17293,13 +17299,11 @@ void OS::initGlobalFunctions()
 			}
 			String filename = os->toString(-params);
 			bool required = params >= 2 ? os->toBool(-params+1) : false;
-			
 			OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO;
 			if(params >= 3){
 				source_code_type = (OS_ESourceCodeType)os->toInt(-params+2);
 			}
-			bool check_utf8_bom = params >= 3 ? os->toBool(-params+2) : true;
-
+			bool check_utf8_bom = params >= 4 ? os->toBool(-params+3) : true;
 			os->compileFile(filename, required, source_code_type, check_utf8_bom);
 			return 1;
 		}
