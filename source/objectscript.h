@@ -706,6 +706,8 @@ namespace ObjectScript
 				
 				int getSize() const;
 
+				void reserveCapacity(int new_capacity);
+
 				void writeBytes(const void*, int len);
 				void writeBytesAtPos(const void*, int len, int pos);
 
@@ -906,31 +908,27 @@ namespace ObjectScript
 				OS_NUMBER toNumber() const;
 			};
 
-			class StringBuffer: public Vector<OS_BYTE>
+			class Buffer: public MemStreamWriter
 			{
-				void operator=(const StringBuffer&); // disabled operator, no body
-
 			protected:
 
 				Core::GCStringValue * cacheStr;
 
 			public:
 
-				OS * allocator;
+				Buffer(OS*);
+				Buffer(const Buffer&);
+				~Buffer();
 
-				StringBuffer(OS*);
-				StringBuffer(const StringBuffer&);
-				~StringBuffer();
+				Buffer& append(OS_CHAR);
+				Buffer& append(const OS_CHAR*);
+				Buffer& append(const OS_CHAR*, int len);
+				Buffer& append(const void*, int size);
+				Buffer& append(const Core::String&);
+				Buffer& append(const Buffer&);
 
-				StringBuffer& append(OS_CHAR);
-				StringBuffer& append(const OS_CHAR*);
-				StringBuffer& append(const OS_CHAR*, int len);
-				StringBuffer& append(const void*, int size);
-				StringBuffer& append(const Core::String&);
-				StringBuffer& append(const StringBuffer&);
-
-				StringBuffer& operator+=(const Core::String&);
-				StringBuffer& operator+=(const OS_CHAR*);
+				Buffer& operator+=(const Core::String&);
+				Buffer& operator+=(const OS_CHAR*);
 
 				operator Core::String();
 				Core::String toString();
@@ -938,7 +936,6 @@ namespace ObjectScript
 
 				Core::GCStringValue * toGCStringValue();
 				void freeCacheStr();
-				void reserveCapacity(int new_capacity);
 			};
 
 			class File
@@ -1862,7 +1859,7 @@ namespace ObjectScript
 					bool isLogicOperator() const;
 
 					String getSlotStr(Compiler * compiler, Scope * scope, int slot_num, int up_count = 0);
-					void debugPrint(StringBuffer&, Compiler * compiler, Scope * scope, int depth);
+					void debugPrint(Buffer&, Compiler * compiler, Scope * scope, int depth);
 				};
 
 				struct Scope: public Expression
@@ -2105,7 +2102,7 @@ namespace ObjectScript
 
 				bool findLocalVar(LocalVarDesc&, Scope * scope, const String& name, int active_locals, bool all_scopes);
 
-				void debugPrintSourceLine(StringBuffer& out, TokenData*);
+				void debugPrintSourceLine(Buffer& out, TokenData*);
 				static const OS_CHAR * getExpName(ExpressionType);
 
 				int cacheString(Table * strings_table, Vector<String>& strings, const String& str);
@@ -2792,7 +2789,7 @@ namespace ObjectScript
 		void initArrayClass();
 		void initFunctionClass();
 		void initStringClass();
-		void initStringBufferClass();
+		void initBufferClass();
 		void initFileClass();
 		void initMathModule();
 		void initGCModule();
@@ -2804,14 +2801,14 @@ namespace ObjectScript
 
 	public:
 
-		typedef Core::StringBuffer CoreStringBuffer;
+		typedef Core::Buffer CoreBuffer;
 		typedef Core::File CoreFile;
 
 		class String: public Core::String // this string retains OS
 		{
 			typedef Core::String super;
 			friend class Core;
-			friend class StringBuffer;
+			friend class Buffer;
 
 		protected:
 
@@ -3093,6 +3090,7 @@ namespace ObjectScript
 		virtual int seekFile(void * f, int offset, int whence);
 		virtual void closeFile(void * f);
 
+		virtual void echo(const OS_CHAR * str);
 		virtual void printf(const OS_CHAR * fmt, ...);
 
 	};

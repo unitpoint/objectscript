@@ -975,104 +975,81 @@ OS_NUMBER OS::Core::String::toNumber() const
 
 // =====================================================================
 
-OS::Core::StringBuffer::StringBuffer(OS * p_allocator)
+OS::Core::Buffer::Buffer(OS * p_allocator): MemStreamWriter(p_allocator)
 {
-	allocator = p_allocator;
-	// allocator->retain();
 	cacheStr = NULL;
 }
 
-OS::Core::StringBuffer::StringBuffer(const StringBuffer& buf)
+OS::Core::Buffer::Buffer(const Buffer& buf): MemStreamWriter(buf.allocator)
 {
-	allocator = buf.allocator;
 	cacheStr = NULL;
 	append(buf);
-	// allocator->retain();
 }
 
-OS::Core::StringBuffer::~StringBuffer()
+OS::Core::Buffer::~Buffer()
 {
 	freeCacheStr();
-	allocator->vectorClear(*this);
-	// allocator->release();
 }
 
-void OS::Core::StringBuffer::reserveCapacity(int new_capacity)
-{
-	if(capacity < new_capacity){
-		capacity = capacity > 0 ? capacity*2 : 4;
-		if(capacity < new_capacity){
-			capacity = new_capacity; // (capacity+3) & ~3;
-		}
-		OS_BYTE * new_buf = (OS_BYTE*)allocator->malloc(sizeof(OS_BYTE)*capacity OS_DBG_FILEPOS);
-		OS_ASSERT(new_buf);
-		OS_MEMCPY(new_buf, buf, sizeof(buf[0]) * count);
-		allocator->free(buf);
-		buf = new_buf;
-	}
-}
-
-OS::Core::StringBuffer& OS::Core::StringBuffer::append(OS_CHAR c)
+OS::Core::Buffer& OS::Core::Buffer::append(OS_CHAR c)
 {
 	return append((const void*)&c, sizeof(c));
 }
 
-OS::Core::StringBuffer& OS::Core::StringBuffer::append(const OS_CHAR * str)
+OS::Core::Buffer& OS::Core::Buffer::append(const OS_CHAR * str)
 {
 	return append(str, OS_STRLEN(str));
 }
 
-OS::Core::StringBuffer& OS::Core::StringBuffer::append(const OS_CHAR * str, int len)
+OS::Core::Buffer& OS::Core::Buffer::append(const OS_CHAR * str, int len)
 {
 	return append((const void*)str, len * sizeof(OS_CHAR));
 }
 
-OS::Core::StringBuffer& OS::Core::StringBuffer::append(const void * buf, int size)
+OS::Core::Buffer& OS::Core::Buffer::append(const void * buf, int size)
 {
 	freeCacheStr();
 	// allocator->vectorReserveCapacity(*this, count + size OS_DBG_FILEPOS);
-	reserveCapacity(count + size);
-	OS_MEMCPY(this->buf + count, buf, size);
-	count += size;
+	writeBytes(buf, size);
 	return *this;
 }
 
-OS::Core::StringBuffer& OS::Core::StringBuffer::append(const Core::String& str)
+OS::Core::Buffer& OS::Core::Buffer::append(const Core::String& str)
 {
-	return append(str.toChar(), str.getLen());
+	return append((void*)str.toChar(), str.getDataSize());
 }
 
-OS::Core::StringBuffer& OS::Core::StringBuffer::append(const StringBuffer& buf)
+OS::Core::Buffer& OS::Core::Buffer::append(const Buffer& buf)
 {
-	return append(buf.buf, buf.count);
+	return append((void*)buf.buffer.buf, buf.buffer.count);
 }
 
-OS::Core::StringBuffer& OS::Core::StringBuffer::operator+=(const Core::String& str)
-{
-	return append(str);
-}
-
-OS::Core::StringBuffer& OS::Core::StringBuffer::operator+=(const OS_CHAR * str)
+OS::Core::Buffer& OS::Core::Buffer::operator+=(const Core::String& str)
 {
 	return append(str);
 }
 
-OS::Core::StringBuffer::operator OS::Core::String()
+OS::Core::Buffer& OS::Core::Buffer::operator+=(const OS_CHAR * str)
+{
+	return append(str);
+}
+
+OS::Core::Buffer::operator OS::Core::String()
 {
 	return toString();
 }
 
-OS::Core::String OS::Core::StringBuffer::toString()
+OS::Core::String OS::Core::Buffer::toString()
 {
 	return Core::String(toGCStringValue());
 }
 
-OS::String OS::Core::StringBuffer::toStringOS()
+OS::String OS::Core::Buffer::toStringOS()
 {
 	return OS::String(allocator, toGCStringValue());
 }
 
-void OS::Core::StringBuffer::freeCacheStr()
+void OS::Core::Buffer::freeCacheStr()
 {
 	if(cacheStr){
 		cacheStr->external_ref_count--;
@@ -1080,10 +1057,10 @@ void OS::Core::StringBuffer::freeCacheStr()
 	}
 }
 
-OS::Core::GCStringValue * OS::Core::StringBuffer::toGCStringValue()
+OS::Core::GCStringValue * OS::Core::Buffer::toGCStringValue()
 {
 	if(!cacheStr){
-		cacheStr = allocator->core->newStringValue(buf, count);
+		cacheStr = allocator->core->newStringValue((void*)buffer.buf, buffer.count);
 		cacheStr->external_ref_count++;
 	}
 	return cacheStr;
@@ -1698,7 +1675,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 
 		for(;;){
 			if(template_enabled && is_template){
-				StringBuffer s(allocator);
+				Buffer s(allocator);
 				for(;;){
 					const OS_CHAR * line_pos = str;
 					const OS_CHAR * open_os_tag = OS_STRSTR(str, OS_TEXT("<%"));
@@ -1737,7 +1714,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 			}
 
 			if(*str == OS_TEXT('"') || *str == OS_TEXT('\'')){ // begin string
-				StringBuffer s(allocator);
+				Buffer s(allocator);
 				OS_CHAR closeChar = *str;
 				const OS_CHAR * token_start = str;
 				for(str++; *str && *str != closeChar;){
@@ -1803,7 +1780,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					break;
 				}
 				if(str[1] == OS_TEXT('*')){ // begin multi line comment
-					StringBuffer comment(allocator);
+					Buffer comment(allocator);
 					comment.append(str, 2);
 					int startLine = cur_line;
 					int startPos = str - line_start;
@@ -2229,7 +2206,7 @@ OS::Core::String OS::Core::Compiler::Expression::getSlotStr(OS::Core::Compiler *
 	return allocator->core->strings->var_temp_prefix; // shut up compiler
 }
 
-void OS::Core::Compiler::Expression::debugPrint(StringBuffer& out, OS::Core::Compiler * compiler, Scope * scope, int depth)
+void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler * compiler, Scope * scope, int depth)
 {
 	OS * allocator = getAllocator();
 	compiler->debugPrintSourceLine(out, token);
@@ -3354,11 +3331,11 @@ bool OS::Core::Compiler::compile()
 		if((!is_eval || allocator->core->settings.create_debug_eval_opcodes) && 
 			allocator->core->settings.create_debug_opcodes)
 		{
-			StringBuffer dump(allocator);
+			Buffer dump(allocator);
 			OS_ASSERT(dynamic_cast<Scope*>(exp));
 			exp->debugPrint(dump, this, dynamic_cast<Scope*>(exp), 0);
 			OS::String dump_filename = allocator->getDebugOpcodesFilename(filename);
-			FileStreamWriter(allocator, dump_filename).writeBytes(dump.buf, dump.count * sizeof(OS_CHAR));
+			FileStreamWriter(allocator, dump_filename).writeBytes(dump.buffer.buf, dump.buffer.count);
 		}
 		prog_debug_strings_table = allocator->core->newTable(OS_DBG_FILEPOS_START);
 		prog_debug_info = new (malloc(sizeof(MemStreamWriter) OS_DBG_FILEPOS)) MemStreamWriter(allocator);
@@ -3394,7 +3371,7 @@ bool OS::Core::Compiler::compile()
 
 		return true;
 	}else{
-		StringBuffer dump(allocator);
+		Buffer dump(allocator);
 		dump += OS_TEXT("Error");
 		switch(error){
 		default:
@@ -3485,7 +3462,7 @@ bool OS::Core::Compiler::compile()
 			dump += OS::Core::String::format(allocator, "[%d] %s\n", tokenizer->getErrorLine()+1, tokenizer->getLineString(tokenizer->getErrorLine()).toChar());
 			dump += OS::Core::String::format(allocator, "pos %d\n", tokenizer->getErrorPos()+1);
 		}
-		allocator->printf("%s", dump.toString().toChar());
+		allocator->echo(dump.toString().toChar());
 		// FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 
 		allocator->pushNull();
@@ -7927,7 +7904,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 	return NULL;
 }
 
-void OS::Core::Compiler::debugPrintSourceLine(StringBuffer& out, TokenData * token)
+void OS::Core::Compiler::debugPrintSourceLine(Buffer& out, TokenData * token)
 {
 	if(!token){
 		return;
@@ -8485,12 +8462,12 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		OS_NUMBER number = (OS_NUMBER)reader->readDouble();
 		const_values[num_index + CONST_STD_VALUES] = number;
 	}
-	StringBuffer buf(allocator);
+	Buffer buf(allocator);
 	for(i = 0; i < num_strings; i++){
 		int data_size = reader->readUVariable();
-		allocator->vectorReserveCapacity(buf, data_size/sizeof(OS_CHAR) + 1 OS_DBG_FILEPOS);
-		reader->readBytes((void*)buf.buf, data_size);
-		buf.count = data_size/sizeof(OS_CHAR);
+		buf.reserveCapacity(data_size);
+		reader->readBytes(buf.buffer.buf, data_size);
+		buf.buffer.count = data_size;
 		GCStringValue * string = buf.toGCStringValue();
 		string->external_ref_count++;
 		const_values[i + num_numbers + CONST_STD_VALUES] = string;
@@ -8551,12 +8528,12 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		Vector<String> strings;
 		allocator->vectorReserveCapacity(strings, num_strings OS_DBG_FILEPOS);
 
-		StringBuffer buf(allocator);
+		Buffer buf(allocator);
 		for(i = 0; i < num_strings; i++){
 			int data_size = debuginfo_reader->readUVariable();
-			allocator->vectorReserveCapacity(buf, data_size/sizeof(OS_CHAR) + 1 OS_DBG_FILEPOS);
-			debuginfo_reader->readBytes((void*)buf.buf, data_size);
-			buf.count = data_size/sizeof(OS_CHAR);
+			buf.reserveCapacity(data_size);
+			debuginfo_reader->readBytes(buf.buffer.buf, data_size);
+			buf.buffer.count = data_size;
 			allocator->vectorAddItem(strings, buf.toString() OS_DBG_FILEPOS);
 			buf.freeCacheStr();
 		}
@@ -8614,7 +8591,7 @@ void OS::Core::Program::pushStartFunction()
 	GCFunctionValue * func_value = allocator->core->newFunctionValue(NULL, this, func_decl, allocator->core->global_vars);
 	allocator->core->pushValue(func_value);
 	if(filename.getDataSize()){
-		StringBuffer buf(allocator);
+		Buffer buf(allocator);
 		buf += OS_TEXT("<<");
 		buf += allocator->getFilename(filename);
 		buf += OS_TEXT(">>");
@@ -8861,9 +8838,24 @@ int OS::Core::MemStreamWriter::getSize() const
 	return buffer.count;
 }
 
+void OS::Core::MemStreamWriter::reserveCapacity(int new_capacity)
+{
+	if(buffer.capacity < new_capacity){
+		buffer.capacity = buffer.capacity > 0 ? buffer.capacity*2 : 4;
+		if(buffer.capacity < new_capacity){
+			buffer.capacity = new_capacity; // (capacity+3) & ~3;
+		}
+		OS_BYTE * new_buf = (OS_BYTE*)allocator->malloc(sizeof(OS_BYTE)*buffer.capacity OS_DBG_FILEPOS);
+		OS_ASSERT(new_buf);
+		OS_MEMCPY(new_buf, buffer.buf, sizeof(OS_BYTE) * buffer.count);
+		allocator->free(buffer.buf);
+		buffer.buf = new_buf;
+	}
+}
+
 void OS::Core::MemStreamWriter::writeBytes(const void * buf, int len)
 {
-	allocator->vectorReserveCapacity(buffer, pos + len OS_DBG_FILEPOS);
+	reserveCapacity(pos + len);
 	int save_pos = pos;
 	pos += len;
 	if(buffer.count <= pos){
@@ -11240,6 +11232,11 @@ void OS::closeFile(void * f)
 	}
 }
 
+void OS::echo(const OS_CHAR * str)
+{
+	OS_PRINTF(OS_TEXT("%s"), str);
+}
+
 void OS::printf(const OS_CHAR * format, ...)
 {
 	va_list va;
@@ -11849,7 +11846,7 @@ bool OS::init(MemoryManager * p_manager)
 		initObjectClass();
 		initArrayClass();
 		initStringClass();
-		initStringBufferClass();
+		initBufferClass();
 		initFunctionClass();
 		initFileClass();
 		initMathModule();
@@ -16667,7 +16664,7 @@ void OS::initGlobalFunctions()
 			return s.getLen() > 0 ? s.toChar()[0] : OS_TEXT(' ');
 		}
 
-		static void number(OS::Core::StringBuffer& buf, long num, int base, int size, int precision, int type)
+		static void number(OS::Core::Buffer& buf, long num, int base, int size, int precision, int type)
 		{
 			OS_CHAR c, sign, tmp[128];
 			const OS_CHAR *dig = DIGITS;
@@ -16942,7 +16939,7 @@ void OS::initGlobalFunctions()
 		}
 
 
-		static void flt(OS::Core::StringBuffer& buf, double num, int size, int precision, OS_CHAR fmt, int flags)
+		static void flt(OS::Core::Buffer& buf, double num, int size, int precision, OS_CHAR fmt, int flags)
 		{
 			OS_CHAR tmp[128];
 			OS_CHAR c, sign;
@@ -17014,7 +17011,7 @@ void OS::initGlobalFunctions()
 			while (size-- > 0) buf.append(OS_TEXT(' '));
 		}
 #else
-		static void flt(OS::Core::StringBuffer& buf, double num, int size, int precision, OS_CHAR fmt, int flags)
+		static void flt(OS::Core::Buffer& buf, double num, int size, int precision, OS_CHAR fmt, int flags)
 		{
 			OS_CHAR format[128], tmp[128];
 			int i = 0;
@@ -17054,7 +17051,7 @@ void OS::initGlobalFunctions()
 		}
 #endif
 
-		static void flt(OS::Core::StringBuffer& buf, double num)
+		static void flt(OS::Core::Buffer& buf, double num)
 		{
 			OS_CHAR tmp[128];
 			int i;
@@ -17078,7 +17075,7 @@ void OS::initGlobalFunctions()
 		{
 			if(params < 1) return 0;
 
-			OS::Core::StringBuffer buf(os);
+			OS::Core::Buffer buf(os);
 			String fmt_string = os->toString(-params);
 			const OS_CHAR * fmt = fmt_string.toChar();
 			const OS_CHAR * fmt_end = fmt + fmt_string.getLen();
@@ -17230,13 +17227,13 @@ void OS::initGlobalFunctions()
 		{
 			for(int i = 0; i < params; i++){
 				String str = os->toString(-params + i);
-				os->printf("%s", str.toChar());
-				if(i+1 < params){
-					os->printf("\t");
+				if(i > 0){
+					os->echo("\t");
 				}
+				os->echo(str.toChar());
 			}
 			if(params > 0){
-				os->printf("\n");
+				os->echo("\n");
 			}
 			return 0;
 		}
@@ -17245,7 +17242,7 @@ void OS::initGlobalFunctions()
 		{
 			for(int i = 0; i < params; i++){
 				String str = os->toString(-params + i);
-				os->printf("%s", str.toChar());
+				os->echo(str.toChar());
 			}
 			return 0;
 		}
@@ -17255,7 +17252,7 @@ void OS::initGlobalFunctions()
 			if(params > 0){
 				Format::sprintf(os, params, 0, 0, NULL);
 				String str = os->toString();
-				os->printf("%s", str.toChar());
+				os->echo(str.toChar());
 			}
 			return 0;
 		}
@@ -17269,7 +17266,7 @@ void OS::initGlobalFunctions()
 			if(params < 1){
 				return 0;
 			}
-			OS::Core::StringBuffer buf(os);
+			OS::Core::Buffer buf(os);
 			for(int i = 0; i < params; i++){
 				buf += os->toString(-params + i);
 			}
@@ -17746,7 +17743,7 @@ void OS::initObjectClass()
 			return 0;
 		}
 
-		static void appendQuotedString(Core::StringBuffer& buf, const Core::String& string)
+		static void appendQuotedString(Core::Buffer& buf, const Core::String& string)
 		{
 			buf += OS_TEXT("\"");
 			int len = string.getLen();
@@ -17792,13 +17789,13 @@ void OS::initObjectClass()
 			if(!self){
 				return 0;
 			}
-			Core::StringBuffer buf(os);
+			Core::Buffer buf(os);
 			switch(self->type){
 			case OS_VALUE_TYPE_ARRAY:
 				{
 					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self));
 					Core::GCArrayValue * arr = (Core::GCArrayValue*)self;
-					// Core::StringBuffer buf(os);
+					// Core::Buffer buf(os);
 					buf += OS_TEXT("[");
 					Core::Value temp;
 					for(int i = 0; i < arr->values.count; i++){
@@ -18191,7 +18188,7 @@ dump_object:
 
 		static int join(OS * os, int params, int, int, void*)
 		{
-			Core::StringBuffer buf(os);
+			Core::Buffer buf(os);
 			String str = params >= 1 ? os->toString(-params+0) : String(os);
 			Core::Value self_var = os->core->getStackValue(-params-1);
 			switch(OS_VALUE_TYPE(self_var)){
@@ -18403,48 +18400,48 @@ void OS::initArrayClass()
 
 namespace ObjectScript {
 
-template <> struct CtypeName<OS::Core::StringBuffer>{ static const OS_CHAR * getName(){ return OS_TEXT("StringBuffer"); } };
-template <> struct CtypeValue<OS::Core::StringBuffer*>: public CtypeUserClass<OS::CoreStringBuffer*>{};
-template <> struct UserDataDestructor<OS::Core::StringBuffer>
+template <> struct CtypeName<OS::Core::Buffer>{ static const OS_CHAR * getName(){ return OS_TEXT("Buffer"); } };
+template <> struct CtypeValue<OS::Core::Buffer*>: public CtypeUserClass<OS::CoreBuffer*>{};
+template <> struct UserDataDestructor<OS::Core::Buffer>
 {
 	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
 	{
-		OS_ASSERT(data && dynamic_cast<OS::Core::StringBuffer*>((OS::Core::StringBuffer*)data));
-		OS::Core::StringBuffer * buf = (OS::Core::StringBuffer*)data;
-		buf->~StringBuffer();
+		OS_ASSERT(data && dynamic_cast<OS::Core::Buffer*>((OS::Core::Buffer*)data));
+		OS::Core::Buffer * buf = (OS::Core::Buffer*)data;
+		buf->~Buffer();
 		os->free(buf);
 	}
 };
 
 } // namespace ObjectScript
 
-void OS::initStringBufferClass()
+void OS::initBufferClass()
 {
 	struct Lib
 	{
 		static int __construct(OS * os, int params, int, int, void * user_param)
 		{
-			Core::StringBuffer * self = new (os->malloc(sizeof(Core::StringBuffer) OS_DBG_FILEPOS)) Core::StringBuffer(os);
+			Core::Buffer * self = new (os->malloc(sizeof(Core::Buffer) OS_DBG_FILEPOS)) Core::Buffer(os);
 			for(int i = 0; i < params; i++){
 				self->append(os->toString(-params + i));
 			}
-			CtypeValue<Core::StringBuffer*>::push(os, self);
+			CtypeValue<Core::Buffer*>::push(os, self);
 			return 1;
 		}
 
 		static int append(OS * os, int params, int, int, void * user_param)
 		{
-			OS_GET_SELF(Core::StringBuffer*);
+			OS_GET_SELF(Core::Buffer*);
 			for(int i = 0; i < params; i++){
 				self->append(os->toString(-params + i));
 			}
-			CtypeValue<Core::StringBuffer*>::push(os, self);
+			CtypeValue<Core::Buffer*>::push(os, self);
 			return 1;
 		}
 
 		static int valueOf(OS * os, int params, int, int, void * user_param)
 		{
-			if(os->isUserdata(CtypeId<Core::StringBuffer>::getId(), -params-1)){
+			if(os->isUserdata(CtypeId<Core::Buffer>::getId(), -params-1)){
 				int offs = os->getAbsoluteOffs(-params-1);
 				os->pushStackValue(offs);
 				os->getPrototype();
@@ -18452,15 +18449,15 @@ void OS::initStringBufferClass()
 				os->pushStackValue(offs);
 				return os->call(0, 1);
 			}
-			OS_GET_SELF(Core::StringBuffer*);
+			OS_GET_SELF(Core::Buffer*);
 			os->pushString(self->toString());
 			return 1;
 		}
 
 		static int len(OS * os, int params, int, int, void * user_param)
 		{
-			OS_GET_SELF(Core::StringBuffer*);
-			os->pushNumber(self->count);
+			OS_GET_SELF(Core::Buffer*);
+			os->pushNumber(self->buffer.count);
 			return 1;
 		}
 	};
@@ -18473,11 +18470,11 @@ void OS::initStringBufferClass()
 		// {OS_TEXT("printf"), Lib::printf},
 		{}
 	};
-	registerUserClass<Core::StringBuffer>(this, funcs);
+	registerUserClass<Core::Buffer>(this, funcs);
 
-	getGlobal(CtypeName<Core::StringBuffer>::getName());
+	getGlobal(CtypeName<Core::Buffer>::getName());
 	core->pushValue(core->prototypes[Core::PROTOTYPE_STRING]);
-	setPrototype(CtypeId<Core::StringBuffer>::getId());
+	setPrototype(CtypeId<Core::Buffer>::getId());
 }
 
 void OS::initStringClass()
@@ -18551,7 +18548,7 @@ void OS::initStringClass()
 					const OS_CHAR * subject_str = subject.toChar();
 					const OS_CHAR * search_str = search.toChar();
 					
-					OS::Core::StringBuffer buf(os);
+					OS::Core::Buffer buf(os);
 					bool found = false;
 					int start = 0;
 					for(int i = 0; i < subject_len-search_len+1;){
@@ -18611,9 +18608,8 @@ void OS::initStringClass()
 		static int trim(OS * os, int params, int, int, void*)
 		{
 			OS::String str = os->toString(-params - 1); // this
-			os->pushString(str.trim(
-				params >= 1 ? os->toBool(-params + 0) : true, 
-				params >= 2 ? os->toBool(-params + 1) : true));
+			bool trim_left = params >= 1 ? os->toBool(-params + 0) : true;
+			os->pushString(str.trim(trim_left, params >= 2 ? os->toBool(-params + 1) : trim_left));
 			return 1;
 		}
 		
@@ -18735,32 +18731,13 @@ OS::Core::String OS::Core::File::read(int len)
 		return OS::Core::String(os);
 	}
 
-	int buf_size = len, max_buf_size = 1024*1024*1;
-	if(buf_size > max_buf_size){
-		buf_size = max_buf_size;
-	}
-	void * temp = os->malloc(buf_size OS_DBG_FILEPOS);
-	struct AutoFree { OS * os; void * temp; ~AutoFree(){ os->free(temp); } } auto_free = {os, temp}; (void)auto_free;
-
-	if(len == buf_size){
-		len = os->readFile(temp, len, f);
-		if(len == 0){
-			// TODO:: error ?!
-		}
-		return OS::Core::String(os, temp, len);
-	}
-	
-	Core::StringBuffer buf(os);
+	Core::Buffer buf(os);
 	buf.reserveCapacity(len);
-	while(len > 0){
-		int cur_len = os->readFile(temp, len < buf_size ? len : buf_size, f);
-		if(cur_len == 0){
-			// TODO:: error ?!
-			break;
-		}
-		buf.append(temp, cur_len);
-		len -= cur_len;
+	int read_len = os->readFile(buf.buffer.buf, len, f);
+	if(read_len == 0){
+		// TODO:: error ?!
 	}
+	buf.buffer.count = read_len;
 	return buf.toString();
 }
 
@@ -18810,9 +18787,12 @@ void OS::initFileClass()
 		static int open(OS * os, int params, int, int, void * user_param)
 		{
 			OS_GET_SELF(Core::File*);
-			if(params > 0){
-				os->pushBool(self->open(os->toString(-params), params >= 2 ? os->toString(-params+1).toChar() : OS_TEXT("rt")));
-				return 1;
+			if(params >= 2){
+				os->pushBool(self->open(os->toString(-params), os->toString(-params+1)));
+			}else if(params >= 1){
+				os->pushBool(self->open(os->toString(-params)));
+			}else{
+				self->close();
 			}
 			return 0;
 		}
@@ -18831,9 +18811,16 @@ void OS::initFileClass()
 		static int write(OS * os, int params, int, int, void * user_param)
 		{
 			OS_GET_SELF(Core::File*);
-			if(params > 0){
-				int len = self->write(os->toString(-params));
-				os->pushNumber(len);
+			if(params >= 2){
+				String str = os->toString(-params);
+				int size = os->toInt(-params+1);
+				if(size > str.getDataSize()){
+					size = str.getDataSize();
+				}
+				os->pushNumber(self->write((void*)str.toChar(), size));
+				return 1;
+			}else if(params >= 1){
+				os->pushNumber(self->write(os->toString(-params)));
 				return 1;
 			}
 			return 0;
@@ -19504,7 +19491,7 @@ void OS::initPostScript()
 		Object.__setempty = Object.push
 		Object.__getempty = Object.pop
 		
-		function StringBuffer.printf(){
+		function Buffer.printf(){
 			this.append(sprintf.apply(_E, arguments))
 		}
 	));
