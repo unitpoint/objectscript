@@ -224,6 +224,15 @@ static void printEnv(FCGX_Stream *out, char *label, char **envp)
 }
 #endif
 
+void log(const char * msg)
+{
+	FILE * f = fopen("/tmp/os-fcgi.log", "wt");
+	if(f){
+		fwrite(msg, strlen(msg), 1, f);
+		fclose(f);
+	}
+}
+
 #ifdef _MSC_VER
 int _tmain(int argc, _TCHAR* argv[])
 #else
@@ -251,6 +260,7 @@ int main(int argc, char * argv[])
 
     while(FCGX_Accept_r(&request) == 0){
 #if 1
+		log("new request\n");
 		FCGX_OS * os = OS::create(new FCGX_OS());
 		os->processRequest(&request);
 		os->release();
