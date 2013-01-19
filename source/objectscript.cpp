@@ -17549,7 +17549,7 @@ void OS::initObjectClass()
 
 	struct Object
 	{
-		static int rawget(OS * os, int params, int, int, void*)
+		static int getProperty(OS * os, int params, int, int, void*)
 		{
 			bool getter_enabled = false, prototype_enabled = false;
 			switch(params){
@@ -17575,9 +17575,9 @@ void OS::initObjectClass()
 			return 0;
 		}
 
-		static int rawset(OS * os, int params, int, int, void*)
+		static int setProperty(OS * os, int params, int, int, void*)
 		{
-			bool getter_enabled = false;
+			bool setter_enabled = false;
 			switch(params){
 			case 0:
 				break;
@@ -17587,11 +17587,11 @@ void OS::initObjectClass()
 				// no break
 
 			case 3:
-				getter_enabled = os->popBool(false);
+				setter_enabled = os->popBool(false);
 				// no break
 
 			case 2:
-				os->setProperty(getter_enabled);
+				os->setProperty(setter_enabled);
 			}
 			return 0;
 		}
@@ -18302,8 +18302,8 @@ dump_object:
 	};
 	FuncDef list[] = {
 		{core->strings->__cmp, Object::cmp},
-		{OS_TEXT("rawget"), Object::rawget},
-		{OS_TEXT("rawset"), Object::rawset},
+		{OS_TEXT("getProperty"), Object::getProperty},
+		{OS_TEXT("setProperty"), Object::setProperty},
 		{OS_TEXT("__get@osValueId"), Object::getValueId},
 		{core->strings->__len, Object::length},
 		{core->strings->__iter, Object::iterator},
