@@ -410,8 +410,8 @@ printf("number: %n, float: %f, float(%%.2f): %.2f, float(%%.-1f): %.-1f\n", math
 printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54321))
 
 ;{
-	print "StringBuffer usage"
-	var buf = StringBuffer(123, "abc", "def")
+	print "Buffer usage"
+	var buf = Buffer(123, "abc", "def")
 	buf.append(4.5, "-append")
 	buf.printf("-%v\n", 123.4567)
 	str = toString(buf)
@@ -421,7 +421,7 @@ printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54
 ;{
 	print "File usage"
 	var f = File("c:/Sources/OS/examples-os/test.os", "rb")
-	str = f.read() // 50)
+	str = f.read(100)
 	// f.close()
 	echo str
 }
