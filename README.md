@@ -3,6 +3,19 @@ ObjectScript
 
 ObjectScript is a new programing language that mixes benefits of JavaScript, Lua, Ruby, Python and PHP
 
+Compile and Install using Linux
+===================
+
+	mkdir build && cd build
+	cmake -DCMAKE_INSTALL_PREFIX=$(pwd)/../ ..
+	make 
+	make install
+	
+The result files (os, os-fcgi) will be located inside of bin folder.
+
+Compile using Microsoft visual Studio
+===================
+
 Run examples-os\test.cmd to start example. 
 
 Please check proj.win32\examples.sln for more examples.
