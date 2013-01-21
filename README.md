@@ -1,7 +1,7 @@
 ObjectScript
 ============
 
-ObjectScript is a new programing language that mixes benefits of JavaScript, Lua and PHP
+ObjectScript is a new programing language that mixes benefits of JavaScript, Lua, Ruby, Python and PHP
 
 Run examples-os\test.cmd to start example. 
 
