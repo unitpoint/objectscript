@@ -14888,6 +14888,47 @@ void OS::addProperty(bool setter_enabled)
 	setProperty(setter_enabled);
 }
 
+void OS::setSmartProperty(const OS_CHAR * name, bool setter_enabled)
+{
+	setSmartProperty(Core::String(this, name), setter_enabled);
+}
+
+void OS::setSmartProperty(const Core::String& p_name, bool setter_enabled)
+{
+	int offs = getAbsoluteOffs(-2);
+	bool index = false;
+	const OS_CHAR * name = p_name;
+	const OS_CHAR * cur = name;
+	const OS_CHAR * end = cur + p_name.getLen();
+	for(; cur < end; cur++){
+		if(*cur == (index ? OS_TEXT(']') : OS_TEXT('[')) || *cur == OS_TEXT('.')){
+			if(cur > name){
+				pushString(name, (int)(cur - name));
+			}
+			if(*cur == OS_TEXT('[')){
+				index = true;
+			}else if(*cur == OS_TEXT(']')){
+				index = false;
+			}
+			name = cur + 1;
+		}
+	}
+	if(*name){
+		pushString(name, (int)(end - name));
+	}
+	int count = getAbsoluteOffs(-2) - offs;
+	for(int i = 0; i < count-1; i++){
+		newObject();
+		pushStackValue();
+		setProperty(offs, toString(offs + 2 + i), setter_enabled);
+		move(-1, offs);
+		remove(offs + 1);
+	}
+	String prop_name = toString();
+	remove(offs + 2, count);
+	setProperty(prop_name, setter_enabled);
+}
+
 void OS::deleteProperty(bool del_enabled)
 {
 	core->deleteValueProperty(core->getStackValue(-2), core->getStackValue(-1), del_enabled, false);
@@ -17649,6 +17690,32 @@ void OS::initObjectClass()
 			return 0;
 		}
 
+
+		static int setSmartProperty(OS * os, int params, int, int, void*)
+		{
+			bool setter_enabled = false;
+			switch(params){
+			case 0:
+				break;
+
+			default:
+				os->pop(params-3);
+				// no break
+
+			case 3:
+				setter_enabled = os->popBool(false);
+				// no break
+
+			case 2:
+				{
+					String name = os->toString(-params+0);
+					os->remove(-params+0);
+					os->setSmartProperty(name, setter_enabled);
+				}
+			}
+			return 0;
+		}
+
 		static int getValueId(OS * os, int params, int, int, void*)
 		{
 			os->pushNumber(os->getValueId(-params-1));
@@ -18357,6 +18424,7 @@ dump_object:
 		{core->strings->__cmp, Object::cmp},
 		{OS_TEXT("getProperty"), Object::getProperty},
 		{OS_TEXT("setProperty"), Object::setProperty},
+		{OS_TEXT("setSmartProperty"), Object::setSmartProperty},
 		{OS_TEXT("__get@osValueId"), Object::getValueId},
 		{core->strings->__len, Object::length},
 		{core->strings->__iter, Object::iterator},
@@ -18898,8 +18966,9 @@ void OS::initFileClass()
 				os->pushBool(self->open(os->toString(-params)));
 			}else{
 				self->close();
+				return 0;
 			}
-			return 0;
+			return 1;
 		}
 		
 		static int read(OS * os, int params, int, int, void * user_param)

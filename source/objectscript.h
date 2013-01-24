@@ -2904,6 +2904,9 @@ namespace ObjectScript
 		void setProperty(int offs, const Core::String&, bool setter_enabled = true);
 		void addProperty(bool setter_enabled = true);
 
+		void setSmartProperty(const OS_CHAR*, bool setter_enabled = true);
+		void setSmartProperty(const Core::String&, bool setter_enabled = true);
+
 		void deleteProperty(bool del_enabled = true);
 		void deleteProperty(const OS_CHAR*, bool del_enabled = true);
 		void deleteProperty(const Core::String&, bool del_enabled = true);
