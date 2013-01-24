@@ -157,11 +157,9 @@ var vec3 = {
 		this.y = y
 		this.z = z
 	}
-	__add = {|a b| vec3(a.x + b.x, a.y + b.y, a.z + b.z)}
-	/* it's equal to
-	__add = function(a, b){ return vec3(a.x + b.x, a.y + b.y, a.z + b.z)}
-	*/
-	__mul = {|a b| vec3(a.x * b.x, a.y * b.y, a.z * b.z)}
+	__add = {|b| vec3(@x + b.x, @y + b.y, @z + b.z)}
+	// it's equal to __add = function(b){ return vec3(this.x + b.x, this.y + b.y, this.z + b.z)}
+	__mul = {|b| vec3(@x * b.x, @y * b.y, @z * b.z)}
 }
 
 var v1 = vec3(10 20 30)
@@ -208,9 +206,10 @@ print "should be {x:11,y:24,z:39} " .. v3
 	print "should be green: " .. a.color
 	// delete property
 	delete a.color
+
 	print "should be null: " .. a.color	
-	
 	print "Test multi dimensional properties"
+	
 	a = {
 		_matrix = {}
 		__getdim = function(x, y){
@@ -231,6 +230,7 @@ print "should be {x:11,y:24,z:39} " .. v3
 	delete a[1, 2]	// a.__deldim(1, 2)
 	print "should be null: " .. a[1, 2]	// print(a.__getdim(1, 2))	
 }
+
 
 print "Test function inline call"
 print "should be 7: " .. {|a b c| a + b * c }(1 2 3)
@@ -343,10 +343,6 @@ print([9 4 0 276 15 39 3].sort{|a b| (a % 10) <=> (b % 10)})
 
 print "Sorted object by values"
 print({b=9 4 d=0 c=276 15 a=39 3}.sort())
-
-/* function Object.sortBy(func){
-	this.sort {|a b| func(a) <=> func(b)}
-} */
 
 print "Sorted object by values (reverse)"
 print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b| b <=> a})
