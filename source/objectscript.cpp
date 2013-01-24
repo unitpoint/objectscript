@@ -14059,7 +14059,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
-					return pushBool(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value);
+					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
+						return pushBool(true);
+					}
 				}
 			}
 			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
@@ -18317,9 +18319,9 @@ dump_object:
 
 		static int cmp(OS * os, int params, int, int, void*)
 		{
-			if(params < 2) return 0;
-			Core::Value left_value = os->core->getStackValue(-params + 0);
-			Core::Value right_value = os->core->getStackValue(-params + 1);
+			if(params < 1) return 0;
+			Core::Value left_value = os->core->getStackValue(-params - 1);
+			Core::Value right_value = os->core->getStackValue(-params + 0);
 			switch(OS_VALUE_TYPE(left_value)){
 			case OS_VALUE_TYPE_NULL:
 			case OS_VALUE_TYPE_BOOL:
@@ -18645,9 +18647,9 @@ void OS::initStringClass()
 
 		static int cmp(OS * os, int params, int, int, void*)
 		{
-			if(params < 2) return 0;
-			OS::String left = os->toString(-params + 0);
-			OS::String right = os->toString(-params + 1);
+			if(params < 1) return 0;
+			OS::String left = os->toString(-params - 1);
+			OS::String right = os->toString(-params + 0);
 			os->pushNumber(left.cmp(right));
 			return 1;
 		}

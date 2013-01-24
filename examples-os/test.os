@@ -181,7 +181,7 @@ print "should be {x:11,y:24,z:39} " .. v3
 	// set property
 	a.color = "blue"
 	print "should be blue: " .. a.color
-	
+
 	a = {
 		_color = "white"
 		__get = function(name){ 
