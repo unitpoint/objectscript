@@ -1414,7 +1414,7 @@ namespace ObjectScript
 				GCFunctionValue * func;
 				GCCFunctionValue * cfunc;
 #ifndef OS_NUMBER_NAN_TRICK
-				// OS_NUMBER number;
+				OS_NUMBER number;
 #endif
 			};
 
@@ -1422,9 +1422,23 @@ namespace ObjectScript
 			{
 #ifndef OS_NUMBER_NAN_TRICK
 				struct {
-					struct { ValueUnion v; int type; } i;
-					// OS_NUMBER number;
+					ValueUnion v; 
+					int type;
 				} u;
+
+#define OS_VALUE_VARIANT(a)	(a).u.v
+#define OS_VALUE_NUMBER(a)	(a).u.v.number
+#define OS_VALUE_TAGGED_TYPE(a)	(a).u.type
+#define OS_VALUE_TYPE(a)	OS_VALUE_TAGGED_TYPE(a)
+
+#define OS_IS_VALUE_NUMBER(a)	(OS_VALUE_TYPE(a) == OS_VALUE_TYPE_NUMBER)
+#define OS_MAKE_VALUE_TAGGED_TYPE(t)	(t)
+
+#define OS_SET_VALUE_NUMBER(a, n)	((OS_VALUE_NUMBER(a) = (OS_NUMBER)(n)), OS_SET_VALUE_TYPE(a, OS_VALUE_TYPE_NUMBER))
+#define OS_SET_VALUE_TYPE(a, t)		(OS_VALUE_TAGGED_TYPE(a) = OS_MAKE_VALUE_TAGGED_TYPE(t))
+#define OS_SET_VALUE_NULL(a) (OS_VALUE_VARIANT(a).value = NULL, OS_SET_VALUE_TYPE((a), OS_VALUE_TYPE_NULL))
+#define OS_SET_NULL_VALUES(a, c) do{ Value * v = a; for(int count = c; count > 0; --count, ++v) OS_SET_VALUE_NULL(*v); }while(false)
+
 #elif !defined(OS_NUMBER_IEEEENDIAN)
 #error option 'OS_NUMBER_NAN_TRICK' needs 'OS_NUMBER_IEEEENDIAN'
 #else

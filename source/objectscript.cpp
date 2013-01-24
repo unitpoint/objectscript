@@ -221,7 +221,7 @@ int OS_SNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
 	return ret;
 }
 
-/*
+#ifndef OS_NUMBER_NAN_TRICK
 static bool OS_ISNAN(float a)
 {
 	volatile float b = a;
@@ -233,7 +233,7 @@ static bool OS_ISNAN(double a)
 	volatile double b = a;
 	return b != b;
 }
-*/
+#endif
 
 #include <float.h>
 #include <limits.h>
@@ -962,7 +962,7 @@ int OS::Core::String::cmp(const String& b) const
 
 int OS::Core::String::cmp(const OS_CHAR * b) const
 {
-	return Utils::cmp(string->toChar(), string->data_size, b, OS_STRLEN(b));
+	return Utils::cmp(string->toChar(), string->data_size, b, (int)OS_STRLEN(b));
 }
 
 int OS::Core::String::getHash() const
@@ -1000,7 +1000,7 @@ OS::Core::Buffer& OS::Core::Buffer::append(OS_CHAR c)
 
 OS::Core::Buffer& OS::Core::Buffer::append(const OS_CHAR * str)
 {
-	return append(str, OS_STRLEN(str));
+	return append(str, (int)OS_STRLEN(str));
 }
 
 OS::Core::Buffer& OS::Core::Buffer::append(const OS_CHAR * str, int len)
@@ -1183,7 +1183,7 @@ OS::String& OS::String::operator+=(const String& str)
 
 OS::String& OS::String::operator+=(const OS_CHAR * str)
 {
-	return *this = allocator->core->newStringValue(toChar(), getDataSize(), str, OS_STRLEN(str)*sizeof(OS_CHAR));
+	return *this = allocator->core->newStringValue(toChar(), getDataSize(), str, (int)OS_STRLEN(str)*sizeof(OS_CHAR));
 }
 
 OS::String OS::String::operator+(const String& str) const
@@ -1193,7 +1193,7 @@ OS::String OS::String::operator+(const String& str) const
 
 OS::String OS::String::operator+(const OS_CHAR * str) const
 {
-	return String(allocator, allocator->core->newStringValue(toChar(), getDataSize(), str, OS_STRLEN(str)*sizeof(OS_CHAR)));
+	return String(allocator, allocator->core->newStringValue(toChar(), getDataSize(), str, (int)OS_STRLEN(str)*sizeof(OS_CHAR)));
 }
 
 OS::String OS::String::trim(bool trim_left, bool trim_right) const
@@ -1600,7 +1600,7 @@ bool OS::Core::Tokenizer::parseText(const OS_CHAR * text, int len, const String&
 #else
 		const OS_CHAR * line_end = str;
 		for(; line_end < str_end && *line_end != OS_TEXT('\n'); line_end++);
-		allocator->vectorAddItem(text_data->lines, String(allocator, str, line_end - str) OS_DBG_FILEPOS);
+		allocator->vectorAddItem(text_data->lines, String(allocator, str, (int)(line_end - str)) OS_DBG_FILEPOS);
 		str = line_end+1;
 #endif
 	}
@@ -1682,15 +1682,15 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					const OS_CHAR * line_pos = str;
 					const OS_CHAR * open_os_tag = OS_STRSTR(str, OS_TEXT("<%"));
 					if(open_os_tag){
-						s.append(line_pos, open_os_tag - line_pos);
+						s.append(line_pos, (int)(open_os_tag - line_pos));
 						if(s.getSize() > 0){
-							addToken(s, OUTPUT_STRING, cur_line, str - line_start OS_DBG_FILEPOS);
+							addToken(s, OUTPUT_STRING, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
 						}
 						str = open_os_tag + 2;
 						is_template = false;
 
 						if(str[0] == OS_TEXT('=')){
-							addToken(String(allocator, str, 1), OUTPUT_NEXT_VALUE, cur_line, str - line_pos OS_DBG_FILEPOS);
+							addToken(String(allocator, str, 1), OUTPUT_NEXT_VALUE, cur_line, (int)(str - line_pos) OS_DBG_FILEPOS);
 							str++;
 						}
 						break;
@@ -1699,7 +1699,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					s.append(OS_TEXT("\n"));
 					if(cur_line >= text_data->lines.count){
 						if(s.getSize() > 0){
-							addToken(s, OUTPUT_STRING, cur_line, str - line_pos OS_DBG_FILEPOS);
+							addToken(s, OUTPUT_STRING, cur_line, (int)(str - line_pos) OS_DBG_FILEPOS);
 						}
 						return true;
 					}
@@ -1742,19 +1742,19 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 								if(*str == OS_TEXT('x') || *str == OS_TEXT('X')){ // parse hex
 									str++;
 									if(!parseSimpleHex(str, val)){
-										cur_pos = str - line_start;
+										cur_pos = (int)(str - line_start);
 										error = ERROR_CONST_STRING_ESCAPE_CHAR;
 										return false;
 									}
 								}else if(*str == OS_TEXT('0')){ // octal
 									if(!parseSimpleOctal(str, val)){
-										cur_pos = str - line_start;
+										cur_pos = (int)(str - line_start);
 										error = ERROR_CONST_STRING_ESCAPE_CHAR;
 										return false;
 									}
 								}else if(*str >= OS_TEXT('1') && *str <= OS_TEXT('9')){
 									if(!parseSimpleDec(str, val)){
-										cur_pos = str - line_start;
+										cur_pos = (int)(str - line_start);
 										error = ERROR_CONST_STRING_ESCAPE_CHAR;
 										return false;
 									}
@@ -1769,19 +1769,19 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					s.append(c);
 				}
 				if(*str != closeChar){
-					cur_pos = str - line_start;
+					cur_pos = (int)(str - line_start);
 					error = ERROR_CONST_STRING;
 					return false;
 				}
 				str++;
-				addToken(s, STRING, cur_line, token_start - line_start OS_DBG_FILEPOS);
+				addToken(s, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
 				continue;
 			}
 
 			if(*str == OS_TEXT('/')){
 				if(str[1] == OS_TEXT('/')){ // begin line comment
 					if(settings.save_comments){
-						addToken(String(allocator, str), COMMENT_LINE, cur_line, str - line_start OS_DBG_FILEPOS);
+						addToken(String(allocator, str), COMMENT_LINE, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
 					}
 					break;
 				}
@@ -1789,7 +1789,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					Buffer comment(allocator);
 					comment.append(str, 2);
 					int startLine = cur_line;
-					int startPos = str - line_start;
+					int startPos = (int)(str - line_start);
 					for(str += 2;;){
 						const OS_CHAR * end = OS_STRSTR(str, OS_TEXT("*/"));
 						if(end){
@@ -1802,7 +1802,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 						}
 						if(cur_line >= text_data->lines.count){
 							error = ERROR_MULTI_LINE_COMMENT;
-							cur_pos = str - line_start;
+							cur_pos = (int)(str - line_start);
 							return false;
 						}
 						if(settings.save_comments){
@@ -1830,9 +1830,9 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					}
 					break;
 				}
-				String name = String(allocator, name_start, str - name_start);
+				String name = String(allocator, name_start, (int)(str - name_start));
 				TokenType type = NAME;
-				addToken(name, type, cur_line, name_start - line_start OS_DBG_FILEPOS);
+				addToken(name, type, cur_line, (int)(name_start - line_start) OS_DBG_FILEPOS);
 				continue;
 			}
 			// parse operator
@@ -1843,7 +1843,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				for(i = 0; i < operator_count; i++){
 					size_t len = OS_STRLEN(operator_desc[i].name);
 					if(OS_STRNCMP(str, operator_desc[i].name, len) == 0){
-						addToken(String(allocator, str, (int)len), operator_desc[i].type, cur_line, str - line_start OS_DBG_FILEPOS);
+						addToken(String(allocator, str, (int)len), operator_desc[i].type, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
 						str += len;
 						break;
 					}
@@ -1856,14 +1856,15 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				OS_FLOAT fval;
 				const OS_CHAR * token_start = str;
 				if(parseFloat(str, fval, true)){
-					TokenData * token = addToken(String(allocator, token_start, str - token_start, false, true), NUMBER, cur_line, token_start - line_start OS_DBG_FILEPOS);
+					TokenData * token = addToken(String(allocator, token_start, (int)(str - token_start), false, true), 
+						NUMBER, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
 					token->setFloat(fval);
 					continue;
 				}
 			}
 
 			error = ERROR_SYNTAX;
-			cur_pos = str - line_start;
+			cur_pos = (int)(str - line_start);
 			return false;
 		}
 	}
@@ -8322,9 +8323,9 @@ OS::Core::Program::~Program()
 
 bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debug_info_writer)
 {
-	writer->writeBytes(OS_COMPILED_HEADER, OS_STRLEN(OS_COMPILED_HEADER));
+	writer->writeBytes(OS_COMPILED_HEADER, (int)OS_STRLEN(OS_COMPILED_HEADER));
 
-	int i, len = OS_STRLEN(OS_VERSION)+1;
+	int i, len = (int)OS_STRLEN(OS_VERSION)+1;
 	writer->writeByte(len);
 	writer->writeBytes(OS_VERSION, len);
 
@@ -8398,9 +8399,9 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 	}
 
 	if(debug_info_writer){
-		debug_info_writer->writeBytes(OS_DEBUGINFO_HEADER, OS_STRLEN(OS_DEBUGINFO_HEADER));
+		debug_info_writer->writeBytes(OS_DEBUGINFO_HEADER, (int)OS_STRLEN(OS_DEBUGINFO_HEADER));
 
-		len = OS_STRLEN(OS_VERSION)+1;
+		len = (int)OS_STRLEN(OS_VERSION)+1;
 		debug_info_writer->writeByte(len);
 		debug_info_writer->writeBytes(OS_VERSION, len);
 
@@ -8424,12 +8425,12 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 {
 	OS_ASSERT(!opcodes.count && !const_values && !num_numbers && !num_strings && !debug_info.count);
 
-	int i, len = OS_STRLEN(OS_COMPILED_HEADER);
+	int i, len = (int)OS_STRLEN(OS_COMPILED_HEADER);
 	if(!reader->checkBytes(OS_COMPILED_HEADER, len)){
 		return false;
 	}
 
-	len = OS_STRLEN(OS_VERSION)+1;
+	len = (int)OS_STRLEN(OS_VERSION)+1;
 	reader->movePos(1);
 	if(!reader->checkBytes(OS_VERSION, len)){
 		return false;
@@ -8518,12 +8519,12 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 	}
 
 	if(debuginfo_reader){
-		len = OS_STRLEN(OS_DEBUGINFO_HEADER);
+		len = (int)OS_STRLEN(OS_DEBUGINFO_HEADER);
 		if(!debuginfo_reader->checkBytes(OS_DEBUGINFO_HEADER, len)){
 			return false;
 		}
 
-		len = OS_STRLEN(OS_VERSION)+1;
+		len = (int)OS_STRLEN(OS_VERSION)+1;
 		debuginfo_reader->movePos(1);
 		if(!debuginfo_reader->checkBytes(OS_VERSION, len)){
 			return false;
@@ -9110,7 +9111,7 @@ OS::Core::MemStreamReader::~MemStreamReader()
 
 int OS::Core::MemStreamReader::getPos() const
 {
-	return cur - buffer;
+	return (int)(cur - buffer);
 }
 
 void OS::Core::MemStreamReader::setPos(int new_pos)
@@ -9420,7 +9421,7 @@ int OS::Core::PropertyIndex::getHash() const
 		return OS_VALUE_VARIANT(index).string->hash;
 	}
 	// all other values share same area with index.v.value so just use it as hash
-	return (ptrdiff_t) OS_VALUE_VARIANT(index).value;
+	return (int)(ptrdiff_t)OS_VALUE_VARIANT(index).value;
 }
 
 // =====================================================================
@@ -10446,7 +10447,7 @@ int OS::Core::GCStringValue::cmp(GCStringValue * string) const
 
 int OS::Core::GCStringValue::cmp(const OS_CHAR * str) const
 {
-	return cmp(str, OS_STRLEN(str));
+	return cmp(str, (int)OS_STRLEN(str));
 }
 
 int OS::Core::GCStringValue::cmp(const OS_CHAR * str, int len) const
@@ -11220,7 +11221,7 @@ void * OS::openFile(const OS_CHAR * filename, const OS_CHAR * mode)\
 int OS::readFile(void * buf, int size, void * f)
 {
 	if(f){
-		return fread(buf, size, 1, (FILE*)f) * size;
+		return (int)fread(buf, size, 1, (FILE*)f) * size;
 	}
 	return 0;
 }
@@ -11228,7 +11229,7 @@ int OS::readFile(void * buf, int size, void * f)
 int OS::writeFile(const void * buf, int size, void * f)
 {
 	if(f){
-		return fwrite(buf, size, 1, (FILE*)f) * size;
+		return (int)fwrite(buf, size, 1, (FILE*)f) * size;
 	}
 	return 0;
 }
@@ -12067,13 +12068,13 @@ OS::String OS::changeFilenameExt(const String& filename, const OS_CHAR * ext)
 			if(OS_STRCMP(filename.toChar()+i, ext) == 0){
 				return filename;
 			}
-			return String(this, filename, i, ext, OS_STRLEN(ext));
+			return String(this, filename, i, ext, (int)OS_STRLEN(ext));
 		}
 		if(OS_IS_SLASH(filename[i])){
 			break;
 		}
 	}
-	return String(this, filename, len, ext, OS_STRLEN(ext));
+	return String(this, filename, len, ext, (int)OS_STRLEN(ext));
 }
 
 OS::String OS::getFilenameExt(const String& filename)
@@ -12083,7 +12084,7 @@ OS::String OS::getFilenameExt(const String& filename)
 
 OS::String OS::getFilenameExt(const OS_CHAR * filename)
 {
-	return getFilenameExt(filename, OS_STRLEN(filename));
+	return getFilenameExt(filename, (int)OS_STRLEN(filename));
 }
 
 OS::String OS::getFilenameExt(const OS_CHAR * filename, int len)
@@ -12106,7 +12107,7 @@ OS::String OS::getFilename(const String& filename)
 
 OS::String OS::getFilename(const OS_CHAR * filename)
 {
-	return getFilename(filename, OS_STRLEN(filename));
+	return getFilename(filename, (int)OS_STRLEN(filename));
 }
 
 OS::String OS::getFilename(const OS_CHAR * filename, int len)
@@ -12126,7 +12127,7 @@ OS::String OS::getFilenamePath(const String& filename)
 
 OS::String OS::getFilenamePath(const OS_CHAR * filename)
 {
-	return getFilenamePath(filename, OS_STRLEN(filename));
+	return getFilenamePath(filename, (int)OS_STRLEN(filename));
 }
 
 OS::String OS::getFilenamePath(const OS_CHAR * filename, int len)
@@ -12233,7 +12234,7 @@ void OS::Core::error(int code, const String& message)
 		Core::StackFunction * stack_func = call_stack_funcs.buf + i;
 		prog = stack_func->func->prog;
 		if(prog->filename.getLen() > 0){
-			int opcode_pos = stack_func->opcodes - prog->opcodes.buf;
+			int opcode_pos = (int)(stack_func->opcodes - prog->opcodes.buf);
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
 	}
@@ -13226,7 +13227,7 @@ void OS::Core::setPrototype(const Value& val, const Value& proto, int userdata_c
 
 OS::Core::GCStringValue * OS::Core::newStringValue(const OS_CHAR * str)
 {
-	return newStringValue(str, OS_STRLEN(str));
+	return newStringValue(str, (int)OS_STRLEN(str));
 }
 
 OS::Core::GCStringValue * OS::Core::newStringValue(const OS_CHAR * str, int len)
@@ -15538,7 +15539,10 @@ int OS::Core::execute()
 
 		OS_CASE_OPCODE(OP_JUMP):
 			{
-				stack_func->opcodes += OS_GETARG_sBx(instruction);
+				a = OS_GETARG_sBx(instruction);
+				OS_ASSERT(this->stack_func->opcodes+a >= this->stack_func->func->prog->opcodes.buf + this->stack_func->func->func_decl->opcodes_pos);
+				OS_ASSERT(this->stack_func->opcodes+a < this->stack_func->func->prog->opcodes.buf + this->stack_func->func->func_decl->opcodes_pos + this->stack_func->func->func_decl->opcodes_size);
+				stack_func->opcodes += a;
 				break;
 			}
 
@@ -19728,7 +19732,7 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 
 		Program::DebugInfoItem * debug_info = NULL;
 		if(prog->filename.getDataSize() && prog->debug_info.count > 0){
-			int opcode_pos = stack_func->opcodes - prog->opcodes.buf; // .getPos() + stack_func->func->func_decl->opcodes_pos;
+			int opcode_pos = (int)(stack_func->opcodes - prog->opcodes.buf); // .getPos() + stack_func->func->func_decl->opcodes_pos;
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
 		setPropertyValue(obj, PropertyIndex(line_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->line : Value(), false);
@@ -20211,7 +20215,7 @@ void OS::qsort(void *base, unsigned num, unsigned width, int (*comp)(OS*, const 
 	hi = (char*)base + width * (num - 1);
 
 recurse:
-	size = (hi - lo) / width + 1;
+	size = (unsigned)((hi - lo) / width + 1);
 
 	if (size <= OS_QSORT_CUTOFF) {
 		qsortShortsort(this, lo, hi, width, comp, user_params);
