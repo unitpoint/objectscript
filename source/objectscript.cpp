@@ -14059,9 +14059,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				case OS_VALUE_TYPE_USERPTR:
 				case OS_VALUE_TYPE_FUNCTION:
 				case OS_VALUE_TYPE_CFUNCTION:
-					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
-						return pushBool(true);
-					}
+					return pushBool(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value);
 				}
 			}
 			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
@@ -16338,7 +16336,11 @@ int OS::Core::execute()
 				int cur_ret_values = b;
 				int need_ret_values = stack_func->need_ret_values;
 				if(need_ret_values == 1){
-					stack_values.buf[stack_func->locals_stack_pos] = stack_func_locals[a];
+					if(cur_ret_values > 0){
+						stack_values.buf[stack_func->locals_stack_pos] = stack_func_locals[a];
+					}else{
+						OS_SET_VALUE_NULL(stack_values.buf[stack_func->locals_stack_pos]);
+					}
 				}else if(need_ret_values > 0){
 					if(need_ret_values <= cur_ret_values){
 						OS_MEMMOVE(stack_values.buf + stack_func->locals_stack_pos, stack_func_locals + a, sizeof(Value) * need_ret_values);
