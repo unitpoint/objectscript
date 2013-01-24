@@ -426,5 +426,12 @@ printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54
 	echo str
 }
 
+function Number.times(func){
+	for(var i = 0; i < this; i++){
+		func(i)
+	}
+}
+(10).times {|i| print "step: "..i }
+
 terminate()
 print "This text is never printed"

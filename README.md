@@ -13,7 +13,7 @@ Compile and Install using Linux
 	
 The result files (os, os-fcgi) will be located inside of bin folder.
 
-Compile using Microsoft visual Studio
+Compile using Microsoft Visual Studio
 ===================
 
 Run examples-os\test.cmd to start example. 

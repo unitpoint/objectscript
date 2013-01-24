@@ -128,6 +128,9 @@ inline void operator delete(void *, void *){}
 #define OS_IS_ALNUM(c) ((c) >= OS_TEXT('0') && (c) <= OS_TEXT('9'))
 #define OS_IS_SLASH(c) ((c) == OS_TEXT('/') || (c) == OS_TEXT('\\'))
 
+#define OS_CHAR_UPPER(c) toupper(c)
+#define OS_CHAR_LOWER(c) tolower(c)
+
 #define OS_AUTO_PRECISION 20
 #define OS_TOP_STACK_NULL_VALUES 20
 #define OS_DEF_FMT_BUF_LEN (1024*10)
@@ -1261,6 +1264,7 @@ namespace ObjectScript
 
 				OS_EValueType type;
 				bool is_object_instance;
+				bool is_destructor_called;
 
 				EGCColor gc_color;
 
@@ -1354,7 +1358,7 @@ namespace ObjectScript
 				void calcHash();
 			};
 
-			struct GCUserdataValue: public GCValue
+			struct GCUserdataValue: public GCObjectValue
 			{
 				int crc;
 				void * ptr;
@@ -1462,6 +1466,7 @@ namespace ObjectScript
 				Value(float);
 				Value(double);
 				Value(GCValue*);
+				Value(const String&);
 				Value(int, const WeakRef&);
 
 				Value& operator=(GCValue*);
@@ -2333,7 +2338,7 @@ namespace ObjectScript
 			struct Strings
 			{
 				String __construct;
-				// String __destruct;
+				String __destruct;
 				String __object;
 				String __get;
 				String __set;
@@ -2570,6 +2575,7 @@ namespace ObjectScript
 			void gcFinishMarkPhase();
 			void gcFull();
 
+			void triggerValueDestructor(GCValue*);
 			void clearValue(GCValue*);
 			void deleteValue(GCValue*);
 
