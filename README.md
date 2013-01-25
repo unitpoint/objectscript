@@ -1,7 +1,9 @@
 ObjectScript
 ============
 
-ObjectScript is a new programing language that mixes benefits of JavaScript, Lua, Ruby, Python and PHP
+ObjectScript is a new programing language that mixes benefits of JavaScript, Lua, Ruby, Python and PHP.
+
+You could view ObjectScript fastcgi daemon at https://github.com/unitpoint/os-fcgi
 
 Compile and Install using Linux
 ===================
@@ -16,9 +18,9 @@ The result files (os, os-fcgi) will be located inside of bin folder.
 Compile using Microsoft Visual Studio
 ===================
 
-Run examples-os\test.cmd to start example. 
-
 Please check proj.win32\examples.sln for more examples.
+
+Run examples-os\test.cmd to start example. 
 
 License
 =======
