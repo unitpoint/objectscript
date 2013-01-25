@@ -12030,7 +12030,7 @@ void OS::Core::shutdown()
 	user_pool = (GCValue*)NULL;
 
 	for(i = 0; i < OS_ERROR_LEVELS; i++){
-		error_handlers[i] = NULL;
+		error_handlers[i] = 0;
 	}
 	for(i = 0; i < PROTOTYPE_COUNT; i++){
 		prototypes[i] = NULL;
