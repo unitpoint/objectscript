@@ -1577,8 +1577,8 @@ namespace ObjectScript
 				Property * prev, * next;
 
 				Property(const PropertyIndex& index);
-				Property(Value index);
-				Property(Value index, const KeepStringIndex&);
+				Property(const Value& index);
+				Property(const Value& index, const KeepStringIndex&);
 				Property(GCStringValue * index);
 				Property(GCStringValue * index, const KeepStringIndex&);
 				~Property();
