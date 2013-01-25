@@ -1,5 +1,8 @@
-#include "stdafx.h"
-#include "windows.h"
+#if defined(_WIN32)
+# include "stdafx.h"
+# include "windows.h"
+#endif
+
 #include "../../source/objectscript.h"
 #include "../../source/os-binder.h"
 
@@ -8,6 +11,7 @@ using namespace ObjectScript;
 static double inv_frequency = 0.0;
 static double start_time = 0.0;
 
+#if defined(_WIN32)
 struct __init_time__
 {
 	__init_time__()
@@ -26,8 +30,13 @@ struct __init_time__
 		start_time = double(largeInteger.QuadPart);
 	}
 } __init_time__;
+#endif
 
+#if defined(_WIN32)
 OS::String getString(OS * os, const _TCHAR * str)
+#else
+OS::String getString(OS * os, const char * str)
+#endif
 {
 	OS_CHAR buf[1024*10];
 	int i = 0;
@@ -40,13 +49,21 @@ OS::String getString(OS * os, const _TCHAR * str)
 
 double getTimeSec()
 {
+#if defined(_WIN32)
 	LARGE_INTEGER largeInteger;
 	QueryPerformanceCounter(&largeInteger);
 	double count = double(largeInteger.QuadPart);
 	return inv_frequency * (count - start_time);
+#else
+	return start_time;
+#endif
 }
 
+#if defined(_WIN32)
 int _tmain(int argc, _TCHAR* argv[])
+#else
+int main(int argc, char *argv[])
+#endif
 {
 	if(argc < 2){
 		printf("ObjctScript " OS_VERSION " Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)\n");
