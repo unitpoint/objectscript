@@ -141,7 +141,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.0.1-dev")
+#define OS_VERSION OS_TEXT("1.0.2-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -1636,6 +1636,7 @@ namespace ObjectScript
 
 				OP_GET_PROPERTY,
 				OP_SET_PROPERTY,
+				OP_INIT_PROPERTY,
 
 				OP_GET_UPVALUE,
 				OP_SET_UPVALUE,
@@ -1734,6 +1735,7 @@ namespace ObjectScript
 					EXP_TYPE_GET_PROPERTY,
 					EXP_TYPE_GET_PROPERTY_AUTO_CREATE,
 					EXP_TYPE_SET_PROPERTY,
+					EXP_TYPE_INIT_PROPERTY,
 
 					EXP_TYPE_GET_THIS_PROPERTY_BY_STRING,
 
@@ -2524,6 +2526,7 @@ namespace ObjectScript
 			GCObjectValue * check_recursion;
 			Value global_vars;
 			Value user_pool;
+			Value check_get_recursion;
 
 			enum {
 				PROTOTYPE_BOOL,
@@ -2660,6 +2663,12 @@ namespace ObjectScript
 			void releaseLocals(Locals*);
 			void deleteLocals(Locals*);
 			void clearStackFunction(StackFunction*);
+
+			bool pushRecursion(Value root, Value obj, Value name);
+			void popRecursion(Value root, Value obj, Value name);
+
+			bool pushGetRecursion(const Value& obj, const Value& name);
+			void popGetRecursion(const Value& obj, const Value& name);
 
 			GCStringValue * newStringValue(const String&);
 			GCStringValue * newStringValue(const String&, const String&);

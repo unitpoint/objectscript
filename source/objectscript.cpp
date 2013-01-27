@@ -2671,6 +2671,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 		}
 
 	case EXP_TYPE_SET_PROPERTY:
+	case EXP_TYPE_INIT_PROPERTY:
 		{
 			OS_ASSERT(list.count >= 1 && list.count <= 3);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
@@ -3167,6 +3168,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 
 	case EXP_TYPE_GET_PROPERTY:
 	case EXP_TYPE_SET_PROPERTY:
+	case EXP_TYPE_INIT_PROPERTY:
 
 	case EXP_TYPE_GET_UPVALUE:
 	case EXP_TYPE_SET_UPVALUE:
@@ -4921,7 +4923,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp_xconst->slots.a = b = stack_pos;
 		}else exp_xconst = NULL;
 
-		exp->type = EXP_TYPE_SET_PROPERTY;
+		exp->type = EXP_TYPE_INIT_PROPERTY;
 		OS_ASSERT(scope->function->stack_cur_size > scope->function->num_locals);
 		exp->slots.a = scope->function->stack_cur_size-2;
 		exp->slots.b = b;
@@ -4945,7 +4947,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp_xconst->slots.a = b = stack_pos;
 		}else exp_xconst = NULL;
 
-		exp->type = EXP_TYPE_SET_PROPERTY;
+		exp->type = EXP_TYPE_INIT_PROPERTY;
 		OS_ASSERT(scope->function->stack_cur_size > scope->function->num_locals);
 		exp->slots.a = scope->function->stack_cur_size-2;
 		exp->slots.b = b;
@@ -4960,7 +4962,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 	case EXP_TYPE_OBJECT_SET_BY_EXP:
 		OS_ASSERT(exp->list.count == 2);
-		exp->type = EXP_TYPE_SET_PROPERTY;
+		exp->type = EXP_TYPE_INIT_PROPERTY;
 		OS_ASSERT(scope->function->stack_cur_size > scope->function->num_locals);
 		exp->slots.a = scope->function->stack_cur_size-1;
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
@@ -5371,6 +5373,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		return exp;
 
 	case EXP_TYPE_SET_PROPERTY:
+	case EXP_TYPE_INIT_PROPERTY:
 		OS_ASSERT(exp->list.count == 3);
 		stack_pos = scope->function->stack_cur_size;
 		exp = Lib::processList(this, scope, exp);
@@ -8216,6 +8219,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_SET_PROPERTY:
 		return OS_TEXT("set property");
 
+	case EXP_TYPE_INIT_PROPERTY:
+		return OS_TEXT("init property");
+
 	case EXP_TYPE_SET_PROPERTY_BY_LOCALS_AUTO_CREATE:
 		return OS_TEXT("set property by locals auto create");
 
@@ -8926,7 +8932,8 @@ OS::Core::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType e
 	// case Compiler::EXP_TYPE_SUPER: return OP_SUPER;
 
 	case Compiler::EXP_TYPE_GET_PROPERTY: return OP_GET_PROPERTY;
-	case Compiler::EXP_TYPE_SET_PROPERTY:return OP_SET_PROPERTY;
+	case Compiler::EXP_TYPE_SET_PROPERTY: return OP_SET_PROPERTY;
+	case Compiler::EXP_TYPE_INIT_PROPERTY: return OP_INIT_PROPERTY;
 
 	case Compiler::EXP_TYPE_GET_UPVALUE: return OP_GET_UPVALUE;
 	case Compiler::EXP_TYPE_SET_UPVALUE: return OP_SET_UPVALUE;
@@ -12356,7 +12363,7 @@ bool OS::Core::init()
 	check_recursion = newObjectValue();
 	global_vars = newObjectValue();
 	user_pool = newObjectValue();
-	// error_handlers
+	check_get_recursion = newObjectValue();
 
 	prototypes[PROTOTYPE_BOOL]->prototype = prototypes[PROTOTYPE_OBJECT];
 	prototypes[PROTOTYPE_NUMBER]->prototype = prototypes[PROTOTYPE_OBJECT];
@@ -12463,6 +12470,7 @@ void OS::Core::shutdown()
 	check_recursion = NULL;
 	global_vars = (GCValue*)NULL;
 	user_pool = (GCValue*)NULL;
+	check_get_recursion = (GCValue*)NULL;
 
 	for(i = 0; i < PROTOTYPE_COUNT; i++){
 		prototypes[i] = NULL;
@@ -12995,6 +13003,7 @@ int OS::Core::gcStep()
 		gcAddToGreyList(check_recursion);
 		gcAddToGreyList(global_vars);
 		gcAddToGreyList(user_pool);
+		gcAddToGreyList(check_get_recursion);
 		int i;
 		for(i = 0; i < PROTOTYPE_COUNT; i++){
 			gcAddToGreyList(prototypes[i]);
@@ -16363,7 +16372,7 @@ corrupted:
 				pushPropertyValue(stack_func_locals[a], PropertyIndex(stack_func_locals[a + 1]), true, true);
 				stack_func_locals[a + 1] = stack_func_locals[a]; // this
 				stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
-				call(stack_func->locals_stack_pos + a, b, c, NULL, true);
+				call(this->stack_func->locals_stack_pos + a, b, c, NULL, true);
 				continue;
 			}
 
@@ -16588,12 +16597,17 @@ corrupted:
 										table_value = OS_VALUE_VARIANT(value).value;
 										continue;
 									}
-									pushValue(value);
-									pushValue(self);
-									pushValue(index.index);
-									call(1, 1);
-									stack_func_locals[a] = stack_values.buf[--stack_values.count];
-									break;
+									if(pushGetRecursion(self, index.index)){
+										pushValue(value);
+										pushValue(self);
+										pushValue(index.index);
+										call(1, 1);
+										stack_func_locals[a] = stack_values.buf[--stack_values.count];
+										popGetRecursion(self, index.index);
+										break;
+									}else{
+										allocator->setException(String::format(allocator, OS_TEXT("Recursive get '%s'"), valueToString(index.index).toChar()));
+									}
 								}
 							}
 							stack_func_locals[a] = Value();
@@ -16605,179 +16619,34 @@ corrupted:
 				break;
 			}
 
+		OS_CASE_OPCODE_ALL(OP_INIT_PROPERTY):
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction);
+			c = OS_GETARG_C(instruction);
+			setPropertyValue(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), false);
+			break;
+
 		OS_CASE_OPCODE_ALL(OP_SET_PROPERTY):
-			{
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_B(instruction);
-				c = OS_GETARG_C(instruction);
-				Value& obj = stack_func_locals[a];
-				Value& index = OS_GETARG_B_VALUE();
-				if(OS_IS_VALUE_NUMBER(index) && OS_VALUE_TYPE(obj) == OS_VALUE_TYPE_ARRAY){
-					OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
-					GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(obj).value;
-					int i = (int)OS_VALUE_NUMBER(index);
-					if(i >= 0 || (i += arr->values.count) >= 0){
-						while(i >= arr->values.count){
-							allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
-						}
-						OS_ASSERT(i < arr->values.count);
-						arr->values[i] = OS_GETARG_C_VALUE();
-					}
-					OS_PROFILE_END_OPCODE(opcode);
-					continue;
-				}
-#if 1
-				setPropertyValue(obj, PropertyIndex(index), OS_GETARG_C_VALUE(), true);
-#else			// inline setPropertyValue
-				Value& obj = stack_func_locals[b];
-				const PropertyIndex index(OS_GETARG_B_VALUE());
-				const bool setter_enabled = true;
-
-				switch(OS_VALUE_TYPE(obj)){
-				default:
-				case OS_VALUE_TYPE_NULL:
-				case OS_VALUE_TYPE_BOOL:
-				case OS_VALUE_TYPE_NUMBER:
-					OS_PROFILE_END_OPCODE(opcode);
-					continue;
-
-				case OS_VALUE_TYPE_STRING:
-					// return setPropertyValue(prototypes[PROTOTYPE_STRING], index, value, setter_enabled);
-					// return;
-
-				case OS_VALUE_TYPE_ARRAY:
-				case OS_VALUE_TYPE_OBJECT:
-				case OS_VALUE_TYPE_USERDATA:
-				case OS_VALUE_TYPE_USERPTR:
-				case OS_VALUE_TYPE_FUNCTION:
-				case OS_VALUE_TYPE_CFUNCTION:
-					break;
-				}
-
-				GCValue * table_value = OS_VALUE_VARIANT(obj).value;
-
-				// TODO: correct ???
-				Value value = OS_GETARG_C_VALUE();
-				gcAddToGreyList(value);
-
-				if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
-					OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index.index).string));
-					switch(OS_VALUE_TYPE(value)){
-					case OS_VALUE_TYPE_FUNCTION:
-						OS_ASSERT(dynamic_cast<GCFunctionValue*>(OS_VALUE_VARIANT(value).func));
-						if(!OS_VALUE_VARIANT(value).func->name){
-							OS_VALUE_VARIANT(value).func->name = OS_VALUE_VARIANT(index.index).string;
-						}
-						break;
-
-					case OS_VALUE_TYPE_CFUNCTION:
-						OS_ASSERT(dynamic_cast<GCCFunctionValue*>(OS_VALUE_VARIANT(value).cfunc));
-						if(!OS_VALUE_VARIANT(value).cfunc->name){
-							OS_VALUE_VARIANT(value).cfunc->name = OS_VALUE_VARIANT(index.index).string;
-						}
-						break;
-					}
-				}
-
-				Property * prop = NULL;
-				Table * table = table_value->table;
-				if(table && (prop = table->get(index))){
-					prop->value = value;
-					return;
-				}
-
-				if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index.index).string){
-					switch(table_value->type){
-					case OS_VALUE_TYPE_STRING:
-					case OS_VALUE_TYPE_ARRAY:
-					case OS_VALUE_TYPE_OBJECT:
-					case OS_VALUE_TYPE_FUNCTION:
-						table_value->prototype = OS_VALUE_VARIANT(value).value;
-						break;
-
-					case OS_VALUE_TYPE_USERDATA:
-					case OS_VALUE_TYPE_USERPTR:
-					case OS_VALUE_TYPE_CFUNCTION:
-						// TODO: warning???
-						break;
-					}
-					return;
-				}
-
-				if(table_value->type == OS_VALUE_TYPE_ARRAY){
-					OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
-					GCArrayValue * arr = (GCArrayValue*)table_value;
-					int i = (int)valueToInt(index.index);
-					if(i < 0) i += arr->values.count;
-					if(i >= 0){
-						while(i >= arr->values.count){
-							allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
-						}
-						OS_ASSERT(i < arr->values.count);
-						arr->values[i] = value;
-					}
-					return;
-				}
-
-				if(setter_enabled && !hasSpecialPrefix(index.index)){
-					Value func;
-					if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
-						const void * buf1 = strings->__setAt.toChar();
-						int size1 = strings->__setAt.getDataSize();
-						const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
-						int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
-						GCStringValue * setter_name = newStringValue(buf1, size1, buf2, size2);
-						if(getPropertyValue(func, table_value, PropertyIndex(setter_name, PropertyIndex::KeepStringIndex()), true)){
-							pushValue(func);
-							pushValue(table_value);
-							pushValue(value);
-							call(1, 0);
-							return;
-						}
-					}
-					if(getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), true)){
-						pushValue(func);
-						pushValue(table_value);
-						pushValue(index.index);
-						pushValue(value);
-						call(2, 0);
-						return;
-					}
-				}
-				if(table_value->type == OS_VALUE_TYPE_STRING){
-					// TODO: trigger error???
-					return;
-				}
-				if(!table){
-					table_value->table = table = newTable(OS_DBG_FILEPOS_START);
-				}
-				prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index);
-				prop->value = value;
-				addTableProperty(table, prop);
-				// setTableValue(table, index, value);
-#endif
-				break;
-			}
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction);
+			c = OS_GETARG_C(instruction);
+			setPropertyValue(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), true);
+			break;
 
 		OS_CASE_OPCODE(OP_NEW_OBJECT):
-			{
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				GCValue * gc_value = newObjectValue();
-				stack_func_locals[a] = gc_value;
-				break;
-			}
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			stack_func_locals[a] = newObjectValue();
+			break;
 
 		OS_CASE_OPCODE(OP_NEW_ARRAY):
-			{
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_B(instruction);
-				GCValue * gc_value = newArrayValue(b);
-				stack_func_locals[a] = gc_value;
-				break;
-			}
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction);
+			stack_func_locals[a] = newArrayValue(b);
+			break;
 
 		OS_CASE_OPCODE(OP_MULTI):
 			{
@@ -16879,6 +16748,74 @@ corrupted:
 	}
 	OS_ASSERT(false);
 	// never to be here
+}
+
+bool OS::Core::pushRecursion(Value root, Value obj, Value name)
+{
+	pushPropertyValue(root, obj, false, false);
+	if(stack_values.lastElement().isNull()){
+		pushValue(newObjectValue());
+		setPropertyValue(stack_values.lastElement(), name, 1, false);
+		setPropertyValue(root, obj, stack_values.lastElement(), false);
+		pop(2);
+		return true;
+	}
+	pushPropertyValue(stack_values.lastElement(), name, false, false);
+	if(stack_values.lastElement().isNull()){
+		setPropertyValue(stack_values[stack_values.count-2], name, 1, false);
+		pop(2);
+		return true;
+	}
+	OS_NUMBER i = valueToNumber(stack_values.lastElement()) + 1;
+	if(i < 4){
+		setPropertyValue(stack_values[stack_values.count-2], name, i, false);
+		pop(2);
+		return true;
+	}
+	return false;
+}
+
+void OS::Core::popRecursion(Value root, Value obj, Value name)
+{
+	pushPropertyValue(root, obj, false, false);
+	if(stack_values.lastElement().isNull()){
+		OS_ASSERT(false);
+		pop(1);
+		return;
+	}
+	pushPropertyValue(stack_values.lastElement(), name, false, false);
+	if(stack_values.lastElement().isNull()){
+		OS_ASSERT(false);
+		pop(2);
+		return;
+	}
+	OS_NUMBER i = valueToNumber(stack_values.lastElement()) - 1;
+	if(i <= 0){
+		OS_ASSERT(i == 0);
+		OS_ASSERT(dynamic_cast<GCObjectValue*>(OS_VALUE_VARIANT(stack_values[stack_values.count-2]).object));
+		GCObjectValue * object = (GCObjectValue*)OS_VALUE_VARIANT(stack_values[stack_values.count-2]).object;
+		OS_ASSERT(object->table);
+		if(object->table->count <= 1){
+			OS_ASSERT(object->table->count == 1);
+			deleteValueProperty(root, obj, false, false);
+		}else{
+			deleteValueProperty(stack_values[stack_values.count-2], name, false, false);
+			OS_ASSERT(object->table->count > 0);
+		}
+	}else{
+		setPropertyValue(stack_values[stack_values.count-2], name, i, false);
+	}
+	pop(2);
+}
+
+bool OS::Core::pushGetRecursion(const Value& obj, const Value& name)
+{
+	return pushRecursion(check_get_recursion, obj, name);
+}
+
+void OS::Core::popGetRecursion(const Value& obj, const Value& name)
+{
+	popRecursion(check_get_recursion, obj, name);
 }
 
 void OS::runOp(OS_EOpcode opcode)
@@ -20168,7 +20105,7 @@ OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
 					Property * prop = object_props->table->first;
 					for(; prop; prop = prop->next){
 						core->pushCloneValue(prop->value);
-						core->setPropertyValue(object, *prop, core->stack_values.lastElement(), true);
+						core->setPropertyValue(object, *prop, core->stack_values.lastElement(), false);
 						core->pop();
 					}
 				}

@@ -778,26 +778,26 @@ target " (-27)
     get property: # (11) = var _E (6) [const string "app" (-66)]
     get property: # (11) = # (11) [const string "timeSec" (-67)]
     # (11) = # (11) [operator +] param delay (3)
-    set property: # (9) [const string "nextTime" (-65)] = # (11)
+    init property: # (9) [const string "nextTime" (-65)] = # (11)
 
 [90] delay = delay
 
-    set property: # (9) [const string "delay" (-68)] = param delay (3)
+    init property: # (9) [const string "delay" (-68)] = param delay (3)
 
 [91] func = func
 
-    set property: # (9) [const string "func" (-69)] = param func (2)
+    init property: # (9) [const string "func" (-69)] = param func (2)
 
 [92] count = count
 
-    set property: # (9) [const string "count" (-70)] = param count (4)
+    init property: # (9) [const string "count" (-70)] = param count (4)
 
 [93] priority = priority || 0
 
     move: # (11) = param priority (5)
     logic ||: # (11)
       move: # (11) = const number 0 (-5)
-    set property: # (9) [const string "priority" (-71)] = # (11)
+    init property: # (9) [const string "priority" (-71)] = # (11)
 
 [88] timers[i] = {
 

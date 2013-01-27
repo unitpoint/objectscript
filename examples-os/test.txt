@@ -142,8 +142,8 @@ begin function
     move: # (56) = var _E (2)
     move: # (57) = const string "print" (-31)
     new object 2: # (58)
-    set property: # (58) [const string "firstname" (-44)] = const string "Ivan" (-45)
-    set property: # (58) [const string "lastname" (-46)] = const string "Petrov" (-47)
+    init property: # (58) [const string "firstname" (-44)] = const string "Ivan" (-45)
+    init property: # (58) [const string "lastname" (-46)] = const string "Petrov" (-47)
   end call method: start 56, params 3, ret values 0
 
 
@@ -164,8 +164,8 @@ begin function
       22 c
     end locals
     new object 6: # (56)
-    set property: # (56) [const string "x" (-48)] = const number 1 (-11)
-    set property: # (56) [const string "y" (-49)] = const number 3 (-9)
+    init property: # (56) [const string "x" (-48)] = const number 1 (-11)
+    init property: # (56) [const string "y" (-49)] = const number 3 (-9)
     begin call method
       move: # (57) = # (56)
       move: # (58) = const string "push" (-50)
@@ -181,7 +181,7 @@ begin function
       move: # (58) = const string "push" (-50)
       move: # (59) = const string "two" (-53)
     end call method: start 57, params 3, ret values 0
-    set property: # (56) [const string "last" (-54)] = const number 7 (-12)
+    init property: # (56) [const string "last" (-54)] = const number 7 (-12)
     move: var a (12) = # (56)
 
 
@@ -206,8 +206,8 @@ begin function
 [32] a = {[2+3]="five" y=3}
 
     new object 2: # (56)
-    set property: # (56) [const number 5 (-7)] = const string "five" (-55)
-    set property: # (56) [const string "y" (-49)] = const number 3 (-9)
+    init property: # (56) [const number 5 (-7)] = const string "five" (-55)
+    init property: # (56) [const string "y" (-49)] = const number 3 (-9)
     move: var a (12) = # (56)
 
 
@@ -232,16 +232,16 @@ begin function
 [36] a = {x=1 y=2}
 
     new object 2: # (56)
-    set property: # (56) [const string "x" (-48)] = const number 1 (-11)
-    set property: # (56) [const string "y" (-49)] = const number 2 (-4)
+    init property: # (56) [const string "x" (-48)] = const number 1 (-11)
+    init property: # (56) [const string "y" (-49)] = const number 2 (-4)
     move: var a (12) = # (56)
 
 
 [38] var b = {[a]="powerful" 7="greate"}
 
     new object 2: # (56)
-    set property: # (56) [var a (12)] = const string "powerful" (-56)
-    set property: # (56) [const number 7 (-12)] = const string "greate" (-57)
+    init property: # (56) [var a (12)] = const string "powerful" (-56)
+    init property: # (56) [const number 7 (-12)] = const string "greate" (-57)
     move: var b (13) = # (56)
 
 
@@ -465,7 +465,7 @@ begin function
       move: # (58) = const string "push" (-50)
       move: # (59) = const null (-1)
     end call method: start 57, params 3, ret values 0
-    set property: # (56) [const string "awesome" (-67)] = const true (-2)
+    init property: # (56) [const string "awesome" (-67)] = const true (-2)
     begin call method
       move: # (57) = # (56)
       move: # (58) = const string "push" (-50)
@@ -946,16 +946,16 @@ begin function
       37 a
     end locals
     new object 2: # (56)
-    set property: # (56) [const string "x" (-48)] = const number 1 (-11)
-    set property: # (56) [const string "y" (-49)] = const number 2 (-4)
+    init property: # (56) [const string "x" (-48)] = const number 1 (-11)
+    init property: # (56) [const string "y" (-49)] = const number 2 (-4)
     move: var v1 (36) = # (56)
 
 
 [112] var a = {[v1]="vv1" v2="vv2"}
 
     new object 2: # (56)
-    set property: # (56) [var v1 (36)] = const string "vv1" (-84)
-    set property: # (56) [const string "v2" (-85)] = const string "vv2" (-86)
+    init property: # (56) [var v1 (36)] = const string "vv1" (-84)
+    init property: # (56) [const string "v2" (-85)] = const string "vv2" (-86)
     move: var a (37) = # (56)
 
 
@@ -994,7 +994,7 @@ begin function
 
     set property: param this (1) [const string "lastname" (-46)] = param lastname (3)
   end function: # (58), index 6
-  set property: # (56) [const string "__construct" (-87)] = # (58)
+  init property: # (56) [const string "__construct" (-87)] = # (58)
 
 [123] walk = function(){
 
@@ -1020,7 +1020,7 @@ begin function
       end call method: start 4, params 3, ret values 1
     return: # (4), count 1
   end function: # (58), index 7
-  set property: # (56) [const string "walk" (-88)] = # (58)
+  init property: # (56) [const string "walk" (-88)] = # (58)
 
 [126] __get@fullname = function(){
 
@@ -1043,7 +1043,7 @@ begin function
       end call method: start 4, params 5, ret values 1
     return: # (4), count 1
   end function: # (58), index 8
-  set property: # (56) [const string "__get@fullname" (-91)] = # (58)
+  init property: # (56) [const string "__get@fullname" (-91)] = # (58)
   move: var Person (38) = # (56)
 
 
@@ -1122,7 +1122,7 @@ begin function
         end super call: start 4, params 4, ret values 1
       return: # (4), count 1
     end function: # (61), index 9
-    set property: # (59) [const string "__construct" (-87)] = # (61)
+    init property: # (59) [const string "__construct" (-87)] = # (61)
 
 [141] walk = function(){
 
@@ -1151,7 +1151,7 @@ begin function
         end super call: start 4, params 2, ret values 1
       return: # (4), count 1
     end function: # (61), index 10
-    set property: # (59) [const string "walk" (-88)] = # (61)
+    init property: # (59) [const string "walk" (-88)] = # (61)
   end call method: start 56, params 4, ret values 1
   move: var IvanPerson (40) = # (56)
 
@@ -1304,7 +1304,7 @@ begin function
 
     set property: param this (1) [const string "z" (-106)] = param z (4)
   end function: # (58), index 13
-  set property: # (56) [const string "__construct" (-87)] = # (58)
+  init property: # (56) [const string "__construct" (-87)] = # (58)
 
 [170] __add = {|b| vec3(@x + b.x, @y + b.y, @z + b.z)}
 
@@ -1331,7 +1331,7 @@ begin function
       end call: start 5, params 5, ret values 1
     return: # (5), count 1
   end function: # (58), index 14
-  set property: # (56) [const string "__add" (-107)] = # (58)
+  init property: # (56) [const string "__add" (-107)] = # (58)
 
 [172] __mul = {|b| vec3(@x * b.x, @y * b.y, @z * b.z)}
 
@@ -1358,7 +1358,7 @@ begin function
       end call: start 5, params 5, ret values 1
     return: # (5), count 1
   end function: # (58), index 15
-  set property: # (56) [const string "__mul" (-108)] = # (58)
+  init property: # (56) [const string "__mul" (-108)] = # (58)
   move: var vec3 (42) = # (56)
 
 
@@ -1425,7 +1425,7 @@ begin function
 
 [184] _color = "red"
 
-    set property: # (56) [const string "_color" (-111)] = const string "red" (-112)
+    init property: # (56) [const string "_color" (-111)] = const string "red" (-112)
 
 [185] __get@color = {|| @_color }
 
@@ -1439,7 +1439,7 @@ begin function
         get property: # (4) = param this (1) [const string "_color" (-111)]
       return: # (4), count 1
     end function: # (58), index 16
-    set property: # (56) [const string "__get@color" (-113)] = # (58)
+    init property: # (56) [const string "__get@color" (-113)] = # (58)
 
 [186] __set@color = {|v| @_color = v }
 
@@ -1453,7 +1453,7 @@ begin function
       end locals
       set property: param this (1) [const string "_color" (-111)] = param v (2)
     end function: # (58), index 17
-    set property: # (56) [const string "__set@color" (-114)] = # (58)
+    init property: # (56) [const string "__set@color" (-114)] = # (58)
     move: var a (46) = # (56)
 
 
@@ -1496,7 +1496,7 @@ begin function
 
 [196] _color = "white"
 
-    set property: # (56) [const string "_color" (-111)] = const string "white" (-119)
+    init property: # (56) [const string "_color" (-111)] = const string "white" (-119)
 
 [197] __get = function(name){
 
@@ -1526,7 +1526,7 @@ begin function
         end then
       end if ret values 0
     end function: # (58), index 18
-    set property: # (56) [const string "__get" (-120)] = # (58)
+    init property: # (56) [const string "__get" (-120)] = # (58)
 
 [201] __set = function(name, v){
 
@@ -1556,7 +1556,7 @@ begin function
         end then
       end if ret values 0
     end function: # (58), index 19
-    set property: # (56) [const string "__set" (-121)] = # (58)
+    init property: # (56) [const string "__set" (-121)] = # (58)
 
 [205] __del = function(name){
 
@@ -1590,7 +1590,7 @@ begin function
         end then
       end if ret values 0
     end function: # (58), index 20
-    set property: # (56) [const string "__del" (-122)] = # (58)
+    init property: # (56) [const string "__del" (-122)] = # (58)
     move: var a (46) = # (56)
 
 
@@ -1681,7 +1681,7 @@ begin function
 [224] _matrix = {}
 
     new object 0: # (58)
-    set property: # (56) [const string "_matrix" (-130)] = # (58)
+    init property: # (56) [const string "_matrix" (-130)] = # (58)
 
 [225] __getdim = function(x, y){
 
@@ -1703,7 +1703,7 @@ begin function
         get property: # (6) = # (6) [# (7)]
       return: # (6), count 1
     end function: # (58), index 21
-    set property: # (56) [const string "__getdim" (-131)] = # (58)
+    init property: # (56) [const string "__getdim" (-131)] = # (58)
 
 [228] __setdim = function(value, x, y){
 
@@ -1725,7 +1725,7 @@ begin function
       # (9) = # (9) [operator +] param x (3)
       set property: # (8) [# (9)] = param value (2)
     end function: # (58), index 22
-    set property: # (56) [const string "__setdim" (-132)] = # (58)
+    init property: # (56) [const string "__setdim" (-132)] = # (58)
 
 [231] __deldim = function(x, y){
 
@@ -1749,7 +1749,7 @@ begin function
         # (9) = # (9) [operator +] param x (2)
       end call method: start 6, params 4, ret values 0
     end function: # (58), index 23
-    set property: # (56) [const string "__deldim" (-133)] = # (58)
+    init property: # (56) [const string "__deldim" (-133)] = # (58)
     move: var a (46) = # (56)
 
 
@@ -1953,29 +1953,29 @@ begin function
           move: # (8) = const string "print" (-31)
           new object 13: # (9)
           get upvalue: # (11) = var Person (38 1)
-          set property: # (9) [const string "Person" (-138)] = # (11)
+          init property: # (9) [const string "Person" (-138)] = # (11)
           get upvalue: # (11) = var IvanPerson (40 1)
-          set property: # (9) [const string "IvanPerson" (-139)] = # (11)
+          init property: # (9) [const string "IvanPerson" (-139)] = # (11)
           get upvalue: # (11) = var p (41 1)
-          set property: # (9) [const string "p" (-140)] = # (11)
+          init property: # (9) [const string "p" (-140)] = # (11)
           get upvalue: # (11) = var vec3 (42 1)
-          set property: # (9) [const string "vec3" (-141)] = # (11)
+          init property: # (9) [const string "vec3" (-141)] = # (11)
           get upvalue: # (11) = var v1 (43 1)
-          set property: # (9) [const string "v1" (-142)] = # (11)
+          init property: # (9) [const string "v1" (-142)] = # (11)
           get upvalue: # (11) = var v2 (44 1)
-          set property: # (9) [const string "v2" (-85)] = # (11)
+          init property: # (9) [const string "v2" (-85)] = # (11)
           get upvalue: # (11) = var v3 (45 1)
-          set property: # (9) [const string "v3" (-143)] = # (11)
+          init property: # (9) [const string "v3" (-143)] = # (11)
           get upvalue: # (11) = var transform (50 1)
-          set property: # (9) [const string "transform" (-144)] = # (11)
+          init property: # (9) [const string "transform" (-144)] = # (11)
           get upvalue: # (11) = var core (51 1)
-          set property: # (9) [const string "core" (-145)] = # (11)
+          init property: # (9) [const string "core" (-145)] = # (11)
           get upvalue: # (11) = var __planet (52 1)
-          set property: # (9) [const string "__planet" (-146)] = # (11)
+          init property: # (9) [const string "__planet" (-146)] = # (11)
           get upvalue: # (11) = var testFunc (53 1)
-          set property: # (9) [const string "testFunc" (-147)] = # (11)
-          set property: # (9) [const string "a" (-148)] = param a (2)
-          set property: # (9) [const string "c" (-149)] = var c (6)
+          init property: # (9) [const string "testFunc" (-147)] = # (11)
+          init property: # (9) [const string "a" (-148)] = param a (2)
+          init property: # (9) [const string "c" (-149)] = var c (6)
         end call method: start 7, params 3, ret values 0
       end scope ret values 0
     end function: # (56), index 25
@@ -3085,20 +3085,20 @@ so eval(round(13.5))" (-178)
     move: # (57) = const string "print" (-31)
     begin call method
       new object 7: # (58)
-      set property: # (58) [const string "b" (-203)] = const number 9 (-6)
+      init property: # (58) [const string "b" (-203)] = const number 9 (-6)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
         move: # (61) = const number 4 (-8)
       end call method: start 59, params 3, ret values 0
-      set property: # (58) [const string "d" (-204)] = const number 0 (-5)
-      set property: # (58) [const string "c" (-149)] = const number 276 (-21)
+      init property: # (58) [const string "d" (-204)] = const number 0 (-5)
+      init property: # (58) [const string "c" (-149)] = const number 276 (-21)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
         move: # (61) = const number 15 (-22)
       end call method: start 59, params 3, ret values 0
-      set property: # (58) [const string "a" (-148)] = const number 39 (-23)
+      init property: # (58) [const string "a" (-148)] = const number 39 (-23)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
@@ -3125,20 +3125,20 @@ so eval(round(13.5))" (-178)
     move: # (57) = const string "print" (-31)
     begin call method
       new object 7: # (58)
-      set property: # (58) [const string "b" (-203)] = const number 9 (-6)
+      init property: # (58) [const string "b" (-203)] = const number 9 (-6)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
         move: # (61) = const number 4 (-8)
       end call method: start 59, params 3, ret values 0
-      set property: # (58) [const string "d" (-204)] = const number 0 (-5)
-      set property: # (58) [const string "c" (-149)] = const number 276 (-21)
+      init property: # (58) [const string "d" (-204)] = const number 0 (-5)
+      init property: # (58) [const string "c" (-149)] = const number 276 (-21)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
         move: # (61) = const number 15 (-22)
       end call method: start 59, params 3, ret values 0
-      set property: # (58) [const string "a" (-148)] = const number 39 (-23)
+      init property: # (58) [const string "a" (-148)] = const number 39 (-23)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
@@ -3177,20 +3177,20 @@ so eval(round(13.5))" (-178)
     move: # (57) = const string "print" (-31)
     begin call method
       new object 7: # (58)
-      set property: # (58) [const string "b" (-203)] = const number 9 (-6)
+      init property: # (58) [const string "b" (-203)] = const number 9 (-6)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
         move: # (61) = const number 4 (-8)
       end call method: start 59, params 3, ret values 0
-      set property: # (58) [const string "d" (-204)] = const number 0 (-5)
-      set property: # (58) [const string "c" (-149)] = const number 276 (-21)
+      init property: # (58) [const string "d" (-204)] = const number 0 (-5)
+      init property: # (58) [const string "c" (-149)] = const number 276 (-21)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
         move: # (61) = const number 15 (-22)
       end call method: start 59, params 3, ret values 0
-      set property: # (58) [const string "a" (-148)] = const number 39 (-23)
+      init property: # (58) [const string "a" (-148)] = const number 39 (-23)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
@@ -3236,20 +3236,20 @@ so eval(round(13.5))" (-178)
     move: # (57) = const string "print" (-31)
     begin call method
       new object 7: # (58)
-      set property: # (58) [const string "b" (-203)] = const number 9 (-6)
+      init property: # (58) [const string "b" (-203)] = const number 9 (-6)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
         move: # (61) = const number 4 (-8)
       end call method: start 59, params 3, ret values 0
-      set property: # (58) [const string "d" (-204)] = const number 0 (-5)
-      set property: # (58) [const string "c" (-149)] = const number 276 (-21)
+      init property: # (58) [const string "d" (-204)] = const number 0 (-5)
+      init property: # (58) [const string "c" (-149)] = const number 276 (-21)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
         move: # (61) = const number 15 (-22)
       end call method: start 59, params 3, ret values 0
-      set property: # (58) [const string "a" (-148)] = const number 39 (-23)
+      init property: # (58) [const string "a" (-148)] = const number 39 (-23)
       begin call method
         move: # (59) = # (58)
         move: # (60) = const string "push" (-50)
@@ -3420,10 +3420,10 @@ so eval(round(13.5))" (-178)
         move: # (62) = const string "__in" (-212)
         move: # (63) = const string "name" (-213)
         new object 4: # (64)
-        set property: # (64) [const string "x" (-48)] = const number 0 (-5)
-        set property: # (64) [const string "y" (-49)] = const number 0 (-5)
-        set property: # (64) [const string "name" (-213)] = const number 0 (-5)
-        set property: # (64) [const string "index" (-214)] = const number 0 (-5)
+        init property: # (64) [const string "x" (-48)] = const number 0 (-5)
+        init property: # (64) [const string "y" (-49)] = const number 0 (-5)
+        init property: # (64) [const string "name" (-213)] = const number 0 (-5)
+        init property: # (64) [const string "index" (-214)] = const number 0 (-5)
       end call method: start 61, params 4, ret values 1
     end call method: start 58, params 4, ret values 1
   end call method: start 56, params 3, ret values 0
