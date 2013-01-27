@@ -1,3 +1,13 @@
+try{
+	var a, b = 2, 0
+	var c = a / b
+}catch(e){
+	print "exception: "..e
+	// throw e
+}
+
+echo("file: "__FILE__", line: "__LINE__"\n")
+
 // call function with arguments without comma
 print(5 " differences")
 
@@ -416,7 +426,7 @@ printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54
 
 ;{
 	print "File usage"
-	var f = File("c:/Sources/OS/examples-os/test.os", "rb")
+	var f = File(__FILE__, "rb")
 	str = f.read(100)
 	// f.close()
 	echo str

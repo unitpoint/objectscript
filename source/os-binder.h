@@ -292,14 +292,14 @@ template <class T> struct CtypeUserClass<T*>
 #define OS_GET_TEMPLATE_SELF(argType) \
 	argType self = CtypeValue< typename RemoveConst<argType>::type >::getArg(os, -params-1); \
 	if(!self){ \
-		os->triggerError(ObjectScript::OS::String(os, CtypeName< typename PlainType<argType>::type >::getName())+" 'this' must not be null"); \
+		os->setException(ObjectScript::OS::String(os, CtypeName< typename PlainType<argType>::type >::getName())+" 'this' must not be null"); \
 		return 0; \
 	}
 
 #define OS_GET_SELF(argType) \
 	argType self = CtypeValue< RemoveConst<argType>::type >::getArg(os, -params-1); \
 	if(!self){ \
-		os->triggerError(ObjectScript::OS::String(os, CtypeName< PlainType<argType>::type >::getName())+" 'this' must not be null"); \
+		os->setException(ObjectScript::OS::String(os, CtypeName< PlainType<argType>::type >::getName())+" 'this' must not be null"); \
 		return 0; \
 	}
 
@@ -309,7 +309,7 @@ template <class T> struct CtypeUserClass<T*>
 	OS_ASSERT(num > 0); \
 	typename CtypeValue< typename RemoveConst<argType>::type >::type arg##num = cur_param_offs < 0 ? CtypeValue< typename RemoveConst<argType>::type >::getArg(os, cur_param_offs) : CtypeValue< typename RemoveConst<argType>::type >::def(os); \
 	if(!CtypeValue< typename RemoveConst<argType>::type >::isValid(arg##num)){ \
-		os->triggerError(ObjectScript::OS::String(os, CtypeName< typename PlainType<argType>::type >::getName())+" expected"); \
+		os->setException(ObjectScript::OS::String(os, CtypeName< typename PlainType<argType>::type >::getName())+" expected"); \
 		return 0; \
 	} cur_param_offs++
 
@@ -317,7 +317,7 @@ template <class T> struct CtypeUserClass<T*>
 	OS_ASSERT(num > 0); \
 	CtypeValue< RemoveConst<argType>::type >::type arg##num = cur_param_offs < 0 ? CtypeValue< RemoveConst<argType>::type >::getArg(os, cur_param_offs) : CtypeValue< RemoveConst<argType>::type >::def(os); \
 	if(!CtypeValue< RemoveConst<argType>::type >::isValid(arg##num)){ \
-		os->triggerError(ObjectScript::OS::String(os, CtypeName< PlainType<argType>::type >::getName())+" expected"); \
+		os->setException(ObjectScript::OS::String(os, CtypeName< PlainType<argType>::type >::getName())+" expected"); \
 		return 0; \
 	} cur_param_offs++
 

@@ -20,7 +20,7 @@ using namespace ObjectScript;
 #define OS_SIZE_C		9
 #define OS_SIZE_B		9
 #define OS_SIZE_Bx		(OS_SIZE_C + OS_SIZE_B)
-#define OS_SIZE_A		6
+#define OS_SIZE_A		8
 #define OS_SIZE_Ax		(OS_SIZE_C + OS_SIZE_B + OS_SIZE_A)
 
 // #define OS_SIZE_CC		2
@@ -213,7 +213,6 @@ int OS_VSNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, va_list va)
 
 int OS_SNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
 {
-
 	va_list va;
 	va_start(va, format);
 	int ret = OS_VSNPRINTF(str, size, format, va);
@@ -222,15 +221,9 @@ int OS_SNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
 }
 
 #ifndef OS_NUMBER_NAN_TRICK
-static bool OS_ISNAN(float a)
+static bool OS_ISNAN(OS_FLOAT a)
 {
-	volatile float b = a;
-	return b != b;
-}
-
-static bool OS_ISNAN(double a)
-{
-	volatile double b = a;
+	volatile OS_FLOAT b = a;
 	return b != b;
 }
 #endif
@@ -239,6 +232,7 @@ static bool OS_ISNAN(double a)
 #include <limits.h>
 
 template <class T> T OS_getMaxValue();
+template <> long double OS_getMaxValue<long double>(){ return LDBL_MAX; }
 template <> double OS_getMaxValue<double>(){ return DBL_MAX; }
 template <> float OS_getMaxValue<float>(){ return FLT_MAX; }
 template <> int OS_getMaxValue<int>(){ return INT_MAX; }
@@ -351,6 +345,19 @@ static inline double toLittleEndianByteOrder(double val)
 	((OS_BYTE*)&r)[5] = ((OS_BYTE*)&val)[2];
 	((OS_BYTE*)&r)[6] = ((OS_BYTE*)&val)[1];
 	((OS_BYTE*)&r)[7] = ((OS_BYTE*)&val)[0];
+	return r;
+}
+
+static inline long double toLittleEndianByteOrder(long double val)
+{
+	// OS_ASSERT(sizeof(val) == sizeof(OS_BYTE)*8);
+	if(IS_LITTLE_ENDIAN){
+		return val;
+	}
+	long double r;
+	for(int i = 0; i < sizeof(long double); i++){
+		((OS_BYTE*)&r)[i] = ((OS_BYTE*)&val)[sizeof(long double)-1-i];
+	}
 	return r;
 }
 
@@ -606,12 +613,7 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_INT64 a)
 	return dst;
 }
 
-OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, float a, int precision)
-{
-	return numToStr(dst, (double)a, precision);
-}
-
-OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
+OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a, int precision)
 {
 	if(precision <= 0) {
 		if(precision < 0) {
@@ -625,11 +627,28 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, double a, int precision)
 		return dst;
 	}
 	if(precision == OS_AUTO_PRECISION){
-		/* %G already handles removing trailing zeros from the fractional part, yay */ 
-#if 1
-		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%G"), a);
+#if 0
+		// OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%G"), a);
+		int i;
+		double num = a;
+		OS_CHAR * tmp = dst;
+		double abs_num = ::fabs(num);
+		if(abs_num >= 1.0 && abs_num < 1e30){
+			i = OS_SNPRINTF(tmp, sizeof(OS_CHAR)*128, OS_TEXT("%-18f"), num);
+			while(i > 1 && tmp[i-1] == OS_TEXT(' ')) tmp[--i] = OS_TEXT('\0');
+			for(int j = 1; j < i; j++){
+				if(tmp[j] == OS_TEXT('.')){
+					while(i > j && tmp[i-1] == OS_TEXT('0')) tmp[--i] = OS_TEXT('\0');
+					if(i == j+1) tmp[--i] = OS_TEXT('\0');
+					break;
+				}
+			}
+		}else{
+			i = OS_SNPRINTF(tmp, sizeof(OS_CHAR)*128, OS_TEXT("%G"), num);
+		}
 #else
-		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.*G"), 17, a);
+		/* %G already handles removing trailing zeros from the fractional part */ 
+		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.*G"), a < 1e10 ? 15 : 30, a);
 #endif
 		return dst;
 	}
@@ -1697,7 +1716,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					}
 					s.append(line_pos);
 					s.append(OS_TEXT("\n"));
-					if(cur_line >= text_data->lines.count){
+					if(cur_line+1 >= text_data->lines.count){
 						if(s.getSize() > 0){
 							addToken(s, OUTPUT_STRING, cur_line, (int)(str - line_pos) OS_DBG_FILEPOS);
 						}
@@ -2167,6 +2186,16 @@ bool OS::Core::Compiler::Expression::isAssignOperator() const
 
 OS::Core::String OS::Core::Compiler::Expression::getSlotStr(OS::Core::Compiler * compiler, Scope * scope, int slot_num, int up_count)
 {
+	struct Lib {
+		static String getInfoStr(OS::Core::Compiler * compiler, const String& str)
+		{
+			if(str.getLen() > 100){
+				return OS::String(compiler->allocator, str.toChar(), 48) + OS_TEXT("...") 
+					+ String(compiler->allocator, str.toChar() + str.getLen() - 48, 48);
+			}
+			return str;
+		}
+	};
 	// OS_ASSERT(slot_num);
 	OS * allocator = compiler->allocator;
 	for(; up_count > 0; up_count--){
@@ -2188,7 +2217,7 @@ OS::Core::String OS::Core::Compiler::Expression::getSlotStr(OS::Core::Compiler *
 			return String::format(allocator, OS_TEXT("const number %g"), compiler->prog_numbers[slot_num]);
 		}
 		slot_num -= compiler->prog_numbers.count;
-		return String::format(allocator, OS_TEXT("const string \"%s\""), compiler->prog_strings[slot_num].toChar());
+		return String::format(allocator, OS_TEXT("const string \"%s\""), Lib::getInfoStr(compiler, compiler->prog_strings[slot_num]).toChar());
 	}
 	if(slot_num >= scope->function->num_locals){
 		return allocator->core->strings->var_temp_prefix;
@@ -2276,6 +2305,24 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 		out += String::format(allocator, OS_TEXT("%send question ret values %d\n"), spaces, ret_values);
 		break;
 
+	case EXP_TYPE_TRY_CATCH:
+		{
+			OS_ASSERT(list.count == 2);
+			out += String::format(allocator, OS_TEXT("%sbegin try catch\n"), spaces);
+			list[0]->debugPrint(out, compiler, scope, depth+1);
+			out += String::format(allocator, OS_TEXT("%scatch\n"), spaces);
+			list[1]->debugPrint(out, compiler, scope, depth+1);
+			out += String::format(allocator, OS_TEXT("%send try catch\n"), spaces);
+			break;
+		}
+
+	case EXP_TYPE_THROW:
+		OS_ASSERT(list.count == 1);
+		list[0]->debugPrint(out, compiler, scope, depth);
+		out += String::format(allocator, OS_TEXT("%sthrow: %s (%d)\n"), spaces,
+			getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
+		break;
+
 	case EXP_TYPE_PARAMS:
 		for(i = 0; i < list.count; i++){
 			list[i]->debugPrint(out, compiler, scope, depth);
@@ -2324,7 +2371,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 				list[i]->debugPrint(out, compiler, scope, depth+1);
 			}
 			out += String::format(allocator, OS_TEXT("%send function: %s (%d), index %d\n"), spaces, 
-				scope->function->parent ? scope->function->parent->getSlotStr(compiler, scope->function->parent, slots.a).toChar() : OS_TEXT("<<->>"), 
+				scope->function->parent ? scope->function->parent->getSlotStr(compiler, scope->function->parent, slots.a).toChar() : OS_TEXT("{main}"), 
 				slots.a, slots.b);
 			break;
 		}
@@ -2367,7 +2414,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 			}
 		}
 		out += String::format(allocator, OS_TEXT("%sreturn: %s (%d), count %d\n"), spaces, 
-			slots.a ? getSlotStr(compiler, scope, slots.a).toChar() : OS_TEXT("<<->>"), 
+			slots.a ? getSlotStr(compiler, scope, slots.a).toChar() : OS_TEXT("{main}"), 
 			slots.a, slots.b);
 		break;
 
@@ -2971,6 +3018,36 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			break;
 		}
 
+	case EXP_TYPE_TRY_CATCH:
+		{
+			OS_ASSERT(exp->list.count == 2);
+			OS_ASSERT(exp->list[1]->type == EXP_TYPE_SCOPE);
+			int op_try_start = prog_opcodes.count;
+			if(!writeOpcodes(scope, exp->list[0])){
+				return false;
+			}
+			// writeDebugInfo(exp);
+			int op_jump_pos = writeOpcode(OP_JUMP);
+			if(!writeOpcodes(scope, exp->list[1])){
+				return false;
+			}
+
+			int op_jump_to = getOpcodePos();
+			fixJumpOpcode(op_jump_to - op_jump_pos - 1, op_jump_pos);
+			OS_ASSERT(dynamic_cast<Scope*>(exp->list[1]));
+			scope->function->addTryBlock(op_try_start, op_jump_pos + 1, (Scope*)exp->list[1]);
+			break;
+		}
+
+	case EXP_TYPE_THROW:
+		OS_ASSERT(exp->list.count == 1);
+		if(!writeOpcodes(scope, exp->list)){
+			return false;
+		}
+		writeDebugInfo(exp);
+		writeOpcodeABC(OP_MULTI, exp->slots.a, 0, OP_MULTI_THROW);
+		break;
+
 	case EXP_TYPE_LOGIC_AND: // &&
 	case EXP_TYPE_LOGIC_OR:  // ||
 		{
@@ -3158,6 +3235,7 @@ OS::Core::Compiler::Scope::~Scope()
 	getAllocator()->vectorClear(locals);
 	getAllocator()->vectorClear(locals_compiled);
 	getAllocator()->vectorClear(loop_breaks);
+	getAllocator()->vectorClear(try_blocks);
 }
 
 OS::Core::Compiler::Scope::LocalVar::LocalVar(const String& p_name, int p_index): name(p_name)
@@ -3202,6 +3280,18 @@ void OS::Core::Compiler::Scope::fixLoopBreaks(Compiler * compiler, int scope_sta
 			compiler->fixJumpOpcode(offs, loop_break.pos);
 		}
 	}
+}
+
+void OS::Core::Compiler::Scope::addTryBlock(int start, int end, Scope * catch_block)
+{
+	OS_ASSERT(catch_block->local_var.index > 0);
+	OS_ASSERT(catch_block->local_var.type == LOCAL_GENERIC);
+	OS_ASSERT(catch_block->local_var.up_count == 0);
+	TryBlock t;
+	t.start_code_pos = start;
+	t.end_code_pos = end;
+	t.catch_var_index = catch_block->local_var.index;
+	getAllocator()->vectorAddItem(try_blocks, t OS_DBG_FILEPOS);
 }
 
 void OS::Core::Compiler::Scope::addPreVars()
@@ -3469,7 +3559,7 @@ bool OS::Core::Compiler::compile()
 			dump += OS::Core::String::format(allocator, "[%d] %s\n", tokenizer->getErrorLine()+1, tokenizer->getLineString(tokenizer->getErrorLine()).toChar());
 			dump += OS::Core::String::format(allocator, "pos %d\n", tokenizer->getErrorPos()+1);
 		}
-		allocator->echo(dump.toString().toChar());
+		allocator->echo(dump.toString());
 		// FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 
 		allocator->pushNull();
@@ -4686,7 +4776,26 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_BREAK:
 	case EXP_TYPE_CONTINUE:
 	case EXP_TYPE_NOP:
+	case EXP_TYPE_TRY_CATCH:
 		break;
+
+	case EXP_TYPE_THROW:
+		OS_ASSERT(exp->list.count == 1);
+		stack_pos = scope->function->stack_cur_size;
+		exp = Lib::processList(this, scope, exp);
+		exp->slots.a = stack_pos;
+		exp->slots.b = scope->function->stack_cur_size - stack_pos;
+		exp->slots.c = 0;
+		OS_ASSERT(exp->slots.b == 1);
+		scope->function->stack_cur_size = stack_pos;
+#if 0	// don't allow optimization here
+		exp1 = exp->list[0];
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){
+			exp->slots.a = exp1->slots.b;
+			exp1->type = EXP_TYPE_NOP;
+		}
+#endif
+		return exp;
 
 	case EXP_TYPE_CODE_LIST:
 		{
@@ -6684,6 +6793,114 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectDebugLocalsExpression
 	return exp;
 }
 
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectThrowExpression(Scope * scope)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_throw);
+	TokenData * throw_token = recent_token;
+	if(!expectToken()){
+		return NULL;
+	}
+	Expression * exp = expectSingleExpression(scope);
+	if(!exp){
+		return NULL;
+	}
+	exp = expectExpressionValues(exp, 1);
+	return new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_THROW, throw_token, exp OS_DBG_FILEPOS);
+}
+
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectTryExpression(Scope * scope)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_try);
+	if(!expectToken()){
+		return NULL;
+	}
+	Expression * try_exp;
+	if(recent_token->type == Tokenizer::BEGIN_CODE_BLOCK){
+		try_exp = expectCodeExpression(scope);
+	}else{
+		try_exp = expectSingleExpression(scope, true);
+		if(recent_token && recent_token->type == Tokenizer::CODE_SEPARATOR){
+			readToken();
+		}
+	}
+	if(!try_exp){
+		return NULL;
+	}
+	if(recent_token->type != Tokenizer::NAME){
+		setError(Tokenizer::NAME, recent_token);
+		allocator->deleteObj(try_exp);
+		return NULL;
+	}
+	if(recent_token->str != allocator->core->strings->syntax_catch){
+		setError(allocator->core->strings->syntax_catch, recent_token);
+		allocator->deleteObj(try_exp);
+		return NULL;
+	}
+	TokenData * catch_token = recent_token;
+	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) || !expectToken(Tokenizer::NAME)){
+		allocator->deleteObj(try_exp);
+		return NULL;
+	}
+	
+	Scope * catch_scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(scope, EXP_TYPE_SCOPE, catch_token);
+	catch_scope->addLocalVar(recent_token->str, catch_scope->local_var);
+	
+	if(!expectToken(Tokenizer::END_BRACKET_BLOCK) || !expectToken()){
+		allocator->deleteObj(try_exp);
+		allocator->deleteObj(catch_scope);
+		return NULL;
+	}
+	Expression * catch_exp;
+	if(recent_token->type == Tokenizer::BEGIN_CODE_BLOCK){
+		catch_exp = expectCodeExpression(catch_scope);
+	}else{
+		catch_exp = expectSingleExpression(catch_scope, true);
+		if(recent_token && recent_token->type == Tokenizer::CODE_SEPARATOR){
+			readToken();
+		}
+	}
+	if(!catch_exp){
+		allocator->deleteObj(try_exp);
+		allocator->deleteObj(catch_scope);
+		return NULL;
+	}
+	catch_scope->list.add(catch_exp OS_DBG_FILEPOS);
+	return new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_TRY_CATCH, try_exp->token, try_exp, catch_scope OS_DBG_FILEPOS);
+}
+
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectFilenameExpression(Scope * scope)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_file);
+	TokenData * token = recent_token;
+
+	TokenData * name_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), 
+		allocator->core->strings->func_getFilename, 
+		Tokenizer::NAME, token->line, token->pos);
+	Expression * exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_STRING, name_token);
+	exp2->ret_values = 1;
+	OS_ASSERT(scope->function);
+	exp2->active_locals = scope->function->num_locals;
+	name_token->release();
+
+	exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, token, exp2 OS_DBG_FILEPOS);
+	exp2->ret_values = 1;
+
+	name_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), 
+		allocator->core->strings->var_globals, 
+		Tokenizer::NAME, token->line, token->pos);
+	Expression * exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, name_token);
+	exp->ret_values = 1;
+	OS_ASSERT(scope->function);
+	exp->active_locals = scope->function->num_locals;
+	name_token->release();
+
+	exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CALL_METHOD, token, exp, exp2 OS_DBG_FILEPOS);
+	exp->ret_values = 1;
+
+	readToken();
+	return exp;
+}
+
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * scope)
 {
 	OS_ASSERT(recent_token && (recent_token->str == allocator->core->strings->syntax_if 
@@ -6817,21 +7034,16 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 				return exp;
 			}
 
-			Expression * newExpression(double val, Expression * left_exp, Expression * right_exp)
+			Expression * newExpression(OS_FLOAT val, Expression * left_exp, Expression * right_exp)
 			{
 				token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(token->text_data, String(compiler->allocator, (OS_FLOAT)val, OS_AUTO_PRECISION), Tokenizer::NUMBER, token->line, token->pos);
-				token->setFloat((OS_FLOAT)val);
+				token->setFloat(val);
 				Expression * exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NUMBER, token);
 				exp->ret_values = 1;
 				token->release();
 				compiler->allocator->deleteObj(left_exp);
 				compiler->allocator->deleteObj(right_exp);
 				return exp;
-			}
-
-			Expression * newExpression(float val, Expression * left_exp, Expression * right_exp)
-			{
-				return newExpression((double)val, left_exp, right_exp);
 			}
 
 			Expression * newExpression(OS_INT val, Expression * left_exp, Expression * right_exp)
@@ -6877,9 +7089,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 			return lib.newExpression(left_exp->toNumber() * right_exp->toNumber(), left_exp, right_exp);
 
 		case EXP_TYPE_DIV: // /
+			if(!right_exp->toNumber()){
+				// allow throw exception in runtime
+				break;
+			}
 			return lib.newExpression(left_exp->toNumber() / right_exp->toNumber(), left_exp, right_exp);
 
 		case EXP_TYPE_MOD: // %
+			if(!right_exp->toNumber()){
+				// allow throw exception in runtime
+				break;
+			}
 			return lib.newExpression(OS_MATH_MOD_OPERATOR(left_exp->toNumber(), right_exp->toNumber()), left_exp, right_exp);
 
 		case EXP_TYPE_LSHIFT: // <<
@@ -7360,6 +7580,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 					|| token->str == strings->syntax_static
 					|| token->str == strings->syntax_debugger
 					// || token->str == strings->syntax_debuglocals
+					// || token->str == strings->syntax_line
+					// || token->str == strings->syntax_file
 					)
 				{
 					return exp;
@@ -7529,6 +7751,8 @@ bool OS::Core::Compiler::isVarNameValid(const String& name)
 		|| name == strings->syntax_static
 		|| name == strings->syntax_debugger
 		|| name == strings->syntax_debuglocals
+		|| name == strings->syntax_line
+		|| name == strings->syntax_file
 		|| name == strings->var_func
 		|| name == strings->var_this
 		|| name == strings->var_env
@@ -7788,6 +8012,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			}
 			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
+		if(token->str == allocator->core->strings->syntax_line){
+			token->setFloat(token->line + 1);
+			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NUMBER, token);
+			exp->ret_values = 1;
+			readToken();
+			return finishValueExpressionNoNextCall(scope, exp, p);
+		}
+		if(token->str == allocator->core->strings->syntax_file){
+			exp = expectFilenameExpression(scope);
+			return finishValueExpression(scope, exp, p);
+		}
 		if(token->str == allocator->core->strings->syntax_is){
 			setError(ERROR_SYNTAX, token);
 			return NULL;
@@ -7813,8 +8048,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return NULL;
 		}
 		if(token->str == allocator->core->strings->syntax_try){
-			setError(ERROR_SYNTAX, token);
-			return NULL;
+			return expectTryExpression(scope);
 		}
 		if(token->str == allocator->core->strings->syntax_catch){
 			setError(ERROR_SYNTAX, token);
@@ -7825,8 +8059,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return NULL;
 		}
 		if(token->str == allocator->core->strings->syntax_throw){
-			setError(ERROR_SYNTAX, token);
-			return NULL;
+			return expectThrowExpression(scope);
 		}
 		if(token->str == allocator->core->strings->syntax_new){
 			setError(ERROR_SYNTAX, token);
@@ -8266,6 +8499,8 @@ OS::Core::FunctionDecl::FunctionDecl()
 	func_depth = 0;
 	func_index = 0;
 	num_local_funcs = 0;
+	try_blocks = NULL;
+	num_try_blocks = 0;
 	opcodes_pos = 0;
 	opcodes_size = 0;
 }
@@ -8273,6 +8508,7 @@ OS::Core::FunctionDecl::FunctionDecl()
 OS::Core::FunctionDecl::~FunctionDecl()
 {
 	OS_ASSERT(!locals);
+	OS_ASSERT(!try_blocks);
 }
 
 // =====================================================================
@@ -8312,6 +8548,8 @@ OS::Core::Program::~Program()
 		}
 		allocator->free(func->locals);
 		func->locals = NULL;
+		allocator->free(func->try_blocks);
+		func->try_blocks = NULL;
 		func->~FunctionDecl();
 	}
 	allocator->free(functions);
@@ -8332,30 +8570,38 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 	MemStreamWriter int_stream(allocator);
 	MemStreamWriter float_stream(allocator);
 	MemStreamWriter double_stream(allocator);
-	int int_count = 0, float_count = 0, double_count = 0;
-	int int_index = 0, float_index = 0, double_index = 0;
+	MemStreamWriter long_double_stream(allocator);
+	int int_count = 0, float_count = 0, double_count = 0, long_double_count = 0;
+	int int_index = 0, float_index = 0, double_index = 0, long_double_index = 0;
 	for(i = 0; i < prog_numbers.count; i++){
-		double val = prog_numbers[i];
-		if(val >= 0 && (double)(int)val == val){
+		long double val = prog_numbers[i];
+		if(val >= 0 && (long double)(int)val == val){
 			int_count++;
 			int_stream.writeUVariable(i - int_index); int_index = i;
 			int_stream.writeUVariable((int)val);
 			continue;
 		}
-		if((double)(float)val == val){
+		if((long double)(float)val == val){
 			float_count++;
 			float_stream.writeUVariable(i - float_index); float_index = i;
 			float_stream.writeFloat((float)val);
 			continue;
 		}
-		double_count++;
-		double_stream.writeUVariable(i - double_index); double_index = i;
-		double_stream.writeDouble(val);
+		if((long double)(double)val == val){
+			double_count++;
+			double_stream.writeUVariable(i - double_index); double_index = i;
+			double_stream.writeDouble((double)val);
+			continue;
+		}
+		long_double_count++;
+		long_double_stream.writeUVariable(i - long_double_index); long_double_index = i;
+		long_double_stream.writeLongDouble(val);
 	}
 
 	writer->writeUVariable(int_count);
 	writer->writeUVariable(float_count);
 	writer->writeUVariable(double_count);
+	writer->writeUVariable(long_double_count);
 	writer->writeUVariable(prog_strings.count);
 	writer->writeUVariable(prog_functions.count);
 	writer->writeUVariable(prog_opcodes.count);
@@ -8380,17 +8626,31 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 		writer->writeUVariable(func_scope->func_depth);
 		writer->writeUVariable(func_scope->func_index);
 		writer->writeUVariable(func_scope->num_local_funcs);
+		writer->writeUVariable(func_scope->try_blocks.count);
 		writer->writeUVariable(func_scope->opcodes_pos);
 		writer->writeUVariable(func_scope->opcodes_size);
 
 		OS_ASSERT(func_scope->locals_compiled.count == func_scope->num_locals);
-		for(int j = 0; j < func_scope->locals_compiled.count; j++){
+		int j;
+		for(j = 0; j < func_scope->locals_compiled.count; j++){
 			Compiler::Scope::LocalVarCompiled& var_scope = func_scope->locals_compiled[j];
 			OS_ASSERT(var_scope.start_code_pos >= func_scope->opcodes_pos && var_scope.start_code_pos < func_scope->opcodes_pos+func_scope->opcodes_size);
 			OS_ASSERT(var_scope.end_code_pos > func_scope->opcodes_pos && var_scope.end_code_pos <= func_scope->opcodes_pos+func_scope->opcodes_size);
 			writer->writeUVariable(var_scope.cached_name_index);
 			writer->writeUVariable(var_scope.start_code_pos - func_scope->opcodes_pos);
 			writer->writeUVariable(var_scope.end_code_pos - func_scope->opcodes_pos);
+		}
+		for(j = 0; j < func_scope->try_blocks.count; j++){
+			Compiler::Scope::TryBlock& t = func_scope->try_blocks[j];
+			OS_ASSERT(t.catch_var_index >= 0 && t.catch_var_index < func_scope->locals_compiled.count);
+			OS_ASSERT(t.end_code_pos > t.start_code_pos);
+			OS_ASSERT(t.start_code_pos >= func_scope->opcodes_pos);
+			OS_ASSERT(t.start_code_pos <= func_scope->opcodes_pos + func_scope->opcodes_size);
+			OS_ASSERT(t.start_code_pos + t.end_code_pos >= func_scope->opcodes_pos);
+			OS_ASSERT(t.start_code_pos + t.end_code_pos <= func_scope->opcodes_pos + func_scope->opcodes_size);
+			writer->writeUVariable(t.start_code_pos - func_scope->opcodes_pos);
+			writer->writeUVariable(t.end_code_pos - func_scope->opcodes_pos);
+			writer->writeUVariable(t.catch_var_index);
 		}
 	}
 
@@ -8439,7 +8699,8 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 	int int_count = reader->readUVariable();
 	int float_count = reader->readUVariable();
 	int double_count = reader->readUVariable();
-	num_numbers = int_count + float_count + double_count;
+	int long_double_count = reader->readUVariable();
+	num_numbers = int_count + float_count + double_count + long_double_count;
 	num_strings = reader->readUVariable();
 	num_functions = reader->readUVariable();
 	int opcodes_size = reader->readUVariable();
@@ -8469,6 +8730,12 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		OS_NUMBER number = (OS_NUMBER)reader->readDouble();
 		const_values[num_index + CONST_STD_VALUES] = number;
 	}
+	for(num_index = 0, i = 0; i < long_double_count; i++){
+		num_index += reader->readUVariable();
+		OS_ASSERT(num_index >= 0 && num_index < num_numbers);
+		OS_NUMBER number = (OS_NUMBER)reader->readLongDouble();
+		const_values[num_index + CONST_STD_VALUES] = number;
+	}
 	Buffer buf(allocator);
 	for(i = 0; i < num_strings; i++){
 		int data_size = reader->readUVariable();
@@ -8496,11 +8763,13 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		func->func_depth = reader->readUVariable();
 		func->func_index = reader->readUVariable();
 		func->num_local_funcs = reader->readUVariable();
+		func->num_try_blocks = reader->readUVariable();
 		func->opcodes_pos = reader->readUVariable();
 		func->opcodes_size = reader->readUVariable();
 
 		func->locals = (FunctionDecl::LocalVar*)allocator->malloc(sizeof(FunctionDecl::LocalVar) * func->num_locals OS_DBG_FILEPOS);
-		for(int j = 0; j < func->num_locals; j++){
+		int j;
+		for(j = 0; j < func->num_locals; j++){
 			int cached_name_index = reader->readUVariable();
 			OS_ASSERT(cached_name_index >= 0 && cached_name_index < num_strings);
 			FunctionDecl::LocalVar * local_var = func->locals + j;
@@ -8509,6 +8778,14 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 			new (local_var) FunctionDecl::LocalVar(var_name);
 			local_var->start_code_pos = reader->readUVariable() + func->opcodes_pos;
 			local_var->end_code_pos = reader->readUVariable() + func->opcodes_pos;
+		}
+
+		func->try_blocks = (FunctionDecl::TryBlock*)allocator->malloc(sizeof(FunctionDecl::TryBlock) * func->num_try_blocks OS_DBG_FILEPOS);
+		for(j = 0; j < func->num_try_blocks; j++){
+			FunctionDecl::TryBlock * try_block = func->try_blocks + j;
+			try_block->start_code_pos = reader->readUVariable() + func->opcodes_pos;
+			try_block->end_code_pos = reader->readUVariable() + func->opcodes_pos;
+			try_block->catch_var_index = reader->readUVariable();
 		}
 	}
 
@@ -8599,12 +8876,12 @@ void OS::Core::Program::pushStartFunction()
 	allocator->core->pushValue(func_value);
 	if(filename.getDataSize()){
 		Buffer buf(allocator);
-		buf += OS_TEXT("<<");
-		buf += allocator->getFilename(filename);
-		buf += OS_TEXT(">>");
+		buf += OS_TEXT("{{");
+		buf += OS_TEXT("main"); // allocator->getFilename(filename);
+		buf += OS_TEXT("}}");
 		func_value->name = buf.toGCStringValue();
 	}else{
-		func_value->name = OS::String(allocator, OS_TEXT("<<CORE>>")).string;
+		func_value->name = OS::String(allocator, OS_TEXT("{{CORE}}")).string;
 	}
 
 	allocator->core->gcMarkProgram(this);
@@ -8687,7 +8964,7 @@ OS::Core::StreamWriter::~StreamWriter()
 void OS::Core::StreamWriter::writeFromStream(StreamReader * reader)
 {
 	int size = reader->getSize() - reader->getPos();
-	int buf_size = 1024 * 16;
+	int buf_size = 1024 * 128;
 	void * buf = allocator->malloc(buf_size < size ? buf_size : size OS_DBG_FILEPOS);
 	OS_ASSERT(buf || !size);
 	for(; size > 0; size -= buf_size){
@@ -8814,6 +9091,18 @@ void OS::Core::StreamWriter::writeDouble(double value)
 void OS::Core::StreamWriter::writeDoubleAtPos(double value, int pos)
 {
 	double le_value = toLittleEndianByteOrder(value);
+	writeBytesAtPos(&le_value, sizeof(le_value), pos);
+}
+
+void OS::Core::StreamWriter::writeLongDouble(long double value)
+{
+	long double le_value = toLittleEndianByteOrder(value);
+	writeBytes(&le_value, sizeof(le_value));
+}
+
+void OS::Core::StreamWriter::writeLongDoubleAtPos(long double value, int pos)
+{
+	long double le_value = toLittleEndianByteOrder(value);
 	writeBytesAtPos(&le_value, sizeof(le_value), pos);
 }
 
@@ -9084,6 +9373,20 @@ double OS::Core::StreamReader::readDouble()
 double OS::Core::StreamReader::readDoubleAtPos(int pos)
 {
 	double le_value;
+	readBytesAtPos(&le_value, sizeof(le_value), pos);
+	return fromLittleEndianByteOrder(le_value);
+}
+
+long double OS::Core::StreamReader::readLongDouble()
+{
+	long double le_value;
+	readBytes(&le_value, sizeof(le_value));
+	return fromLittleEndianByteOrder(le_value);
+}
+
+long double OS::Core::StreamReader::readLongDoubleAtPos(int pos)
+{
+	long double le_value;
 	readBytesAtPos(&le_value, sizeof(le_value), pos);
 	return fromLittleEndianByteOrder(le_value);
 }
@@ -10129,6 +10432,12 @@ OS::Core::Value::Value(double val)
 	// type = OS_VALUE_TYPE_NUMBER;
 }
 
+OS::Core::Value::Value(long double val)
+{
+	OS_SET_VALUE_NUMBER(*this, val);
+	// type = OS_VALUE_TYPE_NUMBER;
+}
+
 OS::Core::Value::Value(const String& str)
 {
 	OS_ASSERT(str.string);
@@ -10189,6 +10498,12 @@ OS::Core::Value& OS::Core::Value::operator=(float val)
 }
 
 OS::Core::Value& OS::Core::Value::operator=(double val)
+{
+	OS_SET_VALUE_NUMBER(*this, val);
+	return *this;
+}
+
+OS::Core::Value& OS::Core::Value::operator=(long double val)
 {
 	OS_SET_VALUE_NUMBER(*this, val);
 	return *this;
@@ -11078,6 +11393,9 @@ OS::Core::Strings::Strings(OS * allocator)
 	__lshift(allocator, OS_TEXT("__lshift")),
 	__rshift(allocator, OS_TEXT("__rshift")),
 	__pow(allocator, OS_TEXT("__pow")),
+	
+	func_unhandledException(allocator, OS_TEXT("unhandledException")),
+	func_getFilename(allocator, OS_TEXT("__getfilename")),
 	func_extends(allocator, OS_TEXT("__extends")),
 	func_delete(allocator, OS_TEXT("__delete")),
 	func_in(allocator, OS_TEXT("__in")),
@@ -11142,6 +11460,8 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_static(allocator, OS_TEXT("static")),
 	syntax_debugger(allocator, OS_TEXT("debugger")),
 	syntax_debuglocals(allocator, OS_TEXT("debuglocals")),
+	syntax_line(allocator, OS_TEXT("__LINE__")),
+	syntax_file(allocator, OS_TEXT("__FILE__")),
 #ifdef OS_GLOBAL_VAR_ENABLED
 	var_globals(allocator, OS_GLOBALS_VAR_NAME),
 #endif
@@ -11250,10 +11570,19 @@ void OS::closeFile(void * f)
 	}
 }
 
+void OS::echo(const void * buf, int size)
+{
+	OS_OUTPUT(buf, size);
+}
+
 void OS::echo(const OS_CHAR * str)
 {
-	// fputs(os->toString(-params + i).toChar(), stdout);
-	OS_PRINTF(OS_TEXT("%s"), str);
+	echo((void*)str, (int)OS_STRLEN(str) * sizeof(OS_CHAR));
+}
+
+void OS::echo(const Core::String& str)
+{
+	echo((void*)str.toChar(), str.getDataSize());
 }
 
 void OS::printf(const OS_CHAR * format, ...)
@@ -11796,12 +12125,108 @@ void OS::setTerminated(bool terminated, int code)
 {
 	core->terminated = terminated;
 	core->terminated_code = code;
+	core->terminated_exception = Core::Value();
 }
 
 void OS::resetTerminated()
 {
-	core->terminated = false;
-	core->terminated_code = 0;
+	if(core->terminated){
+		core->terminated = false;
+		core->terminated_code = 0;
+		core->terminated_exception = Core::Value();
+	}
+}
+
+bool OS::isExceptionSet()
+{
+	return core->terminated && !core->terminated_exception.isNull();
+}
+
+void OS::getException()
+{
+	core->pushValue(core->terminated ? core->terminated_exception : Core::Value());
+}
+
+void OS::Core::setExceptionValue(Value val)
+{
+	if(!val.isNull()){
+		allocator->getGlobal(OS_TEXT("Exception"));
+		if(isValueInstanceOf(val, stack_values.lastElement())){
+			pop();
+			pushValue(val);
+		}else{
+			pushValue(val);
+			String message = allocator->popString();
+			allocator->pushGlobals();
+			allocator->pushString(message);
+			call(1, 1); // _G.Exception(message)
+		}
+		allocator->pushString(OS_TEXT("file"));
+		allocator->pushStackValue(-2);
+		allocator->runOp(OP_IN);
+		if(!allocator->popBool()){
+			DebugInfo debug_info = getDebugInfo();
+			if(debug_info.isValid()){
+				allocator->pushStackValue(-1);
+				allocator->pushString(debug_info.prog->filename);
+				allocator->setProperty(OS_TEXT("file"));
+		
+				allocator->pushStackValue(-1);
+				allocator->pushNumber(debug_info.pos->line);
+				allocator->setProperty(OS_TEXT("line"));
+		
+				allocator->pushStackValue(-1);
+				allocator->pushNumber(debug_info.pos->pos);
+				allocator->setProperty(OS_TEXT("pos"));
+		
+				allocator->pushStackValue(-1);
+				allocator->pushString(debug_info.pos->token);
+				allocator->setProperty(OS_TEXT("token"));
+				
+				allocator->pushStackValue(-1);
+				pushBackTrace(0, 10);
+				allocator->setProperty(OS_TEXT("trace"));
+			}
+		}		
+		terminated_exception = stack_values.buf[--stack_values.count];
+		if(!terminated_exception.isNull()){
+			terminated = true;
+			terminated_code = TERMINATED_EXCEPTION_CODE;
+			return;
+		}
+	}
+	terminated = false;
+	terminated_code = 0;
+}
+
+void OS::setException()
+{
+	core->setExceptionValue(core->getStackValue(-1));
+	pop();
+}
+
+void OS::setException(const OS_CHAR * str)
+{
+	setException(Core::String(this, str));
+}
+
+void OS::setException(const Core::String& str)
+{
+	pushString(str);
+	setException();
+}
+
+void OS::handleException()
+{
+	if(isExceptionSet()){
+		getException();
+		resetTerminated();
+		getGlobal(core->strings->func_unhandledException);
+		pushGlobals();
+		pushStackValue(-3); // exception
+		call(1, 0);
+		pop();
+	}
 }
 
 OS::Core::Core(OS * p_allocator)
@@ -11873,6 +12298,7 @@ bool OS::init(MemoryManager * p_manager)
 		initStringClass();
 		initBufferClass();
 		initFunctionClass();
+		initExceptionClass();
 		initFileClass();
 		initMathModule();
 		initGCModule();
@@ -12029,9 +12455,6 @@ void OS::Core::shutdown()
 	global_vars = (GCValue*)NULL;
 	user_pool = (GCValue*)NULL;
 
-	for(i = 0; i < OS_ERROR_LEVELS; i++){
-		error_handlers[i] = 0;
-	}
 	for(i = 0; i < PROTOTYPE_COUNT; i++){
 		prototypes[i] = NULL;
 	}
@@ -12211,22 +12634,17 @@ OS::String OS::resolvePath(const String& filename)
 	return resolvePath(filename, cur_path);
 }
 
-OS::EFileUseType OS::checkFileUsage(const String& sourcecode_filename, const String& compiled_filename)
+OS_EFileUseType OS::checkFileUsage(const String& sourcecode_filename, const String& compiled_filename)
 {
 	return COMPILE_SOURCECODE_FILE;
 }
 
 void OS::Core::errorDivisionByZero()
 {
-	error(OS_E_WARNING, OS_TEXT("division by zero"));
+	allocator->setException(OS_TEXT("division by zero"));
 }
 
-void OS::Core::error(int code, const OS_CHAR * message)
-{
-	error(code, String(allocator, message));
-}
-
-void OS::Core::error(int code, const String& message)
+OS::Core::DebugInfo OS::Core::getDebugInfo()
 {
 	Program * prog = NULL;
 	Program::DebugInfoItem * debug_info = NULL;
@@ -12238,45 +12656,8 @@ void OS::Core::error(int code, const String& message)
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
 	}
-	int error_level = 0;
-	for(int i = 0; i < OS_ERROR_LEVELS; i++){
-		if(code & (1<<i)){
-			error_level = i;
-			break;
-		}
-	}
-	if(error_handlers[error_level].isFunction()){
-		pushValue(error_handlers[error_level]);
-		pushNull();
-		pushNumber(code);
-		pushStringValue(message);
-		if(debug_info){
-			pushStringValue(prog->filename);
-			pushNumber(debug_info->line);
-			call(4, 0);
-		}else{
-			call(2, 0);
-		}
-		return;
-	}
-	const OS_CHAR * error_type = NULL;
-	switch(code){
-	case OS_E_WARNING:
-		error_type = OS_TEXT("WARNING");
-		break;
-
-	default:
-	case OS_E_ERROR:
-		error_type = OS_TEXT("ERROR");
-		code = OS_E_ERROR;
-		break;
-	}
-	if(debug_info){
-		allocator->printf("[%s] %s (line: %d, pos: %d, token: %s, filename: %s)\n", error_type, message.toChar(), debug_info->line, debug_info->pos, 
-			debug_info->token.toChar(), prog->filename.toChar());
-	}else{
-		allocator->printf("[%s] %s\n", error_type, message.toChar());
-	}
+	DebugInfo info = {debug_info ? prog : NULL, debug_info};
+	return info;
 }
 
 void OS::Core::gcInitGreyList()
@@ -12606,14 +12987,12 @@ int OS::Core::gcStep()
 		gcAddToGreyList(global_vars);
 		gcAddToGreyList(user_pool);
 		int i;
-		for(i = 0; i < OS_ERROR_LEVELS; i++){
-			gcAddToGreyList(error_handlers[i]);
-		}
 		for(i = 0; i < PROTOTYPE_COUNT; i++){
 			gcAddToGreyList(prototypes[i]);
 		}
 	}
 	int i;
+	gcAddToGreyList(terminated_exception);
 	for(i = 0; i < stack_values.count; i++){
 		gcAddToGreyList(stack_values[i]);
 	}
@@ -12658,6 +13037,16 @@ void OS::Core::gcFinishMarkPhase()
 	}
 }
 
+bool OS::gcStepIfNeeded()
+{
+	if(core->gc_start_next_values <= core->values.count){
+		core->gcFinishSweepPhase();
+		core->gcStep();
+		return true;
+	}
+	return false;
+}
+
 void OS::Core::gcStepIfNeeded()
 {
 	if(gc_in_process){
@@ -12665,9 +13054,8 @@ void OS::Core::gcStepIfNeeded()
 	}
 	if(gc_values_head_index >= 0 || gc_grey_root_initialized || gc_continuous){
 		gcStep();
-	}else if(gc_start_next_values <= values.count){
-		gcFinishSweepPhase();
-		gcStep();
+	}else{
+		allocator->gcStepIfNeeded();
 	}
 }
 
@@ -13564,58 +13952,6 @@ void OS::Core::pushBool(bool val)
 #endif
 }
 
-void OS::Core::pushNumber(OS_INT32 val)
-{
-#if 1 // speed optimization
-	StackValues& stack_values = this->stack_values;
-	if(stack_values.capacity < stack_values.count+1){
-		reserveStackValues(stack_values.count+1);
-	}
-	stack_values.buf[stack_values.count++] = val;
-#else
-	pushValue(val);
-#endif
-}
-
-void OS::Core::pushNumber(OS_INT64 val)
-{
-#if 1 // speed optimization
-	StackValues& stack_values = this->stack_values;
-	if(stack_values.capacity < stack_values.count+1){
-		reserveStackValues(stack_values.count+1);
-	}
-	stack_values.buf[stack_values.count++] = val;
-#else
-	pushValue(val);
-#endif
-}
-
-void OS::Core::pushNumber(float val)
-{
-#if 1 // speed optimization
-	StackValues& stack_values = this->stack_values;
-	if(stack_values.capacity < stack_values.count+1){
-		reserveStackValues(stack_values.count+1);
-	}
-	stack_values.buf[stack_values.count++] = val;
-#else
-	pushValue(val);
-#endif
-}
-
-void OS::Core::pushNumber(double val)
-{
-#if 1 // speed optimization
-	StackValues& stack_values = this->stack_values;
-	if(stack_values.capacity < stack_values.count+1){
-		reserveStackValues(stack_values.count+1);
-	}
-	stack_values.buf[stack_values.count++] = val;
-#else
-	pushValue(val);
-#endif
-}
-
 OS::Core::GCStringValue * OS::Core::pushStringValue(const String& val)
 {
 	pushValue(Value(val)); // newStringValue(val));
@@ -13854,6 +14190,57 @@ void OS::Core::pushCloneValue(Value value)
 	pushNull();
 }
 
+void OS::Core::pushCloneValueProtected(OS * other, Value val)
+{
+	switch(OS_VALUE_TYPE(val)){
+	default:
+	case OS_VALUE_TYPE_NULL:
+		pushNull();
+		return;
+
+	case OS_VALUE_TYPE_BOOL:
+		pushBool(OS_VALUE_VARIANT(val).boolean ? true : false);
+		return;
+
+	case OS_VALUE_TYPE_NUMBER:
+		pushNumber(OS_VALUE_NUMBER(val));
+		return;
+
+	case OS_VALUE_TYPE_STRING:
+		pushValue(newStringValue((void*)OS_VALUE_VARIANT(val).string->toChar(), OS_VALUE_VARIANT(val).string->getDataSize()));
+		return;
+
+	case OS_VALUE_TYPE_ARRAY:
+		{
+			OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(val).arr));
+			Core::GCArrayValue * src_arr = OS_VALUE_VARIANT(val).arr;
+			Core::GCArrayValue * dest_arr = newArrayValue(src_arr->values.count);
+			for(int i = 0; i < src_arr->values.count; i++){
+				pushCloneValueProtected(other, src_arr->values[i]);
+				allocator->vectorAddItem(dest_arr->values, stack_values.lastElement() OS_DBG_FILEPOS);
+				pop();
+			}
+			return;
+		}
+
+	case OS_VALUE_TYPE_OBJECT:
+		{
+			OS_ASSERT(dynamic_cast<Core::GCObjectValue*>(OS_VALUE_VARIANT(val).object));
+			Core::GCObjectValue * src_obj = OS_VALUE_VARIANT(val).object;
+			Core::GCObjectValue * dest_obj = newObjectValue();
+			if(src_obj->table && src_obj->table->count > 0){
+				for(Property * prop = src_obj->table->first; prop; prop = prop->next){
+					pushStackValue(-1);
+					pushCloneValueProtected(other, prop->index);
+					pushCloneValueProtected(other, prop->value);
+					allocator->setProperty(false);
+				}
+			}
+			return;
+		}
+	}
+}
+
 void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 {
 	struct Lib
@@ -13869,7 +14256,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 				core->call(0, 1);
 				return;
 			}
-			core->error(OS_E_ERROR, String::format(core->allocator, OS_TEXT("Method %s is not found"), method_name.toChar()));
+			core->allocator->setException(String::format(core->allocator, OS_TEXT("method %s is not implemented"), method_name.toChar()));
 			core->pushNull();
 		}
 	};
@@ -13947,7 +14334,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				core->call(1, 1);
 				return;
 			}
-			core->error(OS_E_ERROR, String::format(core->allocator, OS_TEXT("method %s is not found!"), method_name.toChar()));
+			core->allocator->setException(String::format(core->allocator, OS_TEXT("method %s is not implemented"), method_name.toChar()));
 			core->pushNull();
 		}
 	};
@@ -14339,26 +14726,6 @@ void OS::Core::insertValue(Value val, int offs)
 void OS::pushNull()
 {
 	core->pushNull();
-}
-
-void OS::pushNumber(OS_INT32 val)
-{
-	core->pushNumber(val);
-}
-
-void OS::pushNumber(OS_INT64 val)
-{
-	core->pushNumber(val);
-}
-
-void OS::pushNumber(float val)
-{
-	core->pushNumber(val);
-}
-
-void OS::pushNumber(double val)
-{
-	core->pushNumber(val);
 }
 
 void OS::pushBool(bool val)
@@ -15367,13 +15734,60 @@ int OS::Core::execute()
 	for(;;){
 #endif
 		OS_ASSERT(this->stack_values.count >= this->stack_func->locals_stack_pos + this->stack_func->func->func_decl->stack_size);
-		if(terminated
 #ifdef OS_INFINITE_LOOP_OPCODES
-			|| opcodes_executed >= OS_INFINITE_LOOP_OPCODES
+		if(opcodes_executed >= OS_INFINITE_LOOP_OPCODES){
+			// TODO: throw loop exception?
+		}
 #endif
-			)
-		{
-			break;
+		if(terminated){
+			if(!terminated_exception.isNull()){
+				for(;;){
+					stack_func = this->stack_func;
+					FunctionDecl * func_decl = stack_func->func->func_decl;
+					int num_try_blocks = func_decl->num_try_blocks;
+					int cur_opcode_pos = (int)(stack_func->opcodes - stack_func->func->prog->opcodes.buf);
+					FunctionDecl::TryBlock * found_try_block = NULL;
+					for(int i = 0; i < num_try_blocks; i++){
+						FunctionDecl::TryBlock * t = func_decl->try_blocks + i;
+						if(cur_opcode_pos > t->start_code_pos && cur_opcode_pos < t->end_code_pos){
+							if(!found_try_block){
+								found_try_block = t;
+							}else  if(t->start_code_pos >= found_try_block->start_code_pos && t->end_code_pos < found_try_block->end_code_pos){
+								found_try_block = t;
+							}
+						}
+					}
+					if(found_try_block){
+						stack_func->opcodes = stack_func->func->prog->opcodes.buf + found_try_block->end_code_pos; // is't catch opcode position
+						stack_func_locals[found_try_block->catch_var_index] = terminated_exception;
+						// clear exception
+						terminated = false;
+						terminated_code = 0;
+						OS_SET_VALUE_NULL(terminated_exception);
+						break;
+					}
+					// leave function
+					int need_ret_values = stack_func->need_ret_values;
+					if(need_ret_values > 0){
+						OS_SET_NULL_VALUES(stack_values.buf + stack_func->locals_stack_pos, need_ret_values);
+					}
+					OS_ASSERT(call_stack_funcs.count > 0 && &call_stack_funcs[call_stack_funcs.count-1] == stack_func);
+					if(stack_func->caller_stack_size > stack_values.count){
+						OS_ASSERT(stack_func->caller_stack_size <= stack_values.capacity);
+						OS_SET_NULL_VALUES(stack_values.buf + stack_values.count, stack_func->caller_stack_size - stack_values.count);
+					}
+					stack_values.count = stack_func->caller_stack_size;
+					call_stack_funcs.count--;
+					clearStackFunction(stack_func);
+					reloadStackFunctionCache();
+					if(ret_stack_funcs >= call_stack_funcs.count){
+						OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
+						return 0; // need_ret_values;
+					}
+				}
+			}else{
+				break;
+			}
 		}
 		OS_ASSERT(this->stack_func->opcodes >= this->stack_func->func->prog->opcodes.buf + this->stack_func->func->func_decl->opcodes_pos);
 		OS_ASSERT(this->stack_func->opcodes < this->stack_func->func->prog->opcodes.buf + this->stack_func->func->func_decl->opcodes_pos + this->stack_func->func->func_decl->opcodes_size);
@@ -15395,8 +15809,8 @@ int OS::Core::execute()
 		switch(opcode){
 		// case 0: case 1: case 2: case 3:
 		default:
-			error(OS_E_ERROR, "Unknown opcode, program is corrupted!!!");
-			allocator->setTerminated();
+corrupted:
+			allocator->setException(OS_TEXT("unknown opcode, program is corrupted"));
 			break;
 
 		OS_CASE_OPCODE_ALL(OP_LOGIC_BOOL):
@@ -16367,6 +16781,15 @@ int OS::Core::execute()
 				case OP_MULTI_DEBUGGER:
 					DEBUG_BREAK;
 					break;
+
+				case OP_MULTI_THROW:
+					a = OS_GETARG_A(instruction);
+					setExceptionValue(stack_func_locals[a]);
+					break;
+
+				default:
+					OS_ASSERT(false);
+					goto corrupted;
 				}
 				break;
 			}
@@ -16451,7 +16874,19 @@ void OS::runOp(OS_EOpcode opcode)
 			core->removeStackValue(-2);
 		}
 
+		void call(const Core::String& name)
+		{
+			int offs = core->allocator->getAbsoluteOffs(-2);
+			core->allocator->getGlobal(name);
+			core->allocator->pushGlobals();
+			core->allocator->pushStackValue(offs);
+			core->allocator->pushStackValue(offs+1);
+			core->allocator->call(2, 1);
+			core->allocator->remove(-3, 2);
+		}
+
 	} lib = {core};
+
 	switch(opcode){
 	case OP_COMPARE:
 		return lib.runBinaryOpcode(Core::OP_COMPARE);
@@ -16522,9 +16957,16 @@ void OS::runOp(OS_EOpcode opcode)
 		return lib.runBinaryOpcode(Core::OP_POW);
 
 	case OP_CONCAT: // ..
-		// return lib.runBinaryOpcode(Core::OP_CONCAT);
-		pushString(toString(-2) + toString(-1));
-		return;
+		return lib.call(core->strings->func_concat);
+
+	case OP_IN: // in
+		return lib.call(core->strings->func_in);
+
+	case OP_IS: // is
+		return lib.call(core->strings->func_is);
+
+	case OP_ISPROTOTYPEOF: // is
+		return lib.call(core->strings->func_isprototypeof);
 
 	case OP_BIT_NOT: // ~
 		return lib.runUnaryOpcode(Core::OP_BIT_NOT);
@@ -16552,38 +16994,6 @@ int OS::getLen(int offs)
 	pushStackValue(offs);
 	call(0, 1);
 	return popInt();
-}
-
-void OS::getErrorHandler(int code)
-{
-	for(int i = 0; i < OS_ERROR_LEVELS; i++){
-		if(code & (1<<i)){
-			core->pushValue(core->error_handlers[i]);
-			return;
-		}
-	}
-	pushNull();
-}
-
-void OS::setErrorHandler(int code)
-{
-	bool returned = false;
-	Core::Value func = core->getStackValue(-1);
-	if(func.isFunction()){
-		for(int i = 0; i < OS_ERROR_LEVELS; i++){
-			if(code & (1<<i)){
-				if(!returned){
-					core->pushValue(core->error_handlers[i]);
-					returned = true;
-				}
-				core->error_handlers[i] = func;
-			}
-		}
-	}
-	if(!returned){
-		pushNull();
-	}
-	remove(-2);
 }
 
 void OS::setFunc(const FuncDef& def, bool setter_enabled, int closure_values, void * user_param)
@@ -17131,24 +17541,11 @@ void OS::initGlobalFunctions()
 		}
 #endif
 
-		static void flt(OS::Core::Buffer& buf, double num)
+		static void flt(OS::Core::Buffer& buf, OS_FLOAT num)
 		{
 			OS_CHAR tmp[128];
-			int i;
-			if(::fabs(num) >= 1.0){
-				i = OS_SNPRINTF(tmp, sizeof(tmp), OS_TEXT("%-18f"), num);
-				while(i > 1 && tmp[i-1] == OS_TEXT(' ')) tmp[--i] = OS_TEXT('\0');
-				for(int j = 1; j < i; j++){
-					if(tmp[j] == OS_TEXT('.')){
-						while(i > j && tmp[i-1] == OS_TEXT('0')) tmp[--i] = OS_TEXT('\0');
-						if(i == j) tmp[--i] = OS_TEXT('\0');
-						break;
-					}
-				}
-			}else{
-				i = OS_SNPRINTF(tmp, sizeof(tmp), OS_TEXT("%G"), num);
-			}
-			buf.append(tmp, i);
+			Utils::numToStr(tmp, num);
+			buf.append(tmp);
 		}
 
 		static int sprintf(OS * os, int params, int, int, void*)
@@ -17337,7 +17734,7 @@ void OS::initGlobalFunctions()
 		{
 			for(int i = 0; i < params; i++){
 				// fputs(os->toString(-params + i).toChar(), stdout);
-				os->echo(os->toString(-params + i).toChar());
+				os->echo(os->toString(-params + i));
 			}
 			return 0;
 		}
@@ -17379,8 +17776,10 @@ void OS::initGlobalFunctions()
 				source_code_type = (OS_ESourceCodeType)os->toInt(-params+1);
 			}
 			bool check_utf8_bom = params >= 3 ? os->toBool(-params+2) : true;
-			os->compile(text, source_code_type, check_utf8_bom);
-			return 1;
+			if(os->compile(text, source_code_type, check_utf8_bom)){
+				return 1;
+			}
+			return 0;
 		}
 
 		static int compileFile(OS * os, int params, int, int need_ret_values, void*)
@@ -17395,8 +17794,10 @@ void OS::initGlobalFunctions()
 				source_code_type = (OS_ESourceCodeType)os->toInt(-params+2);
 			}
 			bool check_utf8_bom = params >= 4 ? os->toBool(-params+3) : true;
-			os->compileFile(filename, required, source_code_type, check_utf8_bom);
-			return 1;
+			if(os->compileFile(filename, required, source_code_type, check_utf8_bom)){
+				return 1;
+			}
+			return 0;
 		}
 
 		static int resolvePath(OS * os, int params, int, int, void*)
@@ -17432,31 +17833,6 @@ void OS::initGlobalFunctions()
 		static int terminate(OS * os, int params, int, int, void*)
 		{
 			os->setTerminated(true, os->toInt(-params));
-			return 0;
-		}
-
-		static int setErrorHandler(OS * os, int params, int, int, void*)
-		{
-			switch(params){
-			default:
-				return 0;
-
-			case 1:
-				os->setErrorHandler();
-				break;
-
-			case 2:
-				os->setErrorHandler(os->popInt());
-				break;
-			}
-			return 1;
-		}
-
-		static int triggerError(OS * os, int params, int, int, void*)
-		{
-			int code = os->toInt(-params, OS_E_ERROR);
-			String message = os->toString(-params+1, OS_TEXT("unknown error"));
-			os->triggerError(code, message);
 			return 0;
 		}
 
@@ -17589,8 +17965,22 @@ void OS::initGlobalFunctions()
 			os->pushString(os->toString(-params, params < 2 || os->toBool(-params+1)));
 			return 1;
 		}
+
+		static int getFilename(OS * os, int params, int, int, void*)
+		{
+			Core * core = os->core;
+			for(int i = core->call_stack_funcs.count-1; i >= 0; i--){
+				Core::StackFunction * stack_func = core->call_stack_funcs.buf + i;
+				if(stack_func->func->prog->filename.getLen() > 0){
+					os->pushString(stack_func->func->prog->filename);
+					return 1;
+				}
+			}
+			return 0;
+		}
 	};
 	FuncDef list[] = {
+		{core->strings->func_getFilename, Lib::getFilename},
 		{core->strings->func_extends, Lib::extends},
 		{core->strings->func_delete, Lib::deleteOp},
 		{core->strings->func_in, Lib::in},
@@ -17617,14 +18007,9 @@ void OS::initGlobalFunctions()
 		{OS_TEXT("resolvePath"), Lib::resolvePath},
 		{OS_TEXT("debugBackTrace"), Lib::debugBackTrace},
 		{OS_TEXT("terminate"), Lib::terminate},
-		{OS_TEXT("setErrorHandler"), Lib::setErrorHandler},
-		{OS_TEXT("triggerError"), Lib::triggerError},
 		{}
 	};
 	NumberDef numbers[] = {
-		{OS_TEXT("E_ERROR"), OS_E_ERROR},
-		{OS_TEXT("E_WARNING"), OS_E_WARNING},
-		{OS_TEXT("E_NOTICE"), OS_E_NOTICE},
 		{OS_TEXT("SOURCECODE_AUTO"), OS_SOURCECODE_AUTO},
 		{OS_TEXT("SOURCECODE_PLAIN"), OS_SOURCECODE_PLAIN},
 		{OS_TEXT("SOURCECODE_TEMPLATE"), OS_SOURCECODE_TEMPLATE},
@@ -17999,7 +18384,7 @@ dump_object:
 						}else{
 							Core::GCValue * gcvalue = prop->index.getGCValue();
 							if(os->core->getPropertyValue(temp, os->core->check_recursion, prop->index, false)){
-								buf += OS_TEXT("<<RECURSION>>");
+								buf += OS_TEXT("{{RECURSION}}");
 							}else{
 								if(gcvalue && gcvalue->table && gcvalue->table->count){
 									os->core->setPropertyValue(os->core->check_recursion, prop->index, Core::Value(true), false);
@@ -18010,7 +18395,7 @@ dump_object:
 						}
 
 						if(os->core->getPropertyValue(temp, os->core->check_recursion, prop->value, false)){
-							buf += OS_TEXT("<<RECURSION>>");
+							buf += OS_TEXT("{{RECURSION}}");
 							continue;
 						}
 						Core::GCValue * gcvalue = prop->value.getGCValue();
@@ -18416,7 +18801,7 @@ dump_object:
 				}
 				break;
 			}
-			os->triggerError(String::format(os, OS_TEXT("attempt to compare '%s' with '%s'"), os->getTypeStr(-params + 0).toChar(), os->getTypeStr(-params + 1).toChar()));
+			os->setException(String::format(os, OS_TEXT("attempt to compare '%s' with '%s'"), os->getTypeStr(-params + 0).toChar(), os->getTypeStr(-params + 1).toChar()));
 			return 0;
 		}
 	};
@@ -19014,6 +19399,38 @@ void OS::initFileClass()
 		{}
 	};
 	registerUserClass<Core::File>(this, funcs);
+}
+
+void OS::initExceptionClass()
+{
+	struct Lib
+	{
+		static int __construct(OS * os, int params, int, int, void * user_param)
+		{
+			int offs = os->getAbsoluteOffs(-params - 1);
+			if(params >= 1){
+				os->pushStackValue(offs); // this
+				os->pushStackValue(offs + 1);
+				os->setProperty(OS_TEXT("message"));
+			}
+			if(params >= 2){
+				os->pushStackValue(offs);
+				os->pushStackValue(offs + 2);
+				os->setProperty(OS_TEXT("code"));
+			}
+			os->pushStackValue(offs);
+			return 1;
+		}
+	};
+
+	OS::FuncDef funcs[] = {
+		{OS_TEXT("__construct"), Lib::__construct},
+		{}
+	};
+	
+	newObject();
+	setFuncs(funcs);
+	setGlobal(OS_TEXT("Exception"));
 }
 
 void OS::initFunctionClass()
@@ -19645,15 +20062,25 @@ void OS::initPreScript()
 			return this
 		}
 
-		modules_loaded = {}
+		modules_loaded = {};
 		function require(filename, required, source_code_type, check_utf8_bom){
-			filename = resolvePath(filename)
-				return filename && (modules_loaded.rawget(filename) 
-					|| function(){
-						modules_loaded[filename] = {} // block recursive require
-						modules_loaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
-						return modules_loaded[filename]
-					}())
+			filename = resolvePath(filename);
+			return filename && (modules_loaded.rawget(filename) 
+				|| function(){
+					modules_loaded[filename] = {} // block recursive require
+					modules_loaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
+					return modules_loaded[filename]
+				}())
+		}
+		function unhandledException(e){
+			if("trace" in e){
+				printf("Unhandled exception: '%s'\n", e.message);
+				for(var i, t in e.trace){
+					printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+				}
+			}else{
+				printf("Unhandled exception: '%s' in %s(%d)\n", e.message, e.file, e.line);
+			}
 		}
 	));
 }
@@ -19778,8 +20205,8 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 	String token_str(allocator, OS_TEXT("token"));
 	String object_str(allocator, OS_TEXT("object"));
 	String arguments_str(allocator, OS_TEXT("arguments"));
-	String core_str(allocator, OS_TEXT("<<CORE>>"));
-	String lambda_str(allocator, OS_TEXT("<<lambda>>"));
+	String core_str(allocator, OS_TEXT("{{CORE}}"));
+	String lambda_str(allocator, OS_TEXT("{{lambda}}"));
 
 	if(skip_funcs < 0){
 		skip_funcs = 0;
@@ -20019,25 +20446,36 @@ int OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool al
 	return ret_values;
 }
 
+OS_ESourceCodeType OS::getSourceCodeType(const String& filename)
+{
+	String ext = getFilenameExt(filename);
+	if(ext == OS_EXT_TEMPLATE || ext == OS_EXT_TEMPLATE_HTML || ext == OS_EXT_TEMPLATE_HTM){
+		return OS_SOURCECODE_TEMPLATE;
+	}
+	return OS_SOURCECODE_AUTO;
+}
+
 bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	String filename = resolvePath(p_filename);
 	String compiled_filename = getCompiledFilename(filename);
 	bool sourcecode_file_exist = isFileExist(filename);
 	bool compiled_file_exist = isFileExist(compiled_filename);
+	bool recompile_enabled = false;
 	if(compiled_file_exist && sourcecode_file_exist){
 		if(core->settings.primary_compiled_file || checkFileUsage(filename, compiled_filename) == LOAD_COMPILED_FILE){
 			sourcecode_file_exist = false;
+			recompile_enabled = true;
 		}else{
 			compiled_file_exist = false;
 		}
 	}
 	if(!sourcecode_file_exist && !compiled_file_exist){
 		if(required){
-			core->error(OS_E_ERROR, String::format(this, OS_TEXT("required filename %s is not exist"), p_filename.toChar()));
+			setException(String::format(this, OS_TEXT("required filename %s is not exist"), p_filename.toChar()));
 			return false;
 		}
-		core->error(OS_E_WARNING, String::format(this, OS_TEXT("filename %s is not exist"), p_filename.toChar()));
+		// core->error(OS_E_WARNING, String::format(this, OS_TEXT("filename %s is not exist"), p_filename.toChar()));
 		return false;
 	}
 	if(!sourcecode_file_exist){
@@ -20050,6 +20488,7 @@ bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType
 		prog_file_data.writeFromStream(&prog_file_reader);
 		Core::MemStreamReader prog_reader(NULL, prog_file_data.buffer.buf, prog_file_data.getSize());
 
+		bool loaded = true;
 		String debug_info_filename = getDebugInfoFilename(filename);
 		if(isFileExist(debug_info_filename)){
 			Core::FileStreamReader debug_info_file_reader(this, debug_info_filename);
@@ -20057,29 +20496,35 @@ bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType
 			debug_info_file_data.writeFromStream(&debug_info_file_reader);
 			Core::MemStreamReader debug_info_reader(NULL, debug_info_file_data.buffer.buf, debug_info_file_data.getSize());
 			if(!prog->loadFromStream(&prog_reader, &debug_info_reader)){
-				prog->release();
-				return false;
+				// prog->release();
+				loaded = false;
 			}
 		}else if(!prog->loadFromStream(&prog_reader, NULL)){
+			// prog->release();
+			loaded = false;
+		}
+		if(loaded){
+			prog->pushStartFunction();
 			prog->release();
+			return true;
+		}
+		prog->release();
+		if(!recompile_enabled){
 			return false;
 		}
-		prog->pushStartFunction();
-		prog->release();
-		return true;
 	}
 
 	Core::FileStreamReader file(this, filename);
 	if(!file.f){
-		core->error(OS_E_ERROR, String::format(this, OS_TEXT("error open filename %s"), p_filename.toChar()));
+		setException(String::format(this, OS_TEXT("error open filename %s"), p_filename.toChar()));
 		return false;
 	}
 
 	Core::MemStreamWriter file_data(this);
 	file_data.writeFromStream(&file);
 
-	if(source_code_type == OS_SOURCECODE_AUTO && getFilenameExt(filename) == OS_EXT_TEMPLATE){
-		source_code_type = OS_SOURCECODE_TEMPLATE;
+	if(source_code_type == OS_SOURCECODE_AUTO){
+		source_code_type = getSourceCodeType(filename);
 	}
 
 	Core::Tokenizer tokenizer(this);
@@ -20124,6 +20569,23 @@ int OS::eval(const String& str, int params, int ret_values, OS_ESourceCodeType s
 	return core->call(params, ret_values);
 }
 
+int OS::evalProtected(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
+{
+	OS * os = OS::create(new OS(), memory_manager);
+	int i;
+	for(i = 0; i < params; i++){
+		os->core->pushCloneValueProtected(this, core->getStackValue(-params + i));
+	}
+	pop(params);
+	int func_ret_values = os->eval(str, params, ret_values, source_code_type, check_utf8_bom);
+	OS_ASSERT(func_ret_values == ret_values); (void)func_ret_values;
+	for(i = 0; i < ret_values; i++){
+		core->pushCloneValueProtected(os, os->core->getStackValue(-ret_values + i));
+	}
+	os->release();
+	return ret_values;
+}
+
 int OS::require(const OS_CHAR * filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	return require(String(this, filename), required, ret_values, source_code_type, check_utf8_bom);
@@ -20131,13 +20593,18 @@ int OS::require(const OS_CHAR * filename, bool required, int ret_values, OS_ESou
 
 int OS::require(const String& filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
+	resetTerminated();
+	
 	getGlobal(core->strings->func_require);
 	pushGlobals();
 	pushString(filename);
 	pushBool(required);
 	pushNumber(source_code_type);
 	pushBool(check_utf8_bom);
-	return call(4, ret_values);
+	ret_values = call(4, ret_values);
+
+	handleException();
+	return ret_values;
 }
 
 int OS::getSetting(OS_ESettings setting)
@@ -20202,26 +20669,6 @@ int OS::gc()
 void OS::gcFull()
 {
 	core->gcFull();
-}
-
-void OS::triggerError(int code, const OS_CHAR * message)
-{
-	core->error(code, message);
-}
-
-void OS::triggerError(int code, const String& message)
-{
-	core->error(code, message);
-}
-
-void OS::triggerError(const OS_CHAR * message)
-{
-	core->error(OS_E_ERROR, message);
-}
-
-void OS::triggerError(const String& message)
-{
-	core->error(OS_E_ERROR, message);
 }
 
 // =====================================================================

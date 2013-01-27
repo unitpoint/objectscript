@@ -12,16 +12,8 @@ function __get(name){
 	echo "\n"
 }
 
-function Object.__get(name, autoCreate){
-	if(autoCreate) return;
+function Object.__get(name){
 	echo("object property \""name"\" is not declared\n")
-	echo "back trace\n"
-	printBackTrace(1) // skip current function
-	echo("=======\ntarget "this"\n\n")
-}
-
-function Userdata.__set(name, value){
-	echo("userdata property \""name"\" is not declared, set value "value"\n")
 	echo "back trace\n"
 	printBackTrace(1) // skip current function
 	echo("=======\ntarget "this"\n\n")
@@ -29,30 +21,24 @@ function Userdata.__set(name, value){
 
 function assert(a, message){
 	if(!a){
-		print(message || "assert failed")
-		printBackTrace(1)
-		terminate()
+		throw(message || "assert failed")
 	}
 }
 
-setErrorHandler {|code message file line|
-	var type = "ERROR"
-	if(code == E_WARNING)
-		type = "WARNING"
-	else if(code == E_NOTICE)
-		type = "NOTICE"
-	echo("["type"] "message"\n")
-	echo "back trace\n"
-	printBackTrace(1) // skip current function
+function unhandledException(e){
+	if("trace" in e){
+		printf("Unhandled exception: '%s'\n", e.message);
+		for(var i, t in e.trace){
+			printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+		}
+	}else{
+		printf("Unhandled exception: '%s' in %s(%d)\n", e.message, e.file, e.line);
+	}
 }
 
 function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
-		echo("======= ["i"]\n")
-		// echo("  line: "t.line", pos: "t.pos", token: "t.token", file: "t.file"\n")
-		echo("  line: "t.line", pos: "t.pos", file: "t.file"\n")
-		echo("  function: "t.name", arguments: "t.arguments"\n")
-		// print concat("  object: "(t.object === _G && "<<GLOBALS>>" || t.object)"\n")
+		printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
 	}
 }
 
