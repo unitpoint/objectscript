@@ -132,7 +132,6 @@ inline void operator delete(void *, void *){}
 #define OS_CHAR_UPPER(c) toupper(c)
 #define OS_CHAR_LOWER(c) tolower(c)
 
-#define OS_AUTO_PRECISION 20
 #define OS_TOP_STACK_NULL_VALUES 20
 #define OS_DEF_FMT_BUF_LEN (1024*10)
 #define OS_PATH_SEPARATOR OS_TEXT("/")
@@ -460,7 +459,8 @@ namespace ObjectScript
 
 			static OS_CHAR * numToStr(OS_CHAR*, OS_INT32 value);
 			static OS_CHAR * numToStr(OS_CHAR*, OS_INT64 value);
-			static OS_CHAR * numToStr(OS_CHAR*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
+			static OS_CHAR * numToStr(OS_CHAR*, OS_FLOAT value);
+			static OS_CHAR * numToStr(OS_CHAR*, OS_FLOAT value, int precision);
 
 			static OS_INT strToInt(const OS_CHAR*);
 			static OS_FLOAT strToFloat(const OS_CHAR*);
@@ -877,7 +877,8 @@ namespace ObjectScript
 				String(OS*, const void * buf1, int len1, const void * buf2, int len2);
 				String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
 				String(OS*, OS_INT value);
-				String(OS*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
+				String(OS*, OS_FLOAT value);
+				String(OS*, OS_FLOAT value, int precision);
 				~String();
 
 				static String format(OS*, int temp_buf_len, const OS_CHAR * fmt, ...);
@@ -2672,6 +2673,7 @@ namespace ObjectScript
 			GCStringValue * newStringValue(const void * buf1, int size1, const void * buf2, int size2, const void * buf3, int size3);
 			GCStringValue * newStringValue(GCStringValue*, GCStringValue*);
 			GCStringValue * newStringValue(OS_INT);
+			GCStringValue * newStringValue(OS_FLOAT);
 			GCStringValue * newStringValue(OS_FLOAT, int);
 			GCStringValue * newStringValue(int temp_buf_len, const OS_CHAR * fmt, ...);
 			GCStringValue * newStringValueVa(int temp_buf_len, const OS_CHAR * fmt, va_list va);
@@ -2842,11 +2844,11 @@ namespace ObjectScript
 			void pushArgumentsWithNames(StackFunction*);
 			void pushRestArguments(StackFunction*);
 
-			int execute();
+			void execute();
 			void reloadStackFunctionCache();
 
-			int call(int params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
-			int call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
+			void call(int params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
+			void call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
 
 			Core(OS*);
 			~Core();
@@ -2918,7 +2920,8 @@ namespace ObjectScript
 			String(OS*, const void*, int size);
 			String(OS*, const void * buf1, int len1, const void * buf2, int len2);
 			String(OS*, OS_INT value);
-			String(OS*, OS_FLOAT value, int precision = OS_AUTO_PRECISION);
+			String(OS*, OS_FLOAT value);
+			String(OS*, OS_FLOAT value, int precision);
 			~String();
 
 			String& operator=(const Core::String&);
@@ -3097,14 +3100,14 @@ namespace ObjectScript
 		bool compile(const String& str, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 		bool compile(OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
-		int call(int params = 0, int ret_values = 0);
-		int eval(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
-		int eval(const String& str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		void call(int params = 0, int ret_values = 0);
+		void eval(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		void eval(const String& str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
-		int evalProtected(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		void evalProtected(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
-		int require(const OS_CHAR * filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
-		virtual int require(const String& filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		void require(const OS_CHAR * filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		virtual void require(const String& filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
 		// return next gc phase
 		int gc();

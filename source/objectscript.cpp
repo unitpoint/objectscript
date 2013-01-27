@@ -613,6 +613,27 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_INT64 a)
 	return dst;
 }
 
+template <class T> struct FloatFormatStr
+{
+	static const OS_CHAR * roundFmt(){ return OS_TEXT("%.f"); }
+	static const OS_CHAR * precisionFmt(){ return OS_TEXT("%.*f"); }
+	static const OS_CHAR * autoFmt(){ return OS_TEXT("%.*G"); }
+};
+
+template <> struct FloatFormatStr<long double>
+{
+	static const OS_CHAR * roundFmt(){ return OS_TEXT("%.Lf"); }
+	static const OS_CHAR * precisionFmt(){ return OS_TEXT("%.*Lf"); }
+	static const OS_CHAR * autoFmt(){ return OS_TEXT("%.*LG"); }
+};
+
+OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a)
+{
+	/* %G already handles removing trailing zeros from the fractional part */ 
+	OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, FloatFormatStr<OS_NUMBER>::autoFmt(), a < 1e10 ? 15 : 30, a);
+	return dst;
+}
+
 OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a, int precision)
 {
 	if(precision <= 0) {
@@ -623,36 +644,10 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a, int precision)
 			}
 			a = ::floor(a / p + (OS_FLOAT)0.5) * p;
 		}
-		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.f"), a);
+		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, FloatFormatStr<OS_NUMBER>::roundFmt(), a);
 		return dst;
 	}
-	if(precision == OS_AUTO_PRECISION){
-#if 0
-		// OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%G"), a);
-		int i;
-		double num = a;
-		OS_CHAR * tmp = dst;
-		double abs_num = ::fabs(num);
-		if(abs_num >= 1.0 && abs_num < 1e30){
-			i = OS_SNPRINTF(tmp, sizeof(OS_CHAR)*128, OS_TEXT("%-18f"), num);
-			while(i > 1 && tmp[i-1] == OS_TEXT(' ')) tmp[--i] = OS_TEXT('\0');
-			for(int j = 1; j < i; j++){
-				if(tmp[j] == OS_TEXT('.')){
-					while(i > j && tmp[i-1] == OS_TEXT('0')) tmp[--i] = OS_TEXT('\0');
-					if(i == j+1) tmp[--i] = OS_TEXT('\0');
-					break;
-				}
-			}
-		}else{
-			i = OS_SNPRINTF(tmp, sizeof(OS_CHAR)*128, OS_TEXT("%G"), num);
-		}
-#else
-		/* %G already handles removing trailing zeros from the fractional part */ 
-		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.*G"), a < 1e10 ? 15 : 30, a);
-#endif
-		return dst;
-	}
-	int n = OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, OS_TEXT("%.*f"), precision, a);
+	int n = OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, FloatFormatStr<OS_NUMBER>::precisionFmt(), precision, a);
 	OS_ASSERT(n >= 1 && !OS_STRSTR(dst, OS_TEXT(".")) || dst[n-1] != '0'); (void)n;
 	return dst;
 }
@@ -822,6 +817,15 @@ OS::Core::String::String(OS * os, const void * buf1, int size1, const void * buf
 }
 
 OS::Core::String::String(OS * os, OS_INT value)
+{
+	string = os->core->newStringValue(value);
+	string->external_ref_count++;
+#ifdef OS_DEBUG
+	this->str = string->toChar();
+#endif
+}
+
+OS::Core::String::String(OS * os, OS_FLOAT value)
 {
 	string = os->core->newStringValue(value);
 	string->external_ref_count++;
@@ -1140,6 +1144,11 @@ OS::String::String(OS * allocator, const void * buf1, int size1, const void * bu
 }
 
 OS::String::String(OS * allocator, OS_INT value): super(allocator, value)
+{
+	this->allocator = allocator->retain();
+}
+
+OS::String::String(OS * allocator, OS_FLOAT value): super(allocator, value)
 {
 	this->allocator = allocator->retain();
 }
@@ -7036,7 +7045,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 
 			Expression * newExpression(OS_FLOAT val, Expression * left_exp, Expression * right_exp)
 			{
-				token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(token->text_data, String(compiler->allocator, (OS_FLOAT)val, OS_AUTO_PRECISION), Tokenizer::NUMBER, token->line, token->pos);
+				token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(token->text_data, String(compiler->allocator, (OS_FLOAT)val), Tokenizer::NUMBER, token->line, token->pos);
 				token->setFloat(val);
 				Expression * exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NUMBER, token);
 				exp->ret_values = 1;
@@ -10914,7 +10923,7 @@ OS::Core::String OS::Core::valueToString(const Value& val, bool valueof_enabled)
 		return OS_VALUE_VARIANT(val).boolean ? strings->syntax_true : strings->syntax_false;
 
 	case OS_VALUE_TYPE_NUMBER:
-		return String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
+		return String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val));
 
 	case OS_VALUE_TYPE_STRING:
 		return String(OS_VALUE_VARIANT(val).string);
@@ -10937,7 +10946,7 @@ OS::String OS::Core::valueToStringOS(const Value& val, bool valueof_enabled)
 		return OS::String(allocator, OS_VALUE_VARIANT(val).boolean ? strings->syntax_true : strings->syntax_false);
 
 	case OS_VALUE_TYPE_NUMBER:
-		return OS::String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
+		return OS::String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val));
 
 	case OS_VALUE_TYPE_STRING:
 		return OS::String(allocator, OS_VALUE_VARIANT(val).string);
@@ -10969,7 +10978,7 @@ bool OS::Core::isValueString(const Value& val, String * out)
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
+			*out = String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val));
 		}
 		return true;
 
@@ -11005,7 +11014,7 @@ bool OS::Core::isValueStringOS(const Value& val, OS::String * out)
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
-			*out = OS::String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val), OS_AUTO_PRECISION);
+			*out = OS::String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val));
 		}
 		return true;
 
@@ -13761,6 +13770,13 @@ OS::Core::GCStringValue * OS::Core::newStringValue(OS_INT val)
 	return newStringValue(str);
 }
 
+OS::Core::GCStringValue * OS::Core::newStringValue(OS_FLOAT val)
+{
+	OS_CHAR str[128];
+	Utils::numToStr(str, val);
+	return newStringValue(str);
+}
+
 OS::Core::GCStringValue * OS::Core::newStringValue(OS_FLOAT val, int precision)
 {
 	OS_CHAR str[128];
@@ -15719,7 +15735,7 @@ void OS::Core::reloadStackFunctionCache()
 	}
 }
 
-int OS::Core::execute()
+void OS::Core::execute()
 {
 #ifdef OS_DEBUG
 	allocator->checkNativeStackUsage(OS_TEXT("OS::Core::execute"));
@@ -15782,11 +15798,32 @@ int OS::Core::execute()
 					reloadStackFunctionCache();
 					if(ret_stack_funcs >= call_stack_funcs.count){
 						OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
-						return 0; // need_ret_values;
+						return;
 					}
 				}
 			}else{
-				break;
+				// terminated so leave functions
+				for(;;){
+					stack_func = this->stack_func;
+					// leave function
+					int need_ret_values = stack_func->need_ret_values;
+					if(need_ret_values > 0){
+						OS_SET_NULL_VALUES(stack_values.buf + stack_func->locals_stack_pos, need_ret_values);
+					}
+					OS_ASSERT(call_stack_funcs.count > 0 && &call_stack_funcs[call_stack_funcs.count-1] == stack_func);
+					if(stack_func->caller_stack_size > stack_values.count){
+						OS_ASSERT(stack_func->caller_stack_size <= stack_values.capacity);
+						OS_SET_NULL_VALUES(stack_values.buf + stack_values.count, stack_func->caller_stack_size - stack_values.count);
+					}
+					stack_values.count = stack_func->caller_stack_size;
+					call_stack_funcs.count--;
+					clearStackFunction(stack_func);
+					reloadStackFunctionCache();
+					if(ret_stack_funcs >= call_stack_funcs.count){
+						OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
+						return;
+					}
+				}
 			}
 		}
 		OS_ASSERT(this->stack_func->opcodes >= this->stack_func->func->prog->opcodes.buf + this->stack_func->func->func_decl->opcodes_pos);
@@ -16833,14 +16870,15 @@ corrupted:
 				if(ret_stack_funcs >= call_stack_funcs.count){
 					OS_ASSERT(ret_stack_funcs == call_stack_funcs.count);
 					OS_PROFILE_END_OPCODE(opcode);
-					return need_ret_values;
+					return;
 				}
 				break;
 			}
 		}
 		OS_PROFILE_END_OPCODE(opcode);
 	}
-	return 0;
+	OS_ASSERT(false);
+	// never to be here
 }
 
 void OS::runOp(OS_EOpcode opcode)
@@ -18373,7 +18411,7 @@ dump_object:
 						}
 						if(OS_VALUE_TYPE(prop->index) == OS_VALUE_TYPE_NUMBER){
 							if(OS_VALUE_NUMBER(prop->index) != (OS_FLOAT)need_index){
-								buf += String(os, (OS_FLOAT)OS_VALUE_NUMBER(prop->index), OS_AUTO_PRECISION);
+								buf += String(os, (OS_FLOAT)OS_VALUE_NUMBER(prop->index));
 								buf += OS_TEXT(":");
 							}
 							need_index = (int)(OS_VALUE_NUMBER(prop->index) + 1);
@@ -18953,7 +18991,8 @@ void OS::initBufferClass()
 				os->getPrototype();
 				os->getProperty(os->core->strings->func_valueOf);
 				os->pushStackValue(offs);
-				return os->call(0, 1);
+				os->call(0, 1);
+				return 1;
 			}
 			OS_GET_SELF(Core::Buffer*);
 			os->pushString(self->toString());
@@ -19443,7 +19482,8 @@ void OS::initFunctionClass()
 			os->pushStackValue(offs-1); // self as func
 			if(params < 1){
 				os->pushNull();
-				return os->call(0, need_ret_values);
+				os->call(0, need_ret_values);
+				return need_ret_values;
 			}
 			os->pushStackValue(offs); // first param - new this
 
@@ -19453,14 +19493,17 @@ void OS::initFunctionClass()
 				for(int i = 0; i < count; i++){
 					os->core->pushValue(OS_VALUE_VARIANT(array_var).arr->values[i]);
 				}
-				return os->call(count, need_ret_values);
+				os->call(count, need_ret_values);
+				return need_ret_values;
 			}
-			return os->call(0, need_ret_values);
+			os->call(0, need_ret_values);
+			return need_ret_values;
 		}
 
 		static int call(OS * os, int params, int, int need_ret_values, void*)
 		{
-			return os->call(params-1, need_ret_values);
+			os->call(params-1, need_ret_values);
+			return need_ret_values;
 		}
 
 		static int applyEnv(OS * os, int params, int, int need_ret_values, void *)
@@ -20246,7 +20289,7 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 	}
 }
 
-int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func)
+void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func)
 {
 	OS_ASSERT(start_pos >= OS_TOP_STACK_NULL_VALUES && call_params >= 2 && start_pos + call_params <= stack_values.count);
 	Value& func = stack_values[start_pos];
@@ -20343,7 +20386,7 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 			reloadStackFunctionCache();
 
 			if(allow_only_enter_func){
-				return 0;
+				return;
 			}
 			return execute();
 		}
@@ -20389,7 +20432,7 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 				OS_SET_NULL_VALUES(stack_values.buf + stack_values.count, save_stack_size - stack_values.count);
 			}
 			stack_values.count = save_stack_size;
-			return ret_values;
+			return;
 		}
 
 	case OS_VALUE_TYPE_OBJECT:
@@ -20413,7 +20456,7 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 				}
 			}
 			object->external_ref_count--;
-			return ret_values;
+			return;
 		}
 
 	case OS_VALUE_TYPE_USERDATA:
@@ -20427,23 +20470,22 @@ int OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * sel
 			{
 				stack_values.buf[start_pos + 0] = func;
 				stack_values.buf[start_pos + 1] = func_value;
-				return call(start_pos, call_params, ret_values);
+				call(start_pos, call_params, ret_values);
+				return;
 			}
 			break;
 		}
 	}
 	OS_ASSERT(start_pos + ret_values <= stack_values.count);
 	OS_SET_NULL_VALUES(stack_values.buf + start_pos, ret_values);
-	return ret_values;
 }
 
-int OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func)
+void OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func)
 {
 	params += 2;
 	int start_pos = stack_values.count - params;
-	ret_values = call(start_pos, params, ret_values, self_for_proto, allow_only_enter_func);
+	call(start_pos, params, ret_values, self_for_proto, allow_only_enter_func);
 	stack_values.count = start_pos + ret_values;
-	return ret_values;
 }
 
 OS_ESourceCodeType OS::getSourceCodeType(const String& filename)
@@ -20551,25 +20593,25 @@ bool OS::compile(OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 	return compile(popString(), source_code_type, check_utf8_bom);
 }
 
-int OS::call(int params, int ret_values)
+void OS::call(int params, int ret_values)
 {
-	return core->call(params, ret_values);
+	core->call(params, ret_values);
 }
 
-int OS::eval(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
+void OS::eval(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	return eval(String(this, str), params, ret_values, source_code_type, check_utf8_bom);
+	eval(String(this, str), params, ret_values, source_code_type, check_utf8_bom);
 }
 
-int OS::eval(const String& str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
+void OS::eval(const String& str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	compile(str, source_code_type, check_utf8_bom);
 	pushNull();
 	move(-2, 2, -2-params);
-	return core->call(params, ret_values);
+	core->call(params, ret_values);
 }
 
-int OS::evalProtected(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
+void OS::evalProtected(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	OS * os = OS::create(new OS(), memory_manager);
 	int i;
@@ -20577,21 +20619,19 @@ int OS::evalProtected(const OS_CHAR * str, int params, int ret_values, OS_ESourc
 		os->core->pushCloneValueProtected(this, core->getStackValue(-params + i));
 	}
 	pop(params);
-	int func_ret_values = os->eval(str, params, ret_values, source_code_type, check_utf8_bom);
-	OS_ASSERT(func_ret_values == ret_values); (void)func_ret_values;
+	os->eval(str, params, ret_values, source_code_type, check_utf8_bom);
 	for(i = 0; i < ret_values; i++){
 		core->pushCloneValueProtected(os, os->core->getStackValue(-ret_values + i));
 	}
 	os->release();
-	return ret_values;
 }
 
-int OS::require(const OS_CHAR * filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
+void OS::require(const OS_CHAR * filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	return require(String(this, filename), required, ret_values, source_code_type, check_utf8_bom);
+	require(String(this, filename), required, ret_values, source_code_type, check_utf8_bom);
 }
 
-int OS::require(const String& filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
+void OS::require(const String& filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	resetTerminated();
 	
@@ -20601,10 +20641,9 @@ int OS::require(const String& filename, bool required, int ret_values, OS_ESourc
 	pushBool(required);
 	pushNumber(source_code_type);
 	pushBool(check_utf8_bom);
-	ret_values = call(4, ret_values);
+	call(4, ret_values);
 
 	handleException();
-	return ret_values;
 }
 
 int OS::getSetting(OS_ESettings setting)
