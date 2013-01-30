@@ -1,7 +1,14 @@
 #include "objectscript.h"
 #include "os-binder.h"
 #include <time.h>
+
+#ifdef _WIN
 #include <direct.h>
+#else
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
 
 using namespace ObjectScript;
 
@@ -19950,11 +19957,11 @@ void OS::initProcessModule()
 	{
 		static int cwd(OS * os, int params, int, int, void*)
 		{
-			const int PATH_MAX = 1024;
-			Core::Buffer buf(os);
-			buf.reserveCapacity(PATH_MAX+1);
-			OS_GETCWD((OS_CHAR*)buf.buffer.buf, PATH_MAX);
-			os->pushString(buf);
+            const int OS_PATH_MAX = 1024;
+            Core::Buffer buf(os);
+            buf.reserveCapacity(OS_PATH_MAX+1);
+            OS_GETCWD((OS_CHAR*)buf.buffer.buf, OS_PATH_MAX);
+            os->pushString(buf);
 			return 1;
 		}
 		
@@ -19970,7 +19977,7 @@ void OS::initProcessModule()
 		static int mkdir(OS * os, int params, int, int, void*)
 		{
 			if(params >= 1){
-				os->pushBool(OS_MKDIR(os->toString(-params).toChar()) == 0);
+				os->pushBool(OS_MKDIR(os->toString(-params).toChar(), 0755) == 0);
 				return 1;
 			}
 			return 0;

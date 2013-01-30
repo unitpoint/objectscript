@@ -124,10 +124,18 @@ inline void operator delete(void *, void *){}
 #define OS_PRINTF ::printf
 #define OS_OUTPUT(buf, size) fwrite((const char*)buf, size, 1, stdout)
 
+#ifdef _WIN
 #define OS_GETCWD ::_getcwd
 #define OS_CHDIR ::_chdir
 #define OS_MKDIR ::_mkdir
 #define OS_RMDIR ::_rmdir
+#else
+#define OS_GETCWD ::getcwd
+#define OS_CHDIR ::chdir
+#define OS_MKDIR ::mkdir
+#define OS_RMDIR ::rmdir
+#endif
+
 
 #define OS_IS_SPACE(c) ((c) > OS_TEXT('\0') && (c) <= OS_TEXT(' '))
 #define OS_IS_ALPHA ::isalpha
