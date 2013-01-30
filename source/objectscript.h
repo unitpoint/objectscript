@@ -124,6 +124,11 @@ inline void operator delete(void *, void *){}
 #define OS_PRINTF ::printf
 #define OS_OUTPUT(buf, size) fwrite((const char*)buf, size, 1, stdout)
 
+#define OS_GETCWD ::_getcwd
+#define OS_CHDIR ::_chdir
+#define OS_MKDIR ::_mkdir
+#define OS_RMDIR ::_rmdir
+
 #define OS_IS_SPACE(c) ((c) > OS_TEXT('\0') && (c) <= OS_TEXT(' '))
 #define OS_IS_ALPHA ::isalpha
 #define OS_IS_ALNUM(c) ((c) >= OS_TEXT('0') && (c) <= OS_TEXT('9'))
@@ -899,6 +904,7 @@ namespace ObjectScript
 
 				int getDataSize() const { return string->data_size; }
 				int getLen() const { return string->getLen(); }
+				bool isEmpty() const { return getDataSize() == 0; }
 
 				String& operator=(const String&);
 
@@ -2883,7 +2889,7 @@ namespace ObjectScript
 
 		void qsort(void *base, unsigned num, unsigned width, int (*comp)(OS*, const void *, const void *, void*), void*);
 
-		void initGlobalFunctions();
+		void initCoreFunctions();
 		void initObjectClass();
 		void initArrayClass();
 		void initFunctionClass();
@@ -2891,6 +2897,7 @@ namespace ObjectScript
 		void initBufferClass();
 		void initFileClass();
 		void initExceptionClass();
+		void initProcessModule();
 		void initMathModule();
 		void initGCModule();
 		void initLangTokenizerModule();
@@ -3154,6 +3161,8 @@ namespace ObjectScript
 		void getObject(const OS_CHAR * name, bool getter_enabled = true, bool prototype_enabled = true);
 		void getGlobalObject(const OS_CHAR * name, bool getter_enabled = true, bool prototype_enabled = true);
 		void getModule(const OS_CHAR * name, bool getter_enabled = true, bool prototype_enabled = true);
+
+		bool nextIteratorStep(int results = 2);
 
 		String changeFilenameExt(const String& filename, const String& ext);
 		String changeFilenameExt(const String& filename, const OS_CHAR * ext);

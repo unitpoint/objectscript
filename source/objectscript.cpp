@@ -1,6 +1,7 @@
 #include "objectscript.h"
 #include "os-binder.h"
 #include <time.h>
+#include <direct.h>
 
 using namespace ObjectScript;
 
@@ -8896,7 +8897,7 @@ void OS::Core::Program::pushStartFunction()
 		buf += OS_TEXT("}}");
 		func_value->name = buf.toGCStringValue();
 	}else{
-		func_value->name = OS::String(allocator, OS_TEXT("{{CORE}}")).string;
+		func_value->name = allocator->core->newStringValue(OS_TEXT("{{CORE}}"));
 	}
 
 	allocator->core->gcMarkProgram(this);
@@ -9624,6 +9625,7 @@ void OS::Core::PropertyIndex::convertIndexStringToNumber()
 {
 	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 		bool neg = false;
+		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index).string));
 		const OS_CHAR * str = OS_VALUE_VARIANT(index).string->toChar();
 		if((*str >= OS_TEXT('0') && *str <= OS_TEXT('9'))
 			|| ((neg = *str == OS_TEXT('-')) && str[1] >= OS_TEXT('0') && str[1] <= OS_TEXT('9')))
@@ -12308,7 +12310,11 @@ bool OS::init(MemoryManager * p_manager)
 	if(core->init()){
 #if 1
 		initPreScript();
-		initGlobalFunctions();
+		initCoreFunctions();
+		/*
+			Class could be instantiated and has prototype of Object or other class.
+			Module is singleton instance and has prototype of _G or other module.
+		*/
 		initObjectClass();
 		initArrayClass();
 		initStringClass();
@@ -12317,6 +12323,7 @@ bool OS::init(MemoryManager * p_manager)
 		initExceptionClass();
 		initFileClass();
 		initMathModule();
+		initProcessModule();
 		initGCModule();
 		initLangTokenizerModule();
 		initPostScript();
@@ -12597,7 +12604,7 @@ bool OS::isAbsolutePath(const String& p_filename)
 OS::String OS::resolvePath(const String& filename, const String& cur_path)
 {
 	String resolved_path = filename;
-	if(!isAbsolutePath(filename) && cur_path.getLen()){
+	if(!isAbsolutePath(filename) && !cur_path.isEmpty()){
 		if(filename.getLen() < cur_path.getLen() || String(this, filename.toChar(), cur_path.getLen()) != cur_path){
 			resolved_path = cur_path + OS_PATH_SEPARATOR + filename;
 		}
@@ -12642,13 +12649,35 @@ OS::String OS::resolvePath(const String& filename)
 	if(core->call_stack_funcs.count > 0){
 		for(int i = core->call_stack_funcs.count-1; i >= 0; i--){
 			Core::StackFunction * stack_func = core->call_stack_funcs.buf + i;
-			if(stack_func->func->prog->filename.getLen() > 0){
+			if(!stack_func->func->prog->filename.isEmpty()){
 				cur_path = getFilenamePath(stack_func->func->prog->filename);
 				break;
 			}
 		}
 	}
-	return resolvePath(filename, cur_path);
+	String resolved_path = resolvePath(filename, cur_path);
+	if(resolved_path.isEmpty()){
+		getGlobal(core->strings->func_require);
+		pushString(OS_TEXT("paths"));
+		getProperty();
+		if(isArray()){
+			int count = getLen();
+			for(int i = 0; i < count; i++){
+				pushStackValue();
+				pushNumber(i);
+				getProperty();
+				cur_path = popString();
+				if(!cur_path.isEmpty()){
+					resolved_path = resolvePath(filename, cur_path);
+					if(resolved_path.getLen()){
+						break;
+					}
+				}
+			}
+		}
+		pop();
+	}
+	return resolved_path;
 }
 
 OS_EFileUseType OS::checkFileUsage(const String& sourcecode_filename, const String& compiled_filename)
@@ -15287,6 +15316,7 @@ void OS::setSmartProperty(const OS_CHAR * name, bool setter_enabled)
 
 void OS::setSmartProperty(const Core::String& p_name, bool setter_enabled)
 {
+	// TODO: "name[]" doesn't work corectly, it's need to be fixed
 	int offs = getAbsoluteOffs(-2);
 	bool index = false;
 	const OS_CHAR * name = p_name;
@@ -17105,10 +17135,44 @@ void OS::setGlobal(const FuncDef& func, bool setter_enabled)
 	setGlobal(func.name, setter_enabled);
 }
 
+bool OS::nextIteratorStep(int results)
+{
+	OS_EValueType type = getType();
+	switch(type){
+	case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+		pushStackValue();
+		getProperty(core->strings->__iter);
+		pushStackValue(-2);
+		call(0, 1);
+		break;
+
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+		break;
+
+	default:
+		setException(OS_TEXT("not found iterator function"));
+		pop();
+		return false;
+	}
+	pushStackValue();
+	pushNull();
+	call(0, results + 1);
+	if(toBool(-results - 1)){
+		remove(-results - 1);
+		return true;
+	}
+	pop(results + 2);
+	return false;
+}
+
 static const OS_CHAR DIGITS[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 static const OS_CHAR UPPER_DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-void OS::initGlobalFunctions()
+void OS::initCoreFunctions()
 {
 	struct Format
 	{
@@ -17708,7 +17772,6 @@ void OS::initGlobalFunctions()
 		static int echo(OS * os, int params, int, int, void*)
 		{
 			for(int i = 0; i < params; i++){
-				// fputs(os->toString(-params + i).toChar(), stdout);
 				os->echo(os->toString(-params + i));
 			}
 			return 0;
@@ -17777,13 +17840,12 @@ void OS::initGlobalFunctions()
 
 		static int resolvePath(OS * os, int params, int, int, void*)
 		{
-			if(params < 1){
-				return 0;
-			}
-			String filename = os->resolvePath(os->toString(-params));
-			if(filename.getDataSize()){
-				os->pushString(filename);
-				return 1;
+			if(params >= 1){
+				String filename = os->resolvePath(os->toString(-params));
+				if(!filename.isEmpty()){
+					os->pushString(filename);
+					return 1;
+				}
 			}
 			return 0;
 		}
@@ -17953,8 +18015,23 @@ void OS::initGlobalFunctions()
 			}
 			return 0;
 		}
+
+		static int getVersion(OS * os, int params, int, int, void*)
+		{
+			os->pushString(OS_VERSION);
+			return 1;
+		}
+
+		static int construct(OS * os, int params, int, int, void*)
+		{
+			// TODO: correct?
+			os->setException(OS_TEXT("you should not create new instance of module"));
+			return 0;
+		}
 	};
 	FuncDef list[] = {
+		{core->strings->__construct, Lib::construct},
+		{OS_TEXT("__get@OS_VERSION"), Lib::getVersion},
 		{core->strings->func_getFilename, Lib::getFilename},
 		{core->strings->func_extends, Lib::extends},
 		{core->strings->func_delete, Lib::deleteOp},
@@ -17979,7 +18056,7 @@ void OS::initGlobalFunctions()
 		{core->strings->func_concat, Lib::concat},
 		{OS_TEXT("compileText"), Lib::compileText},
 		{OS_TEXT("compileFile"), Lib::compileFile},
-		{OS_TEXT("resolvePath"), Lib::resolvePath},
+		// {OS_TEXT("resolvePath"), Lib::resolvePath},
 		{OS_TEXT("debugBackTrace"), Lib::debugBackTrace},
 		{OS_TEXT("terminate"), Lib::terminate},
 		{}
@@ -17994,6 +18071,17 @@ void OS::initGlobalFunctions()
 	setFuncs(list);
 	setNumbers(numbers);
 	pop();
+
+	{
+		// require.resolve(filename)
+		getGlobal(core->strings->func_require);
+		FuncDef list[] = {
+			{OS_TEXT("resolve"), Lib::resolvePath},
+			{}
+		};
+		setFuncs(list);
+		pop();
+	}
 }
 
 void OS::initObjectClass()
@@ -18347,7 +18435,8 @@ dump_object:
 							buf += OS_TEXT(",");
 						}
 						if(OS_VALUE_TYPE(prop->index) == OS_VALUE_TYPE_NUMBER){
-							if(OS_VALUE_NUMBER(prop->index) != (OS_FLOAT)need_index){
+							// print index always to be json compatible
+							if(1 || OS_VALUE_NUMBER(prop->index) != (OS_FLOAT)need_index){
 								buf += String(os, (OS_FLOAT)OS_VALUE_NUMBER(prop->index));
 								buf += OS_TEXT(":");
 							}
@@ -19855,6 +19944,159 @@ void OS::initMathModule()
 	pop();
 }
 
+void OS::initProcessModule()
+{
+	struct Lib
+	{
+		static int cwd(OS * os, int params, int, int, void*)
+		{
+			const int PATH_MAX = 1024;
+			Core::Buffer buf(os);
+			buf.reserveCapacity(PATH_MAX+1);
+			OS_GETCWD((OS_CHAR*)buf.buffer.buf, PATH_MAX);
+			os->pushString(buf);
+			return 1;
+		}
+		
+		static int chdir(OS * os, int params, int, int, void*)
+		{
+			if(params >= 1){
+				os->pushBool(OS_CHDIR(os->toString(-params).toChar()) == 0);
+				return 1;
+			}
+			return 0;
+		}
+		
+		static int mkdir(OS * os, int params, int, int, void*)
+		{
+			if(params >= 1){
+				os->pushBool(OS_MKDIR(os->toString(-params).toChar()) == 0);
+				return 1;
+			}
+			return 0;
+		}
+		
+		static int rmdir(OS * os, int params, int, int, void*)
+		{
+#if 0		// TODO: is it OK to rmdir?
+			if(params >= 1){
+				os->pushBool(OS_RMDIR(os->toString(-params).toChar()) == 0);
+				return 1;
+			}
+#else
+			os->setException(OS_TEXT("this function is disabled due to security reason"));
+#endif
+			return 0;
+		}
+		
+		static int exit(OS * os, int params, int, int, void*)
+		{
+#if 0		// TODO: script should be exit using terminate function
+			::exit(params >= 1 ? os->toInt(-params) : 0);
+#else
+			os->setException(OS_TEXT("this function is disabled due to security reason"));
+#endif
+			return 0;
+		}
+		
+		static int getgid(OS * os, int params, int, int, void*)
+		{
+#if 0
+			// TODO: implement under linux
+#else
+			os->setException(OS_TEXT("this function is not implemented yet"));
+			return 0;
+#endif
+		}
+		
+		static int setgid(OS * os, int params, int, int, void*)
+		{
+#if 0
+			// TODO: implement under linux
+#else
+			os->setException(OS_TEXT("this function is not implemented yet"));
+			return 0;
+#endif
+		}
+		
+		static int getuid(OS * os, int params, int, int, void*)
+		{
+#if 0
+			// TODO: implement under linux
+#else
+			os->setException(OS_TEXT("this function is not implemented yet"));
+			return 0;
+#endif
+		}
+		
+		static int setuid(OS * os, int params, int, int, void*)
+		{
+#if 0
+			// TODO: implement under linux
+#else
+			os->setException(OS_TEXT("this function is not implemented yet"));
+			return 0;
+#endif
+		}
+		
+		static int getPID(OS * os, int params, int, int, void*)
+		{
+#if 0
+			// TODO: implement under linux
+#else
+			os->setException(OS_TEXT("this function is not implemented yet"));
+			return 0;
+#endif
+		}
+		
+		static int kill(OS * os, int params, int, int, void*)
+		{
+#if 0
+			// TODO: implement under linux
+#else
+			os->setException(OS_TEXT("this function is not implemented yet"));
+			return 0;
+#endif
+		}
+		
+		static int umask(OS * os, int params, int, int, void*)
+		{
+#if 0
+			// TODO: implement under linux
+#else
+			os->setException(OS_TEXT("this function is not implemented yet"));
+			return 0;
+#endif
+		}
+	};
+
+	FuncDef funcs[] = {
+		{OS_TEXT("cwd"), Lib::cwd},
+		{OS_TEXT("chdir"), Lib::chdir},
+		{OS_TEXT("mkdir"), Lib::mkdir},
+		{OS_TEXT("rmdir"), Lib::rmdir},
+		{OS_TEXT("exit"), Lib::exit},
+		{OS_TEXT("getgid"), Lib::getgid},
+		{OS_TEXT("setgid"), Lib::setgid},
+		{OS_TEXT("getuid"), Lib::getuid},
+		{OS_TEXT("setuid"), Lib::setuid},
+		{OS_TEXT("__get@PID"), Lib::getPID},
+		{OS_TEXT("kill"), Lib::kill},
+		{OS_TEXT("umask"), Lib::umask},
+		{}
+	};
+
+	getModule(OS_TEXT("process"));
+	setFuncs(funcs);
+
+	pushStackValue();
+	pushString(OS_TEXT("argv"));
+	newArray();
+	setProperty(); // process.argv should be populated later
+
+	pop();
+}
+
 void OS::initGCModule()
 {
 	struct GC
@@ -20044,14 +20286,16 @@ void OS::initPreScript()
 
 		modules_loaded = {};
 		function require(filename, required, source_code_type, check_utf8_bom){
-			filename = resolvePath(filename);
-			return filename && (modules_loaded.rawget(filename) 
-				|| function(){
+			filename = require.resolve(filename);
+			return filename && (filename in modules_loaded 
+				|| {||
 					modules_loaded[filename] = {} // block recursive require
 					modules_loaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
 					return modules_loaded[filename]
 				}())
 		}
+		require.paths = []
+
 		function unhandledException(e){
 			if("trace" in e){
 				printf("Unhandled exception: '%s'\n", e.message);
