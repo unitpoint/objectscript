@@ -124,7 +124,7 @@ inline void operator delete(void *, void *){}
 #define OS_PRINTF ::printf
 #define OS_OUTPUT(buf, size) fwrite((const char*)buf, size, 1, stdout)
 
-#ifdef _WIN
+#ifdef _MSC_VER
 #define OS_GETCWD ::_getcwd
 #define OS_CHDIR ::_chdir
 #define OS_MKDIR ::_mkdir
@@ -1736,6 +1736,7 @@ namespace ObjectScript
 					EXP_TYPE_GET_LOCAL_VAR,
 					EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE,
 					EXP_TYPE_SET_LOCAL_VAR,
+					EXP_TYPE_SET_LOCAL_VAR_NO_POP,
 					
 					EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS,
 					EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
@@ -1750,6 +1751,7 @@ namespace ObjectScript
 					EXP_TYPE_GET_PROPERTY_AUTO_CREATE,
 					EXP_TYPE_SET_PROPERTY,
 					EXP_TYPE_INIT_PROPERTY,
+					EXP_TYPE_SET_PROPERTY_NO_POP,
 
 					EXP_TYPE_GET_THIS_PROPERTY_BY_STRING,
 
@@ -1760,6 +1762,7 @@ namespace ObjectScript
 					EXP_TYPE_GET_SET_PROPERTY_BY_LOCALS_AUTO_CREATE,
 					
 					EXP_TYPE_SET_DIM,
+					EXP_TYPE_SET_DIM_NO_POP,
 
 					EXP_TYPE_CALL_METHOD,
 
