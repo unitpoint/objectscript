@@ -1663,12 +1663,22 @@ static bool isValidCharAfterNumber(const OS_CHAR * str)
 
 bool OS::Core::Tokenizer::parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces)
 {
+	const OS_CHAR * start = str;
 	if(Utils::parseFloat(str, fval)){
 		if(isValidCharAfterNumber(str)){
 			if(parse_end_spaces){
 				parseSpaces(str);
 			}
 			return true;
+		}
+		for(int i = -1; str+i > start; i--){
+			if(OS_IS_SPACE(str[i])){
+				continue;
+			}
+			if(str[i] == OS_TEXT('.')){
+				str += i;
+				return true;
+			}
 		}
 		if(*str == OS_TEXT('f') && isValidCharAfterNumber(str+1)){
 			str++;
@@ -2787,7 +2797,11 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, ExpressionList& list, bool 
 				if(OS_GET_OPCODE_TYPE(cur) == OP_MOVE){
 					int prev_a = OS_GETARG_A(prev);
 					int cur_a = OS_GETARG_A(cur);
-					if(prev_a+1 == cur_a){
+					if(prev_a == OS_GETARG_B(cur) && cur_a == OS_GETARG_B(prev)){
+						OS_SETARG_B(cur, cur_a); // use value
+						prog_opcodes[prog_opcodes.count - 1] = cur;
+						start = prog_opcodes.count + 1;
+					}else if(prev_a+1 == cur_a){
 						Instruction instruction = OS_FROM_OPCODE_TYPE(OP_MOVE2);
 						OS_SETARG_A(instruction, prev_a);
 						int prev_b = OS_GETARG_B(prev & ~OS_OPCODE_CONST_B);
@@ -4948,11 +4962,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		stack_pos = scope->function->stack_cur_size;
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
-		if(exp->list[0]->slots.a < scope->function->num_locals){
+		if(exp->list[0]->type == EXP_TYPE_SET_UPVALUE || exp->list[0]->slots.a < scope->function->num_locals){
 			Expression * exp_value = exp->list[0];
 			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
 			exp2->slots.a = stack_pos;
-			exp2->slots.b = exp_value->type == EXP_TYPE_MOVE ? exp_value->slots.b : exp_value->slots.a;
+			exp2->slots.b = exp_value->type == EXP_TYPE_MOVE || exp_value->type == EXP_TYPE_SET_UPVALUE ? exp_value->slots.b : exp_value->slots.a;
 			exp2->ret_values = 1;
 			exp2->list.add(exp_value OS_DBG_FILEPOS);
 			exp->list[0] = exp2;
@@ -5421,46 +5435,44 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 	case EXP_TYPE_SET_LOCAL_VAR:
 	case EXP_TYPE_SET_LOCAL_VAR_NO_POP:
-		{
-			OS_ASSERT(exp->list.count == 1);
-			bool no_pop = exp->type == EXP_TYPE_SET_LOCAL_VAR_NO_POP;
-			stack_pos = scope->function->stack_cur_size;
-			exp = Lib::processList(this, scope, exp);
-			OS_ASSERT(stack_pos < scope->function->stack_cur_size);
-			if(exp->local_var.up_count){
-				exp->type = EXP_TYPE_SET_UPVALUE;
-				exp->slots.a = exp->local_var.index;
-				exp->slots.b = --scope->function->stack_cur_size;
-				exp->slots.c = exp->local_var.up_count;
-			}else{
-				exp->type = EXP_TYPE_MOVE;
-				exp->slots.a = exp->local_var.index;
-				exp->slots.b = --scope->function->stack_cur_size;
-			}
-			if(no_pop){
-				scope->function->stack_cur_size++;
-				return exp;
-			}
-			exp1 = exp->list[0];
-			if(exp1->type == EXP_TYPE_PARAMS){
-				OS_ASSERT(exp1->list.count > 0);
-				exp1 = exp1->list.lastElement();
-			}
-			if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // stack_cur_size is already decremented
-				exp->slots.b = exp1->slots.b;
-				exp1->type = EXP_TYPE_NOP;
-				return exp;
-			}
-			if(exp->type == EXP_TYPE_MOVE 
-				&& Lib::allowOverrideOpcodeResult(exp1)
-				&& exp1->slots.a >= scope->function->num_locals
-				)
-			{
-				exp1->slots.a = exp->slots.a;
-				exp->type = EXP_TYPE_NOP;
-			}
+		OS_ASSERT(exp->list.count == 1);
+		no_pop = exp->type == EXP_TYPE_SET_LOCAL_VAR_NO_POP;
+		stack_pos = scope->function->stack_cur_size;
+		exp = Lib::processList(this, scope, exp);
+		OS_ASSERT(stack_pos < scope->function->stack_cur_size);
+		if(exp->local_var.up_count){
+			exp->type = EXP_TYPE_SET_UPVALUE;
+			exp->slots.a = exp->local_var.index;
+			exp->slots.b = --scope->function->stack_cur_size;
+			exp->slots.c = exp->local_var.up_count;
+		}else{
+			exp->type = EXP_TYPE_MOVE;
+			exp->slots.a = exp->local_var.index;
+			exp->slots.b = --scope->function->stack_cur_size;
+		}
+		if(no_pop){
+			scope->function->stack_cur_size++;
 			return exp;
 		}
+		exp1 = exp->list[0];
+		if(exp1->type == EXP_TYPE_PARAMS){
+			OS_ASSERT(exp1->list.count > 0);
+			exp1 = exp1->list.lastElement();
+		}
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // stack_cur_size is already decremented
+			exp->slots.b = exp1->slots.b;
+			exp1->type = EXP_TYPE_NOP;
+			return exp;
+		}
+		if(exp->type == EXP_TYPE_MOVE 
+			&& Lib::allowOverrideOpcodeResult(exp1)
+			&& exp1->slots.a >= scope->function->num_locals
+			)
+		{
+			exp1->slots.a = exp->slots.a;
+			exp->type = EXP_TYPE_NOP;
+		}
+		return exp;
 
 	case EXP_TYPE_SET_PROPERTY:
 	case EXP_TYPE_SET_PROPERTY_NO_POP:
@@ -5794,6 +5806,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectOrFunctionExpre
 	}
 	if(recent_token->type == Tokenizer::OPERATOR_BIT_OR || recent_token->type == Tokenizer::OPERATOR_LOGIC_OR){ // {|| - no params
 		Expression * exp = expectFunctionSugarExpression(scope); // {|x, x2| x*x2}
+		if(!exp){
+			return NULL;
+		}
 		// TODO: process org_p, allow_finish_exp ?
 		return allow_finish_exp ? finishValueExpression(scope, exp, org_p) : exp;
 		// return exp;
@@ -7612,6 +7627,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			return exp;
 
 		case Tokenizer::BEGIN_CODE_BLOCK: // {
+			switch(exp->type){
+			case EXP_TYPE_CONST_NUMBER:
+			case EXP_TYPE_CONST_STRING:
+			case EXP_TYPE_CONST_FALSE:
+			case EXP_TYPE_CONST_TRUE:
+			case EXP_TYPE_CONST_NULL:
+				return exp;
+			}
 			exp2 = expectObjectOrFunctionExpression(scope, p, false);
 			if(!exp2){
 				allocator->deleteObj(exp);
@@ -12430,7 +12453,7 @@ bool OS::init(MemoryManager * p_manager)
 
 	if(core->init()){
 #if 1
-		// initPreScript();
+		initPreScript();
 		initCoreFunctions();
 		/*
 			Class could be instantiated and has prototype of Object or other class.
@@ -12447,7 +12470,7 @@ bool OS::init(MemoryManager * p_manager)
 		initProcessModule();
 		initGCModule();
 		initLangTokenizerModule();
-		// initPostScript();
+		initPostScript();
 #endif
 		return true;
 	}
