@@ -1,11 +1,3 @@
-try{
-	var a, b = 2, 0
-	var c = a / b
-}catch(e){
-	print "exception: "..e
-	// throw e
-}
-
 echo("file: "__FILE__", line: "__LINE__"\n")
 
 // call function with arguments without comma
@@ -275,26 +267,31 @@ print("random" a)
 // remove debug print from Array.__iter
 delete Array.__iter // delete our iterator, use default one
 
-var transform = function(a f){
-	var r = arrayOf(a) ? [] : {}
-	for(var i, v in a){
-		r[i] = f(v)
-	}
+function Object.map(func){
+	var r = {}
+	for(var i, v in a) r[i] = func(v)
 	return r
 }
-a = transform(a, {|a| a*100})
+
+function Array.map(func){
+	var r = []
+	for(var i, v in a) r[i] = func(v)
+	return r
+}
+
+a = a.map {|a| a*100}
 print("mult 100" a)
-print("math.ceil" transform(a, math.ceil))
-print("math.floor" transform(a, math.floor))
-print("math.round(-1)" transform(a, {|a| math.round(a, -1)}))
-print("math.round(2)" transform(a, {|a| math.round(a, 2)}))
-print("math.sin" transform(a, math.sin))
-print("math.cos" transform(a, math.cos))
-print("math.tan" transform(a, math.tan))
+print("math.ceil" a.map(math.ceil))
+print("math.floor" a.map(math.floor))
+print("math.round(-1)" a.map{|a| math.round(a, -1)})
+print("math.round(2)" a.map{|a| math.round(a, 2)})
+print("math.sin" a.map(math.sin))
+print("math.cos" a.map(math.cos))
+print("math.tan" a.map(math.tan))
 
 _E = math
 print "Extend local environment to be able to use math module without namespace"
-print("round(3)" transform(a, {|a| round(a, 3)}))
+print("round(3)" a.map{|a| round(a, 3)})
 print("PI" PI)
 
 var core = require("core")
@@ -313,9 +310,9 @@ planet = "Mercury"
 print "Planet should be Mercury: "..planet
 
 function compareValues(a, b){
-	var x, y = numberof(a), numberof(b)
+	var x, y = numberOf(a), numberOf(b)
 	x && y && return x <=> y
-	x, y = stringof(a), stringof(b)
+	x, y = stringOf(a), stringOf(b)
 	x && y && return x <=> y
 	return a <=> b
 }
@@ -363,6 +360,24 @@ print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b ka kb| compareValues(ka kb) })
 print "Sorted object by keys (reverse)"
 print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b ka kb| compareValues(kb ka) })
 
+function printBackTrace(skipNumFuncs){
+	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
+		printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+	}
+}
+
+try{
+	print "simulate exception..."
+	var a, b = 2, 0
+	var c = a / b
+}catch(e){
+	print "exception: "..e.message
+	for(var i, t in e.trace){
+		printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+	}
+	// throw e
+}
+
 var function testFunc(arg1, arg2){
 	var testFunc2 = {|arg1 arg2 arg3|
 		var testFunc3 = {|arg1|
@@ -386,11 +401,11 @@ print "factorial(20) = " .. {|a| a <= 1 ? 1 : a*_F(a-1)}(20)
 
 function Object.each(func){
 	for(var k, v in this){
-		func(v, k)
+		func(k, v)
 	}
 }
 
-[10 20 30 40].each {|a|
+[10 20 30 40].each {|i a|
 	print a
 }
 
@@ -421,7 +436,7 @@ printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54
 	buf.append(4.5, "-append")
 	buf.printf("-%v\n", 123.4567)
 	str = toString(buf)
-	echo str
+	print str
 }
 
 ;{
@@ -429,7 +444,7 @@ printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54
 	var f = File(__FILE__, "rb")
 	str = f.read(100)
 	// f.close()
-	echo str
+	print str
 }
 
 function Number.times(func){
@@ -437,7 +452,43 @@ function Number.times(func){
 		func(i)
 	}
 }
-(10).times {|i| print "step: "..i }
+print "Test 10.times"
+10.times{|i| print i }
+
+Range = {
+	__construct = function(a, b){
+		if(b){
+			@a, @b = a, b
+		}else{
+			@a, @b = 0, a - 1
+		}
+	}
+	__iter = function(){
+		var a, b = @a, @b
+		return a <= b 
+			? {|| a <= b && return true, a++ } 
+			: {|| a >= b && return true, a-- }
+	}
+}
+
+print "Test for in Range(5)"
+for(var i in Range(5))
+	print i
+
+print "Test for in Range(-2, -6)"
+for(var i in Range(-2, -6))
+	print i
+
+function Number.to(b){
+	return Range(this, b)
+}
+
+print "Test for in 5.to(7)"
+for(var i in 5.to(7))
+	print i
+
+print "Test 7.to(2).each"
+7.to(2).each{|i| print i}
 
 terminate()
 print "This text is never printed"
