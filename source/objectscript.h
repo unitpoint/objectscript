@@ -2739,6 +2739,7 @@ namespace ObjectScript
 			GCStringValue * pushStringValue(const String&);
 			GCStringValue * pushStringValue(const OS_CHAR*);
 			GCStringValue * pushStringValue(const OS_CHAR*, int len);
+			GCStringValue * pushStringValue(const void*, int size);
 			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
 			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
 			GCUserdataValue * pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param);
@@ -3040,6 +3041,7 @@ namespace ObjectScript
 		void pushBool(bool);
 		void pushString(const OS_CHAR*);
 		void pushString(const OS_CHAR*, int len);
+		void pushString(const void*, int size);
 		void pushString(const Core::String&);
 		void pushCFunction(OS_CFunction func, void * user_param = NULL);
 		void pushCFunction(OS_CFunction func, int closure_values, void * user_param = NULL);

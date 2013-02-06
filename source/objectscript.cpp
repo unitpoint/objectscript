@@ -4297,7 +4297,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 
 			Expression * result_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CODE_LIST, exp->token);
 			Expression * copy_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_LOCAL_VAR, temp_var_token, cur_var_exp OS_DBG_FILEPOS);
-			OS_ASSERT(!findLocalVar(copy_exp->local_var, scope, temp_var_name, scope->function->num_locals, false));
+			// OS_ASSERT(!findLocalVar(copy_exp->local_var, scope, temp_var_name, scope->function->num_locals, false));
 			scope->addLocalVar(temp_var_name, copy_exp->local_var);
 			result_exp->list.add(copy_exp OS_DBG_FILEPOS);
 
@@ -14166,6 +14166,11 @@ OS::Core::GCStringValue * OS::Core::pushStringValue(const OS_CHAR * val, int len
 	return pushValue(newStringValue(val, len));
 }
 
+OS::Core::GCStringValue * OS::Core::pushStringValue(const void * val, int size)
+{
+	return pushValue(newStringValue(val, size));
+}
+
 OS::Core::GCCFunctionValue * OS::Core::pushCFunctionValue(OS_CFunction func, void * user_param)
 {
 	return pushValue(newCFunctionValue(func, user_param));
@@ -14495,8 +14500,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 
 bool OS::Core::isEqualExactly(const Value& left_value, const Value& right_value)
 {
-	if(OS_VALUE_TYPE(left_value) == OS_VALUE_TYPE(right_value)){ // && left_value->prototype == right_value->prototype){
-		switch(OS_VALUE_TYPE(left_value)){
+	int left_type = OS_VALUE_TYPE(left_value);
+	if(left_type == OS_VALUE_TYPE(right_value)){ // && left_value->prototype == right_value->prototype){
+		switch(left_type){
 		case OS_VALUE_TYPE_NULL:
 			return true;
 
@@ -14939,6 +14945,11 @@ void OS::pushString(const OS_CHAR * val)
 void OS::pushString(const OS_CHAR * val, int len)
 {
 	core->pushStringValue(val, len);
+}
+
+void OS::pushString(const void * val, int size)
+{
+	core->pushStringValue(val, size);
 }
 
 void OS::pushString(const Core::String& val)
@@ -19192,6 +19203,11 @@ void OS::initBufferClass()
 	setPrototype(CtypeId<Core::Buffer>::getId());
 }
 
+#define UTF8_SKIP_MULTI_BYTE_SEQUENCE(input, end) \
+	if((*(input++)) >= 0xc0 ){ \
+		while(input < end && (*input & 0xc0) == 0x80) input++;	\
+	}
+
 void OS::initStringClass()
 {
 	struct String
@@ -19199,6 +19215,23 @@ void OS::initStringClass()
 		static int length(OS * os, int params, int, int, void*)
 		{
 			os->pushNumber(os->toString(-params-1).getLen());
+			return 1;
+		}
+
+		static int utf8length(OS * os, int params, int, int, void*)
+		{
+			if(params < 1){
+				return 0;
+			}
+			int len = 0;
+			OS::String str = os->toString(-params-1);
+			const OS_BYTE * string = (OS_BYTE*)str.toChar();
+			const OS_BYTE * end = string + str.getDataSize();
+			while(string < end){
+				len++;
+				UTF8_SKIP_MULTI_BYTE_SEQUENCE(string, end);
+			}
+			os->pushNumber(len);
 			return 1;
 		}
 
@@ -19246,6 +19279,72 @@ void OS::initStringClass()
 				return 1;
 			}
 			os->pushString(str.toChar() + start, len);
+			return 1;
+		}
+
+		static int utf8sub(OS * os, int params, int, int, void*)
+		{
+			int start, len;
+			OS::String str = os->toString(-params-1);
+			
+			int size = 0;
+			const OS_BYTE * string = (OS_BYTE*)str.toChar();
+			const OS_BYTE * end = string + str.getDataSize();
+			while(string < end){
+				size++;
+				UTF8_SKIP_MULTI_BYTE_SEQUENCE(string, end);
+			}
+
+			switch(params){
+			case 0:
+				os->pushStackValue(-params-1);
+				return 1;
+
+			case 1:
+				start = os->toInt(-params);
+				len = size;
+				break;
+
+			default:
+				start = os->toInt(-params);
+				len = os->toInt(-params+1);
+			}
+			if(start < 0){
+				start = size + start;
+				if(start < 0){
+					start = 0;
+				}
+			}
+			if(start >= size){
+				os->pushString(OS_TEXT(""));
+				return 1;
+			}
+			if(len < 0){
+				len = size - start + len;
+			}
+			if(len <= 0){
+				os->pushString(OS_TEXT(""));
+				return 1;
+			}
+			if(start + len > size){
+				len = size - start;
+			}
+			if(!start && len == size){
+				os->pushStackValue(-params-1);
+				return 1;
+			}
+
+			string = (OS_BYTE*)str.toChar();
+			for(; start > 0; start--){
+				UTF8_SKIP_MULTI_BYTE_SEQUENCE(string, end);
+			}
+			const OS_BYTE * cur_end = string;
+			for(; len > 0; len--){
+				UTF8_SKIP_MULTI_BYTE_SEQUENCE(cur_end, end);
+			}
+
+			size = (int)(cur_end - string);
+			os->pushString((void*)((OS_BYTE*)str.toChar() + start), size);
 			return 1;
 		}
 
@@ -19428,12 +19527,16 @@ void OS::initStringClass()
 	FuncDef list[] = {
 		{core->strings->__cmp, String::cmp},
 		{core->strings->__len, String::length},
+		{OS_TEXT("utf8len"), String::utf8length},
 		{OS_TEXT("sub"), String::sub},
+		{OS_TEXT("utf8sub"), String::utf8sub},
 		{OS_TEXT("find"), String::find},
 		{OS_TEXT("replace"), String::replace},
 		{OS_TEXT("trim"), String::trim},
 		{OS_TEXT("upper"), String::upper},
+		// TODO: need to implement utf8upper
 		{OS_TEXT("lower"), String::lower},
+		// TODO: need to implement utf8lower
 		{OS_TEXT("split"), String::split},
 		{}
 	};

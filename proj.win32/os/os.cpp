@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 		printf("ObjctScript " OS_VERSION " Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)\n");
 		printf("Latest version and source code: https://github.com/unitpoint/objectscript\n");
 		printf("\n");
-		printf("Usage: %s script [args]\n", argv[0]);
+		printf("Usage: %s script.os [args]\n", argv[0]);
 		exit(1);
 	}
 
@@ -97,7 +97,13 @@ int main(int argc, char *argv[])
 	// os->require("c:\\Sources\\OS\\proj.win32\\profile_benchmark\\scripts\\n-body.os"); // getString(os, argv[1]));
 	// os->require("c:\\Sources\\OS\\unit-tests-os\\operators.os"); // getString(os, argv[1]));
 	// os->require(getString(os, argv[1]));
+#if 1
 	os->require(getString(os, argv[1]), true, 0, OS_SOURCECODE_AUTO);
+#else
+	os->compileFile(getString(os, argv[1]));
+	os->pushNull();
+	os->call();
+#endif
 	{
 		int mem_allocated = os->getAllocatedBytes()/1024;
 		int mem_cached = os->getCachedBytes()/1024;
