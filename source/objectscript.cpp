@@ -5166,6 +5166,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			OS_ASSERT(exp1->list.count == 1);
 			exp->type = EXP_TYPE_LOGIC_BOOL;
 			exp->list[0] = exp1->list[0];
+			exp->slots = exp1->slots;
 			allocator->vectorRemoveAtIndex(exp1->list, 0);
 			allocator->deleteObj(exp1);
 			return exp;
@@ -5173,6 +5174,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		if(exp1->type == EXP_TYPE_LOGIC_BOOL){
 			OS_ASSERT(exp1->list.count == 1);
 			exp->list[0] = exp1->list[0];
+			exp->slots = exp1->slots;
 			allocator->vectorRemoveAtIndex(exp1->list, 0);
 			allocator->deleteObj(exp1);
 			return exp;
@@ -12802,8 +12804,7 @@ OS::String OS::resolvePath(const String& filename)
 	String resolved_path = resolvePath(filename, cur_path);
 	if(resolved_path.isEmpty()){
 		getGlobal(core->strings->func_require);
-		pushString(OS_TEXT("paths"));
-		getProperty();
+		getProperty(OS_TEXT("paths"));
 		if(isArray()){
 			int count = getLen();
 			for(int i = 0; i < count; i++){
@@ -14410,7 +14411,7 @@ void OS::Core::pushCloneValueProtected(OS * other, Value val)
 		return;
 
 	case OS_VALUE_TYPE_STRING:
-		pushValue(newStringValue((void*)OS_VALUE_VARIANT(val).string->toChar(), OS_VALUE_VARIANT(val).string->getDataSize()));
+		pushStringValue((void*)OS_VALUE_VARIANT(val).string->toChar(), OS_VALUE_VARIANT(val).string->getDataSize());
 		return;
 
 	case OS_VALUE_TYPE_ARRAY:
@@ -20537,12 +20538,10 @@ void OS::initPreScript()
 
 		modules_loaded = {};
 		function require(filename, required, source_code_type, check_utf8_bom){
-			filename = require.resolve(filename);
-			return filename && (filename in modules_loaded 
+			return (filename = require.resolve(filename)) && (modules_loaded.getProperty(filename)
 				|| {||
 					modules_loaded[filename] = {} // block recursive require
-					modules_loaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
-					return modules_loaded[filename]
+					return modules_loaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
 				}())
 		}
 		require.paths = []
@@ -20568,7 +20567,7 @@ void OS::initPostScript()
 		Object.__getempty = Object.pop
 		
 		function Buffer.printf(){
-			this.append(sprintf.apply(_E, arguments))
+			@append(sprintf.apply(_E, arguments))
 		}
 	));
 }
@@ -20756,7 +20755,7 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 				rest_arguments = NULL;
 			}
 
-			StackFunction * stack_func = (StackFunction*)(call_stack_funcs.buf + call_stack_funcs.count++);
+			StackFunction * stack_func = call_stack_funcs.buf + call_stack_funcs.count++;
 			stack_func->func = func_value;
 
 			stack_func->rest_arguments = rest_arguments;
@@ -20794,7 +20793,7 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 			if(self_for_proto){
 				stack_func->self_for_proto = self_for_proto;
 			}else if(!(stack_func->self_for_proto = func_locals->values[PRE_VAR_THIS].getGCValue())){
-				switch(OS_VALUE_TYPE(*func_locals->values)){
+				switch(OS_VALUE_TYPE(func_locals->values[PRE_VAR_THIS])){
 				case OS_VALUE_TYPE_BOOL:
 					stack_func->self_for_proto = prototypes[PROTOTYPE_BOOL];
 					break;
