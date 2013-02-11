@@ -6,7 +6,7 @@
 
 namespace ObjectScript {
 
-void initCurlLibrary(OS* os);
+	void initCurlLibrary(OS* os);
 
 };
 
