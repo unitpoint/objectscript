@@ -9272,7 +9272,7 @@ OS::Core::MemStreamWriter::MemStreamWriter(OS * allocator): StreamWriter(allocat
 
 OS::Core::MemStreamWriter::~MemStreamWriter()
 {
-	allocator->vectorClear(buffer);
+	clear();
 }
 
 int OS::Core::MemStreamWriter::getPos() const
@@ -9289,6 +9289,12 @@ void OS::Core::MemStreamWriter::setPos(int new_pos)
 int OS::Core::MemStreamWriter::getSize() const
 {
 	return buffer.count;
+}
+
+void OS::Core::MemStreamWriter::clear()
+{
+	allocator->vectorClear(buffer);
+	pos = 0;
 }
 
 void OS::Core::MemStreamWriter::reserveCapacity(int new_capacity)
@@ -12331,25 +12337,20 @@ void OS::Core::setExceptionValue(Value val)
 		if(!allocator->popBool()){
 			DebugInfo debug_info = getDebugInfo();
 			if(debug_info.isValid()){
-				allocator->pushStackValue(-1);
 				allocator->pushString(debug_info.prog->filename);
-				allocator->setProperty(OS_TEXT("file"));
+				allocator->setProperty(-2, OS_TEXT("file"));
 		
-				allocator->pushStackValue(-1);
 				allocator->pushNumber(debug_info.pos->line);
-				allocator->setProperty(OS_TEXT("line"));
+				allocator->setProperty(-2, OS_TEXT("line"));
 		
-				allocator->pushStackValue(-1);
 				allocator->pushNumber(debug_info.pos->pos);
-				allocator->setProperty(OS_TEXT("pos"));
+				allocator->setProperty(-2, OS_TEXT("pos"));
 		
-				allocator->pushStackValue(-1);
 				allocator->pushString(debug_info.pos->token);
-				allocator->setProperty(OS_TEXT("token"));
+				allocator->setProperty(-2, OS_TEXT("token"));
 				
-				allocator->pushStackValue(-1);
 				pushBackTrace(0, 10);
-				allocator->setProperty(OS_TEXT("trace"));
+				allocator->setProperty(-2, OS_TEXT("trace"));
 			}
 		}		
 		terminated_exception = stack_values.buf[--stack_values.count];
@@ -15268,18 +15269,32 @@ bool OS::isObject(int offs)
 	return false;
 }
 
+bool OS::isUserdata(int offs)
+{
+	Core::Value val = core->getStackValue(offs);
+	switch(OS_VALUE_TYPE(val)){
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+		return true;
+	}
+	return false;
+}
+
 bool OS::isUserdata(int crc, int offs, int prototype_crc)
 {
 	Core::Value val = core->getStackValue(offs);
 	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		if(OS_VALUE_VARIANT(val).userdata->crc == crc){
+		if(crc && OS_VALUE_VARIANT(val).userdata->crc == crc){
 			return true;
 		}
 		if(prototype_crc && OS_VALUE_VARIANT(val).userdata->prototype 
 			&& core->isValuePrototypeOfUserdata(OS_VALUE_VARIANT(val).userdata->prototype, prototype_crc))
 		{
+			return true;
+		}
+		if(!crc && !prototype_crc){
 			return true;
 		}
 	}

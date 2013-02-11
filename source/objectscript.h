@@ -736,6 +736,7 @@ namespace ObjectScript
 				
 				int getSize() const;
 
+				void clear();
 				void reserveCapacity(int new_capacity);
 
 				void writeBytes(const void*, int len);
@@ -3087,6 +3088,7 @@ namespace ObjectScript
 		bool isObject(int offs = -1);
 		bool isArray(int offs = -1);
 		bool isFunction(int offs = -1);
+		bool isUserdata(int offs = -1);
 		bool isUserdata(int crc, int offs, int prototype_crc = 0);
 		bool isPrototypeOf(int value_offs = -2, int prototype_offs = -1);
 		bool is(int value_offs = -2, int prototype_offs = -1);

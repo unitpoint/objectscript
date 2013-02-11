@@ -335,6 +335,17 @@ void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
 	os->setProperty();
 }
 
+template <class T>
+void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list, ObjectScript::OS::NumberDef * numbers)
+{
+	os->pushGlobals();
+	os->pushString(CtypeName<T>::getName());
+	os->pushUserdata(CtypeId<T>::getId(), 0);
+	os->setFuncs(list);
+	os->setNumbers(numbers);
+	os->setProperty();
+}
+
 template <class T, class Prototype>
 void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
 {
