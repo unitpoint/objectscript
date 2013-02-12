@@ -1745,6 +1745,7 @@ namespace ObjectScript
 					EXP_TYPE_GET_ENV_VAR,
 					EXP_TYPE_GET_ENV_VAR_AUTO_CREATE,
 					EXP_TYPE_SET_ENV_VAR,
+					EXP_TYPE_SET_ENV_VAR_NO_POP,
 
 					EXP_TYPE_INDIRECT, // temp
 

@@ -4078,6 +4078,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 		}
 		break;
 
+	case EXP_TYPE_SET_ENV_VAR:
+		if(ret_values == 1){
+			exp->type = EXP_TYPE_SET_ENV_VAR_NO_POP;
+			exp->ret_values = 1;
+			return exp;
+		}
+		break;
+
 	case EXP_TYPE_SET_PROPERTY:
 		OS_ASSERT(!exp->ret_values);
 		exp->type = EXP_TYPE_SET_PROPERTY_NO_POP;
@@ -5530,7 +5538,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		return exp;
 
 	case EXP_TYPE_SET_ENV_VAR:
+	case EXP_TYPE_SET_ENV_VAR_NO_POP:
 		OS_ASSERT(exp->list.count == 1);
+		no_pop = exp->type == EXP_TYPE_SET_ENV_VAR_NO_POP;
 		stack_pos = scope->function->stack_cur_size;
 		exp = Lib::processList(this, scope, exp);
 		OS_ASSERT(stack_pos < scope->function->stack_cur_size);
@@ -5548,7 +5558,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			}
 			exp->list.add(exp_xconst OS_DBG_FILEPOS);
 		}
-		exp1 = exp->list[0];
+		// exp1 = exp->list[0];
+		if(no_pop){
+			scope->function->stack_cur_size++;
+			return exp;
+		}
 		return exp;
 
 	case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
@@ -7741,7 +7755,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 				allocator->deleteObj(exp);
 				return NULL;
 			}
-			OS_ASSERT(exp2->ret_values == 1);
+			// OS_ASSERT(exp2->ret_values == 1);
 			exp2 = expectExpressionValues(exp2, 1);
 			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, exp2->token, exp2 OS_DBG_FILEPOS);
 			exp2->ret_values = 1;
@@ -8462,6 +8476,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 	case EXP_TYPE_SET_ENV_VAR:
 		return OS_TEXT("set env var");
 
+	case EXP_TYPE_SET_ENV_VAR_NO_POP:
+		return OS_TEXT("set env var no pop");
+
 	case EXP_TYPE_BIN_OPERATOR_BY_LOCALS:
 		return OS_TEXT("binary operator by locals");
 
@@ -8801,8 +8818,8 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 			OS_ASSERT(t.end_code_pos > t.start_code_pos);
 			OS_ASSERT(t.start_code_pos >= func_scope->opcodes_pos);
 			OS_ASSERT(t.start_code_pos <= func_scope->opcodes_pos + func_scope->opcodes_size);
-			OS_ASSERT(t.start_code_pos + t.end_code_pos >= func_scope->opcodes_pos);
-			OS_ASSERT(t.start_code_pos + t.end_code_pos <= func_scope->opcodes_pos + func_scope->opcodes_size);
+			OS_ASSERT(t.end_code_pos >= func_scope->opcodes_pos);
+			OS_ASSERT(t.end_code_pos <= func_scope->opcodes_pos + func_scope->opcodes_size);
 			writer->writeUVariable(t.start_code_pos - func_scope->opcodes_pos);
 			writer->writeUVariable(t.end_code_pos - func_scope->opcodes_pos);
 			writer->writeUVariable(t.catch_var_index);
@@ -19661,7 +19678,7 @@ void OS::initFileClass()
 		static int __construct(OS * os, int params, int, int, void * user_param)
 		{
 			Core::File * self = new (os->malloc(sizeof(Core::File) OS_DBG_FILEPOS)) Core::File(os);
-			if(params >= 2){
+			if(params >= 2 && !os->isNull(-params+1)){
 				self->open(os->toString(-params), os->toString(-params+1));
 			}else if(params >= 1){
 				self->open(os->toString(-params));
@@ -19673,7 +19690,7 @@ void OS::initFileClass()
 		static int open(OS * os, int params, int, int, void * user_param)
 		{
 			OS_GET_SELF(Core::File*);
-			if(params >= 2){
+			if(params >= 2 && !os->isNull(-params+1)){
 				os->pushBool(self->open(os->toString(-params), os->toString(-params+1)));
 			}else if(params >= 1){
 				os->pushBool(self->open(os->toString(-params)));
