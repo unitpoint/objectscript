@@ -445,7 +445,7 @@ namespace ObjectScript {
 			void resetData();
 
 			// Curl(const Curl &);
-			Curl & operator = (const Curl & other);
+			void copyFrom(Curl * other);
 		};
 
 		/*
@@ -689,7 +689,7 @@ namespace ObjectScript {
 		close();
 	}
 
-	CurlOS::Curl & CurlOS::Curl::operator = (const Curl & other)
+	void CurlOS::Curl::copyFrom(Curl * other)
 	{
 		resetData();
 
@@ -706,77 +706,66 @@ namespace ObjectScript {
 		curl_easy_setopt(handle, CURLOPT_DEBUGDATA, (void*)this);
 		curl_easy_setopt(handle, CURLOPT_IOCTLDATA, (void*)this);
 
-		write.behavior = other.write.behavior;
-		write.func_id = other.write.func_id;
-		write.file_id = other.write.file_id;
+		write.behavior = other->write.behavior;
+		write.func_id = other->write.func_id;
+		write.file_id = other->write.file_id;
 		os->retainValueById(write.func_id);
 		os->retainValueById(write.file_id);
 
-		write_header.behavior = other.write_header.behavior;
-		write_header.func_id = other.write_header.func_id;
-		write_header.file_id = other.write_header.file_id;
+		write_header.behavior = other->write_header.behavior;
+		write_header.func_id = other->write_header.func_id;
+		write_header.file_id = other->write_header.file_id;
 		os->retainValueById(write_header.func_id);
 		os->retainValueById(write_header.file_id);
 
-		read.behavior = other.read.behavior;
-		read.func_id = other.read.func_id;
-		read.file_id = other.read.file_id;
+		read.behavior = other->read.behavior;
+		read.func_id = other->read.func_id;
+		read.file_id = other->read.file_id;
 		os->retainValueById(read.func_id);
 		os->retainValueById(read.file_id);
 
-		progress.behavior = other.progress.behavior;
-		progress.func_id = other.progress.func_id;
-		progress.file_id = other.progress.file_id;
+		progress.behavior = other->progress.behavior;
+		progress.func_id = other->progress.func_id;
+		progress.file_id = other->progress.file_id;
 		os->retainValueById(progress.func_id);
 		os->retainValueById(progress.file_id);
 
-		/*
-		for (int i = 0; i < curl_option_desc; ++i) {
-		if (other.options[i]) {
-		char *cstr = (char *) os->malloc(strlen((char *)other.options[i])+1 OS_DBG_FILEPOS);
-		strcpy(cstr, (char *)other.options[i]);
-		options[i] = cstr;
-		curl_easy_setopt(handle, (CURLoption)(CURLOPTTYPE_OBJECTPOINT+i), cstr);
-		}
-		}
-		*/
-
-		curl_slist *slist = other.httpheader;
+		curl_slist *slist = other->httpheader;
 		while (slist) {
 			httpheader = curl_slist_append(httpheader, slist->data);
 			slist = slist->next;
 		}
 		curl_easy_setopt(handle, CURLOPT_HTTPHEADER, httpheader);
 
-		slist = other.http200aliases;
+		slist = other->http200aliases;
 		while (slist) {
 			http200aliases = curl_slist_append(http200aliases, slist->data);
 			slist = slist->next;
 		}
 		curl_easy_setopt(handle, CURLOPT_HTTP200ALIASES, http200aliases);
 
-		slist = other.quote;
+		slist = other->quote;
 		while (slist) {
 			quote = curl_slist_append(quote, slist->data);
 			slist = slist->next;
 		}
 		curl_easy_setopt(handle, CURLOPT_QUOTE, quote);
 
-		slist = other.postquote;
+		slist = other->postquote;
 		while (slist) {
 			postquote = curl_slist_append(postquote, slist->data);
 			slist = slist->next;
 		}
 		curl_easy_setopt(handle, CURLOPT_POSTQUOTE, postquote);
 
-		slist = other.prequote;
+		slist = other->prequote;
 		while (slist) {
 			prequote = curl_slist_append(prequote, slist->data);
 			slist = slist->next;
 		}
 		curl_easy_setopt(handle, CURLOPT_PREQUOTE, prequote);
 
-		slist = other.telnetopt;
+		slist = other->telnetopt;
 		while (slist) {
 			telnetopt = curl_slist_append(telnetopt, slist->data);
 			slist = slist->next;
@@ -784,7 +773,7 @@ namespace ObjectScript {
 		curl_easy_setopt(handle, CURLOPT_TELNETOPTIONS, telnetopt);
 
 #if (LIBCURL_VERSION_NUM >= 0x071400)
-		slist = other.mailrcpt;
+		slist = other->mailrcpt;
 		while (slist) {
 			mailrcpt = curl_slist_append(mailrcpt, slist->data);
 			slist = slist->next;
@@ -792,7 +781,7 @@ namespace ObjectScript {
 		curl_easy_setopt(handle, CURLOPT_MAIL_RCPT, mailrcpt);
 #endif
 #if (LIBCURL_VERSION_NUM >= 0x071503)
-		slist = other.resolve;
+		slist = other->resolve;
 		while (slist) {
 			resolve = curl_slist_append(resolve, slist->data);
 			slist = slist->next;
@@ -800,14 +789,13 @@ namespace ObjectScript {
 		curl_easy_setopt(handle, CURLOPT_RESOLVE, resolve);
 #endif
 #if (LIBCURL_VERSION_NUM >= 0x071900)
-		slist = other.dnsserver;
+		slist = other->dnsserver;
 		while (slist) {
 			dnsserver = curl_slist_append(dnsserver, slist->data);
 			slist = slist->next;
 		}
 		curl_easy_setopt(handle, CURLOPT_DNS_SERVERS, dnsserver);
 #endif
-		return *this;
 	}
 
 	bool CurlOS::Curl::init()
@@ -1689,11 +1677,11 @@ file_option:
 				copy->handle = curl_easy_duphandle(self->handle);
 				if (!copy->handle) {
 					self->triggerError(OS_TEXT("can't clone curl handle"));
+					copy->~Curl();
 					os->free(copy);
 					return 0;
 				}
-
-				*copy = *self;
+				copy->copyFrom(self);
 
 				CtypeValue<Curl*>::push(os, copy);
 				return 1;
