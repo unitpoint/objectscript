@@ -623,7 +623,7 @@ namespace ObjectScript {
 			case CURLINFO_CONTENT_TYPE: os->pushString("content_type"); return;
 			case CURLINFO_REDIRECT_TIME: os->pushString("redirect_time"); return;
 			case CURLINFO_REDIRECT_COUNT: os->pushString("redirect_count"); return;
-				//case CURLINFO_PRIVATE: os->pushString("private"); return;
+			//case CURLINFO_PRIVATE: os->pushString("private"); return;
 			case CURLINFO_HTTP_CONNECTCODE: os->pushString("http_connectcode"); return;
 			case CURLINFO_HTTPAUTH_AVAIL: os->pushString("httpauth_avail"); return;
 			case CURLINFO_PROXYAUTH_AVAIL: os->pushString("proxyauth_avail"); return;
@@ -809,11 +809,11 @@ namespace ObjectScript {
 		CURLcode res = CURLE_OK;
 
 #undef CURL_SETOPT
-#define CURL_SETOPT(o,v)                    \
-	res = curl_easy_setopt(handle,(o),(v)); \
-	if(res != CURLE_OK) {                   \
-		triggerError(res);					\
-		return false;                       \
+#define CURL_SETOPT(o,v)			\
+	res = curl_easy_setopt(handle,(o),(v));	\
+	if(res != CURLE_OK) {			\
+		triggerError(res);		\
+		return false;			\
 	}
 
 		/* Set curl error buffer */
@@ -1013,6 +1013,7 @@ namespace ObjectScript {
 
 	bool CurlOS::Curl::setOption()
 	{
+		CURLcode code = CURLE_OK;
 		OS::String name = os->toString(-2);
 		for(int i = 0; i < curl_option_count; i++){
 			if(name == curl_option_desc[i].name
@@ -1054,7 +1055,7 @@ namespace ObjectScript {
 						}
 						data->behavior = CurlOS::Curl::BEHAVIOR_RETURN;
 					}
-					CURLcode code = CURLE_OK;
+					code = CURLE_OK;
 					switch(curl_option_desc[i].type){
 					case OPT_BOOL:
 					case OPT_LONG:
@@ -1105,7 +1106,7 @@ namespace ObjectScript {
 					}
 					goto file_option;
 				}
-				CURLcode code = CURLE_OK;
+				code = CURLE_OK;
 				switch(curl_option_desc[i].type){
 				case OPT_BOOL:
 					if(os->getType() != OS_VALUE_TYPE_BOOL){ // !os->isNumber()){
@@ -1393,13 +1394,13 @@ file_option:
 			}
 			break;
 
-		case BEHAVIOR_FUNC: {
+		case BEHAVIOR_FUNC:
 			os->pushValueById(write->func_id);
 			os->pushNull();
 			os->pushString((void*)ptr, length);
 			os->call(1);
 			break;
-							}
+
 		case BEHAVIOR_IGNORE:
 			break;
 		}
@@ -1839,11 +1840,11 @@ file_option:
 				} else {
 					os->newObject();
 
-#define PUSH_CURLINFO(i)                 \
-	os->pushStackValue();                \
-	CtypeValue<CURLINFO>::push(os, (i)); \
-	info = self->getInfo((i));           \
-	pushInfo(os, info);                 \
+#define PUSH_CURLINFO(i)			\
+	os->pushStackValue();			\
+	CtypeValue<CURLINFO>::push(os, (i));	\
+	info = self->getInfo((i));		\
+	pushInfo(os, info);			\
 	os->setProperty();
 
 					PUSH_CURLINFO(CURLINFO_EFFECTIVE_URL);
@@ -2259,11 +2260,11 @@ file_option:
 		CURLSHcode res;
 
 #undef CURL_SHARE_SETOPT
-#define CURL_SHARE_SETOPT(o,v)                     \
-	res = curl_share_setopt(share_handle,(o),(v)); \
-	if(res != CURLSHE_OK) {                        \
-	close();                                   \
-	return false;                              \
+#define CURL_SHARE_SETOPT(o,v)				\
+	res = curl_share_setopt(share_handle,(o),(v));	\
+	if(res != CURLSHE_OK) {				\
+	close();					\
+	return false;					\
 	}
 
 		CURL_SHARE_SETOPT(CURLSHOPT_LOCKFUNC, lockCallback);
