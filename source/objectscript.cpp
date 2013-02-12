@@ -4702,6 +4702,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 		break;
 
 	case EXP_TYPE_SET_ENV_VAR:
+	case EXP_TYPE_SET_ENV_VAR_NO_POP:
 		OS_ASSERT(exp->list.count == 1);
 		exp->slots.b = cacheString(exp->token->str);
 		break;
