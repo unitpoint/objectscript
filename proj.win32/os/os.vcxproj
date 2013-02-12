@@ -40,11 +40,15 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <IncludePath>libcurl-7.19.3-win32-ssl-msvc\include;$(IncludePath)</IncludePath>
+    <LibraryPath>libcurl-7.19.3-win32-ssl-msvc\lib\Release;libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>../../bin/</OutDir>
     <TargetName>$(ProjectName)</TargetName>
+    <IncludePath>libcurl-7.19.3-win32-ssl-msvc\include;$(IncludePath)</IncludePath>
+    <LibraryPath>libcurl-7.19.3-win32-ssl-msvc\lib\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -52,11 +56,12 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;CURL_STATICLIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>curllib.lib;ws2_32.lib;libeay32.lib;ssleay32.lib;openldap.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -86,6 +91,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\source\ext-curl\oscurl.cpp" />
     <ClCompile Include="..\..\source\objectscript.cpp">
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NoListing</AssemblerOutput>
     </ClCompile>

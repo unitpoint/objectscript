@@ -1,10 +1,12 @@
 #if defined(_WIN32)
 # include "stdafx.h"
 # include "windows.h"
+# include "curl/curl.h"
 #endif
 
 #include "../../source/objectscript.h"
 #include "../../source/os-binder.h"
+#include "../../source/ext-curl/oscurl.h"
 
 using namespace ObjectScript;
 
@@ -75,6 +77,7 @@ int main(int argc, char *argv[])
 
 	// craete ObjectScript instance
 	OS * os = OS::create();
+	initCurlLibrary(os);
 	// save allocated memory at start point
 	int start_mem_usage = os->getAllocatedBytes();
 	// set needed settings
