@@ -1,0 +1,347 @@
+
+[FILE] ../../examples-os/curl/test_setopt.os
+[1] var curl = Curl()
+
+begin function
+  begin locals 11, stack 17
+    0 _F (param)
+    1 this (param)
+    2 _E
+    3 _G
+    4 curl
+    5 header_file
+    6 content_file
+    7 header
+    8 saveHeader
+    9 check_header
+    10 check_content
+  end locals
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "Curl" (-4)
+  end call method: start 11, params 2, ret values 1
+  move: var curl (4) = # (11)
+
+
+[3] var header_file = File("header.txt", "wb")
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "File" (-5)
+    move: # (13) = const string "header.txt" (-6)
+    move: # (14) = const string "wb" (-7)
+  end call method: start 11, params 4, ret values 1
+  move: var header_file (5) = # (11)
+
+
+[4] var content_file = File("content.txt", "wb")
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "File" (-5)
+    move: # (13) = const string "content.txt" (-8)
+    move: # (14) = const string "wb" (-7)
+  end call method: start 11, params 4, ret values 1
+  move: var content_file (6) = # (11)
+
+
+[6] curl.options {
+
+  begin call method
+    move: # (11) = var curl (4)
+    move: # (12) = const string "options" (-9)
+    new object 3: # (13)
+
+[7] url         = "http://objectscript.org"
+
+    init property: # (13) [const string "url" (-10)] = const string "http://objectscript.org" (-11)
+
+[8] file        = content_file
+
+    init property: # (13) [const string "file" (-12)] = var content_file (6)
+
+[9] header_file = header_file
+
+    init property: # (13) [const string "header_file" (-13)] = var header_file (5)
+  end call method: start 11, params 3, ret values 0
+
+
+[13] curl.perform(true) // keep open
+
+  begin call method
+    move: # (11) = var curl (4)
+    move: # (12) = const string "perform" (-14)
+    move: # (13) = const true (-2)
+  end call method: start 11, params 3, ret values 0
+
+
+[15] header_file.close()
+
+  begin call method
+    move: # (11) = var header_file (5)
+    move: # (12) = const string "close" (-15)
+  end call method: start 11, params 2, ret values 0
+
+
+[16] content_file.close()
+
+  begin call method
+    move: # (11) = var content_file (6)
+    move: # (12) = const string "close" (-15)
+  end call method: start 11, params 2, ret values 0
+
+
+[18] var header = ""
+
+  move: var header (7) = const string "" (-16)
+
+
+[19] var saveHeader = function(data) {
+
+  begin function
+    begin locals 5, stack 9
+      0 _F (param)
+      1 this (param)
+      2 data (param)
+      3 _E
+      4 _G
+    end locals
+
+[20] header = header..data
+
+      begin call method
+        move: # (5) = var _G (4)
+        move: # (6) = const string "concat" (-17)
+        get upvalue: # (7) = var header (7 1)
+        move: # (8) = param data (2)
+      end call method: start 5, params 4, ret values 1
+      set upvalue: var header (7 1) = # (5)
+    return: # (5), count 1
+  end function: var saveHeader (8), index 1
+
+
+[23] curl.options {
+
+  begin call method
+    move: # (11) = var curl (4)
+    move: # (12) = const string "options" (-9)
+    new object 2: # (13)
+
+[24] file = null //set default value
+
+    init property: # (13) [const string "file" (-12)] = const null (-1)
+
+[25] headerfunction = saveHeader
+
+    init property: # (13) [const string "headerfunction" (-18)] = var saveHeader (8)
+  end call method: start 11, params 3, ret values 0
+
+
+[28] content = curl.perform()
+
+  begin call method
+    move: # (11) = var curl (4)
+    move: # (12) = const string "perform" (-14)
+  end call method: start 11, params 2, ret values 1
+  set property: var _E (2) [const string "content" (-19)] = # (11)
+
+
+[30] function File.readContent(filename, mode){
+
+  begin function
+    begin locals 8, stack 12
+      0 _F (param)
+      1 this (param)
+      2 filename (param)
+      3 mode (param)
+      4 _E
+      5 _G
+      6 f
+      7 content
+    end locals
+
+[31] var f = File(filename, mode)
+
+    begin call method
+      move: # (8) = var _E (4)
+      move: # (9) = const string "File" (-5)
+      move: # (10) = param filename (2)
+      move: # (11) = param mode (3)
+    end call method: start 8, params 4, ret values 1
+    move: var f (6) = # (8)
+
+
+[32] var content = f.read()
+
+    begin call method
+      move: # (8) = var f (6)
+      move: # (9) = const string "read" (-20)
+    end call method: start 8, params 2, ret values 1
+    move: var content (7) = # (8)
+
+
+[33] f.close()
+
+    begin call method
+      move: # (8) = var f (6)
+      move: # (9) = const string "close" (-15)
+    end call method: start 8, params 2, ret values 0
+
+
+[34] return content
+
+    return: var content (7), count 1
+  end function: # (11), index 2
+
+[30] function File.readContent(filename, mode){
+
+  get property: # (12) = var _E (2) [const string "File" (-5)]
+  set property: # (12) [const string "readContent" (-21)] = # (11)
+
+
+[37] function File.writeContent(content, filename, mode){
+
+  begin function
+    begin locals 8, stack 12
+      0 _F (param)
+      1 this (param)
+      2 content (param)
+      3 filename (param)
+      4 mode (param)
+      5 _E
+      6 _G
+      7 f
+    end locals
+
+[38] var f = File(filename, mode)
+
+    begin call method
+      move: # (8) = var _E (5)
+      move: # (9) = const string "File" (-5)
+      move: # (10) = param filename (3)
+      move: # (11) = param mode (4)
+    end call method: start 8, params 4, ret values 1
+    move: var f (7) = # (8)
+
+
+[39] f.write(content)
+
+    begin call method
+      move: # (8) = var f (7)
+      move: # (9) = const string "write" (-22)
+      move: # (10) = param content (2)
+    end call method: start 8, params 3, ret values 0
+
+
+[40] f.close()
+
+      begin call method
+        move: # (8) = var f (7)
+        move: # (9) = const string "close" (-15)
+      end call method: start 8, params 2, ret values 1
+    return: # (8), count 1
+  end function: # (11), index 3
+
+[37] function File.writeContent(content, filename, mode){
+
+  get property: # (12) = var _E (2) [const string "File" (-5)]
+  set property: # (12) [const string "writeContent" (-23)] = # (11)
+
+
+[43] File.writeContent(header, "header-dub.txt")
+
+  begin call method
+    get property: # (11) = var _E (2) [const string "File" (-5)]
+    move: # (12) = const string "writeContent" (-23)
+    move: # (13) = var header (7)
+    move: # (14) = const string "header-dub.txt" (-24)
+  end call method: start 11, params 4, ret values 0
+
+
+[44] File.writeContent(content, "content-dub.txt")
+
+  begin call method
+    get property: # (11) = var _E (2) [const string "File" (-5)]
+    move: # (12) = const string "writeContent" (-23)
+    get property: # (13) = var _E (2) [const string "content" (-19)]
+    move: # (14) = const string "content-dub.txt" (-25)
+  end call method: start 11, params 4, ret values 0
+
+
+[46] var check_header = File.readContent("header.txt")
+
+  begin call method
+    get property: # (11) = var _E (2) [const string "File" (-5)]
+    move: # (12) = const string "readContent" (-21)
+    move: # (13) = const string "header.txt" (-6)
+  end call method: start 11, params 3, ret values 1
+  move: var check_header (9) = # (11)
+
+
+[47] var check_content = File.readContent("content.txt")
+
+  begin call method
+    get property: # (11) = var _E (2) [const string "File" (-5)]
+    move: # (12) = const string "readContent" (-21)
+    move: # (13) = const string "content.txt" (-8)
+  end call method: start 11, params 3, ret values 1
+  move: var check_content (10) = # (11)
+
+
+[51] if (check_content == content) {
+
+  begin if
+    begin bool exp
+      move: # (11) = var check_content (10)
+      get property: # (12) = var _E (2) [const string "content" (-19)]
+      # (11) = # (11) [logic ==] # (12)
+    end bool exp
+    begin then
+
+[52] print "Test successful finished"
+
+      begin scope
+        begin call method
+          move: # (11) = var _E (2)
+          move: # (12) = const string "print" (-26)
+          move: # (13) = const string "Test successful finished" (-27)
+        end call method: start 11, params 3, ret values 0
+      end scope ret values 0
+    end then
+    begin else
+
+[54] print "Test failed"
+
+      begin scope
+        begin call method
+          move: # (11) = var _E (2)
+          move: # (12) = const string "print" (-26)
+          move: # (13) = const string "Test failed" (-28)
+        end call method: start 11, params 3, ret values 0
+
+
+[55] printf("content %d <=> %d\n", #check_content, #content)
+
+        begin call method
+          move: # (11) = var _E (2)
+          move: # (12) = const string "printf" (-29)
+          move: # (13) = const string "content %d <=> %d
+" (-30)
+          begin call method
+            move: # (14) = var check_content (10)
+            move: # (15) = const string "__len" (-31)
+          end call method: start 14, params 2, ret values 1
+          begin call method
+            get property: # (15) = var _E (2) [const string "content" (-19)]
+            move: # (16) = const string "__len" (-31)
+          end call method: start 15, params 2, ret values 1
+        end call method: start 11, params 5, ret values 0
+      end scope ret values 0
+    end else
+  end if ret values 0
+
+
+[56] }
+
+  return: var _E (2), count 1
+end function: {main} (0), index 0

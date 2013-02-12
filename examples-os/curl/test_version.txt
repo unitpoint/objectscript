@@ -1,0 +1,215 @@
+
+[FILE] ../../examples-os/curl/test_version.os
+[3] var version = Curl.VERSION
+
+begin function
+  begin locals 9, stack 13
+    0 _F (param)
+    1 this (param)
+    2 _E
+    3 _G
+    4 version
+  end locals
+  get property: # (9) = var _E (2) [const string "Curl" (-5)]
+  get property: var version (4) = # (9) [const string "VERSION" (-6)]
+
+
+[5] bitfields = {
+
+  new object 16: # (9)
+
+[6] ipv6          = Curl.FEATURE_IPV6
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_IPV6" (-9)]
+  init property: # (9) [const string "ipv6" (-8)] = # (11)
+
+[7] kerberos64    = Curl.FEATURE_KERBEROS4
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_KERBEROS4" (-11)]
+  init property: # (9) [const string "kerberos64" (-10)] = # (11)
+
+[8] ssl           = Curl.FEATURE_SSL
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_SSL" (-13)]
+  init property: # (9) [const string "ssl" (-12)] = # (11)
+
+[9] libz          = Curl.FEATURE_LIBZ
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_LIBZ" (-15)]
+  init property: # (9) [const string "libz" (-14)] = # (11)
+
+[10] ntlm          = Curl.FEATURE_NTLM
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_NTLM" (-17)]
+  init property: # (9) [const string "ntlm" (-16)] = # (11)
+
+[11] gssnegotiate  = Curl.FEATURE_GSSNEGOTIATE
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_GSSNEGOTIATE" (-19)]
+  init property: # (9) [const string "gssnegotiate" (-18)] = # (11)
+
+[12] debug         = Curl.FEATURE_DEBUG
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_DEBUG" (-21)]
+  init property: # (9) [const string "debug" (-20)] = # (11)
+
+[13] asynchdns     = Curl.FEATURE_ASYNCHDNS
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_ASYNCHDNS" (-23)]
+  init property: # (9) [const string "asynchdns" (-22)] = # (11)
+
+[14] spnego        = Curl.FEATURE_SPNEGO
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_SPNEGO" (-25)]
+  init property: # (9) [const string "spnego" (-24)] = # (11)
+
+[15] largefile     = Curl.FEATURE_LARGEFILE
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_LARGEFILE" (-27)]
+  init property: # (9) [const string "largefile" (-26)] = # (11)
+
+[16] idn           = Curl.FEATURE_IDN
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_IDN" (-29)]
+  init property: # (9) [const string "idn" (-28)] = # (11)
+
+[17] sspi          = Curl.FEATURE_SSPI
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_SSPI" (-31)]
+  init property: # (9) [const string "sspi" (-30)] = # (11)
+
+[18] conv          = Curl.FEATURE_CONV
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_CONV" (-33)]
+  init property: # (9) [const string "conv" (-32)] = # (11)
+
+[19] curldebug     = Curl.FEATURE_CURLDEBUG
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_CURLDEBUG" (-35)]
+  init property: # (9) [const string "curldebug" (-34)] = # (11)
+
+[20] tlsauth_srp   = Curl.FEATURE_TLSAUTH_SRP
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_TLSAUTH_SRP" (-37)]
+  init property: # (9) [const string "tlsauth_srp" (-36)] = # (11)
+
+[21] ntlm_wb       = Curl.FEATURE_NTLM_WB
+
+  get property: # (11) = var _E (2) [const string "Curl" (-5)]
+  get property: # (11) = # (11) [const string "FEATURE_NTLM_WB" (-39)]
+  init property: # (9) [const string "ntlm_wb" (-38)] = # (11)
+  set property: var _E (2) [const string "bitfields" (-7)] = # (9)
+
+
+[24] for(var feature, bit in bitfields) {
+
+  begin scope
+    begin locals 4
+      5 feature
+      6 bit
+      7 #func
+      8 #valid
+    end locals
+
+
+
+
+    begin call method
+      get property: # (9) = var _E (2) [const string "bitfields" (-7)]
+      move: # (10) = const string "__iter" (-40)
+    end call method: start 9, params 2, ret values 1
+    move: var #func (7) = # (9)
+    begin loop
+      begin call
+        move: # (9) = var #func (7)
+        move: # (10) = const null (-1)
+      end call: start 9, params 2, ret values 3
+      move: var bit (6) = # (11)
+      move: var feature (5) = # (10)
+      move: var #valid (8) = # (9)
+
+      begin if
+        begin bool exp
+          move: # (9) = var #valid (8)
+          # (9) = [logic not] # (9)
+        end bool exp
+        begin then
+          break
+        end then
+      end if ret values 0
+
+
+[25] if (version["features"] & bit != 0)
+
+      begin scope
+        begin if
+          begin bool exp
+            get property: # (9) = var version (4) [const string "features" (-41)]
+            # (9) = # (9) [bit &] var bit (6)
+            move: # (10) = const number 0 (-4)
+            # (9) = # (9) [logic !=] # (10)
+          end bool exp
+          begin then
+
+[26] printf ("%12s: yes\n", feature)
+
+            begin call method
+              move: # (9) = var _E (2)
+              move: # (10) = const string "printf" (-42)
+              move: # (11) = const string "%12s: yes
+" (-43)
+              move: # (12) = var feature (5)
+            end call method: start 9, params 4, ret values 0
+          end then
+          begin else
+
+[28] printf ("%12s: no\n", feature)
+
+            begin call method
+              move: # (9) = var _E (2)
+              move: # (10) = const string "printf" (-42)
+              move: # (11) = const string "%12s: no
+" (-44)
+              move: # (12) = var feature (5)
+            end call method: start 9, params 4, ret values 0
+          end else
+        end if ret values 0
+      end scope ret values 0
+    end loop ret values 0
+  end scope ret values 0
+
+
+[31] print version
+
+  begin call method
+    move: # (9) = var _E (2)
+    move: # (10) = const string "print" (-45)
+    move: # (11) = var version (4)
+  end call method: start 9, params 3, ret values 0
+
+
+[32] print bitfields
+
+  begin call method
+    move: # (9) = var _E (2)
+    move: # (10) = const string "print" (-45)
+    get property: # (11) = var _E (2) [const string "bitfields" (-7)]
+  end call method: start 9, params 3, ret values 0
+
+  return: var _E (2), count 1
+end function: {main} (0), index 0

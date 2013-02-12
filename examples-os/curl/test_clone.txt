@@ -1,0 +1,128 @@
+
+[FILE] ../../examples-os/curl/test_clone.os
+[1] var c = Curl()
+
+begin function
+  begin locals 7, stack 13
+    0 _F (param)
+    1 this (param)
+    2 _E
+    3 _G
+    4 c
+    5 func
+  end locals
+  begin call method
+    move: # (7) = var _E (2)
+    move: # (8) = const string "Curl" (-5)
+  end call method: start 7, params 2, ret values 1
+  move: var c (4) = # (7)
+
+
+[3] var func = function(buf) {
+
+  begin function
+    begin locals 5, stack 8
+      0 _F (param)
+      1 this (param)
+      2 buf (param)
+      3 _E
+      4 _G
+    end locals
+
+[4] print buf
+
+      begin call method
+        move: # (5) = var _E (3)
+        move: # (6) = const string "print" (-6)
+        move: # (7) = param buf (2)
+      end call method: start 5, params 3, ret values 1
+    return: # (5), count 1
+  end function: var func (5), index 1
+
+
+[7] c.options {
+
+  begin call method
+    move: # (7) = var c (4)
+    move: # (8) = const string "options" (-7)
+    new object 3: # (9)
+
+[8] url:"www.ya.ru"
+
+    init property: # (9) [const string "url" (-8)] = const string "www.ya.ru" (-9)
+
+[9] timeout: 5
+
+    init property: # (9) [const string "timeout" (-10)] = const number 5 (-4)
+
+[11] writefunction: func
+
+    init property: # (9) [const string "writefunction" (-11)] = var func (5)
+  end call method: start 7, params 3, ret values 0
+
+
+[14] c1 = c.clone()
+
+  begin call method
+    move: # (7) = var c (4)
+    move: # (8) = const string "clone" (-13)
+  end call method: start 7, params 2, ret values 1
+  set property: var _E (2) [const string "c1" (-12)] = # (7)
+
+
+[16] c1.options {
+
+  begin call method
+    get property: # (7) = var _E (2) [const string "c1" (-12)]
+    move: # (8) = const string "options" (-7)
+    new object 1: # (9)
+
+[17] url:"www.objectscript.org"
+
+    init property: # (9) [const string "url" (-8)] = const string "www.objectscript.org" (-14)
+  end call method: start 7, params 3, ret values 0
+
+
+[21] c.perform()
+
+  begin try catch
+    begin scope
+      begin call method
+        move: # (7) = var c (4)
+        move: # (8) = const string "perform" (-15)
+      end call method: start 7, params 2, ret values 0
+    end scope ret values 0
+  catch
+
+[22] }catch(e){
+
+    begin scope
+      begin locals 1
+        6 e
+      end locals
+
+[23] printf("%d: %s\n", e.code, e.message);
+
+      begin scope
+        begin call method
+          move: # (7) = var _E (2)
+          move: # (8) = const string "printf" (-16)
+          move: # (9) = const string "%d: %s
+" (-17)
+          get property: # (10) = var e (6) [const string "code" (-18)]
+          get property: # (11) = var e (6) [const string "message" (-19)]
+        end call method: start 7, params 5, ret values 0
+      end scope ret values 0
+    end scope ret values 0
+  end try catch
+
+
+[26] c1.perform()
+
+  begin call method
+    get property: # (7) = var _E (2) [const string "c1" (-12)]
+    move: # (8) = const string "perform" (-15)
+  end call method: start 7, params 2, ret values 0
+
+  return: var _E (2), count 1
+end function: {main} (0), index 0
