@@ -396,7 +396,7 @@ namespace ObjectScript {
 					os->call(1, 1);
 				}
 				os->setException();
-				close();
+				// close();
 			}
 
 			void triggerError(const OS_CHAR * message = OS_TEXT("unexpected error"))
@@ -406,7 +406,7 @@ namespace ObjectScript {
 				os->pushString(message);
 				os->call(1, 1);
 				os->setException();
-				close();
+				// close();
 			}
 
 		private:
@@ -440,9 +440,7 @@ namespace ObjectScript {
 			CallbackData debug;
 			CallbackData ioctl;
 
-			// int touched_options_hash_id;
-
-			bool share;
+			// bool share;
 
 			void resetData();
 
@@ -450,6 +448,7 @@ namespace ObjectScript {
 			Curl & operator = (const Curl & other);
 		};
 
+		/*
 		class CurlShare
 		{
 			friend class OS;
@@ -476,14 +475,15 @@ namespace ObjectScript {
 			CurlShare(const CurlShare &);
 			CurlShare & operator = (const CurlShare & other);
 		};
+		*/
 
 	}; // CurlOS
 
 	template <> struct CtypeName<CurlOS::Curl>{ static const OS_CHAR * getName(){ return OS_TEXT("Curl"); } };
 	template <> struct CtypeValue<CurlOS::Curl*>: public CtypeUserClass<CurlOS::Curl*>{};
 
-	template <> struct CtypeName<CurlOS::CurlShare>{ static const OS_CHAR * getName(){ return OS_TEXT("CurlShare"); } };
-	template <> struct CtypeValue<CurlOS::CurlShare*>: public CtypeUserClass<CurlOS::CurlShare*>{};
+	// template <> struct CtypeName<CurlOS::CurlShare>{ static const OS_CHAR * getName(){ return OS_TEXT("CurlShare"); } };
+	// template <> struct CtypeValue<CurlOS::CurlShare*>: public CtypeUserClass<CurlOS::CurlShare*>{};
 
 	OS_DECL_CTYPE(CURLoption);
 
@@ -681,7 +681,7 @@ namespace ObjectScript {
 		, dnsserver(NULL)
 #endif
 	{
-		share = false;
+		// share = false;
 	}
 
 	CurlOS::Curl::~Curl()
@@ -929,10 +929,10 @@ namespace ObjectScript {
 			}
 		}
 
-		if(share){
+		/* if(share){
 			curl_easy_setopt(handle, CURLOPT_SHARE, NULL);
 			// TODO: delete share?
-		}
+		} */
 	}
 
 	void CurlOS::Curl::close()
@@ -1048,7 +1048,7 @@ namespace ObjectScript {
 						data = &this->ioctl;
 						curl_easy_setopt(handle, option, NULL);
 					} else if (option == CURLOPT_SHARE) {
-						share = false;
+						// share = false;
 						curl_easy_setopt(handle, option, NULL);
 						return true;
 					} else {
@@ -1188,7 +1188,7 @@ file_option:
 							triggerError(OS_TEXT("\"stderr\" is not supported"));
 							return false;
 						} else if (option == CURLOPT_SHARE) {
-							if (share) {
+							/* if (share) {
 								triggerError(OS_TEXT("curl object is already sharing, unshare it first"));
 								return false;
 							}
@@ -1198,7 +1198,7 @@ file_option:
 								return false;
 							}
 							code = curl_easy_setopt(handle, option, curl_share->handle());
-							share = code == CURLE_OK && curl_share->handle();
+							share = code == CURLE_OK && curl_share->handle(); */
 							break;
 						} else {
 							triggerError(OS::String(os, OS_TEXT("unsupported value type of curl option \"")) + name + OS_TEXT("\""));
@@ -2250,7 +2250,7 @@ file_option:
 	/*===================================================*/
 	/* Curl Share Interfase                              */
 	/*===================================================*/
-
+	/*
 	CurlOS::CurlShare::CurlShare(OS *p_os)
 		: os(p_os)
 		, share_handle(NULL)
@@ -2437,6 +2437,7 @@ file_option:
 
 		registerUserClass<CurlShare>(os, funcs, nums);
 	}
+	*/
 
 } // namespace ObjectScript
 
