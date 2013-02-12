@@ -387,15 +387,26 @@ namespace ObjectScript {
 			{
 				os->getGlobal(OS_TEXT("CurlException"));
 				os->pushGlobals();
-				if(code){
+				if(code != CURLE_OK){
 					os->pushString(getErrorStr());
 					os->pushNumber(code);
 					os->call(2, 1);
 				}else{
-					os->pushString(OS_TEXT("curl exception"));
+					os->pushString(OS_TEXT("unexpected error"));
 					os->call(1, 1);
 				}
 				os->setException();
+				close();
+			}
+
+			void triggerError(const OS_CHAR * message = OS_TEXT("unexpected error"))
+			{
+				os->getGlobal(OS_TEXT("CurlException"));
+				os->pushGlobals();
+				os->pushString(message);
+				os->call(1, 1);
+				os->setException();
+				close();
 			}
 
 		private:
@@ -803,18 +814,18 @@ namespace ObjectScript {
 	{
 		/* Initialize curl handle */
 		handle = curl_easy_init();
-		if (handle == NULL)
+		if(handle == NULL){
+			triggerError(OS::String(os, "error to create curl object"));
 			return false;
-
+		}
 		CURLcode res = CURLE_OK;
 
 #undef CURL_SETOPT
 #define CURL_SETOPT(o,v)                    \
 	res = curl_easy_setopt(handle,(o),(v)); \
 	if(res != CURLE_OK) {                   \
-	close();                            \
-	triggerError(res);					\
-	return false;                       \
+		triggerError(res);					\
+		return false;                       \
 	}
 
 		/* Set curl error buffer */
@@ -873,46 +884,50 @@ namespace ObjectScript {
 		CURL_SETOPT(CURLOPT_IOCTLDATA, (void*)this);
 
 #undef CURL_SETOPT
-
 		return true;
 	}
 
 	void CurlOS::Curl::resetData()
 	{
-#undef SFREE
-#define SFREE(v)   if ((v) != NULL) (curl_formfree(v), (v) = NULL)
-		SFREE(httppost);
-#undef SFREE
-#define SFREE(v)   if ((v) != NULL) (curl_slist_free_all(v), (v) = NULL)
-		SFREE(httpheader);
-		SFREE(http200aliases);
-		SFREE(quote);
-		SFREE(postquote);
-		SFREE(prequote);
-		SFREE(telnetopt);
+#undef CURL_FORM_FREE
+#define CURL_FORM_FREE(v)   if ((v) != NULL) (curl_formfree(v), (v) = NULL)
+		CURL_FORM_FREE(httppost);
+#undef CURL_FORM_FREE
+
+#define CURL_LIST_FREE(v)   if ((v) != NULL) (curl_slist_free_all(v), (v) = NULL)
+		CURL_LIST_FREE(httpheader);
+		CURL_LIST_FREE(http200aliases);
+		CURL_LIST_FREE(quote);
+		CURL_LIST_FREE(postquote);
+		CURL_LIST_FREE(prequote);
+		CURL_LIST_FREE(telnetopt);
 #if (LIBCURL_VERSION_NUM >= 0x071400)
-		SFREE(mailrcpt);
+		CURL_LIST_FREE(mailrcpt);
 #endif
 #if (LIBCURL_VERSION_NUM >= 0x071503)
-		SFREE(resolve);
+		CURL_LIST_FREE(resolve);
 #endif
 #if (LIBCURL_VERSION_NUM >= 0x071900)
-		SFREE(dnsserver);
+		CURL_LIST_FREE(dnsserver);
 #endif
-#undef SFREE
+#undef CURL_LIST_FREE
 
-#define CURL_RELEASE_VALUE(v) if ((v)) (os->releaseValueById(v), (v) = 0)
 		CallbackData * data[] = {&write, &write_header, &read, &progress, &debug, &ioctl};
 		for(int i = 0; i < sizeof(data)/sizeof(data[0]); i++){
-			CURL_RELEASE_VALUE(data[i]->file_id);
-			CURL_RELEASE_VALUE(data[i]->func_id);
+			if(data[i]->file_id){
+				os->releaseValueById(data[i]->file_id);
+				data[i]->file_id = 0;
+			}
+			if(data[i]->func_id){
+				os->releaseValueById(data[i]->func_id);
+				data[i]->func_id = 0;
+			}
 			if(data[i]->buf){
 				data[i]->buf->~Buffer();
 				os->free(data[i]->buf);
 				data[i]->buf = NULL;
 			}
 		}
-#undef CURL_RELEASE_VALUE
 
 		if(share){
 			curl_easy_setopt(handle, CURLOPT_SHARE, NULL);
@@ -980,11 +995,10 @@ namespace ObjectScript {
 		case CURLOPT_DNS_SERVERS:
 			old_slist = &dnsserver;
 #endif
-		default: {
+		default:
 			CtypeValue<CURLoption>::push(os, option);
-			os->setException(OS::String(os, OS_TEXT("array is not supported for \"")) + os->popString() + OS_TEXT("\" option"));
+			triggerError(OS::String(os, OS_TEXT("array is not supported for \"")) + os->popString() + OS_TEXT("\" option"));
 			return false;
-				 }
 		}
 
 		CURLcode setop_res = curl_easy_setopt(handle, option, slist);
@@ -1093,24 +1107,40 @@ namespace ObjectScript {
 						write->behavior = CurlOS::Curl::BEHAVIOR_STDERR;
 						return true;
 					}
-					os->setException(OS_TEXT("invalid option value"));
+					triggerError(OS_TEXT("invalid option value"));
 					return false;
 				}
 				CURLcode code = CURLE_OK;
 				switch(curl_option_desc[i].type){
 				case OPT_BOOL:
+					if(!os->isNumber()){
+						triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be bool or number"));
+						return false;
+					}
 					code = curl_easy_setopt(handle, option, os->toBool());
 					break;
 
 				case OPT_LONG:
+					if(!os->isNumber()){
+						triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be number"));
+						return false;
+					}
 					code = curl_easy_setopt(handle, option, (long)os->toInt());
 					break;
 
 				case OPT_LARGE:
+					if(!os->isNumber()){
+						triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be number"));
+						return false;
+					}
 					code = curl_easy_setopt(handle, option, (curl_off_t)os->toInt());
 					break;
 
 				case OPT_STRING:
+					if(!os->isString()){
+						triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be string"));
+						return false;
+					}
 					code = curl_easy_setopt(handle, option, os->toString().toChar());
 					break;
 
@@ -1126,7 +1156,7 @@ namespace ObjectScript {
 
 							if (!os->isString()) {
 								curl_slist_free_all(slist);
-								os->setException(OS_TEXT("array item must be string"));
+								triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be array of string values"));
 								return false;
 							}
 
@@ -1135,7 +1165,7 @@ namespace ObjectScript {
 						}
 						return setOption(option, slist);
 					}
-					os->setException(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be array"));
+					triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be array"));
 					return false;
 
 				case OPT_FILE:
@@ -1149,18 +1179,18 @@ namespace ObjectScript {
 						else if (option == CURLOPT_READDATA)
 							data = &this->read;
 						else if (option == CURLOPT_STDERR) {
-							os->setException(OS_TEXT("\"stderr\" is not supported"));
+							triggerError(OS_TEXT("\"stderr\" is not supported"));
 							return false;
 						} else if (option == CURLOPT_SHARE) {
 							if (share) {
-								os->setException(OS_TEXT("curl object is already sharing, unshare it first"));
+								triggerError(OS_TEXT("curl object is already sharing, unshare it first"));
 								return false;
 							}
 							CurlShare * share = CtypeValue<CurlShare*>::getArg(os, -1);
 							code = curl_easy_setopt(handle, option, share->handle());
 							break;
 						} else {
-							os->setException(OS::String(os, OS_TEXT("unsupported value type of curl option \"")) + name + OS_TEXT("\""));
+							triggerError(OS::String(os, OS_TEXT("unsupported value type of curl option \"")) + name + OS_TEXT("\""));
 							return false;
 						}
 
@@ -1179,7 +1209,7 @@ namespace ObjectScript {
 						data->behavior = CurlOS::Curl::BEHAVIOR_FILE;
 						return true;
 					}
-					os->setException(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be file object"));
+					triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be file object"));
 					return false;
 
 				case OPT_FUNC:
@@ -1200,10 +1230,9 @@ namespace ObjectScript {
 							data = &this->ioctl;
 							curl_easy_setopt(handle, option, CurlOS::Curl::ioctlCallback);
 						} else {
-							os->setException(OS::String(os, OS_TEXT("unsupported value type of curl option \"")) + name + OS_TEXT("\""));
+							triggerError(OS::String(os, OS_TEXT("unsupported value type of curl option \"")) + name + OS_TEXT("\""));
 							return false;
 						}
-
 						if (data->func_id) {
 							os->releaseValueById(data->func_id);
 							data->func_id = 0;
@@ -1218,6 +1247,8 @@ namespace ObjectScript {
 						data->behavior = CurlOS::Curl::BEHAVIOR_FUNC;
 						return true;
 					}
+					triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be function"));
+					return false;
 				}
 				if(code != CURLE_OK){
 					triggerError(code);
@@ -1226,7 +1257,7 @@ namespace ObjectScript {
 				return true;
 			}
 		}
-		os->setException(OS::String(os, OS_TEXT("unknown curl option \"")) + name + OS_TEXT("\""));
+		triggerError(OS::String(os, OS_TEXT("unknown curl option \"")) + name + OS_TEXT("\""));
 		return false;
 	}
 
@@ -1258,13 +1289,12 @@ namespace ObjectScript {
 #ifndef _MSC_VER
 		case CURLINFO_RTSP_CLIENT_CSEQ:
 		case CURLINFO_RTSP_SERVER_CSEQ:
-		case CURLINFO_RTSP_CSEQ_RECV: {
+		case CURLINFO_RTSP_CSEQ_RECV:
 			/* long */
 			value.lvalue = 0;
 			value.type = LONG;
 			value.result = curl_easy_getinfo(handle, info, &value.lvalue);
 			break;
-									  }
 #endif
 		case CURLINFO_CONTENT_TYPE:
 		case CURLINFO_EFFECTIVE_URL:
@@ -1275,13 +1305,12 @@ namespace ObjectScript {
 		case CURLINFO_REDIRECT_URL:
 		case CURLINFO_PRIMARY_IP:
 #if LIBCURL_VERSION_NUM >= 0x071400
-		case CURLINFO_RTSP_SESSION_ID: {
+		case CURLINFO_RTSP_SESSION_ID:
 			/* string */
 			value.cvalue = NULL;
 			value.type = CHAR_PTR;
 			value.result = curl_easy_getinfo(handle, info, (char **)&value.cvalue);
 			break;
-									   }
 #endif
 		case CURLINFO_TOTAL_TIME:
 		case CURLINFO_NAMELOOKUP_TIME:
@@ -1295,34 +1324,31 @@ namespace ObjectScript {
 		case CURLINFO_SPEED_UPLOAD:
 		case CURLINFO_CONTENT_LENGTH_DOWNLOAD:
 		case CURLINFO_CONTENT_LENGTH_UPLOAD:
-		case CURLINFO_REDIRECT_TIME: {
+		case CURLINFO_REDIRECT_TIME:
 			/* double */
 			value.dvalue = 0.0;
 			value.type = DOUBLE;
 			value.result = curl_easy_getinfo(handle, info, &value.dvalue);
 			break;
-									 }
 
 		case CURLINFO_SSL_ENGINES:
-		case CURLINFO_COOKIELIST: {
+		case CURLINFO_COOKIELIST:
 			/* slist */
 			value.slvalue = NULL;
 			value.type = SLIST_PTR;
 			value.result = curl_easy_getinfo(handle, info, (curl_slist **)&value.slvalue);
 			break;
-								  }
 
 #if LIBCURL_VERSION_NUM >= 0x071301
-		case CURLINFO_CERTINFO: {
+		case CURLINFO_CERTINFO:
 			value.civalue = NULL;
 			value.type = CERTINFO_PTR;
 			value.result = curl_easy_getinfo(handle, info, (curl_certinfo **)&value.civalue);
 			break;
-								}
 #endif
 
 		default:
-			os->setException(OS_TEXT("invalid argument to getInfo"));
+			triggerError(OS_TEXT("wrong arguments"));
 		}
 
 		return value;
@@ -1337,7 +1363,7 @@ namespace ObjectScript {
 		OS *os = NULL;
 		CURLcode res = curl_easy_getinfo(curl->handle, CURLINFO_PRIVATE, (char **)&os);
 		if (res != CURLE_OK || !os || os != curl->os) { // paranoid check
-			os->setException(OS_TEXT("unexpected error"));
+			curl->triggerError(OS_TEXT("unexpected error"));
 			return length;
 		}
 
@@ -1394,7 +1420,7 @@ namespace ObjectScript {
 		OS *os = NULL;
 		CURLcode res = curl_easy_getinfo(curl->handle, CURLINFO_PRIVATE, (char **)&os);
 		if (res != CURLE_OK || !os || os != curl->os) { // paranoid check
-			os->setException(OS_TEXT("unexpected error"));
+			curl->triggerError(OS_TEXT("unexpected error"));
 			return length;
 		}
 
@@ -1443,7 +1469,7 @@ namespace ObjectScript {
 		OS *os = NULL;
 		CURLcode res = curl_easy_getinfo(curl->handle, CURLINFO_PRIVATE, (char **)&os);
 		if (res != CURLE_OK || !os || os != curl->os) { // paranoid check
-			os->setException(OS_TEXT("unexpected error"));
+			curl->triggerError(OS_TEXT("unexpected error"));
 			return CURLE_OK;
 		}
 
@@ -1497,7 +1523,7 @@ namespace ObjectScript {
 		OS *os = NULL;
 		CURLcode res = curl_easy_getinfo(curl->handle, CURLINFO_PRIVATE, (char **)&os);
 		if (res != CURLE_OK || !os || os != curl->os) { // paranoid check
-			os->setException(OS_TEXT("unexpected error"));
+			curl->triggerError(OS_TEXT("unexpected error"));
 			return CURLE_OK;
 		}
 
@@ -1533,7 +1559,7 @@ namespace ObjectScript {
 		OS *os = NULL;
 		CURLcode res = curl_easy_getinfo(curl->handle, CURLINFO_PRIVATE, (char **)&os);
 		if (res != CURLE_OK || !os || os != curl->os) { // paranoid check
-			os->setException(OS_TEXT("unexpected error"));
+			curl->triggerError(OS_TEXT("unexpected error"));
 			return CURLE_OK;
 		}
 
@@ -1566,7 +1592,7 @@ namespace ObjectScript {
 		OS *os = NULL;
 		CURLcode res = curl_easy_getinfo(curl->handle, CURLINFO_PRIVATE, (char **)&os);
 		if (res != CURLE_OK || !os || os != curl->os) { // paranoid check
-			os->setException(OS_TEXT("unexpected error"));
+			curl->triggerError(OS_TEXT("unexpected error"));
 			return CURLIOE_OK;
 		}
 
@@ -1578,7 +1604,7 @@ namespace ObjectScript {
 			os->call(1, 1);
 			ret = (curlioerr)os->popInt(CURLIOE_OK);
 			if (ret >= CURLIOE_LAST || ret < 0) {
-				os->setException(OS_TEXT("ioctl callback returned invalid value"));
+				curl->triggerError(OS_TEXT("ioctl callback returned invalid value"));
 				ret = CURLIOE_FAILRESTART;
 			}
 			break;
@@ -1620,16 +1646,16 @@ namespace ObjectScript {
 				if (!self->init()) {
 					self->~Curl();
 					os->free(self);
-					os->setException(OS::String(os, "error to init curl object"));
 					return 0;
 				}
 				if (params == 1 && os->isObject(-params+0)) {
 					while (os->nextIteratorStep()) {
-						self->setOption();
+						if(!self->setOption())
+							break;
 						os->pop(2);
 					}
 				} else if(params != 0) {
-					os->setException(OS_TEXT("wrong arguments"));
+					self->triggerError(OS_TEXT("wrong arguments"));
 				}
 				if(os->isExceptionSet()){
 					self->~Curl();
@@ -1645,14 +1671,14 @@ namespace ObjectScript {
 				OS_GET_SELF(Curl*);
 
 				if (params) {
-					os->setException(OS::String(os, "invalid syntax"));
+					self->triggerError(OS::String(os, "wrong arguments"));
 					return 0;
 				}
 
 				Curl * copy = new (os->malloc(sizeof(Curl) OS_DBG_FILEPOS)) Curl(os);
 				copy->handle = curl_easy_duphandle(self->handle);
 				if (!copy->handle) {
-					os->setException(OS_TEXT("cannot duplicate cURL handle"));
+					self->triggerError(OS_TEXT("can't clone curl handle"));
 					os->free(copy);
 					return 0;
 				}
@@ -1683,7 +1709,9 @@ namespace ObjectScript {
 
 				CURLcode ret = self->perform();
 				if (ret != CURLE_OK) { // && ret != CURLE_PARTIAL_FILE) {
-					self->triggerError(ret);
+					if(!os->isExceptionSet()){
+						self->triggerError(ret);
+					}
 					return 0;
 				}
 
@@ -1713,11 +1741,12 @@ namespace ObjectScript {
 				OS_GET_SELF(Curl*);
 				if (params == 1 && os->isObject(-params+0)) {
 					while (os->nextIteratorStep()) {
-						self->setOption();
+						if(!self->setOption())
+							return 0;
 						os->pop(2);
 					}
 				} else {
-					os->setException(OS_TEXT("wrong arguments"));
+					self->triggerError(OS_TEXT("wrong arguments"));
 				}
 				return 0;
 			}
@@ -1729,7 +1758,7 @@ namespace ObjectScript {
 					// os->pop(params - 2);
 					self->setOption();
 				} else {
-					os->setException(OS_TEXT("wrong arguments"));
+					self->triggerError(OS_TEXT("wrong arguments"));
 				}
 				return 0;
 			}
@@ -1789,7 +1818,7 @@ namespace ObjectScript {
 				OS_GET_SELF(Curl*);
 
 				if (params > 1) {
-					os->setException(OS::String(os, "wrong arguments number"));
+					self->triggerError(OS::String(os, "wrong arguments number"));
 					return 0;
 				} else if(params) {
 					if (os->isObject(-params+0)) {
@@ -2343,14 +2372,15 @@ namespace ObjectScript {
 			static int __construct(OS * os, int params, int, int, void * user_param)
 			{
 				if (params) {
-					os->setException("invalid syntax");
+					os->setException("wrong arguments");
 					return 0;
 				}
 
 				CurlShare * self = new (os->malloc(sizeof(CurlShare) OS_DBG_FILEPOS)) CurlShare(os);
 				if (!self->init()) {
+					os->setException("could not init curl share object");
+					self->~CurlShare();
 					os->free(self);
-					os->setException("could not init CURLSH object");
 					return 0;
 				}
 
@@ -2361,7 +2391,7 @@ namespace ObjectScript {
 			static int errorStr(OS * os, int params, int, int, void * user_param)
 			{
 				if (params != 1) {
-					os->setException("invalid syntax");
+					os->setException("wrong arguments");
 					return 0;
 				}
 
@@ -2371,37 +2401,38 @@ namespace ObjectScript {
 				return 1;
 			}
 
-			static int setOpt(OS * os, int params, int, int, void * user_param)
+			static int setOption(OS * os, int params, int, int, void * user_param)
 			{
 				CURLSHcode res = CURLSHE_OK;
 				OS_GET_SELF(CurlShare*);
 
 				if (params == 1 && os->isObject(-params+0)) {
-					os->pushStackValue(-params+0);
 					while (os->nextIteratorStep()) {
 						CURLSHoption opt = CtypeValue<CURLSHoption>::getArg(os, -2);
 						if (CtypeValue<CURLSHoption>::isValid(opt))
 							res = curl_share_setopt(self->share_handle, opt, os->toNumber());
 						os->pop(2);
 					}
-					os->pop();
 				} else if (params == 2) {
 					CURLSHoption opt = CtypeValue<CURLSHoption>::getArg(os, -params+0);
 					if (CtypeValue<CURLSHoption>::isValid(opt))
 						res = curl_share_setopt(self->share_handle, opt, os->toNumber(-params+1));
 				} else {
-					os->setException("invalid syntax");
+					os->setException("wrong arguments");
 					return 0;
 				}
-
-				os->pushNumber(res);
-				return 1;
+				if(res != CURLSHE_OK){
+					const char * msg = curl_share_strerror(res);
+					os->setException(msg ? msg : "unexpected error");
+					return 0;
+				}
+				return 0;
 			}
 		};
 
 		OS::FuncDef funcs[] = {
 			{OS_TEXT("__construct"), Lib::__construct},
-			{OS_TEXT("setOpt"), Lib::setOpt},
+			{OS_TEXT("option"), Lib::setOption},
 			{OS_TEXT("errorStr"), Lib::errorStr},
 			{}
 		};
