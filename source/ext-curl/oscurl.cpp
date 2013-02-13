@@ -46,7 +46,7 @@
 #endif
 
 /* Calculate the number of OBJECTPOINT options we need to store */
-// #define OPTIONS_SIZE    ((int)CURLOPT_LASTENTRY % 10000)
+#define OPTIONS_SIZE    ((int)CURLOPT_LASTENTRY % 10000)
 // #define MOPTIONS_SIZE   ((int)CURLMOPT_LASTENTRY % 10000)
 
 namespace ObjectScript {
@@ -494,7 +494,14 @@ namespace ObjectScript {
 
 		static bool isValid(type option)
 		{
-			return (int)option >= 0 && (int)option < CURLOPT_LASTENTRY;
+			if (option <= 0)
+				return false;
+			if (option >= (int)CURLOPTTYPE_OFF_T + OPTIONS_SIZE)
+				return false;
+			if (option % 10000 >= OPTIONS_SIZE)
+				return false;
+
+			return true;
 		}
 
 		static type def(ObjectScript::OS * os) { return (type)0; }
