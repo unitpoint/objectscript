@@ -2732,11 +2732,6 @@ int OS::Core::Compiler::cacheString(const String& str)
 	return cacheString(prog_strings_table, prog_strings, str);
 }
 
-int OS::Core::Compiler::cacheDebugString(const String& str)
-{
-	return cacheString(prog_debug_strings_table, prog_debug_strings, str);
-}
-
 int OS::Core::Compiler::cacheNumber(OS_NUMBER num)
 {
 	PropertyIndex index(num);
@@ -2753,14 +2748,26 @@ int OS::Core::Compiler::cacheNumber(OS_NUMBER num)
 	return prog_numbers_table->count-1;
 }
 
+OS::Core::Compiler::DebugInfoItem::DebugInfoItem(int p_line, int p_pos)
+{
+	line = (OS_U32)p_line;
+	pos = (OS_U32)p_pos;
+}
+
 void OS::Core::Compiler::writeDebugInfo(Expression * exp)
 {
-	if(prog_debug_info){
-		prog_num_debug_infos++;
-		prog_debug_info->writeUVariable(getOpcodePos());
-		prog_debug_info->writeUVariable(exp->token->line+1);
-		prog_debug_info->writeUVariable(exp->token->pos+1);
-		prog_debug_info->writeUVariable(cacheDebugString(exp->token->str));
+	if(allocator->core->settings.create_debug_info){
+		int opcode_pos = getOpcodePos();
+		while(opcode_pos > prog_debug_info.count){
+			allocator->vectorAddItem(prog_debug_info, DebugInfoItem(0, 0) OS_DBG_FILEPOS);
+		}
+		OS_ASSERT(opcode_pos == prog_debug_info.count || opcode_pos+1 == prog_debug_info.count);
+		DebugInfoItem item(exp->token->line + 1, exp->token->pos + 1);
+		if(opcode_pos+1 == prog_debug_info.count){
+			prog_debug_info.lastElement() = item;
+			return;
+		}
+		allocator->vectorAddItem(prog_debug_info, item OS_DBG_FILEPOS);
 	}
 }
 
@@ -3405,12 +3412,9 @@ OS::Core::Compiler::Compiler(Tokenizer * p_tokenizer)
 	recent_printed_text_data = NULL;
 	recent_printed_line = 0;
 
-	// prog = NULL;
 	prog_strings_table = NULL;
-	prog_debug_strings_table = NULL;
 	prog_numbers_table = NULL;
-	prog_debug_info = NULL;
-	prog_num_debug_infos = 0;
+	prog_filename_string_index = 0;
 	prog_max_up_count = 0;
 }
 
@@ -3427,23 +3431,17 @@ OS::Core::Compiler::~Compiler()
 		allocator->core->deleteTable(prog_strings_table);
 		prog_strings_table = NULL;
 	}
-	if(prog_debug_strings_table){
-		allocator->core->deleteTable(prog_debug_strings_table);
-		prog_debug_strings_table = NULL;
-	}
 	allocator->vectorClear(prog_numbers);
 	allocator->vectorClear(prog_strings);
-	allocator->vectorClear(prog_debug_strings);
 	allocator->vectorClear(prog_functions);
 	allocator->vectorClear(prog_opcodes);
-	allocator->deleteObj(prog_debug_info);
-	// allocator->deleteObj(tokenizer);
+	allocator->vectorClear(prog_debug_info);
 }
 
 bool OS::Core::Compiler::compile()
 {
-	OS_ASSERT(!prog_strings_table && !prog_debug_strings_table && !prog_numbers_table);
-	OS_ASSERT(!prog_functions.count && !prog_numbers.count && !prog_strings.count);
+	OS_ASSERT(!prog_strings_table && !prog_numbers_table && !prog_filename_string_index);
+	OS_ASSERT(!prog_functions.count && !prog_numbers.count && !prog_strings.count && !prog_debug_info.count);
 
 	Scope * scope = NULL;
 	if(tokenizer->isError()){
@@ -3463,41 +3461,37 @@ bool OS::Core::Compiler::compile()
 		OS::String filename(allocator, tokenizer->getTextData()->filename);
 		bool is_eval = filename.getDataSize() == 0;
 
-		if((!is_eval || allocator->core->settings.create_debug_eval_opcodes) && 
-			allocator->core->settings.create_debug_opcodes)
+		if((!is_eval || allocator->core->settings.create_text_eval_opcodes) && 
+			allocator->core->settings.create_text_opcodes)
 		{
 			Buffer dump(allocator);
 			OS_ASSERT(dynamic_cast<Scope*>(exp));
 			exp->debugPrint(dump, this, dynamic_cast<Scope*>(exp), 0);
-			OS::String dump_filename = allocator->getDebugOpcodesFilename(filename);
+			OS::String dump_filename = allocator->getTextOpcodesFilename(filename);
 			FileStreamWriter(allocator, dump_filename).writeBytes(dump.buffer.buf, dump.buffer.count);
 		}
-		prog_debug_strings_table = allocator->core->newTable(OS_DBG_FILEPOS_START);
-		prog_debug_info = new (malloc(sizeof(MemStreamWriter) OS_DBG_FILEPOS)) MemStreamWriter(allocator);
-
+		if(allocator->core->settings.create_debug_info){
+			prog_filename_string_index = cacheString(filename);
+		}else{
+			prog_filename_string_index = cacheString(String(allocator));
+		}
 		if(!writeOpcodes(scope, exp)){
 			// TODO:
 		}
 
 		MemStreamWriter mem_writer(allocator);
-		MemStreamWriter debuginfo_mem_writer(allocator);
-		saveToStream(&mem_writer, &debuginfo_mem_writer);
+		saveToStream(&mem_writer);
 
 		if(!is_eval && allocator->core->settings.create_compiled_file){
 			OS::String compiled_filename = allocator->getCompiledFilename(filename);
 			FileStreamWriter(allocator, compiled_filename).writeBytes(mem_writer.buffer.buf, mem_writer.buffer.count);
-			if(allocator->core->settings.create_debug_info){
-				OS::String debug_info_filename = allocator->getDebugInfoFilename(filename);
-				FileStreamWriter(allocator, debug_info_filename).writeBytes(debuginfo_mem_writer.buffer.buf, debuginfo_mem_writer.buffer.count);
-			}
 		}
 
 		Program * prog = new (malloc(sizeof(Program) OS_DBG_FILEPOS)) Program(allocator);
-		prog->filename = tokenizer->getTextData()->filename;
+		// prog->filename = tokenizer->getTextData()->filename;
 
 		MemStreamReader mem_reader(NULL, mem_writer.buffer.buf, mem_writer.buffer.count);
-		MemStreamReader debuginfo_mem_reader(NULL, debuginfo_mem_writer.buffer.buf, debuginfo_mem_writer.buffer.count);
-		prog->loadFromStream(&mem_reader, &debuginfo_mem_reader);
+		prog->loadFromStream(&mem_reader);
 
 		prog->pushStartFunction();
 		prog->release();
@@ -7469,8 +7463,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 	ExpressionType right_exp_type = getExpressionType(recent_token->type);
 	OpcodeLevel left_level = getOpcodeLevel(left_exp_type);
 	OpcodeLevel right_level = getOpcodeLevel(right_exp_type);
-	if(left_exp_type == EXP_TYPE_ASSIGN && right_exp_type == EXP_TYPE_ASSIGN){
-		right_level = (OpcodeLevel)(right_level + 1);
+	if(left_exp_type != EXP_TYPE_PARAMS && right_exp_type == EXP_TYPE_ASSIGN){
+		right_level = (OpcodeLevel)(left_level + 1);
 	}
 	if(left_level == right_level){
 		exp = newBinaryExpression(scope, left_exp_type, binary_operator, exp, exp2);
@@ -8732,7 +8726,7 @@ OS::Core::Program::~Program()
 	allocator->vectorClear(debug_info);
 }
 
-bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debug_info_writer)
+bool OS::Core::Compiler::saveToStream(StreamWriter * writer)
 {
 	writer->writeBytes(OS_COMPILED_HEADER, (int)OS_STRLEN(OS_COMPILED_HEADER));
 
@@ -8778,10 +8772,13 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 	writer->writeUVariable(prog_strings.count);
 	writer->writeUVariable(prog_functions.count);
 	writer->writeUVariable(prog_opcodes.count);
+	writer->writeUVariable(prog_debug_info.count);
+	writer->writeUVariable(prog_filename_string_index);
 
 	writer->writeBytes(int_stream.buffer.buf, int_stream.buffer.count);
 	writer->writeBytes(float_stream.buffer.buf, float_stream.buffer.count);
 	writer->writeBytes(double_stream.buffer.buf, double_stream.buffer.count);
+	writer->writeBytes(long_double_stream.buffer.buf, long_double_stream.buffer.count);
 
 	for(i = 0; i < prog_strings.count; i++){
 		const String& str = prog_strings[i];
@@ -8831,30 +8828,16 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer, StreamWriter * debu
 		writer->writeInt32(prog_opcodes[i]);
 	}
 
-	if(debug_info_writer){
-		debug_info_writer->writeBytes(OS_DEBUGINFO_HEADER, (int)OS_STRLEN(OS_DEBUGINFO_HEADER));
-
-		len = (int)OS_STRLEN(OS_VERSION)+1;
-		debug_info_writer->writeByte(len);
-		debug_info_writer->writeBytes(OS_VERSION, len);
-
-		debug_info_writer->writeUVariable(prog_debug_strings.count);
-		debug_info_writer->writeUVariable(prog_num_debug_infos);
-
-		for(i = 0; i < prog_debug_strings.count; i++){
-			const String& str = prog_debug_strings[i];
-			int data_size = str.getDataSize();
-			debug_info_writer->writeUVariable(data_size);
-			debug_info_writer->writeBytes(str.toChar(), data_size);
-		}
-
-		debug_info_writer->writeBytes(prog_debug_info->buffer.buf, prog_debug_info->buffer.count);
+	for(i = 0; i < prog_debug_info.count; i++){
+		DebugInfoItem& item = prog_debug_info[i];
+		writer->writeUVariable(item.line);
+		writer->writeUVariable(item.pos);
 	}
 
 	return true;
 }
 
-bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * debuginfo_reader)
+bool OS::Core::Program::loadFromStream(StreamReader * reader)
 {
 	OS_ASSERT(!opcodes.count && !const_values && !num_numbers && !num_strings && !debug_info.count);
 
@@ -8877,6 +8860,10 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 	num_strings = reader->readUVariable();
 	num_functions = reader->readUVariable();
 	int opcodes_size = reader->readUVariable();
+	int num_debug_infos = reader->readUVariable();
+	OS_ASSERT(!num_debug_infos || num_debug_infos == opcodes_size || num_debug_infos + 1 == opcodes_size);
+	int prog_filename_string_index = reader->readUVariable();
+	OS_ASSERT(prog_filename_string_index >= 0 && prog_filename_string_index < num_strings);
 
 	const_values = (Value*)allocator->malloc(sizeof(Value) * (num_numbers + num_strings + CONST_STD_VALUES) OS_DBG_FILEPOS);
 
@@ -8909,17 +8896,20 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		OS_NUMBER number = (OS_NUMBER)reader->readLongDouble();
 		const_values[num_index + CONST_STD_VALUES] = number;
 	}
+
 	Buffer buf(allocator);
 	for(i = 0; i < num_strings; i++){
 		int data_size = reader->readUVariable();
 		buf.reserveCapacity(data_size);
 		reader->readBytes(buf.buffer.buf, data_size);
 		buf.buffer.count = data_size;
+
 		GCStringValue * string = buf.toGCStringValue();
 		string->external_ref_count++;
 		const_values[i + num_numbers + CONST_STD_VALUES] = string;
 		buf.freeCacheStr();
 	}
+	filename = OS_VALUE_VARIANT(const_values[prog_filename_string_index + num_numbers + CONST_STD_VALUES]).string;
 
 	functions = (FunctionDecl*)allocator->malloc(sizeof(FunctionDecl) * num_functions OS_DBG_FILEPOS);
 	for(i = 0; i < num_functions; i++){
@@ -8968,42 +8958,11 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 		opcodes[i] = (OS_U32)reader->readInt32();
 	}
 
-	if(debuginfo_reader){
-		len = (int)OS_STRLEN(OS_DEBUGINFO_HEADER);
-		if(!debuginfo_reader->checkBytes(OS_DEBUGINFO_HEADER, len)){
-			return false;
-		}
-
-		len = (int)OS_STRLEN(OS_VERSION)+1;
-		debuginfo_reader->movePos(1);
-		if(!debuginfo_reader->checkBytes(OS_VERSION, len)){
-			return false;
-		}
-		int num_strings = debuginfo_reader->readUVariable();
-		int num_debug_infos = debuginfo_reader->readUVariable();
-
-		Vector<String> strings;
-		allocator->vectorReserveCapacity(strings, num_strings OS_DBG_FILEPOS);
-
-		Buffer buf(allocator);
-		for(i = 0; i < num_strings; i++){
-			int data_size = debuginfo_reader->readUVariable();
-			buf.reserveCapacity(data_size);
-			debuginfo_reader->readBytes(buf.buffer.buf, data_size);
-			buf.buffer.count = data_size;
-			allocator->vectorAddItem(strings, buf.toString() OS_DBG_FILEPOS);
-			buf.freeCacheStr();
-		}
-
-		allocator->vectorReserveCapacity(debug_info, num_debug_infos OS_DBG_FILEPOS);
-		for(i = 0; i < num_debug_infos; i++){
-			int end_opcode_offs = debuginfo_reader->readUVariable();
-			int line = debuginfo_reader->readUVariable();
-			int pos = debuginfo_reader->readUVariable();
-			int string_index = debuginfo_reader->readUVariable();
-			allocator->vectorAddItem(debug_info, DebugInfoItem(end_opcode_offs, line, pos, strings[string_index]) OS_DBG_FILEPOS);
-		}
-		allocator->vectorClear(strings);
+	allocator->vectorReserveCapacity(debug_info, num_debug_infos OS_DBG_FILEPOS);
+	for(i = 0; i < num_debug_infos; i++){
+		int line = reader->readUVariable();
+		int pos = reader->readUVariable();
+		allocator->vectorAddItem(debug_info, DebugInfoItem(line, pos) OS_DBG_FILEPOS);
 	}
 
 	return true;
@@ -9011,24 +8970,18 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader, StreamReader * deb
 
 OS::Core::Program::DebugInfoItem * OS::Core::Program::getDebugInfo(int opcode_pos)
 {
-	Program::DebugInfoItem * info = NULL;
-	for(int i = 0; i < debug_info.count; i++){
-		Program::DebugInfoItem * cur = &debug_info[i];
-		if(cur->opcode_pos < opcode_pos){
-			info = cur;
-		}
-		if(cur->opcode_pos > opcode_pos){
-			break;
-		}
+	// opcode_pos is next opcode of needed
+	opcode_pos--;
+	if(opcode_pos >= 0 && opcode_pos < debug_info.count){
+		return &debug_info[opcode_pos];
 	}
-	return info;
+	return NULL;
 }
 
-OS::Core::Program::DebugInfoItem::DebugInfoItem(int p_opcode_pos, int p_line, int p_pos, const String& p_token): token(p_token)
+OS::Core::Program::DebugInfoItem::DebugInfoItem(int p_line, int p_pos)
 {
-	opcode_pos = p_opcode_pos;
-	line = p_line;
-	pos = p_pos;
+	line = (OS_U32)p_line;
+	pos = (OS_U32)p_pos;
 }
 
 void OS::Core::Program::pushStartFunction()
@@ -9048,11 +9001,7 @@ void OS::Core::Program::pushStartFunction()
 	GCFunctionValue * func_value = allocator->core->newFunctionValue(NULL, this, func_decl, allocator->core->global_vars);
 	allocator->core->pushValue(func_value);
 	if(filename.getDataSize()){
-		Buffer buf(allocator);
-		buf += OS_TEXT("{{");
-		buf += OS_TEXT("main"); // allocator->getFilename(filename);
-		buf += OS_TEXT("}}");
-		func_value->name = buf.toGCStringValue();
+		func_value->name = allocator->core->newStringValue(OS_TEXT("{{main}}"));
 	}else{
 		func_value->name = allocator->core->newStringValue(OS_TEXT("{{CORE}}"));
 	}
@@ -12364,9 +12313,6 @@ void OS::Core::setExceptionValue(Value val)
 				allocator->pushNumber(debug_info.pos->pos);
 				allocator->setProperty(-2, OS_TEXT("pos"));
 		
-				allocator->pushString(debug_info.pos->token);
-				allocator->setProperty(-2, OS_TEXT("token"));
-				
 				pushBackTrace(0, 10);
 				allocator->setProperty(-2, OS_TEXT("trace"));
 			}
@@ -12430,8 +12376,8 @@ OS::Core::Core(OS * p_allocator)
 
 	settings.create_compiled_file = true;
 	settings.create_debug_info = true;
-	settings.create_debug_opcodes = true;
-	settings.create_debug_eval_opcodes = false;
+	settings.create_text_opcodes = true;
+	settings.create_text_eval_opcodes = false;
 	settings.primary_compiled_file = false;
 
 	gcInitGreyList();
@@ -12794,18 +12740,13 @@ OS::String OS::getCompiledFilename(const OS::String& resolved_filename)
 	return changeFilenameExt(resolved_filename, OS_EXT_COMPILED);
 }
 
-OS::String OS::getDebugInfoFilename(const String& resolved_filename)
+OS::String OS::getTextOpcodesFilename(const String& resolved_filename)
 {
-	return changeFilenameExt(resolved_filename, OS_EXT_DEBUG_INFO);
-}
-
-OS::String OS::getDebugOpcodesFilename(const String& resolved_filename)
-{
-	if(resolved_filename.getDataSize()){
-		return changeFilenameExt(resolved_filename, OS_EXT_DEBUG_OPCODES);
+	if(!resolved_filename.isEmpty()){
+		return changeFilenameExt(resolved_filename, OS_EXT_TEXT_OPCODES);
 	}
 	static int num_evals = 0;
-	return String(this, Core::String::format(this, OS_TEXT("eval-%d%s"), ++num_evals, OS_EXT_DEBUG_OPCODES));
+	return String(this, Core::String::format(this, OS_TEXT("eval-%d%s"), ++num_evals, OS_EXT_TEXT_OPCODES));
 }
 
 OS::String OS::resolvePath(const String& filename)
@@ -20571,11 +20512,17 @@ void OS::initPreScript()
 
 		modules_loaded = {};
 		function require(filename, required, source_code_type, check_utf8_bom){
-			return (filename = require.resolve(filename)) && (modules_loaded.getProperty(filename)
-				|| {||
-					modules_loaded[filename] = {} // block recursive require
-					return modules_loaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
-				}())
+			required === null && required = true
+			var resolved_filename = require.resolve(filename)
+			if(!resolved_filename){
+				required && throw "required "..filename.." is not found"
+				return
+			}
+			filename = resolved_filename
+			return (modules_loaded.getProperty(filename) || {||
+				modules_loaded[filename] = {} // block recursive require
+				return modules_loaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
+			}())
 		}
 		require.paths = []
 
@@ -20583,10 +20530,12 @@ void OS::initPreScript()
 			if("trace" in e){
 				printf("Unhandled exception: '%s'\n", e.message);
 				for(var i, t in e.trace){
-					printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+					printf("#%d %s%s: %s, args: %s\n", i, t.file, 
+						t.line > 0 ? "("..t.line..","..t.pos..")" : "", 
+						t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
 				}
 			}else{
-				printf("Unhandled exception: '%s' in %s(%d)\n", e.message, e.file, e.line);
+				printf("Unhandled exception: '%s' in %s%s\n", e.message, e.file, t.line > 0 ? "("..t.line..","..t.pos..")" : "");
 			}
 		}
 	));
@@ -20709,7 +20658,6 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 	String file_str(allocator, OS_TEXT("file"));
 	String line_str(allocator, OS_TEXT("line"));
 	String pos_str(allocator, OS_TEXT("pos"));
-	String token_str(allocator, OS_TEXT("token"));
 	String object_str(allocator, OS_TEXT("object"));
 	String arguments_str(allocator, OS_TEXT("arguments"));
 	String core_str(allocator, OS_TEXT("{{CORE}}"));
@@ -20738,9 +20686,8 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 			int opcode_pos = (int)(stack_func->opcodes - prog->opcodes.buf); // .getPos() + stack_func->func->func_decl->opcodes_pos;
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
-		setPropertyValue(obj, PropertyIndex(line_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->line : Value(), false);
-		setPropertyValue(obj, PropertyIndex(pos_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->pos : Value(), false);
-		setPropertyValue(obj, PropertyIndex(token_str, PropertyIndex::KeepStringIndex()), debug_info ? debug_info->token.string : Value(), false);
+		setPropertyValue(obj, PropertyIndex(line_str, PropertyIndex::KeepStringIndex()), debug_info ? (int)debug_info->line : Value(), false);
+		setPropertyValue(obj, PropertyIndex(pos_str, PropertyIndex::KeepStringIndex()), debug_info ? (int)debug_info->pos : Value(), false);
 
 		setPropertyValue(obj, PropertyIndex(object_str, PropertyIndex::KeepStringIndex()), stack_func->locals->values[PRE_VAR_THIS], false);
 
@@ -20987,29 +20934,14 @@ bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType
 	if(!sourcecode_file_exist){
 		OS_ASSERT(compiled_file_exist);
 		Core::Program * prog = new (malloc(sizeof(Core::Program) OS_DBG_FILEPOS)) Core::Program(this);
-		prog->filename = compiled_filename;
+		// prog->filename = compiled_filename;
 
 		Core::FileStreamReader prog_file_reader(this, compiled_filename);
 		Core::MemStreamWriter prog_file_data(this);
 		prog_file_data.writeFromStream(&prog_file_reader);
 		Core::MemStreamReader prog_reader(NULL, prog_file_data.buffer.buf, prog_file_data.getSize());
 
-		bool loaded = true;
-		String debug_info_filename = getDebugInfoFilename(filename);
-		if(isFileExist(debug_info_filename)){
-			Core::FileStreamReader debug_info_file_reader(this, debug_info_filename);
-			Core::MemStreamWriter debug_info_file_data(this);
-			debug_info_file_data.writeFromStream(&debug_info_file_reader);
-			Core::MemStreamReader debug_info_reader(NULL, debug_info_file_data.buffer.buf, debug_info_file_data.getSize());
-			if(!prog->loadFromStream(&prog_reader, &debug_info_reader)){
-				// prog->release();
-				loaded = false;
-			}
-		}else if(!prog->loadFromStream(&prog_reader, NULL)){
-			// prog->release();
-			loaded = false;
-		}
-		if(loaded){
+		if(prog->loadFromStream(&prog_reader)){
 			prog->pushStartFunction();
 			prog->release();
 			return true;
@@ -21116,11 +21048,11 @@ int OS::getSetting(OS_ESettings setting)
 	case OS_SETTING_CREATE_DEBUG_INFO:
 		return core->settings.create_debug_info;
 
-	case OS_SETTING_CREATE_DEBUG_OPCODES:
-		return core->settings.create_debug_opcodes;
+	case OS_SETTING_CREATE_TEXT_OPCODES:
+		return core->settings.create_text_opcodes;
 
-	case OS_SETTING_CREATE_DEBUG_EVAL_OPCODES:
-		return core->settings.create_debug_eval_opcodes;
+	case OS_SETTING_CREATE_TEXT_EVAL_OPCODES:
+		return core->settings.create_text_eval_opcodes;
 
 	case OS_SETTING_CREATE_COMPILED_FILE:
 		return core->settings.create_compiled_file;
@@ -21146,11 +21078,11 @@ int OS::setSetting(OS_ESettings setting, int value)
 	case OS_SETTING_CREATE_DEBUG_INFO:
 		return Lib::ret(core->settings.create_debug_info, value);
 
-	case OS_SETTING_CREATE_DEBUG_OPCODES:
-		return Lib::ret(core->settings.create_debug_opcodes, value);
+	case OS_SETTING_CREATE_TEXT_OPCODES:
+		return Lib::ret(core->settings.create_text_opcodes, value);
 
-	case OS_SETTING_CREATE_DEBUG_EVAL_OPCODES:
-		return Lib::ret(core->settings.create_debug_eval_opcodes, value);
+	case OS_SETTING_CREATE_TEXT_EVAL_OPCODES:
+		return Lib::ret(core->settings.create_text_eval_opcodes, value);
 
 	case OS_SETTING_CREATE_COMPILED_FILE:
 		return Lib::ret(core->settings.create_compiled_file, value);

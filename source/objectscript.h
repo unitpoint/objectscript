@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.0.2-dev")
+#define OS_VERSION OS_TEXT("1.0.3-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -162,8 +162,7 @@ inline void operator delete(void *, void *){}
 #define OS_EXT_TEMPLATE_HTML OS_TEXT(".html")
 #define OS_EXT_TEMPLATE_HTM OS_TEXT(".htm")
 #define OS_EXT_COMPILED OS_TEXT(".osc")
-#define OS_EXT_DEBUG_INFO OS_TEXT(".osd")
-#define OS_EXT_DEBUG_OPCODES OS_TEXT(".txt")
+#define OS_EXT_TEXT_OPCODES OS_TEXT(".txt")
 
 #define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
 
@@ -229,8 +228,8 @@ namespace ObjectScript
 
 	enum OS_ESettings
 	{
-		OS_SETTING_CREATE_DEBUG_OPCODES,
-		OS_SETTING_CREATE_DEBUG_EVAL_OPCODES,
+		OS_SETTING_CREATE_TEXT_OPCODES,
+		OS_SETTING_CREATE_TEXT_EVAL_OPCODES,
 		OS_SETTING_CREATE_DEBUG_INFO,
 		OS_SETTING_CREATE_COMPILED_FILE,
 		OS_SETTING_PRIMARY_COMPILED_FILE,
@@ -2066,16 +2065,21 @@ namespace ObjectScript
 				int recent_printed_line;
 
 				// code generation
+				struct DebugInfoItem
+				{
+					OS_U32 line;
+					OS_U32 pos;
+					DebugInfoItem(int line, int pos);
+				};
+
 				Table * prog_numbers_table;
 				Table * prog_strings_table;
-				Table * prog_debug_strings_table;
 				Vector<OS_NUMBER> prog_numbers;
 				Vector<String> prog_strings;
-				Vector<String> prog_debug_strings;
 				Vector<Scope*> prog_functions;
 				Vector<OS_U32> prog_opcodes;
-				MemStreamWriter * prog_debug_info;
-				int prog_num_debug_infos;
+				Vector<DebugInfoItem> prog_debug_info;
+				int prog_filename_string_index;
 				int prog_max_up_count;
 
 				bool isError();
@@ -2207,7 +2211,7 @@ namespace ObjectScript
 				bool writeOpcodesOld(Scope*, Expression*);
 				bool writeOpcodesOld(Scope*, ExpressionList&);
 				void writeDebugInfo(Expression*);
-				bool saveToStream(StreamWriter * writer, StreamWriter * debug_info_writer);
+				bool saveToStream(StreamWriter * writer);
 
 			public:
 
@@ -2281,15 +2285,12 @@ namespace ObjectScript
 				int num_functions;
 
 				Vector<OS_U32> opcodes;
-
+				
 				struct DebugInfoItem
 				{
-					int opcode_pos;
-					int line;
-					int pos;
-					String token;
-
-					DebugInfoItem(int opcode_pos, int line, int pos, const String&);
+					OS_U32 line;
+					OS_U32 pos;
+					DebugInfoItem(int line, int pos);
 				};
 				Vector<DebugInfoItem> debug_info;
 
@@ -2300,7 +2301,7 @@ namespace ObjectScript
 
 				static OpcodeType getOpcodeType(Compiler::ExpressionType);
 
-				bool loadFromStream(StreamReader * reader, StreamReader * debuginfo_reader);
+				bool loadFromStream(StreamReader * reader);
 				DebugInfoItem * getDebugInfo(int opcode_pos);
 
 				void pushStartFunction();
@@ -2609,8 +2610,8 @@ namespace ObjectScript
 			int gc_step_size;
 
 			struct {
-				bool create_debug_opcodes;
-				bool create_debug_eval_opcodes;
+				bool create_text_opcodes;
+				bool create_text_eval_opcodes;
 				bool create_debug_info;
 				bool create_compiled_file;
 				bool primary_compiled_file;
@@ -3199,8 +3200,7 @@ namespace ObjectScript
 		String resolvePath(const String& filename);
 		virtual String resolvePath(const String& filename, const String& cur_path);
 		virtual String getCompiledFilename(const String& resolved_filename);
-		virtual String getDebugInfoFilename(const String& resolved_filename);
-		virtual String getDebugOpcodesFilename(const String& resolved_filename);
+		virtual String getTextOpcodesFilename(const String& resolved_filename);
 
 		virtual OS_EFileUseType checkFileUsage(const String& sourcecode_filename, const String& compiled_filename);
 
