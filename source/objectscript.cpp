@@ -2713,7 +2713,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 
 int OS::Core::Compiler::cacheString(Table * strings_table, Vector<String>& strings, const String& str)
 {
-	PropertyIndex index(str, PropertyIndex::KeepStringIndex());
+	PropertyIndex index(str);
 	Property * prop = strings_table->get(index);
 	if(prop){
 		OS_ASSERT(OS_IS_VALUE_NUMBER(prop->value));
@@ -9709,19 +9709,14 @@ OS::Core::PropertyIndex::PropertyIndex(const Value& p_index): index(p_index)
 	convertIndexStringToNumber();
 }
 
-OS::Core::PropertyIndex::PropertyIndex(const Value& p_index, const KeepStringIndex&): index(p_index)
-{
-	OS_ASSERT(OS_VALUE_TYPE(index) != OS_VALUE_TYPE_STRING || OS_VALUE_TYPE(PropertyIndex(p_index).index) == OS_VALUE_TYPE_STRING);
-}
-
 OS::Core::PropertyIndex::PropertyIndex(GCStringValue * p_index): index(p_index)
 {
 	convertIndexStringToNumber();
 }
 
-OS::Core::PropertyIndex::PropertyIndex(GCStringValue * p_index, const KeepStringIndex&): index(p_index)
+OS::Core::PropertyIndex::PropertyIndex(GCStringValue * p_index, const AutoNumber&): index(p_index)
 {
-	// OS_ASSERT(index.type != OS_VALUE_TYPE_STRING || PropertyIndex(p_index).index.type == OS_VALUE_TYPE_STRING);
+	convertIndexStringToNumber();
 }
 
 OS::Core::PropertyIndex::PropertyIndex(const String& p_index): index(p_index)
@@ -9729,9 +9724,9 @@ OS::Core::PropertyIndex::PropertyIndex(const String& p_index): index(p_index)
 	convertIndexStringToNumber();
 }
 
-OS::Core::PropertyIndex::PropertyIndex(const String& p_index, const KeepStringIndex&): index(p_index)
+OS::Core::PropertyIndex::PropertyIndex(const String& p_index, const AutoNumber&): index(p_index)
 {
-	// OS_ASSERT(index.type != OS_VALUE_TYPE_STRING || PropertyIndex(p_index).index.type == OS_VALUE_TYPE_STRING);
+	convertIndexStringToNumber();
 }
 
 void OS::Core::PropertyIndex::convertIndexStringToNumber()
@@ -9880,13 +9875,6 @@ OS::Core::Property::Property(const Value& index): PropertyIndex(index)
 	next = NULL;
 }
 
-OS::Core::Property::Property(const Value& index, const KeepStringIndex& keep): PropertyIndex(index, keep)
-{
-	hash_next = NULL;
-	prev = NULL;
-	next = NULL;
-}
-
 OS::Core::Property::Property(GCStringValue * index): PropertyIndex(index)
 {
 	hash_next = NULL;
@@ -9894,7 +9882,7 @@ OS::Core::Property::Property(GCStringValue * index): PropertyIndex(index)
 	next = NULL;
 }
 
-OS::Core::Property::Property(GCStringValue * index, const KeepStringIndex& keep): PropertyIndex(index, keep)
+OS::Core::Property::Property(GCStringValue * index, const AutoNumber& num): PropertyIndex(index, num)
 {
 	hash_next = NULL;
 	prev = NULL;
@@ -10205,7 +10193,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 			const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
 			int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 			GCStringValue * del_name = newStringValue(buf1, size1, buf2, size2);
-			if(getPropertyValue(value, table_value, PropertyIndex(del_name, PropertyIndex::KeepStringIndex()), prototype_enabled)
+			if(getPropertyValue(value, table_value, del_name, prototype_enabled)
 				&& value.isFunction())
 			{
 				pushValue(value);
@@ -10215,7 +10203,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 				return;
 			}
 		}
-		if(getPropertyValue(value, table_value, PropertyIndex(strings->__del, PropertyIndex::KeepStringIndex()), prototype_enabled)
+		if(getPropertyValue(value, table_value, strings->__del, prototype_enabled)
 			&& value.isFunction())
 		{
 			pushValue(value);
@@ -10258,7 +10246,7 @@ void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex
 void OS::Core::copyTableProperties(Table * dst, Table * src)
 {
 	for(Property * prop = src->first; prop; prop = prop->next){
-		setTableValue(dst, PropertyIndex(*prop), prop->value);
+		setTableValue(dst, *prop, prop->value);
 	}
 }
 
@@ -13238,7 +13226,7 @@ void OS::Core::triggerValueDestructor(GCValue * val)
 	val->is_destructor_called = true;
 
 	Value self = val;
-	PropertyIndex func(strings->__destruct, PropertyIndex::KeepStringIndex());
+	PropertyIndex func(strings->__destruct);
 	for(Property * prop;;){
 		Table * table = val->table;
 		if(table && (prop = table->get(func)) && prop->value.isFunction()){
@@ -13655,7 +13643,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 			const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
 			int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 			GCStringValue * setter_name = newStringValue(buf1, size1, buf2, size2);
-			if(getPropertyValue(func, table_value, PropertyIndex(setter_name, PropertyIndex::KeepStringIndex()), true)){
+			if(getPropertyValue(func, table_value, setter_name, true)){
 				pushValue(func);
 				pushValue(table_value);
 				pushValue(value);
@@ -13663,7 +13651,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 				return;
 			}
 		}
-		if(getPropertyValue(func, table_value, PropertyIndex(strings->__set, PropertyIndex::KeepStringIndex()), true)){
+		if(getPropertyValue(func, table_value, strings->__set, true)){
 			pushValue(func);
 			pushValue(table_value);
 			pushValue(index.index);
@@ -14265,7 +14253,7 @@ bool OS::Core::pushValueOf(Value val)
 
 	bool prototype_enabled = true;
 	Value func;
-	if(getPropertyValue(func, OS_VALUE_VARIANT(val).value, PropertyIndex(strings->func_valueOf, PropertyIndex::KeepStringIndex()), prototype_enabled)
+	if(getPropertyValue(func, OS_VALUE_VARIANT(val).value, strings->func_valueOf, prototype_enabled)
 		&& func.isFunction())
 	{
 		pushValue(func);
@@ -14342,8 +14330,7 @@ void OS::Core::pushCloneValue(Value value)
 {
 	bool prototype_enabled = true;
 	Value func;
-	if(getPropertyValue(func, value, 
-		PropertyIndex(strings->func_clone, PropertyIndex::KeepStringIndex()), prototype_enabled)
+	if(getPropertyValue(func, value, strings->func_clone, prototype_enabled)
 		&& func.isFunction())
 	{
 		pushValue(func);
@@ -14413,7 +14400,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 		{
 			Value func;
 			bool prototype_enabled = true;
-			PropertyIndex index(method_name, PropertyIndex::KeepStringIndex());
+			PropertyIndex index(method_name);
 			if(core->getPropertyValue(func, value, index, prototype_enabled) && func.isFunction()){
 				core->pushValue(func);
 				core->pushValue(value);
@@ -14491,7 +14478,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		{
 			Value func;
 			bool prototype_enabled = true;
-			PropertyIndex index(method_name, PropertyIndex::KeepStringIndex());
+			PropertyIndex index(method_name);
 			if(core->getPropertyValue(func, left_value, index, prototype_enabled) && func.isFunction()){
 				core->pushValue(func);
 				core->pushValue(left_value);
@@ -14699,7 +14686,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 
 void OS::Core::setGlobalValue(const String& name, Value value, bool setter_enabled)
 {
-	setPropertyValue(global_vars, Core::PropertyIndex(name), value, setter_enabled);
+	setPropertyValue(global_vars, name, value, setter_enabled);
 }
 
 void OS::Core::setGlobalValue(const OS_CHAR * name, Value value, bool setter_enabled)
@@ -15376,7 +15363,7 @@ void OS::setProperty(bool setter_enabled)
 		Core::Value object = core->stack_values[core->stack_values.count - 3];
 		Core::Value index = core->stack_values[core->stack_values.count - 2];
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
-		core->setPropertyValue(object, Core::PropertyIndex(index), value, setter_enabled);
+		core->setPropertyValue(object, index, value, setter_enabled);
 		pop(3);
 	}else{
 		// error
@@ -15394,7 +15381,7 @@ void OS::setProperty(const Core::String& name, bool setter_enabled)
 	if(core->stack_values.count >= 2){
 		Core::Value object = core->stack_values[core->stack_values.count - 2];
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
-		core->setPropertyValue(object, Core::PropertyIndex(name), value, setter_enabled);
+		core->setPropertyValue(object, name, value, setter_enabled);
 		pop(2);
 	}else{
 		// error
@@ -15412,7 +15399,7 @@ void OS::setProperty(int offs, const Core::String& name, bool setter_enabled)
 	if(core->stack_values.count >= 1){
 		Core::Value object = core->getStackValue(offs);
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
-		core->setPropertyValue(object, Core::PropertyIndex(name), value, setter_enabled);
+		core->setPropertyValue(object, name, value, setter_enabled);
 		pop();
 	}else{
 		// error
@@ -15657,7 +15644,7 @@ bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index, bo
 			const void * buf1 = strings->__issetAt.toChar();
 			int size1 = strings->__issetAt.getDataSize();
 			GCStringValue * isset_name = newStringValue(buf1, size1, buf2, size2);
-			if(getPropertyValue(value, table_value, PropertyIndex(isset_name, PropertyIndex::KeepStringIndex()), prototype_enabled)
+			if(getPropertyValue(value, table_value, isset_name, prototype_enabled)
 				&& value.isFunction())
 			{
 				pushValue(value);
@@ -15670,12 +15657,12 @@ bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index, bo
 			const void * buf1 = strings->__getAt.toChar();
 			int size1 = strings->__getAt.getDataSize();
 			GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-			if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+			if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
 				return true;
 			}
 		}
 	}
-	if(getPropertyValue(value, table_value, PropertyIndex(strings->__isset, PropertyIndex::KeepStringIndex()), prototype_enabled)
+	if(getPropertyValue(value, table_value, strings->__isset, prototype_enabled)
 		&& value.isFunction())
 	{
 		pushValue(value);
@@ -15702,14 +15689,14 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 				const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
 				int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-				if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+				if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
 					pushValue(value);
 					pushValue(self);
 					call(0, 1);
 					return;
 				}
 			}
-			if(getPropertyValue(value, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+			if(getPropertyValue(value, table_value, strings->__get, prototype_enabled)){
 				if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
 					table_value = OS_VALUE_VARIANT(value).value;
 					continue;
@@ -15755,14 +15742,14 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 				const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
 				int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-				if(getPropertyValue(value, proto, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+				if(getPropertyValue(value, proto, getter_name, prototype_enabled)){
 					pushValue(value);
 					pushValue(self);
 					call(0, 1);
 					return;
 				}
 			}
-			if(getPropertyValue(value, proto, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+			if(getPropertyValue(value, proto, strings->__get, prototype_enabled)){
 				if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
 					proto = OS_VALUE_VARIANT(value).value;
 					continue;
@@ -15820,7 +15807,7 @@ void OS::getProperty(bool getter_enabled, bool prototype_enabled)
 	if(core->stack_values.count >= 2){
 		Core::Value object = core->stack_values[core->stack_values.count - 2];
 		Core::Value index = core->stack_values[core->stack_values.count - 1];
-		core->pushPropertyValue(object, Core::PropertyIndex(index), getter_enabled, prototype_enabled);
+		core->pushPropertyValue(object, index, getter_enabled, prototype_enabled);
 		core->removeStackValues(-3, 2);
 	}else{
 		// error
@@ -16529,7 +16516,7 @@ corrupted:
 				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
 				c = OS_GETARG_C(instruction);
 				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
-				pushPropertyValue(stack_func_locals[a], PropertyIndex(stack_func_locals[a + 1]), true, true);
+				pushPropertyValue(stack_func_locals[a], stack_func_locals[a + 1], true, true);
 				stack_func_locals[a + 1] = stack_func_locals[a]; // this
 				stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
 				call(this->stack_func->locals_stack_pos + a, b, c, NULL, true);
@@ -16546,7 +16533,7 @@ corrupted:
 				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
 				c = stack_func->need_ret_values; // GETARG_C(instruction);
 				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
-				pushPropertyValue(stack_func_locals[a], PropertyIndex(stack_func_locals[a + 1]), true, true, true, false);
+				pushPropertyValue(stack_func_locals[a], stack_func_locals[a + 1], true, true, true, false);
 				stack_func_locals[a + 1] = stack_func_locals[a]; // this
 				stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
 				
@@ -16600,7 +16587,7 @@ corrupted:
 					if(proto){
 						bool prototype_enabled = true;
 						OS_ASSERT(strings->__destruct != func_value->name);
-						if(getPropertyValue(value, proto, PropertyIndex(func_value->name, PropertyIndex::KeepStringIndex()), prototype_enabled)
+						if(getPropertyValue(value, proto, func_value->name, prototype_enabled)
 							&& value.isFunction())
 						{
 							stack_func_locals[a] = value;
@@ -16691,7 +16678,7 @@ corrupted:
 				b = OS_GETARG_B(instruction);
 				OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
 				c = OS_GETARG_C(instruction);
-				// pushPropertyValue(stack_func_locals[b], PropertyIndex(OS_GETARG_C_VALUE(instruction)), true, true, true, false);
+				// pushPropertyValue(stack_func_locals[b], OS_GETARG_C_VALUE(instruction), true, true, true, false);
 				Value& obj = stack_func_locals[b];
 				const PropertyIndex index(OS_GETARG_C_VALUE());
 				int obj_type = OS_VALUE_TYPE(obj);
@@ -16744,7 +16731,7 @@ corrupted:
 									const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
 									int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
 									GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-									if(getPropertyValue(value, table_value, PropertyIndex(getter_name, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+									if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
 										pushValue(value);
 										pushValue(self);
 										call(0, 1);
@@ -16752,7 +16739,7 @@ corrupted:
 										break;
 									}
 								}
-								if(getPropertyValue(value, table_value, PropertyIndex(strings->__get, PropertyIndex::KeepStringIndex()), prototype_enabled)){
+								if(getPropertyValue(value, table_value, strings->__get, prototype_enabled)){
 									if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
 										table_value = OS_VALUE_VARIANT(value).value;
 										continue;
@@ -17254,7 +17241,7 @@ void OS::setGlobal(const Core::String& name, bool setter_enabled)
 		Core::Value object = core->global_vars;
 		Core::Value value = core->stack_values[core->stack_values.count - 1];
 		Core::Value index = core->pushStringValue(name);
-		core->setPropertyValue(object, Core::PropertyIndex(index), value, setter_enabled);
+		core->setPropertyValue(object, index, value, setter_enabled);
 		pop(2);
 	}
 }
@@ -20575,7 +20562,7 @@ OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
 				initObjectInstance_r(core, object, prototype->prototype);
 			}
 			Value value;
-			if(core->getPropertyValue(value, prototype, PropertyIndex(core->strings->__object, PropertyIndex::KeepStringIndex()), false)){
+			if(core->getPropertyValue(value, prototype, core->strings->__object, false)){
 				GCValue * object_props = value.getGCValue();
 				if(object_props && object_props->table){
 					Property * prop = object_props->table->first;
@@ -20626,11 +20613,11 @@ void OS::Core::pushArgumentsWithNames(StackFunction * stack_func)
 	FunctionDecl * func_decl = stack_func->func->func_decl;
 	int num_params = stack_func->num_params;
 	for(i = PRE_VARS; i < num_params; i++){ // skip func & this
-		setPropertyValue(args, PropertyIndex(func_decl->locals[i].name.string, PropertyIndex::KeepStringIndex()), func_locals->values[i], false);
+		setPropertyValue(args, func_decl->locals[i].name.string, func_locals->values[i], false);
 	}
 	if(num_params < func_decl->num_params){
 		for(; i < func_decl->num_params; i++){
-			setPropertyValue(args, PropertyIndex(func_decl->locals[i].name.string, PropertyIndex::KeepStringIndex()), Value(), false);
+			setPropertyValue(args, func_decl->locals[i].name.string, Value(), false);
 		}
 	}else if(stack_func->rest_arguments){
 		GCArrayValue * arr = stack_func->rest_arguments;
@@ -20675,24 +20662,24 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 		}
 
 		GCObjectValue * obj = pushObjectValue();
-		setPropertyValue(obj, PropertyIndex(name_str, PropertyIndex::KeepStringIndex()), stack_func->func->name ? stack_func->func->name : lambda_str.string, false);
-		setPropertyValue(obj, PropertyIndex(function_str, PropertyIndex::KeepStringIndex()), stack_func->func, false);
+		setPropertyValue(obj, name_str, stack_func->func->name ? stack_func->func->name : lambda_str.string, false);
+		setPropertyValue(obj, function_str, stack_func->func, false);
 
 		const String& filename = prog->filename.getDataSize() ? prog->filename : core_str;
-		setPropertyValue(obj, PropertyIndex(file_str, PropertyIndex::KeepStringIndex()), filename.string, false);
+		setPropertyValue(obj, file_str, filename.string, false);
 
 		Program::DebugInfoItem * debug_info = NULL;
 		if(prog->filename.getDataSize() && prog->debug_info.count > 0){
 			int opcode_pos = (int)(stack_func->opcodes - prog->opcodes.buf); // .getPos() + stack_func->func->func_decl->opcodes_pos;
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
-		setPropertyValue(obj, PropertyIndex(line_str, PropertyIndex::KeepStringIndex()), debug_info ? (int)debug_info->line : Value(), false);
-		setPropertyValue(obj, PropertyIndex(pos_str, PropertyIndex::KeepStringIndex()), debug_info ? (int)debug_info->pos : Value(), false);
+		setPropertyValue(obj, line_str, debug_info ? (int)debug_info->line : Value(), false);
+		setPropertyValue(obj, pos_str, debug_info ? (int)debug_info->pos : Value(), false);
 
-		setPropertyValue(obj, PropertyIndex(object_str, PropertyIndex::KeepStringIndex()), stack_func->locals->values[PRE_VAR_THIS], false);
+		setPropertyValue(obj, object_str, stack_func->locals->values[PRE_VAR_THIS], false);
 
 		pushArgumentsWithNames(stack_func);
-		setPropertyValue(obj, PropertyIndex(arguments_str, PropertyIndex::KeepStringIndex()), stack_values.lastElement(), false);
+		setPropertyValue(obj, arguments_str, stack_values.lastElement(), false);
 		pop(); // remove args
 
 		setPropertyValue(arr, Value(arr->values.count), obj, false);
@@ -20853,7 +20840,7 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 			object->external_ref_count++;
 
 			bool prototype_enabled = true;
-			if(getPropertyValue(stack_values.buf[start_pos], func, PropertyIndex(strings->__construct, PropertyIndex::KeepStringIndex()), prototype_enabled)
+			if(getPropertyValue(stack_values.buf[start_pos], func, strings->__construct, prototype_enabled)
 				&& stack_values.buf[start_pos].isFunction())
 			{
 				stack_values.buf[start_pos + 1] = object;
@@ -20876,7 +20863,7 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 			Value func_value = func;
 			bool prototype_enabled = true;
 			Value func;
-			if(getPropertyValue(func, func_value, PropertyIndex(strings->__construct, PropertyIndex::KeepStringIndex()), prototype_enabled)
+			if(getPropertyValue(func, func_value, strings->__construct, prototype_enabled)
 				&& func.isFunction())
 			{
 				stack_values.buf[start_pos + 0] = func;

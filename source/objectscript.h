@@ -1580,20 +1580,19 @@ namespace ObjectScript
 
 			struct PropertyIndex
 			{
-				struct KeepStringIndex
+				struct AutoNumber
 				{
-					KeepStringIndex(){}
+					AutoNumber(){}
 				};
 
 				Value index;
 
 				PropertyIndex(const PropertyIndex& index);
 				PropertyIndex(const Value& index);
-				PropertyIndex(const Value& index, const KeepStringIndex&);
 				PropertyIndex(GCStringValue * index);
-				PropertyIndex(GCStringValue * index, const KeepStringIndex&);
+				PropertyIndex(GCStringValue * index, const AutoNumber&);
 				PropertyIndex(const String& index);
-				PropertyIndex(const String& index, const KeepStringIndex&);
+				PropertyIndex(const String& index, const AutoNumber&);
 
 				void convertIndexStringToNumber();
 
@@ -1612,9 +1611,8 @@ namespace ObjectScript
 
 				Property(const PropertyIndex& index);
 				Property(const Value& index);
-				Property(const Value& index, const KeepStringIndex&);
 				Property(GCStringValue * index);
-				Property(GCStringValue * index, const KeepStringIndex&);
+				Property(GCStringValue * index, const AutoNumber&);
 				~Property();
 			};
 
