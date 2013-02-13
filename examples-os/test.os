@@ -1,3 +1,10 @@
+;{
+var a = 6
+var b = 1
+var c = !!(a & b)
+print c
+}
+
 echo("file: "__FILE__", line: "__LINE__"\n")
 
 // call function with arguments without comma
@@ -362,7 +369,9 @@ print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b ka kb| compareValues(kb ka) })
 
 function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
-		printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+		printf("#%d %s%s: %s, args: %s\n", i, t.file,
+			t.line > 0 ? "("..t.line..","..t.pos..")" : ""
+			t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
 	}
 }
 
@@ -373,7 +382,9 @@ try{
 }catch(e){
 	print "exception: "..e.message
 	for(var i, t in e.trace){
-		printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+		printf("#%d %s%s: %s, args: %s\n", i, t.file,
+			t.line > 0 ? "("..t.line..","..t.pos..")" : ""
+			t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
 	}
 	// throw e
 }
@@ -392,6 +403,7 @@ var function testFunc(arg1, arg2){
 }
 print "Test back trace"
 testFunc(1, 2)
+// terminate()
 
 print "Test 5 < 10 ? 7 : 3 --> "..(5 < 10 ? 7 : 3)
 print "Test in operator (should be true) "..("name" in {x = 0 y = 0 name = 0 index = 0})
@@ -489,6 +501,16 @@ for(var i in 5.to(7))
 
 print "Test 7.to(2).each"
 7.to(2).each{|i| print i}
+
+if("Curl" in _G){
+	print "Test CURL callbacks"
+	require "curl/test_callbacks.os"
+
+	print "Test CURL getinfo"
+	require "curl/test_getinfo.os"
+}else{
+	print "Curl library is not enabled"
+}
 
 terminate()
 print "This text is never printed"

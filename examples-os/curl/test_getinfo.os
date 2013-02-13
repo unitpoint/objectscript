@@ -65,7 +65,7 @@ print ""
 
 print "-=== PRINT INFO OBJECT  ===-"
 for(var i, v in info) {
-    print i.." <=> "..v
+    print i.." => "..v
 }
 
 c.close()

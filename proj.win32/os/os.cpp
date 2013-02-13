@@ -76,13 +76,28 @@ int main(int argc, char *argv[])
 	}
 
 	// craete ObjectScript instance
+#if 0
+	class MyOS: public OS
+	{
+	public:
+		MyOS(){}
+		
+		void initPreScript()
+		{
+			setSetting(OS_SETTING_CREATE_TEXT_EVAL_OPCODES, true);
+			OS::initPreScript();
+		}
+	};
+	OS * os = OS::create(new MyOS());
+#else
 	OS * os = OS::create();
+#endif
 	initCurlLibrary(os);
 	// save allocated memory at start point
 	int start_mem_usage = os->getAllocatedBytes();
 	// set needed settings
 	os->setSetting(OS_SETTING_CREATE_DEBUG_INFO, true);
-	os->setSetting(OS_SETTING_CREATE_DEBUG_OPCODES, true);
+	os->setSetting(OS_SETTING_CREATE_TEXT_OPCODES, true);
 	os->setSetting(OS_SETTING_CREATE_COMPILED_FILE, true);
 	// create program arguments
 	os->newObject();

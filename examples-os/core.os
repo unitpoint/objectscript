@@ -20,25 +20,27 @@ function Object.__get(name){
 }
 
 function assert(a, message){
-	if(!a){
-		throw(message || "assert failed")
-	}
+	a || throw(message || "assert failed")
 }
 
 function unhandledException(e){
 	if("trace" in e){
 		printf("Unhandled exception: '%s'\n", e.message);
 		for(var i, t in e.trace){
-			printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+			printf("#%d %s%s: %s, args: %s\n", i, t.file,
+				t.line > 0 ? "("..t.line..","..t.pos..")" : ""
+				t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
 		}
 	}else{
-		printf("Unhandled exception: '%s' in %s(%d)\n", e.message, e.file, e.line);
+		printf("Unhandled exception: '%s' in %s(%d,%d)\n", e.message, e.file, e.line, e.pos);
 	}
 }
 
 function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
-		printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+		printf("#%d %s%s: %s, args: %s\n", i, t.file,
+			t.line > 0 ? "("..t.line..","..t.pos..")" : ""
+			t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
 	}
 }
 
@@ -54,7 +56,7 @@ function addEventListener(eventName, func, zOrder){
 		events[eventName] = {}
 	}
 	events[eventName][func] = zOrder || 0
-	events[eventName].rsort()
+	events[eventName].sort {|a b| b <=> a}
 	return [eventName func]
 }
 
@@ -69,8 +71,10 @@ function removeEventListener(eventName, func){
 
 function triggerEvent(eventName, params){
 	// print "core.triggerEvent: "..events
-	for(var func, zOrder in events[eventName]){
-		func(params)
+	if(eventName in events){
+		for(var func, zOrder in events[eventName]){
+			func(params)
+		}
 	}
 }
 
@@ -84,17 +88,16 @@ function isCallable(f){
 function setTimeout(func, delay, count, priority){
 	count = count || 1
 	count > 0 && functionOf(func) || return;
-	var i = func // #timers
-	timers[i] = {
+	timers[func] = {
 		nextTime = app.timeSec + delay
 		delay = delay
 		func = func
 		count = count
 		priority = priority || 0
 	}
-	// timers.sort(function(a b){ return b.priority - a.priority })
-	timers.rsort "priority"
-	return i
+	timers.sort {|a b| b.priority - a.priority }
+	// timers.rsort "priority"
+	return func
 }
 
 function clearTimeout(t){
@@ -103,24 +106,26 @@ function clearTimeout(t){
 
 HIGH_PRIORITY = 999999
 
-addEventListener("enterFrame" {||
+addEventListener("enterFrame", {||
 	var time = app.timeSec
 	for(var i, t in timers){
 		if(t.nextTime <= time){
 			t.nextTime = time + t.delay
 			if(t.count === true){
-				t.func.call(null)
+				// t.func.call(null)
+				(t.func)()
 			}else{
 				if(t.count <= 1){
 					delete timers[i]
 				}else{
 					t.count = t.count - 1
 				}
-				t.func.call(null)
+				// t.func.call(null)
+				(t.func)()
 			}
 		}
 	}
-} HIGH_PRIORITY+1)
+}, HIGH_PRIORITY+1)
 
 function toArray(a){
 	arrayOf(a) && return arr;
@@ -155,7 +160,7 @@ function toObject(a){
 }
 
 function Object.deepClone(){
-	var t = this.clone()
+	var t = @clone()
 	for(var k, v in t){
 		t[k] = v.deepClone()
 	}

@@ -1117,7 +1117,7 @@ namespace ObjectScript {
 				switch(curl_option_desc[i].type){
 				case OPT_BOOL:
 					if(os->getType() != OS_VALUE_TYPE_BOOL){ // !os->isNumber()){
-						triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be bool"));
+						triggerError(OS::String(os, OS_TEXT("curl option \"")) + name + OS_TEXT("\" must be boolean"));
 						return false;
 					}
 					code = curl_easy_setopt(handle, option, (long)os->toBool()); // TODO: toInt ?

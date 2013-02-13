@@ -3,7 +3,7 @@
 [1] typeof = typeOf
 
 begin function
-  begin locals 6, stack 11
+  begin locals 6, stack 12
     0 _F (param)
     1 this (param)
     2 _E
@@ -175,30 +175,21 @@ target " (-27)
       5 _G
     end locals
 
-[23] if(!a){
+[23] a || throw(message || "assert failed")
 
-    begin if
-      begin bool exp
-        move: # (6) = param a (2)
-        # (6) = [logic not] # (6)
-      end bool exp
-      begin then
-
-[24] throw(message || "assert failed")
-
-        begin scope
-          move: # (6) = param message (3)
-          logic ||: # (6)
-            move: # (6) = const string "assert failed" (-31)
-          throw: # (6)
-        end scope ret values 0
-      end then
-    end if ret values 0
+      move: # (6) = param a (2)
+      logic ||: # (6)
+        move: # (6) = param message (3)
+        logic ||: # (6)
+          move: # (6) = const string "assert failed" (-31)
+        throw: # (6)
+        move: # (6) = const null (-1)
+    return: # (6), count 1
   end function: # (6), index 3
   set property: var _E (2) [const string "assert" (-30)] = # (6)
 
 
-[28] function unhandledException(e){
+[26] function unhandledException(e){
 
   begin function
     begin locals 9, stack 22
@@ -209,7 +200,7 @@ target " (-27)
       4 _G
     end locals
 
-[29] if("trace" in e){
+[27] if("trace" in e){
 
     begin if
       begin bool exp
@@ -222,7 +213,7 @@ target " (-27)
       end bool exp
       begin then
 
-[30] printf("Unhandled exception: '%s'\n", e.message);
+[28] printf("Unhandled exception: '%s'\n", e.message);
 
         begin scope
           begin call method
@@ -234,7 +225,7 @@ target " (-27)
           end call method: start 9, params 4, ret values 0
 
 
-[31] for(var i, t in e.trace){
+[29] for(var i, t in e.trace){
 
           begin scope
             begin locals 4
@@ -272,37 +263,75 @@ target " (-27)
               end if ret values 0
 
 
-[32] printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+[30] printf("#%d %s%s: %s, args: %s\n", i, t.file,
 
               begin scope
                 begin call method
                   move: # (9) = var _E (3)
                   move: # (10) = const string "printf" (-35)
-                  move: # (11) = const string "#%d %s(%d): %s, args: %s
+                  move: # (11) = const string "#%d %s%s: %s, args: %s
 " (-39)
                   move: # (12) = var i (5)
                   get property: # (13) = var t (6) [const string "file" (-40)]
-                  get property: # (14) = var t (6) [const string "line" (-41)]
+
+[31] t.line > 0 ? "("..t.line..","..t.pos..")" : ""
+
                   begin question
                     begin bool exp
-                      get property: # (15) = var t (6) [const string "object" (-42)]
+                      get property: # (14) = var t (6) [const string "line" (-41)]
+                      move: # (15) = const number 0 (-5)
+                      # (14) = # (14) [logic >] # (15)
                     end bool exp
                     begin then value
                       begin call method
-                        move: # (15) = var _G (4)
-                        move: # (16) = const string "concat" (-43)
-                        move: # (17) = const string "{obj-" (-44)
-                        get property: # (18) = var t (6) [const string "object" (-42)]
-                        get property: # (18) = # (18) [const string "osValueId" (-45)]
-                        move: # (19) = const string "}." (-46)
-                        get property: # (20) = var t (6) [const string "name" (-47)]
-                      end call method: start 15, params 6, ret values 1
+                        move: # (14) = var _G (4)
+                        move: # (15) = const string "concat" (-42)
+                        move: # (16) = const string "(" (-43)
+                        get property: # (17) = var t (6) [const string "line" (-41)]
+                        move: # (18) = const string "," (-44)
+                        get property: # (19) = var t (6) [const string "pos" (-45)]
+                        move: # (20) = const string ")" (-46)
+                      end call method: start 14, params 7, ret values 1
                     end then value
                     begin else value
-                      get property: # (15) = var t (6) [const string "name" (-47)]
+                      move: # (14) = const string "" (-47)
                     end else value
                   end question ret values 1
-                  get property: # (16) = var t (6) [const string "arguments" (-48)]
+
+[32] t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+
+                  begin question
+                    begin bool exp
+                      get property: # (15) = var t (6) [const string "object" (-48)]
+                      move: # (16) = var _G (4)
+                      # (15) = # (15) [logic ===] # (16)
+                    end bool exp
+                    begin then value
+                      get property: # (15) = var t (6) [const string "name" (-49)]
+                    end then value
+                    begin else value
+                      begin question
+                        begin bool exp
+                          get property: # (15) = var t (6) [const string "object" (-48)]
+                        end bool exp
+                        begin then value
+                          begin call method
+                            move: # (15) = var _G (4)
+                            move: # (16) = const string "concat" (-42)
+                            move: # (17) = const string "{obj-" (-50)
+                            get property: # (18) = var t (6) [const string "object" (-48)]
+                            get property: # (18) = # (18) [const string "osValueId" (-51)]
+                            move: # (19) = const string "}." (-52)
+                            get property: # (20) = var t (6) [const string "name" (-49)]
+                          end call method: start 15, params 6, ret values 1
+                        end then value
+                        begin else value
+                          get property: # (15) = var t (6) [const string "name" (-49)]
+                        end else value
+                      end question ret values 1
+                    end else value
+                  end question ret values 1
+                  get property: # (16) = var t (6) [const string "arguments" (-53)]
                 end call method: start 9, params 8, ret values 0
               end scope ret values 0
             end loop ret values 0
@@ -311,18 +340,19 @@ target " (-27)
       end then
       begin else
 
-[35] printf("Unhandled exception: '%s' in %s(%d)\n", e.message, e.file, e.line);
+[35] printf("Unhandled exception: '%s' in %s(%d,%d)\n", e.message, e.file, e.line, e.pos);
 
         begin scope
           begin call method
             move: # (9) = var _E (3)
             move: # (10) = const string "printf" (-35)
-            move: # (11) = const string "Unhandled exception: '%s' in %s(%d)
-" (-49)
+            move: # (11) = const string "Unhandled exception: '%s' in %s(%d,%d)
+" (-54)
             get property: # (12) = param e (2) [const string "message" (-37)]
             get property: # (13) = param e (2) [const string "file" (-40)]
             get property: # (14) = param e (2) [const string "line" (-41)]
-          end call method: start 9, params 6, ret values 0
+            get property: # (15) = param e (2) [const string "pos" (-45)]
+          end call method: start 9, params 7, ret values 0
         end scope ret values 0
       end else
     end if ret values 0
@@ -357,7 +387,7 @@ target " (-27)
       begin call method
         begin call method
           move: # (9) = var _E (3)
-          move: # (10) = const string "debugBackTrace" (-50)
+          move: # (10) = const string "debugBackTrace" (-55)
           # (11) = param skipNumFuncs (2) [operator +] const number 1 (-4)
         end call method: start 9, params 3, ret values 1
         move: # (10) = const string "__iter" (-38)
@@ -383,37 +413,75 @@ target " (-27)
         end if ret values 0
 
 
-[41] printf("#%d %s(%d): %s, args: %s\n", i, t.file, t.line, t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+[41] printf("#%d %s%s: %s, args: %s\n", i, t.file,
 
         begin scope
           begin call method
             move: # (9) = var _E (3)
             move: # (10) = const string "printf" (-35)
-            move: # (11) = const string "#%d %s(%d): %s, args: %s
+            move: # (11) = const string "#%d %s%s: %s, args: %s
 " (-39)
             move: # (12) = var i (5)
             get property: # (13) = var t (6) [const string "file" (-40)]
-            get property: # (14) = var t (6) [const string "line" (-41)]
+
+[42] t.line > 0 ? "("..t.line..","..t.pos..")" : ""
+
             begin question
               begin bool exp
-                get property: # (15) = var t (6) [const string "object" (-42)]
+                get property: # (14) = var t (6) [const string "line" (-41)]
+                move: # (15) = const number 0 (-5)
+                # (14) = # (14) [logic >] # (15)
               end bool exp
               begin then value
                 begin call method
-                  move: # (15) = var _G (4)
-                  move: # (16) = const string "concat" (-43)
-                  move: # (17) = const string "{obj-" (-44)
-                  get property: # (18) = var t (6) [const string "object" (-42)]
-                  get property: # (18) = # (18) [const string "osValueId" (-45)]
-                  move: # (19) = const string "}." (-46)
-                  get property: # (20) = var t (6) [const string "name" (-47)]
-                end call method: start 15, params 6, ret values 1
+                  move: # (14) = var _G (4)
+                  move: # (15) = const string "concat" (-42)
+                  move: # (16) = const string "(" (-43)
+                  get property: # (17) = var t (6) [const string "line" (-41)]
+                  move: # (18) = const string "," (-44)
+                  get property: # (19) = var t (6) [const string "pos" (-45)]
+                  move: # (20) = const string ")" (-46)
+                end call method: start 14, params 7, ret values 1
               end then value
               begin else value
-                get property: # (15) = var t (6) [const string "name" (-47)]
+                move: # (14) = const string "" (-47)
               end else value
             end question ret values 1
-            get property: # (16) = var t (6) [const string "arguments" (-48)]
+
+[43] t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+
+            begin question
+              begin bool exp
+                get property: # (15) = var t (6) [const string "object" (-48)]
+                move: # (16) = var _G (4)
+                # (15) = # (15) [logic ===] # (16)
+              end bool exp
+              begin then value
+                get property: # (15) = var t (6) [const string "name" (-49)]
+              end then value
+              begin else value
+                begin question
+                  begin bool exp
+                    get property: # (15) = var t (6) [const string "object" (-48)]
+                  end bool exp
+                  begin then value
+                    begin call method
+                      move: # (15) = var _G (4)
+                      move: # (16) = const string "concat" (-42)
+                      move: # (17) = const string "{obj-" (-50)
+                      get property: # (18) = var t (6) [const string "object" (-48)]
+                      get property: # (18) = # (18) [const string "osValueId" (-51)]
+                      move: # (19) = const string "}." (-52)
+                      get property: # (20) = var t (6) [const string "name" (-49)]
+                    end call method: start 15, params 6, ret values 1
+                  end then value
+                  begin else value
+                    get property: # (15) = var t (6) [const string "name" (-49)]
+                  end else value
+                end question ret values 1
+              end else value
+            end question ret values 1
+            get property: # (16) = var t (6) [const string "arguments" (-53)]
           end call method: start 9, params 8, ret values 0
         end scope ret values 0
       end loop ret values 0
@@ -422,7 +490,7 @@ target " (-27)
   set property: var _E (2) [const string "printBackTrace" (-24)] = # (6)
 
 
-[45] function eval(str, env){
+[47] function eval(str, env){
 
   begin function
     begin locals 6, stack 11
@@ -434,15 +502,15 @@ target " (-27)
       5 _G
     end locals
 
-[46] return compileText(str).applyEnv(env || _G, null, ...)
+[48] return compileText(str).applyEnv(env || _G, null, ...)
 
       begin call method
         begin call method
           move: # (6) = var _E (4)
-          move: # (7) = const string "compileText" (-52)
+          move: # (7) = const string "compileText" (-57)
           move: # (8) = param str (2)
         end call method: start 6, params 3, ret values 1
-        move: # (7) = const string "applyEnv" (-53)
+        move: # (7) = const string "applyEnv" (-58)
         move: # (8) = param env (3)
         logic ||: # (8)
           move: # (8) = var _G (5)
@@ -451,16 +519,16 @@ target " (-27)
       end call method: start 6, params 5, ret values 1
     return: # (6), count 1
   end function: # (6), index 6
-  set property: var _E (2) [const string "eval" (-51)] = # (6)
+  set property: var _E (2) [const string "eval" (-56)] = # (6)
 
 
-[49] var events = {}
+[51] var events = {}
 
   new object 0: # (6)
   move: var events (4) = # (6)
 
 
-[51] function addEventListener(eventName, func, zOrder){
+[53] function addEventListener(eventName, func, zOrder){
 
   begin function
     begin locals 7, stack 11
@@ -473,12 +541,12 @@ target " (-27)
       6 _G
     end locals
 
-[52] functionOf(func) || return;
+[54] functionOf(func) || return;
 
     begin pop
       begin call method
         move: # (7) = var _E (5)
-        move: # (8) = const string "functionOf" (-55)
+        move: # (8) = const string "functionOf" (-60)
         move: # (9) = param func (3)
       end call method: start 7, params 3, ret values 1
       logic ||: # (7)
@@ -486,7 +554,7 @@ target " (-27)
     end pop ret values 0
 
 
-[53] if(!(eventName in events)){
+[55] if(!(eventName in events)){
 
     begin if
       begin bool exp
@@ -500,7 +568,7 @@ target " (-27)
       end bool exp
       begin then
 
-[54] events[eventName] = {}
+[56] events[eventName] = {}
 
         begin scope
           new object 0: # (7)
@@ -511,7 +579,7 @@ target " (-27)
     end if ret values 0
 
 
-[56] events[eventName][func] = zOrder || 0
+[58] events[eventName][func] = zOrder || 0
 
     move: # (7) = param zOrder (4)
     logic ||: # (7)
@@ -521,34 +589,46 @@ target " (-27)
     set property: # (8) [param func (3)] = # (7)
 
 
-[57] events[eventName].rsort()
+[59] events[eventName].sort {|a b| b <=> a}
 
     begin call method
       get upvalue: # (7) = var events (4 1)
       get property: # (7) = # (7) [param eventName (2)]
-      move: # (8) = const string "rsort" (-56)
-    end call method: start 7, params 2, ret values 0
+      move: # (8) = const string "sort" (-61)
+      begin function
+        begin locals 6, stack 8
+          0 _F (param)
+          1 this (param)
+          2 a (param)
+          3 b (param)
+          4 _E
+          5 _G
+        end locals
+          # (6) = param b (3) [operator <=>] param a (2)
+        return: # (6), count 1
+      end function: # (9), index 8
+    end call method: start 7, params 3, ret values 0
 
 
-[58] return [eventName func]
+[60] return [eventName func]
 
       new array 2: # (7)
       begin call method
         move: # (8) = # (7)
-        move: # (9) = const string "push" (-57)
+        move: # (9) = const string "push" (-62)
         move: # (10) = param eventName (2)
       end call method: start 8, params 3, ret values 0
       begin call method
         move: # (8) = # (7)
-        move: # (9) = const string "push" (-57)
+        move: # (9) = const string "push" (-62)
         move: # (10) = param func (3)
       end call method: start 8, params 3, ret values 0
     return: # (7), count 1
   end function: # (6), index 7
-  set property: var _E (2) [const string "addEventListener" (-54)] = # (6)
+  set property: var _E (2) [const string "addEventListener" (-59)] = # (6)
 
 
-[61] function removeEventListener(eventName, func){
+[63] function removeEventListener(eventName, func){
 
   begin function
     begin locals 6, stack 10
@@ -560,7 +640,7 @@ target " (-27)
       5 _G
     end locals
 
-[62] if(arrayOf(eventName)){
+[64] if(arrayOf(eventName)){
 
     begin if
       begin bool exp
@@ -572,7 +652,7 @@ target " (-27)
       end bool exp
       begin then
 
-[63] eventName, func = eventName[0], eventName[1]
+[65] eventName, func = eventName[0], eventName[1]
 
         begin scope
           get property: # (6) = param eventName (2) [const number 0 (-5)]
@@ -582,7 +662,7 @@ target " (-27)
       end then
     end if ret values 0
 
-[65] if(eventName in events){
+[67] if(eventName in events){
 
     begin if
       begin bool exp
@@ -595,12 +675,12 @@ target " (-27)
       end bool exp
       begin then
 
-[66] delete events[eventName][func]
+[68] delete events[eventName][func]
 
         begin scope
           begin call method
             move: # (6) = var _G (5)
-            move: # (7) = const string "__delete" (-59)
+            move: # (7) = const string "__delete" (-64)
             get upvalue: # (8) = var events (4 1)
             get property: # (8) = # (8) [param eventName (2)]
             move: # (9) = param func (3)
@@ -608,14 +688,14 @@ target " (-27)
         end scope ret values 0
       end then
     end if ret values 0
-  end function: # (6), index 8
-  set property: var _E (2) [const string "removeEventListener" (-58)] = # (6)
+  end function: # (6), index 9
+  set property: var _E (2) [const string "removeEventListener" (-63)] = # (6)
 
 
-[70] function triggerEvent(eventName, params){
+[72] function triggerEvent(eventName, params){
 
   begin function
-    begin locals 10, stack 13
+    begin locals 10, stack 14
       0 _F (param)
       1 this (param)
       2 eventName (param)
@@ -624,67 +704,84 @@ target " (-27)
       5 _G
     end locals
 
-[72] for(var func, zOrder in events[eventName]){
+[74] if(eventName in events){
 
-    begin scope
-      begin locals 4
-        6 func
-        7 zOrder
-        8 #func
-        9 #valid
-      end locals
+    begin if
+      begin bool exp
+        begin call method
+          move: # (10) = var _G (5)
+          move: # (11) = const string "__in" (-33)
+          move: # (12) = param eventName (2)
+          get upvalue: # (13) = var events (4 1)
+        end call method: start 10, params 4, ret values 1
+      end bool exp
+      begin then
 
-
-
-
-      begin call method
-        get upvalue: # (10) = var events (4 1)
-        get property: # (10) = # (10) [param eventName (2)]
-        move: # (11) = const string "__iter" (-38)
-      end call method: start 10, params 2, ret values 1
-      move: var #func (8) = # (10)
-      begin loop
-        begin call
-          move: # (10) = var #func (8)
-          move: # (11) = const null (-1)
-        end call: start 10, params 2, ret values 3
-        move: var zOrder (7) = # (12)
-        move: var func (6) = # (11)
-        move: var #valid (9) = # (10)
-
-        begin if
-          begin bool exp
-            move: # (10) = var #valid (9)
-            # (10) = [logic not] # (10)
-          end bool exp
-          begin then
-            break
-          end then
-        end if ret values 0
-
-
-[73] func(params)
+[75] for(var func, zOrder in events[eventName]){
 
         begin scope
-          begin call
-            move: # (10) = var func (6)
-            move: # (11) = const null (-1)
-            move: # (12) = param params (3)
-          end call: start 10, params 3, ret values 0
+          begin scope
+            begin locals 4
+              6 func
+              7 zOrder
+              8 #func
+              9 #valid
+            end locals
+
+
+
+
+            begin call method
+              get upvalue: # (10) = var events (4 1)
+              get property: # (10) = # (10) [param eventName (2)]
+              move: # (11) = const string "__iter" (-38)
+            end call method: start 10, params 2, ret values 1
+            move: var #func (8) = # (10)
+            begin loop
+              begin call
+                move: # (10) = var #func (8)
+                move: # (11) = const null (-1)
+              end call: start 10, params 2, ret values 3
+              move: var zOrder (7) = # (12)
+              move: var func (6) = # (11)
+              move: var #valid (9) = # (10)
+
+              begin if
+                begin bool exp
+                  move: # (10) = var #valid (9)
+                  # (10) = [logic not] # (10)
+                end bool exp
+                begin then
+                  break
+                end then
+              end if ret values 0
+
+
+[76] func(params)
+
+              begin scope
+                begin call
+                  move: # (10) = var func (6)
+                  move: # (11) = const null (-1)
+                  move: # (12) = param params (3)
+                end call: start 10, params 3, ret values 0
+              end scope ret values 0
+            end loop ret values 0
+          end scope ret values 0
         end scope ret values 0
-      end loop ret values 0
-    end scope ret values 0
-  end function: # (6), index 9
-  set property: var _E (2) [const string "triggerEvent" (-60)] = # (6)
+      end then
+    end if ret values 0
+  end function: # (6), index 10
+  set property: var _E (2) [const string "triggerEvent" (-65)] = # (6)
 
 
-[77] var timers = {}
+[81] var timers = {}
 
   new object 0: # (6)
   move: var timers (5) = # (6)
 
 
-[79] function isCallable(f){
+[83] function isCallable(f){
 
   begin function
     begin locals 6, stack 9
@@ -696,7 +793,7 @@ target " (-27)
       5 type
     end locals
 
-[80] var type = typeOf(f)
+[84] var type = typeOf(f)
 
     begin call method
       move: # (6) = var _E (3)
@@ -706,28 +803,28 @@ target " (-27)
     move: var type (5) = # (6)
 
 
-[81] return type === "function" || type === "object" || type === "userdata"
+[85] return type === "function" || type === "object" || type === "userdata"
 
       move: # (6) = var type (5)
-      move: # (7) = const string "function" (-62)
+      move: # (7) = const string "function" (-67)
       # (6) = # (6) [logic ===] # (7)
       logic ||: # (6)
         move: # (6) = var type (5)
-        move: # (7) = const string "object" (-42)
+        move: # (7) = const string "object" (-48)
         # (6) = # (6) [logic ===] # (7)
       logic ||: # (6)
         move: # (6) = var type (5)
-        move: # (7) = const string "userdata" (-63)
+        move: # (7) = const string "userdata" (-68)
         # (6) = # (6) [logic ===] # (7)
     return: # (6), count 1
-  end function: # (6), index 10
-  set property: var _E (2) [const string "isCallable" (-61)] = # (6)
+  end function: # (6), index 11
+  set property: var _E (2) [const string "isCallable" (-66)] = # (6)
 
 
-[84] function setTimeout(func, delay, count, priority){
+[88] function setTimeout(func, delay, count, priority){
 
   begin function
-    begin locals 9, stack 13
+    begin locals 8, stack 12
       0 _F (param)
       1 this (param)
       2 func (param)
@@ -736,92 +833,99 @@ target " (-27)
       5 priority (param)
       6 _E
       7 _G
-      8 i
     end locals
 
-[85] count = count || 1
+[89] count = count || 1
 
-    move: # (9) = param count (4)
-    logic ||: # (9)
-      move: # (9) = const number 1 (-4)
-    move: param count (4) = # (9)
+    move: # (8) = param count (4)
+    logic ||: # (8)
+      move: # (8) = const number 1 (-4)
+    move: param count (4) = # (8)
 
 
-[86] count > 0 && functionOf(func) || return;
+[90] count > 0 && functionOf(func) || return;
 
     begin pop
-      move: # (9) = param count (4)
-      move: # (10) = const number 0 (-5)
-      # (9) = # (9) [logic >] # (10)
-      logic &&: # (9)
+      move: # (8) = param count (4)
+      move: # (9) = const number 0 (-5)
+      # (8) = # (8) [logic >] # (9)
+      logic &&: # (8)
         begin call method
-          move: # (9) = var _E (6)
-          move: # (10) = const string "functionOf" (-55)
-          move: # (11) = param func (2)
-        end call method: start 9, params 3, ret values 1
-      logic ||: # (9)
-        return: # (9), count 0
+          move: # (8) = var _E (6)
+          move: # (9) = const string "functionOf" (-60)
+          move: # (10) = param func (2)
+        end call method: start 8, params 3, ret values 1
+      logic ||: # (8)
+        return: # (8), count 0
     end pop ret values 0
 
 
-[87] var i = func // #timers
+[91] timers[func] = {
 
-    move: var i (8) = param func (2)
+    new object 5: # (8)
 
+[92] nextTime = app.timeSec + delay
 
-[88] timers[i] = {
+    get property: # (10) = var _E (6) [const string "app" (-71)]
+    get property: # (10) = # (10) [const string "timeSec" (-72)]
+    # (10) = # (10) [operator +] param delay (3)
+    init property: # (8) [const string "nextTime" (-70)] = # (10)
 
-    new object 5: # (9)
+[93] delay = delay
 
-[89] nextTime = app.timeSec + delay
+    init property: # (8) [const string "delay" (-73)] = param delay (3)
 
-    get property: # (11) = var _E (6) [const string "app" (-66)]
-    get property: # (11) = # (11) [const string "timeSec" (-67)]
-    # (11) = # (11) [operator +] param delay (3)
-    init property: # (9) [const string "nextTime" (-65)] = # (11)
+[94] func = func
 
-[90] delay = delay
+    init property: # (8) [const string "func" (-74)] = param func (2)
 
-    init property: # (9) [const string "delay" (-68)] = param delay (3)
+[95] count = count
 
-[91] func = func
+    init property: # (8) [const string "count" (-75)] = param count (4)
 
-    init property: # (9) [const string "func" (-69)] = param func (2)
+[96] priority = priority || 0
 
-[92] count = count
+    move: # (10) = param priority (5)
+    logic ||: # (10)
+      move: # (10) = const number 0 (-5)
+    init property: # (8) [const string "priority" (-76)] = # (10)
 
-    init property: # (9) [const string "count" (-70)] = param count (4)
+[91] timers[func] = {
 
-[93] priority = priority || 0
-
-    move: # (11) = param priority (5)
-    logic ||: # (11)
-      move: # (11) = const number 0 (-5)
-    init property: # (9) [const string "priority" (-71)] = # (11)
-
-[88] timers[i] = {
-
-    get upvalue: # (10) = var timers (5 1)
-    set property: # (10) [var i (8)] = # (9)
+    get upvalue: # (9) = var timers (5 1)
+    set property: # (9) [param func (2)] = # (8)
 
 
-[96] timers.rsort "priority"
+[98] timers.sort {|a b| b.priority - a.priority }
 
     begin call method
-      get upvalue: # (9) = var timers (5 1)
-      move: # (10) = const string "rsort" (-56)
-      move: # (11) = const string "priority" (-71)
-    end call method: start 9, params 3, ret values 0
+      get upvalue: # (8) = var timers (5 1)
+      move: # (9) = const string "sort" (-61)
+      begin function
+        begin locals 6, stack 9
+          0 _F (param)
+          1 this (param)
+          2 a (param)
+          3 b (param)
+          4 _E
+          5 _G
+        end locals
+          get property: # (6) = param b (3) [const string "priority" (-76)]
+          get property: # (7) = param a (2) [const string "priority" (-76)]
+          # (6) = # (6) [operator -] # (7)
+        return: # (6), count 1
+      end function: # (10), index 13
+    end call method: start 8, params 3, ret values 0
 
 
-[97] return i
+[100] return func
 
-    return: var i (8), count 1
-  end function: # (6), index 11
-  set property: var _E (2) [const string "setTimeout" (-64)] = # (6)
+    return: param func (2), count 1
+  end function: # (6), index 12
+  set property: var _E (2) [const string "setTimeout" (-69)] = # (6)
 
 
-[100] function clearTimeout(t){
+[103] function clearTimeout(t){
 
   begin function
     begin locals 5, stack 9
@@ -832,187 +936,186 @@ target " (-27)
       4 _G
     end locals
 
-[101] delete timers[t]
+[104] delete timers[t]
 
     begin call method
       move: # (5) = var _G (4)
-      move: # (6) = const string "__delete" (-59)
+      move: # (6) = const string "__delete" (-64)
       get upvalue: # (7) = var timers (5 1)
       move: # (8) = param t (2)
     end call method: start 5, params 4, ret values 0
-  end function: # (6), index 12
-  set property: var _E (2) [const string "clearTimeout" (-72)] = # (6)
+  end function: # (6), index 14
+  set property: var _E (2) [const string "clearTimeout" (-77)] = # (6)
 
 
-[104] HIGH_PRIORITY = 999999
+[107] HIGH_PRIORITY = 999999
 
   move: # (6) = const number 999999 (-6)
-  set property: var _E (2) [const string "HIGH_PRIORITY" (-73)] = # (6)
+  set property: var _E (2) [const string "HIGH_PRIORITY" (-78)] = # (6)
 
 
-[106] addEventListener("enterFrame" {||
+[109] addEventListener("enterFrame", {||
 
   begin call method
     move: # (6) = var _E (2)
-    move: # (7) = const string "addEventListener" (-54)
-    begin call
-      move: # (8) = const string "enterFrame" (-74)
-      move: # (9) = const null (-1)
-      begin function
-        begin locals 9, stack 13
-          0 _F (param)
-          1 this (param)
-          2 _E
-          3 _G
-          4 time
+    move: # (7) = const string "addEventListener" (-59)
+    move: # (8) = const string "enterFrame" (-79)
+    begin function
+      begin locals 9, stack 13
+        0 _F (param)
+        1 this (param)
+        2 _E
+        3 _G
+        4 time
+      end locals
+
+[110] var time = app.timeSec
+
+      get property: # (9) = var _E (2) [const string "app" (-71)]
+      get property: var time (4) = # (9) [const string "timeSec" (-72)]
+
+[111] for(var i, t in timers){
+
+      begin scope
+        begin locals 4
+          5 i
+          6 t
+          7 #func
+          8 #valid
         end locals
 
-[107] var time = app.timeSec
-
-        get property: # (9) = var _E (2) [const string "app" (-66)]
-        get property: var time (4) = # (9) [const string "timeSec" (-67)]
-
-[108] for(var i, t in timers){
-
-        begin scope
-          begin locals 4
-            5 i
-            6 t
-            7 #func
-            8 #valid
-          end locals
 
 
 
+        begin call method
+          get upvalue: # (9) = var timers (5 1)
+          move: # (10) = const string "__iter" (-38)
+        end call method: start 9, params 2, ret values 1
+        move: var #func (7) = # (9)
+        begin loop
+          begin call
+            move: # (9) = var #func (7)
+            move: # (10) = const null (-1)
+          end call: start 9, params 2, ret values 3
+          move: var t (6) = # (11)
+          move: var i (5) = # (10)
+          move: var #valid (8) = # (9)
 
-          begin call method
-            get upvalue: # (9) = var timers (5 1)
-            move: # (10) = const string "__iter" (-38)
-          end call method: start 9, params 2, ret values 1
-          move: var #func (7) = # (9)
-          begin loop
-            begin call
-              move: # (9) = var #func (7)
-              move: # (10) = const null (-1)
-            end call: start 9, params 2, ret values 3
-            move: var t (6) = # (11)
-            move: var i (5) = # (10)
-            move: var #valid (8) = # (9)
+          begin if
+            begin bool exp
+              move: # (9) = var #valid (8)
+              # (9) = [logic not] # (9)
+            end bool exp
+            begin then
+              break
+            end then
+          end if ret values 0
 
+
+[112] if(t.nextTime <= time){
+
+          begin scope
             begin if
               begin bool exp
-                move: # (9) = var #valid (8)
-                # (9) = [logic not] # (9)
+                get property: # (9) = var t (6) [const string "nextTime" (-70)]
+                move: # (10) = var time (4)
+                # (9) = # (9) [logic <=] # (10)
               end bool exp
               begin then
-                break
+
+[113] t.nextTime = time + t.delay
+
+                begin scope
+                  get property: # (10) = var t (6) [const string "delay" (-73)]
+                  # (9) = var time (4) [operator +] # (10)
+                  set property: var t (6) [const string "nextTime" (-70)] = # (9)
+
+
+[114] if(t.count === true){
+
+                  begin if
+                    begin bool exp
+                      get property: # (9) = var t (6) [const string "count" (-75)]
+                      move: # (10) = const true (-2)
+                      # (9) = # (9) [logic ===] # (10)
+                    end bool exp
+                    begin then
+
+[116] (t.func)()
+
+                      begin scope
+                        begin call
+                          begin single value
+                            get property: # (9) = var t (6) [const string "func" (-74)]
+                          end single value
+                          move: # (10) = const null (-1)
+                        end call: start 9, params 2, ret values 0
+                      end scope ret values 0
+                    end then
+                    begin else
+
+[118] if(t.count <= 1){
+
+                      begin scope
+                        begin if
+                          begin bool exp
+                            get property: # (9) = var t (6) [const string "count" (-75)]
+                            move: # (10) = const number 1 (-4)
+                            # (9) = # (9) [logic <=] # (10)
+                          end bool exp
+                          begin then
+
+[119] delete timers[i]
+
+                            begin scope
+                              begin call method
+                                move: # (9) = var _G (3)
+                                move: # (10) = const string "__delete" (-64)
+                                get upvalue: # (11) = var timers (5 1)
+                                move: # (12) = var i (5)
+                              end call method: start 9, params 4, ret values 0
+                            end scope ret values 0
+                          end then
+                          begin else
+
+[121] t.count = t.count - 1
+
+                            begin scope
+                              get property: # (9) = var t (6) [const string "count" (-75)]
+                              # (9) = # (9) [operator -] const number 1 (-4)
+                              set property: var t (6) [const string "count" (-75)] = # (9)
+                            end scope ret values 0
+                          end else
+                        end if ret values 0
+
+
+[124] (t.func)()
+
+                        begin call
+                          begin single value
+                            get property: # (9) = var t (6) [const string "func" (-74)]
+                          end single value
+                          move: # (10) = const null (-1)
+                        end call: start 9, params 2, ret values 0
+                      end scope ret values 0
+                    end else
+                  end if ret values 0
+                end scope ret values 0
               end then
             end if ret values 0
+          end scope ret values 0
+        end loop ret values 0
+      end scope ret values 0
+    end function: # (9), index 15
+
+[128] }, HIGH_PRIORITY+1)
+
+    get property: # (10) = var _E (2) [const string "HIGH_PRIORITY" (-78)]
+    # (10) = # (10) [operator +] const number 1 (-4)
+  end call method: start 6, params 5, ret values 0
 
 
-[109] if(t.nextTime <= time){
-
-            begin scope
-              begin if
-                begin bool exp
-                  get property: # (9) = var t (6) [const string "nextTime" (-65)]
-                  move: # (10) = var time (4)
-                  # (9) = # (9) [logic <=] # (10)
-                end bool exp
-                begin then
-
-[110] t.nextTime = time + t.delay
-
-                  begin scope
-                    get property: # (10) = var t (6) [const string "delay" (-68)]
-                    # (9) = var time (4) [operator +] # (10)
-                    set property: var t (6) [const string "nextTime" (-65)] = # (9)
-
-
-[111] if(t.count === true){
-
-                    begin if
-                      begin bool exp
-                        get property: # (9) = var t (6) [const string "count" (-70)]
-                        move: # (10) = const true (-2)
-                        # (9) = # (9) [logic ===] # (10)
-                      end bool exp
-                      begin then
-
-[112] t.func.call(null)
-
-                        begin scope
-                          begin call method
-                            get property: # (9) = var t (6) [const string "func" (-69)]
-                            move: # (10) = const string "call" (-75)
-                            move: # (11) = const null (-1)
-                          end call method: start 9, params 3, ret values 0
-                        end scope ret values 0
-                      end then
-                      begin else
-
-[114] if(t.count <= 1){
-
-                        begin scope
-                          begin if
-                            begin bool exp
-                              get property: # (9) = var t (6) [const string "count" (-70)]
-                              move: # (10) = const number 1 (-4)
-                              # (9) = # (9) [logic <=] # (10)
-                            end bool exp
-                            begin then
-
-[115] delete timers[i]
-
-                              begin scope
-                                begin call method
-                                  move: # (9) = var _G (3)
-                                  move: # (10) = const string "__delete" (-59)
-                                  get upvalue: # (11) = var timers (5 1)
-                                  move: # (12) = var i (5)
-                                end call method: start 9, params 4, ret values 0
-                              end scope ret values 0
-                            end then
-                            begin else
-
-[117] t.count = t.count - 1
-
-                              begin scope
-                                get property: # (9) = var t (6) [const string "count" (-70)]
-                                # (9) = # (9) [operator -] const number 1 (-4)
-                                set property: var t (6) [const string "count" (-70)] = # (9)
-                              end scope ret values 0
-                            end else
-                          end if ret values 0
-
-
-[119] t.func.call(null)
-
-                          begin call method
-                            get property: # (9) = var t (6) [const string "func" (-69)]
-                            move: # (10) = const string "call" (-75)
-                            move: # (11) = const null (-1)
-                          end call method: start 9, params 3, ret values 0
-                        end scope ret values 0
-                      end else
-                    end if ret values 0
-                  end scope ret values 0
-                end then
-              end if ret values 0
-            end scope ret values 0
-          end loop ret values 0
-        end scope ret values 0
-      end function: # (10), index 13
-    end call: start 8, params 3, ret values 1
-
-[123] } HIGH_PRIORITY+1)
-
-    get property: # (9) = var _E (2) [const string "HIGH_PRIORITY" (-73)]
-    # (9) = # (9) [operator +] const number 1 (-4)
-  end call method: start 6, params 4, ret values 0
-
-
-[125] function toArray(a){
+[130] function toArray(a){
 
   begin function
     begin locals 11, stack 15
@@ -1024,7 +1127,7 @@ target " (-27)
       5 type
     end locals
 
-[126] arrayOf(a) && return arr;
+[131] arrayOf(a) && return arr;
 
     begin pop
       begin call method
@@ -1033,12 +1136,12 @@ target " (-27)
         move: # (13) = param a (2)
       end call method: start 11, params 3, ret values 1
       logic &&: # (11)
-          get property: # (11) = var _E (3) [const string "arr" (-77)]
+          get property: # (11) = var _E (3) [const string "arr" (-81)]
         return: # (11), count 1
     end pop ret values 0
 
 
-[127] var type = typeOf(a)
+[132] var type = typeOf(a)
 
     begin call method
       move: # (11) = var _E (3)
@@ -1048,17 +1151,17 @@ target " (-27)
     move: var type (5) = # (11)
 
 
-[128] if(type == "object"){
+[133] if(type == "object"){
 
     begin if
       begin bool exp
         move: # (11) = var type (5)
-        move: # (12) = const string "object" (-42)
+        move: # (12) = const string "object" (-48)
         # (11) = # (11) [logic ==] # (12)
       end bool exp
       begin then
 
-[129] var arr = []
+[134] var arr = []
 
         begin scope
           begin locals 1
@@ -1068,7 +1171,7 @@ target " (-27)
           move: var arr (6) = # (11)
 
 
-[130] for(var i, v in a){
+[135] for(var i, v in a){
 
           begin scope
             begin locals 4
@@ -1106,12 +1209,12 @@ target " (-27)
               end if ret values 0
 
 
-[131] arr.push(v)
+[136] arr.push(v)
 
               begin scope
                 begin call method
                   move: # (11) = var arr (6)
-                  move: # (12) = const string "push" (-57)
+                  move: # (12) = const string "push" (-62)
                   move: # (13) = var v (8)
                 end call method: start 11, params 3, ret values 0
               end scope ret values 0
@@ -1119,7 +1222,7 @@ target " (-27)
           end scope ret values 0
 
 
-[133] return arr
+[138] return arr
 
           return: var arr (6), count 1
         end scope ret values 0
@@ -1127,17 +1230,17 @@ target " (-27)
     end if ret values 0
 
 
-[135] if(type == "null"){
+[140] if(type == "null"){
 
     begin if
       begin bool exp
         move: # (11) = var type (5)
-        move: # (12) = const string "null" (-78)
+        move: # (12) = const string "null" (-82)
         # (11) = # (11) [logic ==] # (12)
       end bool exp
       begin then
 
-[136] return null
+[141] return null
 
         begin scope
             move: # (11) = const null (-1)
@@ -1147,20 +1250,20 @@ target " (-27)
     end if ret values 0
 
 
-[138] return [a]
+[143] return [a]
 
       new array 1: # (11)
       begin call method
         move: # (12) = # (11)
-        move: # (13) = const string "push" (-57)
+        move: # (13) = const string "push" (-62)
         move: # (14) = param a (2)
       end call method: start 12, params 3, ret values 0
     return: # (11), count 1
-  end function: # (6), index 14
-  set property: var _E (2) [const string "toArray" (-76)] = # (6)
+  end function: # (6), index 16
+  set property: var _E (2) [const string "toArray" (-80)] = # (6)
 
 
-[141] function toObject(a){
+[146] function toObject(a){
 
   begin function
     begin locals 11, stack 15
@@ -1172,7 +1275,7 @@ target " (-27)
       5 type
     end locals
 
-[142] objectOf(a) && return object;
+[147] objectOf(a) && return object;
 
     begin pop
       begin call method
@@ -1181,12 +1284,12 @@ target " (-27)
         move: # (13) = param a (2)
       end call method: start 11, params 3, ret values 1
       logic &&: # (11)
-          get property: # (11) = var _E (3) [const string "object" (-42)]
+          get property: # (11) = var _E (3) [const string "object" (-48)]
         return: # (11), count 1
     end pop ret values 0
 
 
-[143] var type = typeOf(a)
+[148] var type = typeOf(a)
 
     begin call method
       move: # (11) = var _E (3)
@@ -1196,17 +1299,17 @@ target " (-27)
     move: var type (5) = # (11)
 
 
-[144] if(type == "array"){
+[149] if(type == "array"){
 
     begin if
       begin bool exp
         move: # (11) = var type (5)
-        move: # (12) = const string "array" (-80)
+        move: # (12) = const string "array" (-84)
         # (11) = # (11) [logic ==] # (12)
       end bool exp
       begin then
 
-[145] var object = {}
+[150] var object = {}
 
         begin scope
           begin locals 1
@@ -1216,7 +1319,7 @@ target " (-27)
           move: var object (6) = # (11)
 
 
-[146] for(var i, v in a){
+[151] for(var i, v in a){
 
           begin scope
             begin locals 4
@@ -1254,12 +1357,12 @@ target " (-27)
               end if ret values 0
 
 
-[147] object.push(v)
+[152] object.push(v)
 
               begin scope
                 begin call method
                   move: # (11) = var object (6)
-                  move: # (12) = const string "push" (-57)
+                  move: # (12) = const string "push" (-62)
                   move: # (13) = var v (8)
                 end call method: start 11, params 3, ret values 0
               end scope ret values 0
@@ -1267,7 +1370,7 @@ target " (-27)
           end scope ret values 0
 
 
-[149] return object
+[154] return object
 
           return: var object (6), count 1
         end scope ret values 0
@@ -1275,17 +1378,17 @@ target " (-27)
     end if ret values 0
 
 
-[151] if(type == "null"){
+[156] if(type == "null"){
 
     begin if
       begin bool exp
         move: # (11) = var type (5)
-        move: # (12) = const string "null" (-78)
+        move: # (12) = const string "null" (-82)
         # (11) = # (11) [logic ==] # (12)
       end bool exp
       begin then
 
-[152] return null
+[157] return null
 
         begin scope
             move: # (11) = const null (-1)
@@ -1295,20 +1398,20 @@ target " (-27)
     end if ret values 0
 
 
-[154] return {a}
+[159] return {a}
 
       new object 1: # (11)
       begin call method
         move: # (12) = # (11)
-        move: # (13) = const string "push" (-57)
+        move: # (13) = const string "push" (-62)
         move: # (14) = param a (2)
       end call method: start 12, params 3, ret values 0
     return: # (11), count 1
-  end function: # (6), index 15
-  set property: var _E (2) [const string "toObject" (-79)] = # (6)
+  end function: # (6), index 17
+  set property: var _E (2) [const string "toObject" (-83)] = # (6)
 
 
-[157] function Object.deepClone(){
+[162] function Object.deepClone(){
 
   begin function
     begin locals 9, stack 12
@@ -1319,16 +1422,16 @@ target " (-27)
       4 t
     end locals
 
-[158] var t = this.clone()
+[163] var t = @clone()
 
     begin call method
       move: # (9) = param this (1)
-      move: # (10) = const string "clone" (-81)
+      move: # (10) = const string "clone" (-85)
     end call method: start 9, params 2, ret values 1
     move: var t (4) = # (9)
 
 
-[159] for(var k, v in t){
+[164] for(var k, v in t){
 
     begin scope
       begin locals 4
@@ -1366,12 +1469,12 @@ target " (-27)
         end if ret values 0
 
 
-[160] t[k] = v.deepClone()
+[165] t[k] = v.deepClone()
 
         begin scope
           begin call method
             move: # (9) = var v (6)
-            move: # (10) = const string "deepClone" (-82)
+            move: # (10) = const string "deepClone" (-86)
           end call method: start 9, params 2, ret values 1
           set property: var t (4) [var k (5)] = # (9)
         end scope ret values 0
@@ -1379,18 +1482,18 @@ target " (-27)
     end scope ret values 0
 
 
-[162] return t
+[167] return t
 
     return: var t (4), count 1
-  end function: # (6), index 16
+  end function: # (6), index 18
 
-[157] function Object.deepClone(){
+[162] function Object.deepClone(){
 
   get property: # (7) = var _E (2) [const string "Object" (-29)]
-  set property: # (7) [const string "deepClone" (-82)] = # (6)
+  set property: # (7) [const string "deepClone" (-86)] = # (6)
 
 
-[165] function Object.flip(){
+[170] function Object.flip(){
 
   begin function
     begin locals 9, stack 12
@@ -1401,13 +1504,13 @@ target " (-27)
       4 r
     end locals
 
-[166] var r = {}
+[171] var r = {}
 
     new object 0: # (9)
     move: var r (4) = # (9)
 
 
-[167] for(var i, v in this){
+[172] for(var i, v in this){
 
     begin scope
       begin locals 4
@@ -1445,7 +1548,7 @@ target " (-27)
         end if ret values 0
 
 
-[168] r[v] = i
+[173] r[v] = i
 
         begin scope
           set property: var r (4) [var v (6)] = var i (5)
@@ -1454,18 +1557,18 @@ target " (-27)
     end scope ret values 0
 
 
-[170] return r
+[175] return r
 
     return: var r (4), count 1
-  end function: # (6), index 17
+  end function: # (6), index 19
 
-[165] function Object.flip(){
+[170] function Object.flip(){
 
   get property: # (7) = var _E (2) [const string "Object" (-29)]
-  set property: # (7) [const string "flip" (-83)] = # (6)
+  set property: # (7) [const string "flip" (-87)] = # (6)
 
 
-[173] function math.clamp(a, min, max){
+[178] function math.clamp(a, min, max){
 
   begin function
     begin locals 7, stack 9
@@ -1478,7 +1581,7 @@ target " (-27)
       6 _G
     end locals
 
-[174] return a < min ? min : a > max ? max : a
+[179] return a < min ? min : a > max ? max : a
 
       begin question
         begin bool exp
@@ -1506,15 +1609,15 @@ target " (-27)
         end else value
       end question ret values 1
     return: # (7), count 1
-  end function: # (6), index 18
+  end function: # (6), index 20
 
-[173] function math.clamp(a, min, max){
+[178] function math.clamp(a, min, max){
 
-  get property: # (7) = var _E (2) [const string "math" (-84)]
-  set property: # (7) [const string "clamp" (-85)] = # (6)
+  get property: # (7) = var _E (2) [const string "math" (-88)]
+  set property: # (7) [const string "clamp" (-89)] = # (6)
 
 
-[175] }
+[180] }
 
   return: var _E (2), count 1
 end function: {main} (0), index 0

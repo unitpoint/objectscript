@@ -677,7 +677,7 @@ begin function
       move: # (11) = var c (4)
       move: # (12) = const string "getInfo" (-11)
     end call method: start 11, params 2, ret values 1
-    set property: var _E (2) [const string "Curl" (-4)] = # (11)
+    set property: var _E (2) [const string "info" (-59)] = # (11)
   end call method: start 9, params 3, ret values 0
 
 
@@ -695,7 +695,7 @@ begin function
   begin call method
     move: # (9) = var _E (2)
     move: # (10) = const string "print" (-9)
-    move: # (11) = const string "-=== PRINT INFO OBJECT  ===-" (-59)
+    move: # (11) = const string "-=== PRINT INFO OBJECT  ===-" (-60)
   end call method: start 9, params 3, ret values 0
 
 
@@ -713,7 +713,7 @@ begin function
 
 
     begin call method
-      get property: # (9) = var _E (2) [const string "info" (-60)]
+      get property: # (9) = var _E (2) [const string "info" (-59)]
       move: # (10) = const string "__iter" (-61)
     end call method: start 9, params 2, ret values 1
     move: var #func (7) = # (9)
@@ -737,7 +737,7 @@ begin function
       end if ret values 0
 
 
-[68] print i.." <=> "..v
+[68] print i.." => "..v
 
       begin scope
         begin call method
@@ -747,7 +747,7 @@ begin function
             move: # (11) = var _G (3)
             move: # (12) = const string "concat" (-62)
             move: # (13) = var i (5)
-            move: # (14) = const string " <=> " (-63)
+            move: # (14) = const string " => " (-63)
             move: # (15) = var v (6)
           end call method: start 11, params 5, ret values 1
         end call method: start 9, params 3, ret values 0
