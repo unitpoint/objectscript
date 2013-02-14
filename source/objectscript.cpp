@@ -10483,7 +10483,6 @@ OS::Core::GCFunctionValue * OS::Core::newFunctionValue(StackFunction * stack_fun
 	func_value->func_decl = func_decl;
 	func_value->env = env; // global_vars;
 	func_value->locals = stack_func ? stack_func->locals->retain() : NULL;
-	func_value->name = NULL;
 	registerValue(func_value);
 	return func_value;
 }
@@ -10797,6 +10796,7 @@ OS::Core::GCValue::GCValue()
 	hash_next = NULL;
 	prototype = NULL;
 	table = NULL;
+	name = NULL;
 	gc_grey_next = NULL;
 #ifdef OS_DEBUG
 	gc_time = -1;
@@ -10812,7 +10812,7 @@ OS::Core::GCValue::~GCValue()
 	value_id = 0;
 
 	OS_ASSERT(type == OS_VALUE_TYPE_UNKNOWN);
-	OS_ASSERT(!table);
+	OS_ASSERT(!table && !name);
 	OS_ASSERT(!hash_next);
 	OS_ASSERT(!prototype);
 	OS_ASSERT(gc_color != GC_GREY);
@@ -12957,6 +12957,9 @@ void OS::Core::gcMarkValue(GCValue * value)
 	if(value->table){
 		gcMarkTable(value->table);
 	}
+	if(value->name){
+		gcAddToGreyList(value->name);
+	}
 	switch(value->type){
 	case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_BOOL:
@@ -12992,9 +12995,6 @@ void OS::Core::gcMarkValue(GCValue * value)
 			if(func_value->locals){
 				gcMarkLocals(func_value->locals);
 			}
-			if(func_value->name){
-				gcAddToGreyList(func_value->name);
-			}
 			break;
 		}
 
@@ -13005,9 +13005,6 @@ void OS::Core::gcMarkValue(GCValue * value)
 			Value * closure_values = (Value*)(func_value + 1);
 			for(int i = 0; i < func_value->num_closure_values; i++){
 				gcAddToGreyList(closure_values[i]);
-			}
-			if(func_value->name){
-				gcAddToGreyList(func_value->name);
 			}
 			break;
 		}
@@ -13327,6 +13324,7 @@ void OS::Core::clearValue(GCValue * val)
 		val->table = NULL;
 		deleteTable(table);
 	}
+	val->name = NULL;
 	// prototype could be already destroyed by gc or will be destroyed soon
 	val->prototype = NULL;
 	val->type = OS_VALUE_TYPE_UNKNOWN;
@@ -13411,6 +13409,9 @@ bool OS::Core::isValueUsed(GCValue * val)
 			if(cur->table && findAt(cur->table)){
 				return true;
 			}
+			if(cur->name && findAt(cur->name)){
+				return true;
+			}
 			switch(cur->type){
 			case OS_VALUE_TYPE_STRING:
 				{
@@ -13451,9 +13452,6 @@ bool OS::Core::isValueUsed(GCValue * val)
 					if(func_value->locals && findAt(func_value->locals)){
 						return true;
 					}
-					if(func_value->name && findAt(func_value->name)){
-						return true;
-					}
 					for(int i = 0; i < func_value->prog->num_strings + func_value->prog->num_numbers + CONST_STD_VALUES; i++){
 						if(findAt(func_value->prog->const_values[i])){
 							return true;
@@ -13471,9 +13469,6 @@ bool OS::Core::isValueUsed(GCValue * val)
 						if(findAt(closure_values[i])){
 							return true;
 						}
-					}
-					if(func_value->name && findAt(func_value->name)){
-						return true;
 					}
 					break;
 				}
@@ -13587,19 +13582,17 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
 		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index.index).string));
 		switch(OS_VALUE_TYPE(value)){
+		case OS_VALUE_TYPE_STRING:
+		case OS_VALUE_TYPE_ARRAY:
+		case OS_VALUE_TYPE_OBJECT:
+		case OS_VALUE_TYPE_USERDATA:
+		case OS_VALUE_TYPE_USERPTR:
 		case OS_VALUE_TYPE_FUNCTION:
-			OS_ASSERT(dynamic_cast<GCFunctionValue*>(OS_VALUE_VARIANT(value).func));
-			if(!OS_VALUE_VARIANT(value).func->name){
-				OS_VALUE_VARIANT(value).func->name = OS_VALUE_VARIANT(index.index).string;
-			}
-			break;
-
 		case OS_VALUE_TYPE_CFUNCTION:
-			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(OS_VALUE_VARIANT(value).cfunc));
-			if(!OS_VALUE_VARIANT(value).cfunc->name){
-				OS_VALUE_VARIANT(value).cfunc->name = OS_VALUE_VARIANT(index.index).string;
+			OS_ASSERT(dynamic_cast<GCValue*>(OS_VALUE_VARIANT(value).value));
+			if(!OS_VALUE_VARIANT(value).value->name){
+				OS_VALUE_VARIANT(value).value->name = OS_VALUE_VARIANT(index.index).string;
 			}
-			break;
 		}
 	}
 
@@ -13957,7 +13950,6 @@ OS::Core::GCCFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, int 
 	}
 	GCCFunctionValue * res = new (malloc(sizeof(GCCFunctionValue) + sizeof(Value) * num_closure_values OS_DBG_FILEPOS)) GCCFunctionValue();
 	res->prototype = prototypes[PROTOTYPE_FUNCTION];
-	res->name = NULL;
 	res->func = func;
 	res->user_param = user_param;
 	res->num_closure_values = num_closure_values;
@@ -14302,12 +14294,10 @@ OS::Core::GCObjectValue * OS::Core::pushObjectOf(const Value& val)
 		pushValue(val);
 		return OS_VALUE_VARIANT(val).object;
 	
-	/*
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		pushValue(val);
 		return OS_VALUE_VARIANT(val).userdata;
-	*/
 	}
 	pushNull();
 	return NULL;
@@ -15220,7 +15210,6 @@ bool OS::isObject(int offs)
 {
 	switch(OS_VALUE_TYPE(core->getStackValue(offs))){
 	case OS_VALUE_TYPE_OBJECT:
-		// case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		return true;
@@ -15541,6 +15530,24 @@ int OS::getValueId(int offs)
 		return OS_VALUE_VARIANT(val).value_id;
 	}
 	return 0;
+}
+
+OS::String OS::getValueName(int offs)
+{
+	Core::Value val = core->getStackValue(offs);
+	switch(OS_VALUE_TYPE(val)){
+	case OS_VALUE_TYPE_STRING:
+	case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+		if(OS_VALUE_VARIANT(val).value->name){
+			return OS::String(this, OS_VALUE_VARIANT(val).value->name);
+		}
+	}
+	return OS::String(this);
 }
 
 bool OS::Core::getPropertyValue(Value& result, Table * table, const PropertyIndex& index)
@@ -17265,7 +17272,7 @@ void OS::setGlobal(const FuncDef& func, bool setter_enabled)
 	setGlobal(func.name, setter_enabled);
 }
 
-bool OS::nextIteratorStep(int results)
+bool OS::nextIteratorStep(int results, const Core::String& iter_func)
 {
 	OS_EValueType type = getType();
 	switch(type){
@@ -17274,7 +17281,7 @@ bool OS::nextIteratorStep(int results)
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		pushStackValue();
-		getProperty(core->strings->__iter);
+		getProperty(iter_func);
 		pushStackValue(-2);
 		call(0, 1);
 		break;
@@ -17297,6 +17304,11 @@ bool OS::nextIteratorStep(int results)
 	}
 	pop(results + 2);
 	return false;
+}
+
+bool OS::nextIteratorStep(int results)
+{
+	return nextIteratorStep(results, core->strings->__iter);
 }
 
 static const OS_CHAR DIGITS[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -18300,6 +18312,12 @@ void OS::initObjectClass()
 			return 1;
 		}
 
+		static int getName(OS * os, int params, int, int, void*)
+		{
+			os->pushString(os->getValueName(-params-1));
+			return 1;
+		}
+
 		static int iteratorStep(OS * os, int params, int closure_values, int, void*)
 		{
 			OS_ASSERT(closure_values == 2);
@@ -18917,6 +18935,17 @@ dump_object:
 			return 0;
 		}
 
+		static int clear(OS * os, int params, int, int, void*)
+		{
+			Core::GCValue * value = os->core->getStackValue(-params-1).getGCValue();
+			if(value && value->table){
+				Core::Table * table = value->table;
+				value->table = NULL;
+				os->core->deleteTable(table);
+			}
+			return 0;
+		}
+
 		static int clone(OS * os, int params, int, int, void*)
 		{
 			Core::Value val = os->core->getStackValue(-params-1);
@@ -19004,7 +19033,10 @@ dump_object:
 		{OS_TEXT("getProperty"), Object::getProperty},
 		{OS_TEXT("setProperty"), Object::setProperty},
 		{OS_TEXT("setSmartProperty"), Object::setSmartProperty},
-		{OS_TEXT("__get@osValueId"), Object::getValueId},
+		{OS_TEXT("__get@id"), Object::getValueId},
+		{OS_TEXT("getId"), Object::getValueId},
+		{OS_TEXT("__get@name"), Object::getName},
+		{OS_TEXT("getName"), Object::getName},
 		{core->strings->__len, Object::length},
 		{core->strings->__iter, Object::iterator},
 		{OS_TEXT("reverseIter"), Object::reverseIterator},
@@ -19018,6 +19050,7 @@ dump_object:
 		{OS_TEXT("hasProperties"), Object::hasProperties},
 		{OS_TEXT("merge"), Object::merge},
 		{OS_TEXT("join"), Object::join},
+		{OS_TEXT("clear"), Object::clear},
 		{OS_TEXT("__get@keys"), Object::getKeys},
 		{OS_TEXT("__get@values"), Object::getValues},
 		{}
@@ -20510,7 +20543,7 @@ void OS::initPreScript()
 		// it's ObjectScript code here
 		function Object.__get@length(){ return #this }
 		function Function.__iter(){
-			if(this === Function){
+			if(this === Function || @hasProperties()){
 				return super()
 			}
 			return this
@@ -20538,7 +20571,7 @@ void OS::initPreScript()
 				for(var i, t in e.trace){
 					printf("#%d %s%s: %s, args: %s\n", i, t.file, 
 						t.line > 0 ? "("..t.line..","..t.pos..")" : "", 
-						t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+						t.object && t.object !== _G ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
 				}
 			}else{
 				printf("Unhandled exception: '%s' in %s%s\n", e.message, e.file, t.line > 0 ? "("..t.line..","..t.pos..")" : "");
@@ -20893,7 +20926,7 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 			break;
 		}
 	}
-	OS_ASSERT(start_pos + ret_values <= stack_values.count);
+	reserveStackValues(start_pos + ret_values);
 	OS_SET_NULL_VALUES(stack_values.buf + start_pos, ret_values);
 }
 

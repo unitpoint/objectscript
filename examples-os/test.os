@@ -371,7 +371,7 @@ function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
 		printf("#%d %s%s: %s, args: %s\n", i, t.file,
 			t.line > 0 ? "("..t.line..","..t.pos..")" : ""
-			t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+			t.object === _G ? t.name : t.object ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
 	}
 }
 
@@ -384,7 +384,7 @@ try{
 	for(var i, t in e.trace){
 		printf("#%d %s%s: %s, args: %s\n", i, t.file,
 			t.line > 0 ? "("..t.line..","..t.pos..")" : ""
-			t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+			t.object === _G ? t.name : t.object ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
 	}
 	// throw e
 }

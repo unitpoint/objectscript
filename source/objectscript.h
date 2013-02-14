@@ -250,7 +250,7 @@ namespace ObjectScript
 
 		// internal
 		OS_VALUE_TYPE_WEAKREF,
-		OS_VALUE_TYPE_UNKNOWN,
+		OS_VALUE_TYPE_UNKNOWN
 	};
 
 	enum OS_ESourceCodeType
@@ -1291,6 +1291,7 @@ namespace ObjectScript
 				GCValue * hash_next;
 
 				Table * table;
+				GCStringValue * name;
 
 				GCValue * gc_grey_next;
 #ifdef OS_DEBUG
@@ -1403,7 +1404,6 @@ namespace ObjectScript
 
 			struct GCCFunctionValue: public GCValue
 			{
-				GCStringValue * name;
 				OS_CFunction func;
 				void * user_param;
 				int num_closure_values;
@@ -1575,7 +1575,6 @@ namespace ObjectScript
 				FunctionDecl * func_decl;
 				Value env;
 				Locals * locals; // retained
-				GCStringValue * name;
 
 				GCFunctionValue();
 				~GCFunctionValue();
@@ -2936,6 +2935,7 @@ namespace ObjectScript
 			typedef Core::String super;
 			friend class Core;
 			friend class Buffer;
+			friend class OS;
 
 		protected:
 
@@ -3041,6 +3041,7 @@ namespace ObjectScript
 		void setPrototype(int userdata_crc);
 
 		int getValueId(int offs = -1);
+		String getValueName(int offs = -1);
 
 		void pushNull();
 		template<class T> void pushNumber(const T& val){ core->pushNumber(val); }
@@ -3183,6 +3184,7 @@ namespace ObjectScript
 		void getModule(const OS_CHAR * name, bool getter_enabled = true, bool prototype_enabled = true);
 
 		bool nextIteratorStep(int results = 2);
+		bool nextIteratorStep(int results, const Core::String& iter_func);
 
 		String changeFilenameExt(const String& filename, const String& ext);
 		String changeFilenameExt(const String& filename, const OS_CHAR * ext);
