@@ -9889,6 +9889,20 @@ OS::Core::Property::Property(GCStringValue * index, const AutoNumber& num): Prop
 	next = NULL;
 }
 
+OS::Core::Property::Property(const String& index): PropertyIndex(index)
+{
+	hash_next = NULL;
+	prev = NULL;
+	next = NULL;
+}
+
+OS::Core::Property::Property(const String& index, const AutoNumber& num): PropertyIndex(index, num)
+{
+	hash_next = NULL;
+	prev = NULL;
+	next = NULL;
+}
+
 OS::Core::Property::~Property()
 {
 	OS_ASSERT(!hash_next);
@@ -11764,11 +11778,18 @@ OS::SmartMemoryManager::SmartMemoryManager()
 	registerPageDesc(128, OS_MEMORY_MANAGER_PAGE_BLOCKS/2);
 	registerPageDesc(256, OS_MEMORY_MANAGER_PAGE_BLOCKS/4);
 	sortPageDesc();
+
+	page_map_size = page_desc[num_page_desc-1].block_size + 1;
+	page_map = new int[page_map_size];
+	for(int i = 0; i < page_map_size; i++){
+		page_map[i] = -1;
+	}
 }
 
 OS::SmartMemoryManager::~SmartMemoryManager()
 {
 	freeCachedMemory(0);
+	delete [] page_map;
 #ifdef OS_DEBUG
 	{
 		for(MemBlock * mem = dbg_mem_list; mem; mem = mem->dbg_mem_next){
@@ -12075,30 +12096,20 @@ void * OS::SmartMemoryManager::malloc(int size OS_DBG_FILEPOS_DECL)
 	if(size <= 0){
 		return NULL;
 	}
-	// stat_malloc_count++;
-#if 0
-	int start = 0, end = num_page_desc-1;
-	if(size <= page_desc[end].block_size){
-		for(;;){
-			if(start >= end){
-				int block_size = page_desc[start].block_size;
-				if(size > block_size){
-					start++;
+#if 1
+	if(size < page_map_size){
+		int i = page_map[size];
+		if(i < 0){
+			for(i = 0; i < num_page_desc; i++){
+				if(size <= page_desc[i].block_size){
+					return allocFromPageType(page_map[size] = i OS_DBG_FILEPOS_PARAM);
 				}
-				return allocFromPageType(start);
 			}
-			int mid = (start + end) / 2;
-			int block_size = page_desc[mid].block_size;
-			if(size == block_size){
-				return allocFromPageType(mid);
-			}
-			if(size < block_size){
-				end = mid - 1;
-				continue;
-			}
-			start = mid + 1;
+			OS_ASSERT(false);
 		}
+		return allocFromPageType(i OS_DBG_FILEPOS_PARAM);
 	}
+	OS_ASSERT(size > page_desc[num_page_desc-1].block_size);
 #else
 	if(size <= page_desc[num_page_desc-1].block_size){
 		for(int i = 0; i < num_page_desc; i++){
@@ -15210,6 +15221,8 @@ bool OS::isObject(int offs)
 	switch(OS_VALUE_TYPE(core->getStackValue(offs))){
 	case OS_VALUE_TYPE_OBJECT:
 		// case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
 		return true;
 	}
 	return false;
@@ -19580,7 +19593,7 @@ int OS::Core::File::write(const void * data, int len)
 
 int OS::Core::File::write(const Core::String& str)
 {
-	return write(str.toChar(), str.getLen() * sizeof(OS_CHAR));
+	return write((void*)str.toChar(), str.getDataSize());
 }
 
 namespace ObjectScript {
@@ -20344,6 +20357,11 @@ void OS::initGCModule()
 			os->pushNumber(os->core->num_destroyed_values);
 			return 1;
 		}
+		static int full(OS * os, int params, int, int, void*)
+		{
+			os->gcFull();
+			return 0;
+		}
 	};
 	FuncDef list[] = {
 		{OS_TEXT("__get@allocatedBytes"), GC::getAllocatedBytes},
@@ -20352,6 +20370,7 @@ void OS::initGCModule()
 		{OS_TEXT("__get@numObjects"), GC::getNumObjects},
 		{OS_TEXT("__get@numCreatedObjects"), GC::getNumCreatedObjects},
 		{OS_TEXT("__get@numDestroyedObjects"), GC::getNumDestroyedObjects},
+		{OS_TEXT("full"), GC::full},
 		{}
 	};
 

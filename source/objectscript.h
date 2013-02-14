@@ -424,6 +424,9 @@ namespace ObjectScript
 			PageDesc page_desc[MAX_PAGE_TYPE_COUNT];
 			int num_page_desc;
 
+			int * page_map;
+			int page_map_size;
+
 			Page * pages[MAX_PAGE_TYPE_COUNT];
 
 			CachedBlock * cached_blocks[MAX_PAGE_TYPE_COUNT];
@@ -1613,6 +1616,8 @@ namespace ObjectScript
 				Property(const Value& index);
 				Property(GCStringValue * index);
 				Property(GCStringValue * index, const AutoNumber&);
+				Property(const String& index);
+				Property(const String& index, const AutoNumber&);
 				~Property();
 			};
 
