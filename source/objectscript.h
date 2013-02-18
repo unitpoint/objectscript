@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.0.3-dev")
+#define OS_VERSION OS_TEXT("1.0.4-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -2609,6 +2609,7 @@ namespace ObjectScript
 			float gc_step_size_mult;
 			float gc_step_size_auto_mult;
 			int gc_start_next_values;
+			int gc_start_used_bytes;
 			int gc_step_size;
 
 			struct {

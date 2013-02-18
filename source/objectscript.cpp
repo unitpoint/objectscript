@@ -12291,10 +12291,8 @@ void OS::Core::setExceptionValue(Value val)
 			pop();
 			pushValue(val);
 		}else{
-			pushValue(val);
-			String message = allocator->popString();
 			allocator->pushGlobals();
-			allocator->pushString(message);
+			allocator->pushString(valueToString(val, true));
 			call(1, 1); // _G.Exception(message)
 		}
 		allocator->pushString(OS_TEXT("file"));
@@ -12801,7 +12799,7 @@ OS::Core::DebugInfo OS::Core::getDebugInfo()
 	for(int i = call_stack_funcs.count-1; i >= 0 && !debug_info; i--){
 		Core::StackFunction * stack_func = call_stack_funcs.buf + i;
 		prog = stack_func->func->prog;
-		if(prog->filename.getLen() > 0){
+		if(!prog->filename.isEmpty()){
 			int opcode_pos = (int)(stack_func->opcodes - prog->opcodes.buf);
 			debug_info = prog->getDebugInfo(opcode_pos);
 		}
@@ -12823,6 +12821,7 @@ void OS::Core::gcInitGreyList()
 	gc_time = 0;
 	gc_in_process = false;
 	gc_grey_added_count = 0;
+	gc_start_used_bytes = 1024 * 1024 * 2; // 2 Mb used to enable gc
 	gc_start_values_mult = 1.5f;
 	gc_step_size_mult = 0.005f;
 	gc_step_size_auto_mult = 1.0f;
@@ -13187,7 +13186,8 @@ void OS::Core::gcFinishMarkPhase()
 
 bool OS::gcStepIfNeeded()
 {
-	if(core->gc_start_next_values <= core->values.count){
+	int used_bytes = getAllocatedBytes() - getCachedBytes();
+	if(core->gc_start_used_bytes > used_bytes && core->gc_start_next_values <= core->values.count){
 		core->gcFinishSweepPhase();
 		core->gcStep();
 		return true;
@@ -13576,6 +13576,20 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 		error(OS_E_WARNING, OS_TEXT("object set null index"));
 	}
 #endif
+	if(OS_IS_VALUE_NUMBER(index.index) && table_value->type == OS_VALUE_TYPE_ARRAY){
+		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
+		GCArrayValue * arr = (GCArrayValue*)table_value;
+		int i = (int)OS_VALUE_NUMBER(index.index);
+		if(i >= 0 || (i += arr->values.count) >= 0){
+			while(i >= arr->values.count){
+				allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
+			}
+			OS_ASSERT(i < arr->values.count);
+			arr->values[i] = value;
+		}
+		return;
+	}
+
 	// TODO: correct ???
 	gcAddToGreyList(value);
 	
@@ -16795,12 +16809,57 @@ corrupted:
 			break;
 
 		OS_CASE_OPCODE_ALL(OP_SET_PROPERTY):
-			a = OS_GETARG_A(instruction);
-			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-			b = OS_GETARG_B(instruction);
-			c = OS_GETARG_C(instruction);
-			setPropertyValue(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), true);
-			break;
+			{
+				a = OS_GETARG_A(instruction);
+				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+				b = OS_GETARG_B(instruction);
+				c = OS_GETARG_C(instruction);
+				
+				Value& obj = stack_func_locals[a];
+				const PropertyIndex index(OS_GETARG_B_VALUE());
+				int obj_type = OS_VALUE_TYPE(obj);
+				if(OS_IS_VALUE_NUMBER(index.index) && obj_type == OS_VALUE_TYPE_ARRAY){
+					OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
+					GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(obj).value;
+					int i = (int)OS_VALUE_NUMBER(index.index);
+					if(i >= 0 || (i += arr->values.count) >= 0){
+						while(i >= arr->values.count){
+							allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
+						}
+						OS_ASSERT(i < arr->values.count);
+						arr->values[i] = OS_GETARG_C_VALUE();
+					}
+				}else{
+					// setPropertyValue(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), true);
+					// setPropertyValue(obj, index, OS_GETARG_C_VALUE(), true);
+					switch(obj_type){
+					case OS_VALUE_TYPE_NULL:
+						break;
+
+					case OS_VALUE_TYPE_BOOL:
+						// return setPropertyValue(prototypes[PROTOTYPE_BOOL], index, value, setter_enabled);
+						break;
+
+					case OS_VALUE_TYPE_NUMBER:
+						// return setPropertyValue(prototypes[PROTOTYPE_NUMBER], index, value, setter_enabled);
+						break;
+
+					case OS_VALUE_TYPE_STRING:
+						// return setPropertyValue(prototypes[PROTOTYPE_STRING], index, value, setter_enabled);
+						// return;
+						// no break
+
+					case OS_VALUE_TYPE_ARRAY:
+					case OS_VALUE_TYPE_OBJECT:
+					case OS_VALUE_TYPE_USERDATA:
+					case OS_VALUE_TYPE_USERPTR:
+					case OS_VALUE_TYPE_FUNCTION:
+					case OS_VALUE_TYPE_CFUNCTION:
+						setPropertyValue(OS_VALUE_VARIANT(obj).value, index, OS_GETARG_C_VALUE(), true);
+					}
+				}
+				break;
+			}
 
 		OS_CASE_OPCODE(OP_NEW_OBJECT):
 			a = OS_GETARG_A(instruction);
@@ -19024,7 +19083,7 @@ dump_object:
 				}
 				break;
 			}
-			os->setException(String::format(os, OS_TEXT("attempt to compare '%s' with '%s'"), os->getTypeStr(-params + 0).toChar(), os->getTypeStr(-params + 1).toChar()));
+			os->setException(String::format(os, OS_TEXT("attempt to compare '%s' with '%s'"), os->getTypeStr(-params - 1).toChar(), os->getTypeStr(-params + 0).toChar()));
 			return 0;
 		}
 	};
@@ -21040,14 +21099,20 @@ void OS::eval(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeTyp
 
 void OS::eval(const String& str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
+	resetTerminated();
+	
 	compile(str, source_code_type, check_utf8_bom);
 	pushNull();
 	move(-2, 2, -2-params);
 	core->call(params, ret_values);
+
+	handleException();
 }
 
 void OS::evalProtected(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
+	resetTerminated();
+	
 	OS * os = OS::create(new OS(), memory_manager);
 	int i;
 	for(i = 0; i < params; i++){
@@ -21059,6 +21124,8 @@ void OS::evalProtected(const OS_CHAR * str, int params, int ret_values, OS_ESour
 		core->pushCloneValueProtected(os, os->core->getStackValue(-ret_values + i));
 	}
 	os->release();
+
+	handleException();
 }
 
 void OS::require(const OS_CHAR * filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
