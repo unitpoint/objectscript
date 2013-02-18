@@ -276,13 +276,13 @@ delete Array.__iter // delete our iterator, use default one
 
 function Object.map(func){
 	var r = {}
-	for(var i, v in a) r[i] = func(v)
+	for(var i, v in this) r[i] = func(v)
 	return r
 }
 
 function Array.map(func){
 	var r = []
-	for(var i, v in a) r[i] = func(v)
+	for(var i, v in this) r[i] = func(v)
 	return r
 }
 
