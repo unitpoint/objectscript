@@ -18,7 +18,7 @@ printf("allocated %.0f Kb\n\n", GC.allocatedBytes / 1024)
 var start_memory_allocated = GC.allocatedBytes
 var start_memory = usedBytes()
 
-var values = 100000
+var values = 1024*1024
 var test = range(1, values, [])
 printf("==== ARRAY of %d values\n", values)
 printf("     used %3.0f Kb, per item %d bytes (approximately)\n", usedBytes() / 1024, usedBytes() / values)
