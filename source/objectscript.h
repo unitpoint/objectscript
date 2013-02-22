@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.0.4-dev")
+#define OS_VERSION OS_TEXT("1.1-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -1244,7 +1244,7 @@ namespace ObjectScript
 			typedef Tokenizer::TextData TextData;
 
 			struct Property;
-			struct PropertyIndex;
+			struct Value;
 			struct Table
 			{
 				struct IteratorState
@@ -1269,7 +1269,7 @@ namespace ObjectScript
 				Table();    
 				~Table();
 
-				Property * get(const PropertyIndex& index);
+				Property * get(const Value& index);
 
 				bool containsIterator(IteratorState*);
 				void addIterator(IteratorState*);
@@ -1580,43 +1580,21 @@ namespace ObjectScript
 				~GCFunctionValue();
 			};
 
-			struct PropertyIndex
-			{
-				struct AutoNumber
-				{
-					AutoNumber(){}
-				};
+			static bool isEqual(const Value& index, int hash, const void * b, int size);
+			static bool isEqual(const Value& index, int hash, const void * buf1, int size1, const void * buf2, int size2) ;
+			static int getValueHash(const Value& index);
 
+			struct Property
+			{
 				Value index;
-
-				PropertyIndex(const PropertyIndex& index);
-				PropertyIndex(const Value& index);
-				PropertyIndex(GCStringValue * index);
-				PropertyIndex(GCStringValue * index, const AutoNumber&);
-				PropertyIndex(const String& index);
-				PropertyIndex(const String& index, const AutoNumber&);
-
-				void convertIndexStringToNumber();
-
-				bool isEqual(const PropertyIndex& b) const;
-				bool isEqual(int hash, const void * b, int size) const;
-				bool isEqual(int hash, const void * buf1, int size1, const void * buf2, int size2) const;
-				int getHash() const;
-			};
-
-			struct Property: public PropertyIndex
-			{
 				Value value;
 
 				Property * hash_next;
 				Property * prev, * next;
 
-				Property(const PropertyIndex& index);
 				Property(const Value& index);
 				Property(GCStringValue * index);
-				Property(GCStringValue * index, const AutoNumber&);
 				Property(const String& index);
-				Property(const String& index, const AutoNumber&);
 				~Property();
 			};
 
@@ -2771,7 +2749,7 @@ namespace ObjectScript
 
 			// binary operator
 			void pushOpResultValue(OpcodeType opcode, const Value& left_value, const Value& right_value);
-			bool isEqualExactly(const Value& left_value, const Value& right_value);
+			static bool isEqualExactly(const Value& left_value, const Value& right_value);
 
 			void setGlobalValue(const String& name, Value value, bool setter_enabled);
 			void setGlobalValue(const OS_CHAR * name, Value value, bool setter_enabled);
@@ -2823,11 +2801,11 @@ namespace ObjectScript
 			void clearTable(Table*);
 			void deleteTable(Table*);
 			void addTableProperty(Table * table, Property * prop);
-			Property * removeTableProperty(Table * table, const PropertyIndex& index);
-			void changePropertyIndex(Table * table, Property * prop, const PropertyIndex& new_index);
-			bool deleteTableProperty(Table * table, const PropertyIndex& index);
-			void deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool del_enabled, bool prototype_enabled);
-			void deleteValueProperty(const Value& table_value, const PropertyIndex& index, bool del_enabled, bool prototype_enabled);
+			Property * removeTableProperty(Table * table, const Value& index);
+			void changePropertyIndex(Table * table, Property * prop, const Value& new_index);
+			bool deleteTableProperty(Table * table, const Value& index);
+			void deleteValueProperty(GCValue * table_value, Value index, bool del_enabled, bool prototype_enabled);
+			void deleteValueProperty(const Value& table_value, const Value& index, bool del_enabled, bool prototype_enabled);
 			
 			void copyTableProperties(Table * dst, Table * src);
 			void copyTableProperties(GCValue * dst_value, GCValue * src_value, bool setter_enabled);
@@ -2856,18 +2834,18 @@ namespace ObjectScript
 
 			bool hasSpecialPrefix(const Value&);
 
-			Property * setTableValue(Table * table, const PropertyIndex& index, Value val);
-			void setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value val, bool setter_enabled);
-			void setPropertyValue(const Value& table_value, const PropertyIndex& index, const Value& val, bool setter_enabled);
+			Property * setTableValue(Table * table, const Value& index, const Value& val);
+			void setPropertyValue(GCValue * table_value, Value index, Value val, bool setter_enabled);
+			void setPropertyValue(const Value& table_value, const Value& index, const Value& val, bool setter_enabled);
 
-			bool getPropertyValue(Value& result, Table * table, const PropertyIndex& index);
-			bool getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled);
-			bool getPropertyValue(Value& result, const Value& table_value, const PropertyIndex& index, bool prototype_enabled);
+			bool getPropertyValue(Value& result, Table * table, const Value& index);
+			bool getPropertyValue(Value& result, GCValue * table_value, const Value& index, bool prototype_enabled);
+			bool getPropertyValue(Value& result, const Value& table_value, const Value& index, bool prototype_enabled);
 
-			bool hasProperty(GCValue * table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
-			void pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
-			void pushPropertyValueForPrimitive(Value self, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
-			void pushPropertyValue(Value table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled);
+			bool hasProperty(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled);
+			void pushPropertyValue(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled);
+			void pushPropertyValueForPrimitive(Value self, Value index, bool getter_enabled, bool prototype_enabled);
+			void pushPropertyValue(const Value& table_value, const Value& index, bool getter_enabled, bool prototype_enabled);
 
 			void setPrototype(const Value& val, const Value& proto, int userdata_crc);
 			void pushPrototype(const Value& val);

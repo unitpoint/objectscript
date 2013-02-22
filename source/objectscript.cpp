@@ -2713,7 +2713,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 
 int OS::Core::Compiler::cacheString(Table * strings_table, Vector<String>& strings, const String& str)
 {
-	PropertyIndex index(str);
+	Value index(str);
 	Property * prop = strings_table->get(index);
 	if(prop){
 		OS_ASSERT(OS_IS_VALUE_NUMBER(prop->value));
@@ -2734,7 +2734,7 @@ int OS::Core::Compiler::cacheString(const String& str)
 
 int OS::Core::Compiler::cacheNumber(OS_NUMBER num)
 {
-	PropertyIndex index(num);
+	Value index(num);
 	Property * prop = prog_numbers_table->get(index);
 	if(prop){
 		OS_ASSERT(OS_IS_VALUE_NUMBER(prop->value));
@@ -9691,89 +9691,6 @@ void * OS::Core::FileStreamReader::readBytesAtPos(void * buf, int len, int pos)
 // =====================================================================
 // =====================================================================
 
-/*
-static bool isDecString(const OS_CHAR * str, int len)
-{
-	OS_INT val;
-	const OS_CHAR * end = str + len;
-	return parseSimpleDec(str, val) && str == end;
-}
-*/
-
-OS::Core::PropertyIndex::PropertyIndex(const PropertyIndex& p_index): index(p_index.index)
-{
-}
-
-OS::Core::PropertyIndex::PropertyIndex(const Value& p_index): index(p_index)
-{
-	convertIndexStringToNumber();
-}
-
-OS::Core::PropertyIndex::PropertyIndex(GCStringValue * p_index): index(p_index)
-{
-	convertIndexStringToNumber();
-}
-
-OS::Core::PropertyIndex::PropertyIndex(GCStringValue * p_index, const AutoNumber&): index(p_index)
-{
-	convertIndexStringToNumber();
-}
-
-OS::Core::PropertyIndex::PropertyIndex(const String& p_index): index(p_index)
-{
-	convertIndexStringToNumber();
-}
-
-OS::Core::PropertyIndex::PropertyIndex(const String& p_index, const AutoNumber&): index(p_index)
-{
-	convertIndexStringToNumber();
-}
-
-void OS::Core::PropertyIndex::convertIndexStringToNumber()
-{
-	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
-		bool neg = false;
-		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index).string));
-		const OS_CHAR * str = OS_VALUE_VARIANT(index).string->toChar();
-		if((*str >= OS_TEXT('0') && *str <= OS_TEXT('9'))
-			|| ((neg = *str == OS_TEXT('-')) && str[1] >= OS_TEXT('0') && str[1] <= OS_TEXT('9')))
-		{
-			const OS_CHAR * end = str + OS_VALUE_VARIANT(index).string->getLen();
-			str += (int)neg;
-			OS_FLOAT val;
-			if(parseSimpleFloat(str, val)){
-				if(*str == OS_TEXT('.')){
-					OS_FLOAT m = (OS_FLOAT)0.1;
-					for(str++; *str >= OS_TEXT('0') && *str <= OS_TEXT('9'); str++, m *= (OS_FLOAT)0.1){
-						val += (OS_FLOAT)(*str - OS_TEXT('0')) * m;
-					}
-				}
-				if(str == end){
-					OS_SET_VALUE_NUMBER(index, (OS_NUMBER)(neg ? -val : val));
-					// index.type = OS_VALUE_TYPE_NUMBER;
-					OS_ASSERT(OS_IS_VALUE_NUMBER(index));
-				}
-			}
-		}
-	}
-}
-
-bool OS::Core::PropertyIndex::isEqual(const PropertyIndex& b) const
-{
-	int type = OS_VALUE_TYPE(index);
-	switch(type){
-	case OS_VALUE_TYPE_NULL:
-		return OS_VALUE_TYPE(b.index) == OS_VALUE_TYPE_NULL;
-
-	case OS_VALUE_TYPE_BOOL:
-		return OS_VALUE_TYPE(b.index) == OS_VALUE_TYPE_BOOL && OS_VALUE_VARIANT(index).boolean == OS_VALUE_VARIANT(b.index).boolean;
-
-	case OS_VALUE_TYPE_NUMBER:
-		return OS_IS_VALUE_NUMBER(b.index) && OS_VALUE_NUMBER(index) == OS_VALUE_NUMBER(b.index);
-	}
-	return type == OS_VALUE_TYPE(b.index) && OS_VALUE_VARIANT(index).value == OS_VALUE_VARIANT(b.index).value;
-}
-
 bool OS::Core::GCStringValue::isEqual(int hash, const void * b, int size) const
 {
 	return this->hash == hash 
@@ -9791,7 +9708,7 @@ bool OS::Core::GCStringValue::isEqual(int hash, const void * buf1, int size1, co
 		&& (!size2 || OS_MEMCMP(src + size1, buf2, size2) == 0);
 }
 
-bool OS::Core::PropertyIndex::isEqual(int hash, const void * b, int size) const
+bool OS::Core::isEqual(const Value& index, int hash, const void * b, int size)
 {
 	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 		return OS_VALUE_VARIANT(index).string->hash == hash 
@@ -9801,7 +9718,7 @@ bool OS::Core::PropertyIndex::isEqual(int hash, const void * b, int size) const
 	return false;
 }
 
-bool OS::Core::PropertyIndex::isEqual(int hash, const void * buf1, int size1, const void * buf2, int size2) const
+bool OS::Core::isEqual(const Value& index, int hash, const void * buf1, int size1, const void * buf2, int size2) 
 {
 	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 		int src_size = OS_VALUE_VARIANT(index).string->data_size;
@@ -9833,7 +9750,7 @@ template <> int getNumberHash<int>(int t)
 	return t;
 }
 
-int OS::Core::PropertyIndex::getHash() const
+int OS::Core::getValueHash(const Value& index)
 {
 	switch(OS_VALUE_TYPE(index)){
 	case OS_VALUE_TYPE_NULL:
@@ -9861,42 +9778,21 @@ int OS::Core::PropertyIndex::getHash() const
 
 // =====================================================================
 
-OS::Core::Property::Property(const PropertyIndex& index): PropertyIndex(index)
+OS::Core::Property::Property(const Value& p_index): index(p_index)
 {
 	hash_next = NULL;
 	prev = NULL;
 	next = NULL;
 }
 
-OS::Core::Property::Property(const Value& index): PropertyIndex(index)
+OS::Core::Property::Property(GCStringValue * p_index): index(p_index)
 {
 	hash_next = NULL;
 	prev = NULL;
 	next = NULL;
 }
 
-OS::Core::Property::Property(GCStringValue * index): PropertyIndex(index)
-{
-	hash_next = NULL;
-	prev = NULL;
-	next = NULL;
-}
-
-OS::Core::Property::Property(GCStringValue * index, const AutoNumber& num): PropertyIndex(index, num)
-{
-	hash_next = NULL;
-	prev = NULL;
-	next = NULL;
-}
-
-OS::Core::Property::Property(const String& index): PropertyIndex(index)
-{
-	hash_next = NULL;
-	prev = NULL;
-	next = NULL;
-}
-
-OS::Core::Property::Property(const String& index, const AutoNumber& num): PropertyIndex(index, num)
+OS::Core::Property::Property(const String& p_index): index(p_index)
 {
 	hash_next = NULL;
 	prev = NULL;
@@ -10028,7 +9924,7 @@ void OS::Core::deleteTable(Table * table)
 void OS::Core::addTableProperty(Table * table, Property * prop)
 {
 	OS_ASSERT(prop->next == NULL);
-	OS_ASSERT(!table->get(*prop));
+	OS_ASSERT(!table->get(prop->index));
 
 	if((table->count>>HASH_GROW_SHIFT) >= table->head_mask){
 		int new_size = table->heads ? (table->head_mask+1) * 2 : 4;
@@ -10042,7 +9938,7 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 		table->head_mask = new_size-1;
 
 		for(Property * cur = table->first; cur; cur = cur->next){
-			int slot = cur->getHash() & table->head_mask;
+			int slot = getValueHash(cur->index) & table->head_mask;
 			cur->hash_next = table->heads[slot];
 			table->heads[slot] = cur;
 		}
@@ -10051,7 +9947,7 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 		free(old_heads);
 	}
 
-	int slot = prop->getHash() & table->head_mask;
+	int slot = getValueHash(prop->index) & table->head_mask;
 	prop->hash_next = table->heads[slot];
 	table->heads[slot] = prop;
 
@@ -10071,9 +9967,9 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 	table->count++;
 }
 
-void OS::Core::changePropertyIndex(Table * table, Property * prop, const PropertyIndex& new_index)
+void OS::Core::changePropertyIndex(Table * table, Property * prop, const Value& new_index)
 {
-	int slot = prop->getHash() & table->head_mask;
+	int slot = getValueHash(prop->index) & table->head_mask;
 	Property * cur = table->heads[slot], * chain_prev = NULL;
 	for(; cur; chain_prev = cur, cur = cur->hash_next){
 		if(cur == prop){ // cur->isEqual(index)){
@@ -10089,7 +9985,7 @@ void OS::Core::changePropertyIndex(Table * table, Property * prop, const Propert
 	if(cur){
 		*prop = new_index;
 
-		slot = prop->getHash() & table->head_mask;
+		slot = getValueHash(prop->index) & table->head_mask;
 		prop->hash_next = table->heads[slot];
 		table->heads[slot] = prop;
 
@@ -10099,13 +9995,13 @@ void OS::Core::changePropertyIndex(Table * table, Property * prop, const Propert
 	}
 }
 
-OS::Core::Property * OS::Core::removeTableProperty(Table * table, const PropertyIndex& index)
+OS::Core::Property * OS::Core::removeTableProperty(Table * table, const Value& index)
 {
 	OS_ASSERT(table);
-	int slot = index.getHash() & table->head_mask;
+	int slot = getValueHash(index) & table->head_mask;
 	Property * cur = table->heads[slot], * chain_prev = NULL;
 	for(; cur; chain_prev = cur, cur = cur->hash_next){
-		if(cur->isEqual(index)){
+		if(isEqualExactly(cur->index, index)){
 			if(table->first == cur){
 				table->first = cur->next;
 				if(table->first){
@@ -10151,7 +10047,7 @@ OS::Core::Property * OS::Core::removeTableProperty(Table * table, const Property
 	return NULL;
 }
 
-bool OS::Core::deleteTableProperty(Table * table, const PropertyIndex& index)
+bool OS::Core::deleteTableProperty(Table * table, const Value& index)
 {
 	Property * prop = removeTableProperty(table, index);
 	if(prop){
@@ -10162,7 +10058,7 @@ bool OS::Core::deleteTableProperty(Table * table, const PropertyIndex& index)
 	return false;
 }
 
-void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& index, bool del_enabled, bool prototype_enabled)
+void OS::Core::deleteValueProperty(GCValue * table_value, Value index, bool del_enabled, bool prototype_enabled)
 {
 	Table * table = table_value->table;
 	if(table && deleteTableProperty(table, index)){
@@ -10187,32 +10083,32 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 			}
 		}
 	}
-	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index.index).string){
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
 		return;
 	}
 	if(table_value->type == OS_VALUE_TYPE_ARRAY){
 		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
 		GCArrayValue * arr = (GCArrayValue*)table_value;
-		int i = (int)valueToInt(index.index);
+		int i = (int)valueToInt(index);
 		if(i >= 0 && i < arr->values.count){
 			allocator->vectorRemoveAtIndex(arr->values, i);
 		}
 		return;
 	}
-	if(del_enabled && !hasSpecialPrefix(index.index)){
+	if(del_enabled && !hasSpecialPrefix(index)){
 		Value value;
-		if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
+		if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 			const void * buf1 = strings->__delAt.toChar();
 			int size1 = strings->__delAt.getDataSize();
-			const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
-			int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
+			const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
+			int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
 			GCStringValue * del_name = newStringValue(buf1, size1, buf2, size2);
 			if(getPropertyValue(value, table_value, del_name, prototype_enabled)
 				&& value.isFunction())
 			{
 				pushValue(value);
 				pushValue(table_value);
-				pushValue(index.index);
+				pushValue(index);
 				call(1, 0);
 				return;
 			}
@@ -10222,13 +10118,13 @@ void OS::Core::deleteValueProperty(GCValue * table_value, const PropertyIndex& i
 		{
 			pushValue(value);
 			pushValue(table_value);
-			pushValue(index.index);
+			pushValue(index);
 			call(1, 0);
 		}
 	}
 }
 
-void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex& index, bool del_enabled, bool prototype_enabled)
+void OS::Core::deleteValueProperty(const Value& table_value, const Value& index, bool del_enabled, bool prototype_enabled)
 {
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
@@ -10260,7 +10156,7 @@ void OS::Core::deleteValueProperty(const Value& table_value, const PropertyIndex
 void OS::Core::copyTableProperties(Table * dst, Table * src)
 {
 	for(Property * prop = src->first; prop; prop = prop->next){
-		setTableValue(dst, *prop, prop->value);
+		setTableValue(dst, prop->index, prop->value);
 	}
 }
 
@@ -10268,7 +10164,7 @@ void OS::Core::copyTableProperties(GCValue * dst_value, GCValue * src_value, boo
 {
 	if(src_value->table){
 		for(Property * prop = src_value->table->first; prop; prop = prop->next){
-			setPropertyValue(dst_value, *prop, prop->value, setter_enabled);
+			setPropertyValue(dst_value, prop->index, prop->value, setter_enabled);
 		}
 	}
 }
@@ -10299,7 +10195,7 @@ void OS::Core::sortTable(Table * table, int(*comp)(OS*, const void*, const void*
 			for(i = 0; i < table->count; i++){
 				Property * cur = props[i];
 				cur->index = Value(i);
-				int slot = cur->getHash() & table->head_mask;
+				int slot = getValueHash(cur->index) & table->head_mask;
 				cur->hash_next = table->heads[slot];
 				table->heads[slot] = cur;
 			}
@@ -10443,12 +10339,12 @@ int OS::Core::compareUserReverse(OS * os, const void * a, const void * b, void *
 	return comp(os, b, a, NULL);
 }
 
-OS::Core::Property * OS::Core::Table::get(const PropertyIndex& index)
+OS::Core::Property * OS::Core::Table::get(const Value& index)
 {
 	if(heads){
-		Property * cur = heads[index.getHash() & head_mask];
+		Property * cur = heads[getValueHash(index) & head_mask];
 		for(; cur; cur = cur->hash_next){
-			if(cur->isEqual(index)){
+			if(isEqualExactly(cur->index, index)){
 				return cur;
 			}
 		}
@@ -12855,15 +12751,13 @@ void OS::Core::gcMarkTable(Table * table)
 		if(OS_VALUE_TYPE(prop->index) == OS_VALUE_TYPE_WEAKREF){
 			OS_ASSERT(false);
 			if(!values.get(OS_VALUE_VARIANT(prop->index).value_id)){
-				PropertyIndex index = *prop;
-				deleteTableProperty(table, index);
+				deleteTableProperty(table, prop->index);
 				continue;
 			}
 		}
 		if(OS_VALUE_TYPE(prop->value) == OS_VALUE_TYPE_WEAKREF){
 			if(!values.get(OS_VALUE_VARIANT(prop->value).value_id)){
-				PropertyIndex index = *prop;
-				deleteTableProperty(table, index);
+				deleteTableProperty(table, prop->index);
 				continue;
 			}
 		}
@@ -13234,7 +13128,7 @@ void OS::Core::triggerValueDestructor(GCValue * val)
 	val->is_destructor_called = true;
 
 	Value self = val;
-	PropertyIndex func(strings->__destruct);
+	Value func(strings->__destruct);
 	for(Property * prop;;){
 		Table * table = val->table;
 		if(table && (prop = table->get(func)) && prop->value.isFunction()){
@@ -13532,7 +13426,7 @@ void OS::Core::deleteValue(GCValue * val)
 	num_destroyed_values++;
 }
 
-OS::Core::Property * OS::Core::setTableValue(Table * table, const PropertyIndex& index, Value value)
+OS::Core::Property * OS::Core::setTableValue(Table * table, const Value& index, const Value& value)
 {
 	OS_ASSERT(table);
 
@@ -13569,17 +13463,17 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 #endif
 }
 
-void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& index, Value value, bool setter_enabled)
+void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value, bool setter_enabled)
 {
 #if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
 	if(table_value != check_recursion && index.index.type == OS_VALUE_TYPE_NULL){
 		error(OS_E_WARNING, OS_TEXT("object set null index"));
 	}
 #endif
-	if(OS_IS_VALUE_NUMBER(index.index) && table_value->type == OS_VALUE_TYPE_ARRAY){
+	if(OS_IS_VALUE_NUMBER(index) && table_value->type == OS_VALUE_TYPE_ARRAY){
 		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
 		GCArrayValue * arr = (GCArrayValue*)table_value;
-		int i = (int)OS_VALUE_NUMBER(index.index);
+		int i = (int)OS_VALUE_NUMBER(index);
 		if(i >= 0 || (i += arr->values.count) >= 0){
 			while(i >= arr->values.count){
 				allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
@@ -13593,8 +13487,8 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	// TODO: correct ???
 	gcAddToGreyList(value);
 	
-	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
-		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index.index).string));
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
+		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index).string));
 		switch(OS_VALUE_TYPE(value)){
 		case OS_VALUE_TYPE_STRING:
 		case OS_VALUE_TYPE_ARRAY:
@@ -13605,7 +13499,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 		case OS_VALUE_TYPE_CFUNCTION:
 			OS_ASSERT(dynamic_cast<GCValue*>(OS_VALUE_VARIANT(value).value));
 			if(!OS_VALUE_VARIANT(value).value->name){
-				OS_VALUE_VARIANT(value).value->name = OS_VALUE_VARIANT(index.index).string;
+				OS_VALUE_VARIANT(value).value->name = OS_VALUE_VARIANT(index).string;
 			}
 		}
 	}
@@ -13621,7 +13515,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	/* if(prototype_enabled){
 	} */
 
-	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index.index).string){
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
 		switch(table_value->type){
 		case OS_VALUE_TYPE_STRING:
 		case OS_VALUE_TYPE_ARRAY:
@@ -13642,7 +13536,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	if(table_value->type == OS_VALUE_TYPE_ARRAY){
 		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
 		GCArrayValue * arr = (GCArrayValue*)table_value;
-		int i = (int)valueToInt(index.index);
+		int i = (int)valueToInt(index);
 		if(i >= 0 || (i += arr->values.count) >= 0){
 			while(i >= arr->values.count){
 				allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
@@ -13653,13 +13547,13 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 		return;
 	}
 
-	if(setter_enabled && !hasSpecialPrefix(index.index)){
+	if(setter_enabled && !hasSpecialPrefix(index)){
 		Value func;
-		if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
+		if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 			const void * buf1 = strings->__setAt.toChar();
 			int size1 = strings->__setAt.getDataSize();
-			const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
-			int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
+			const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
+			int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
 			GCStringValue * setter_name = newStringValue(buf1, size1, buf2, size2);
 			if(getPropertyValue(func, table_value, setter_name, true)){
 				pushValue(func);
@@ -13672,7 +13566,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 		if(getPropertyValue(func, table_value, strings->__set, true)){
 			pushValue(func);
 			pushValue(table_value);
-			pushValue(index.index);
+			pushValue(index);
 			pushValue(value);
 			call(2, 0);
 			return;
@@ -13690,7 +13584,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const PropertyIndex& inde
 	addTableProperty(table, prop);
 }
 
-void OS::Core::setPropertyValue(const Value& table_value, const PropertyIndex& index, const Value& value, bool setter_enabled)
+void OS::Core::setPropertyValue(const Value& table_value, const Value& index, const Value& value, bool setter_enabled)
 {
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
@@ -14415,7 +14309,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 		{
 			Value func;
 			bool prototype_enabled = true;
-			PropertyIndex index(method_name);
+			Value index(method_name);
 			if(core->getPropertyValue(func, value, index, prototype_enabled) && func.isFunction()){
 				core->pushValue(func);
 				core->pushValue(value);
@@ -14493,7 +14387,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		{
 			Value func;
 			bool prototype_enabled = true;
-			PropertyIndex index(method_name);
+			Value index(method_name);
 			if(core->getPropertyValue(func, left_value, index, prototype_enabled) && func.isFunction()){
 				core->pushValue(func);
 				core->pushValue(left_value);
@@ -15564,7 +15458,7 @@ OS::String OS::getValueName(int offs)
 	return OS::String(this);
 }
 
-bool OS::Core::getPropertyValue(Value& result, Table * table, const PropertyIndex& index)
+bool OS::Core::getPropertyValue(Value& result, Table * table, const Value& index)
 {
 #if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
 	if(table != check_recursion->table && index.index.type == OS_VALUE_TYPE_NULL){
@@ -15581,7 +15475,7 @@ bool OS::Core::getPropertyValue(Value& result, Table * table, const PropertyInde
 	return false;
 }
 
-bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const PropertyIndex& index, bool prototype_enabled)
+bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Value& index, bool prototype_enabled)
 {
 #if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
 	if(table_value != check_recursion && index.index.type == OS_VALUE_TYPE_NULL){
@@ -15589,9 +15483,9 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Prop
 	}
 #endif
 
-	if(table_value->type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(index.index)){
+	if(table_value->type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(index)){
 		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
-		int i = (int)OS_VALUE_NUMBER(index.index);
+		int i = (int)OS_VALUE_NUMBER(index);
 		if((i >= 0 || (i += ((GCArrayValue*)table_value)->values.count) >= 0) && i < ((GCArrayValue*)table_value)->values.count){
 			result = ((GCArrayValue*)table_value)->values[i];
 		}else{
@@ -15616,14 +15510,14 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Prop
 			}
 		}
 	}
-	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index.index).string){
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
 		result = table_value->prototype;
 		return true;
 	}
 	if(table_value->type == OS_VALUE_TYPE_ARRAY){
 		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
 		OS_NUMBER number;
-		if(isValueNumber(index.index, &number)){
+		if(isValueNumber(index, &number)){
 			int i = (int)number;
 			if((i >= 0 || (i += ((GCArrayValue*)table_value)->values.count) >= 0) && i < ((GCArrayValue*)table_value)->values.count){
 				result = ((GCArrayValue*)table_value)->values[i];
@@ -15636,7 +15530,7 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Prop
 	return false;
 }
 
-bool OS::Core::getPropertyValue(Value& result, const Value& table_value, const PropertyIndex& index, bool prototype_enabled)
+bool OS::Core::getPropertyValue(Value& result, const Value& table_value, const Value& index, bool prototype_enabled)
 {
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
@@ -15662,18 +15556,18 @@ bool OS::Core::getPropertyValue(Value& result, const Value& table_value, const P
 	return false;
 }
 
-bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled)
+bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled)
 {
 	Value value;
 	if(getPropertyValue(value, table_value, index, prototype_enabled)){
 		return true; // OS_VALUE_TYPE(value) != OS_VALUE_TYPE_NULL;
 	}
-	if(!getter_enabled || hasSpecialPrefix(index.index)){
+	if(!getter_enabled || hasSpecialPrefix(index)){
 		return false;
 	}
-	if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
-		const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
-		int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
+		const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
+		int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
 		{
 			const void * buf1 = strings->__issetAt.toChar();
 			int size1 = strings->__issetAt.getDataSize();
@@ -15701,14 +15595,14 @@ bool OS::Core::hasProperty(GCValue * table_value, const PropertyIndex& index, bo
 	{
 		pushValue(value);
 		pushValue(table_value);
-		pushValue(index.index);
+		pushValue(index);
 		call(1, 1);
 		return allocator->popBool();
 	}
 	return false;
 }
 
-void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled)
+void OS::Core::pushPropertyValue(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled)
 {
 	GCValue * self = table_value;
 	for(;;){
@@ -15716,12 +15610,12 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 		if(getPropertyValue(value, table_value, index, prototype_enabled)){
 			return pushValue(value);
 		}
-		if(getter_enabled && !hasSpecialPrefix(index.index)){
-			if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
+		if(getter_enabled && !hasSpecialPrefix(index)){
+			if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 				const void * buf1 = strings->__getAt.toChar();
 				int size1 = strings->__getAt.getDataSize();
-				const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
-				int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
+				const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
+				int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
 				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
 				if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
 					pushValue(value);
@@ -15737,7 +15631,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 				}
 				pushValue(value);
 				pushValue(self);
-				pushValue(index.index);
+				pushValue(index);
 				call(1, 1);
 				return;
 			}
@@ -15747,7 +15641,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const PropertyIndex& ind
 	return pushNull();
 }
 
-void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled)
+void OS::Core::pushPropertyValueForPrimitive(Value self, Value index, bool getter_enabled, bool prototype_enabled)
 {
 	GCValue * proto;
 	switch(OS_VALUE_TYPE(self)){
@@ -15769,12 +15663,12 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 		if(prototype_enabled && getPropertyValue(value, proto, index, prototype_enabled)){
 			return pushValue(value);
 		}
-		if(getter_enabled && !hasSpecialPrefix(index.index)){
-			if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
+		if(getter_enabled && !hasSpecialPrefix(index)){
+			if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 				const void * buf1 = strings->__getAt.toChar();
 				int size1 = strings->__getAt.getDataSize();
-				const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
-				int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
+				const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
+				int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
 				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
 				if(getPropertyValue(value, proto, getter_name, prototype_enabled)){
 					pushValue(value);
@@ -15790,7 +15684,7 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 				}
 				pushValue(value);
 				pushValue(self);
-				pushValue(index.index);
+				pushValue(index);
 				call(1, 1);
 				return;
 			}
@@ -15800,7 +15694,7 @@ void OS::Core::pushPropertyValueForPrimitive(Value self, const PropertyIndex& in
 	return pushNull();
 }
 
-void OS::Core::pushPropertyValue(Value table_value, const PropertyIndex& index, bool getter_enabled, bool prototype_enabled)
+void OS::Core::pushPropertyValue(const Value& table_value, const Value& index, bool getter_enabled, bool prototype_enabled)
 {
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
@@ -16714,12 +16608,12 @@ corrupted:
 				c = OS_GETARG_C(instruction);
 				// pushPropertyValue(stack_func_locals[b], OS_GETARG_C_VALUE(instruction), true, true, true, false);
 				Value& obj = stack_func_locals[b];
-				const PropertyIndex index(OS_GETARG_C_VALUE());
+				const Value index(OS_GETARG_C_VALUE());
 				int obj_type = OS_VALUE_TYPE(obj);
-				if(OS_IS_VALUE_NUMBER(index.index) && obj_type == OS_VALUE_TYPE_ARRAY){
+				if(OS_IS_VALUE_NUMBER(index) && obj_type == OS_VALUE_TYPE_ARRAY){
 					OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
 					GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(obj).value;
-					int i = (int)OS_VALUE_NUMBER(index.index);
+					int i = (int)OS_VALUE_NUMBER(index);
 					if((i >= 0 || (i += arr->values.count) >= 0) && i < arr->values.count){
 						stack_func_locals[a] = arr->values[i];
 					}else{
@@ -16741,7 +16635,7 @@ corrupted:
 					break;
 
 				case OS_VALUE_TYPE_ARRAY:
-					OS_ASSERT(!OS_IS_VALUE_NUMBER(index.index));
+					OS_ASSERT(!OS_IS_VALUE_NUMBER(index));
 					// no break
 
 				case OS_VALUE_TYPE_STRING:
@@ -16758,12 +16652,12 @@ corrupted:
 								stack_func_locals[a] = value;
 								break;
 							}
-							if(getter_enabled && !hasSpecialPrefix(index.index)){
-								if(OS_VALUE_TYPE(index.index) == OS_VALUE_TYPE_STRING){
+							if(getter_enabled && !hasSpecialPrefix(index)){
+								if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 									const void * buf1 = strings->__getAt.toChar();
 									int size1 = strings->__getAt.getDataSize();
-									const void * buf2 = OS_VALUE_VARIANT(index.index).string->toChar();
-									int size2 = OS_VALUE_VARIANT(index.index).string->getDataSize();
+									const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
+									int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
 									GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
 									if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
 										pushValue(value);
@@ -16778,16 +16672,16 @@ corrupted:
 										table_value = OS_VALUE_VARIANT(value).value;
 										continue;
 									}
-									if(pushGetRecursion(self, index.index)){
+									if(pushGetRecursion(self, index)){
 										pushValue(value);
 										pushValue(self);
-										pushValue(index.index);
+										pushValue(index);
 										call(1, 1);
 										stack_func_locals[a] = stack_values.buf[--stack_values.count];
-										popGetRecursion(self, index.index);
+										popGetRecursion(self, index);
 										break;
 									}else{
-										allocator->setException(String::format(allocator, OS_TEXT("Recursive get '%s'"), valueToString(index.index).toChar()));
+										allocator->setException(String::format(allocator, OS_TEXT("Recursive get '%s'"), valueToString(index).toChar()));
 									}
 								}
 							}
@@ -16816,12 +16710,12 @@ corrupted:
 				c = OS_GETARG_C(instruction);
 				
 				Value& obj = stack_func_locals[a];
-				const PropertyIndex index(OS_GETARG_B_VALUE());
+				Value& index(OS_GETARG_B_VALUE());
 				int obj_type = OS_VALUE_TYPE(obj);
-				if(OS_IS_VALUE_NUMBER(index.index) && obj_type == OS_VALUE_TYPE_ARRAY){
+				if(OS_IS_VALUE_NUMBER(index) && obj_type == OS_VALUE_TYPE_ARRAY){
 					OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
 					GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(obj).value;
-					int i = (int)OS_VALUE_NUMBER(index.index);
+					int i = (int)OS_VALUE_NUMBER(index);
 					if(i >= 0 || (i += arr->values.count) >= 0){
 						while(i >= arr->values.count){
 							allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
@@ -16830,8 +16724,10 @@ corrupted:
 						arr->values[i] = OS_GETARG_C_VALUE();
 					}
 				}else{
+#if 0
 					// setPropertyValue(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), true);
-					// setPropertyValue(obj, index, OS_GETARG_C_VALUE(), true);
+					setPropertyValue(obj, index, OS_GETARG_C_VALUE(), true);
+#else
 					switch(obj_type){
 					case OS_VALUE_TYPE_NULL:
 						break;
@@ -16857,6 +16753,7 @@ corrupted:
 					case OS_VALUE_TYPE_CFUNCTION:
 						setPropertyValue(OS_VALUE_VARIANT(obj).value, index, OS_GETARG_C_VALUE(), true);
 					}
+#endif
 				}
 				break;
 			}
@@ -18711,7 +18608,7 @@ dump_object:
 			default:
 				return 0;
 			}
-			os->core->setPropertyValue(self_var, Core::PropertyIndex(num_index), value, false);
+			os->core->setPropertyValue(self_var, Core::Value(num_index), value, false);
 			// os->pushNumber(self_var.v.object->table->count);
 			os->core->pushValue(value);
 			return 1;
@@ -18737,8 +18634,8 @@ dump_object:
 			case OS_VALUE_TYPE_CFUNCTION:
 				if(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->count > 0){
 					os->core->pushValue(OS_VALUE_VARIANT(self_var).object->table->last->value);
-					Core::PropertyIndex index = *OS_VALUE_VARIANT(self_var).object->table->last;
-					os->core->deleteValueProperty(OS_VALUE_VARIANT(self_var).object, index, false, false);
+					os->core->deleteValueProperty(OS_VALUE_VARIANT(self_var).object, 
+						OS_VALUE_VARIANT(self_var).object->table->last->index, false, false);
 					return 1;
 				}
 				break;
@@ -20679,7 +20576,7 @@ OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
 					Property * prop = object_props->table->first;
 					for(; prop; prop = prop->next){
 						core->pushCloneValue(prop->value);
-						core->setPropertyValue(object, *prop, core->stack_values.lastElement(), false);
+						core->setPropertyValue(object, prop->index, core->stack_values.lastElement(), false);
 						core->pop();
 					}
 				}
@@ -20707,7 +20604,7 @@ void OS::Core::pushArguments(StackFunction * stack_func)
 		if(stack_func->rest_arguments){
 			GCArrayValue * arr = stack_func->rest_arguments;
 			for(i = 0; i < arr->values.count; i++){
-				setPropertyValue(args, PropertyIndex(args->values.count), arr->values[i], false);
+				setPropertyValue(args, Value(args->values.count), arr->values[i], false);
 			}
 		}
 		stack_func->arguments = args;
