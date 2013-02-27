@@ -9761,12 +9761,43 @@ int OS::Core::getValueHash(const Value& index)
 
 	case OS_VALUE_TYPE_NUMBER:
 		{
+#if 1
+			float d = (float)OS_VALUE_NUMBER(index);
+			OS_BYTE * buf = (OS_BYTE*)&d;
+			int hash = OS_STR_HASH_START_VALUE;
+			OS_ADD_STR_HASH_VALUE; buf++;
+			OS_ADD_STR_HASH_VALUE; buf++;
+			OS_ADD_STR_HASH_VALUE; buf++;
+			OS_ADD_STR_HASH_VALUE;
+			return hash;
+/*
+inline std::size_t float_hash_value(T v)
+        {
+            using namespace std;
+            switch (fpclassify(v)) {
+            case FP_ZERO:
+                return 0;
+            case FP_INFINITE:
+                return (std::size_t)(v > 0 ? -1 : -2);
+            case FP_NAN:
+                return (std::size_t)(-3);
+            case FP_NORMAL:
+            case FP_SUBNORMAL:
+                return float_hash_impl(v);
+            default:
+                BOOST_ASSERT(0);
+                return 0;
+            }
+        }
+*/
+#else
 			union { 
 				double d; 
 				OS_INT32 p[2];
 			} u;
 			u.d = (double)OS_VALUE_NUMBER(index); // + 1.0f;
 			return u.p[0] + u.p[1];
+#endif
 		}
 
 	case OS_VALUE_TYPE_STRING:
@@ -13484,24 +13515,21 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 		return;
 	}
 
-	// TODO: correct ???
-	gcAddToGreyList(value);
-	
-	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
-		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(index).string));
-		switch(OS_VALUE_TYPE(value)){
-		case OS_VALUE_TYPE_STRING:
-		case OS_VALUE_TYPE_ARRAY:
-		case OS_VALUE_TYPE_OBJECT:
-		case OS_VALUE_TYPE_USERDATA:
-		case OS_VALUE_TYPE_USERPTR:
-		case OS_VALUE_TYPE_FUNCTION:
-		case OS_VALUE_TYPE_CFUNCTION:
-			OS_ASSERT(dynamic_cast<GCValue*>(OS_VALUE_VARIANT(value).value));
-			if(!OS_VALUE_VARIANT(value).value->name){
-				OS_VALUE_VARIANT(value).value->name = OS_VALUE_VARIANT(index).string;
-			}
+	switch(OS_VALUE_TYPE(value)){
+	case OS_VALUE_TYPE_STRING:
+	case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+		OS_ASSERT(dynamic_cast<GCValue*>(OS_VALUE_VARIANT(value).value));
+		// TODO: correct ???
+		gcAddToGreyList(OS_VALUE_VARIANT(value).value);
+		if(!OS_VALUE_VARIANT(value).value->name && OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
+			OS_VALUE_VARIANT(value).value->name = OS_VALUE_VARIANT(index).string;
 		}
+		break;
 	}
 
 	Property * prop = NULL;
