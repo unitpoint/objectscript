@@ -676,6 +676,7 @@ OS_FLOAT OS::Utils::strToFloat(const OS_CHAR* str)
 
 #define OS_STR_HASH_START_VALUE 5381
 #define OS_ADD_STR_HASH_VALUE hash = ((hash << 5) + hash) + *buf
+// #define OS_ADD_STR_HASH_VALUE hash ^= *buf + (hash<<6) + (hash>>2);
 
 #define OS_STR_HASH_LIMIT_SHIFT 5
 
@@ -705,7 +706,7 @@ int OS::Utils::keyToHash(const void * buf1, int size1, const void * buf2, int si
 			OS_ADD_STR_HASH_VALUE;
 		}
 		buf = (const OS_BYTE*)buf2 + (buf - end);
-		end = buf + size2;
+		end = (const OS_BYTE*)buf2 + size2;
 		for(; buf < end; buf += step){
 			OS_ADD_STR_HASH_VALUE;
 		}
