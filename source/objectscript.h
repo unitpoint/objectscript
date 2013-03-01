@@ -488,6 +488,8 @@ namespace ObjectScript
 
 		class String;
 		class ObjectScriptExtention;
+		
+		struct FileHandle {};
 
 	protected:
 
@@ -752,7 +754,7 @@ namespace ObjectScript
 			{
 			public:
 
-				void * f;
+				FileHandle * f;
 
 				FileStreamWriter(OS*, const OS_CHAR * filename);
 				~FileStreamWriter();
@@ -853,7 +855,7 @@ namespace ObjectScript
 			{
 			public:
 
-				void * f;
+				FileHandle * f;
 
 				FileStreamReader(OS*, const OS_CHAR * filename);
 				~FileStreamReader();
@@ -981,7 +983,7 @@ namespace ObjectScript
 			protected:
 
 				OS * os;
-				void * f;
+				FileHandle * f;
 
 			public:
 
@@ -2894,6 +2896,7 @@ namespace ObjectScript
 		void initFileClass();
 		void initExceptionClass();
 		void initProcessModule();
+		void initPathModule();
 		void initMathModule();
 		void initGCModule();
 		void initLangTokenizerModule();
@@ -3126,7 +3129,7 @@ namespace ObjectScript
 		virtual void require(const String& filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
 		// return next gc phase
-		int gc();
+		int gcStep();
 		void gcFull();
 
 		struct FuncDef {
@@ -3192,12 +3195,12 @@ namespace ObjectScript
 
 		virtual bool isFileExist(const OS_CHAR * filename);
 		virtual int getFileSize(const OS_CHAR * filename);
-		virtual int getFileSize(void * f);
-		virtual void * openFile(const OS_CHAR * filename, const OS_CHAR * mode);
-		virtual int readFile(void * buf, int size, void * f);
-		virtual int writeFile(const void * buf, int size, void * f);
-		virtual int seekFile(void * f, int offset, int whence);
-		virtual void closeFile(void * f);
+		virtual int getFileSize(FileHandle * f);
+		virtual FileHandle * openFile(const OS_CHAR * filename, const OS_CHAR * mode);
+		virtual int readFile(void * buf, int size, FileHandle * f);
+		virtual int writeFile(const void * buf, int size, FileHandle * f);
+		virtual int seekFile(FileHandle * f, int offset, int whence);
+		virtual void closeFile(FileHandle * f);
 
 		virtual void echo(const void * buf, int size);
 		void echo(const OS_CHAR * str);
