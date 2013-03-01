@@ -676,7 +676,7 @@ OS_FLOAT OS::Utils::strToFloat(const OS_CHAR* str)
 
 #define OS_STR_HASH_START_VALUE 5381
 #define OS_ADD_STR_HASH_VALUE hash = ((hash << 5) + hash) + *buf
-// #define OS_ADD_STR_HASH_VALUE hash ^= *buf + (hash<<6) + (hash>>2);
+// #define OS_ADD_STR_HASH_VALUE hash ^= (hash<<6) + (hash>>2) + *buf;
 
 #define OS_STR_HASH_LIMIT_SHIFT 5
 
@@ -9006,6 +9006,7 @@ void OS::Core::Program::pushStartFunction()
 	}else{
 		func_value->name = allocator->core->newStringValue(OS_TEXT("{{CORE}}"));
 	}
+	func_value->name->external_ref_count++;
 
 	allocator->core->gcMarkProgram(this);
 }
@@ -10407,6 +10408,7 @@ OS::Core::GCFunctionValue * OS::Core::newFunctionValue(StackFunction * stack_fun
 	GCFunctionValue * func_value = new (allocator->malloc(sizeof(GCFunctionValue) OS_DBG_FILEPOS)) GCFunctionValue();
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
 	func_value->prototype = prototypes[PROTOTYPE_FUNCTION];
+	func_value->prototype->external_ref_count++;
 	func_value->prog = prog->retain();
 	func_value->func_decl = func_decl;
 	func_value->env = env; // global_vars;
@@ -10431,7 +10433,16 @@ void OS::Core::clearFunctionValue(GCFunctionValue * func_value)
 		releaseLocals(func_value->locals);
 		func_value->locals = NULL;
 	}
-	func_value->name = NULL;
+	if(func_value->name){
+		OS_ASSERT(func_value->name->external_ref_count > 0);
+		func_value->name->external_ref_count--;
+		func_value->name = NULL;
+	}
+	if(func_value->prototype){
+		OS_ASSERT(func_value->prototype->external_ref_count > 0);
+		func_value->prototype->external_ref_count--;
+		func_value->prototype = NULL;
+	}
 
 	func_value->func_decl = NULL;
 
@@ -10760,6 +10771,7 @@ OS::Core::GCStringValue * OS::Core::GCStringValue::alloc(OS * allocator, const v
 	GCStringValue * string = new (allocator->malloc(alloc_size OS_DBG_FILEPOS_PARAM)) GCStringValue(data_size);
 	string->type = OS_VALUE_TYPE_STRING;
 	string->prototype = allocator->core->prototypes[PROTOTYPE_STRING];
+	string->prototype->external_ref_count++;
 	OS_BYTE * data_buf = string->toBytes();
 	OS_MEMCPY(data_buf, buf, data_size);
 	OS_MEMSET(data_buf + data_size, 0, sizeof(wchar_t) + sizeof(wchar_t)/2);
@@ -10778,6 +10790,7 @@ OS::Core::GCStringValue * OS::Core::GCStringValue::alloc(OS * allocator, const v
 	GCStringValue * string = new (allocator->malloc(alloc_size OS_DBG_FILEPOS_PARAM)) GCStringValue(len1 + len2);
 	string->type = OS_VALUE_TYPE_STRING;
 	string->prototype = allocator->core->prototypes[PROTOTYPE_STRING];
+	string->prototype->external_ref_count++;
 	OS_BYTE * data_buf = string->toBytes();
 	OS_MEMCPY(data_buf, buf1, len1); data_buf += len1;
 	if(len2){ OS_MEMCPY(data_buf, buf2, len2); data_buf += len2; }
@@ -11570,7 +11583,7 @@ void OS::MemoryManager::release()
 
 bool OS::isFileExist(const OS_CHAR * filename)
 {
-	void * f = openFile(filename, "rb");
+	FileHandle * f = openFile(filename, "rb");
 	if(f){
 		closeFile(f);
 		return true;
@@ -11580,7 +11593,7 @@ bool OS::isFileExist(const OS_CHAR * filename)
 
 int OS::getFileSize(const OS_CHAR * filename)
 {
-	void * f = openFile(filename, "rb");
+	FileHandle * f = openFile(filename, "rb");
 	if(f){
 		int size = getFileSize(f);
 		closeFile(f);
@@ -11589,7 +11602,7 @@ int OS::getFileSize(const OS_CHAR * filename)
 	return 0;
 }
 
-int OS::getFileSize(void * f)
+int OS::getFileSize(FileHandle * f)
 {
 	if(f){
 		int pos = seekFile(f, 0, SEEK_CUR);
@@ -11600,12 +11613,12 @@ int OS::getFileSize(void * f)
 	return 0;
 }
 
-void * OS::openFile(const OS_CHAR * filename, const OS_CHAR * mode)\
+OS::FileHandle * OS::openFile(const OS_CHAR * filename, const OS_CHAR * mode)\
 {
-	return fopen(filename, mode);
+	return (FileHandle*)fopen(filename, mode);
 }
 
-int OS::readFile(void * buf, int size, void * f)
+int OS::readFile(void * buf, int size, FileHandle * f)
 {
 	if(f){
 		return (int)fread(buf, size, 1, (FILE*)f) * size;
@@ -11613,7 +11626,7 @@ int OS::readFile(void * buf, int size, void * f)
 	return 0;
 }
 
-int OS::writeFile(const void * buf, int size, void * f)
+int OS::writeFile(const void * buf, int size, FileHandle * f)
 {
 	if(f){
 		return (int)fwrite(buf, size, 1, (FILE*)f) * size;
@@ -11621,7 +11634,7 @@ int OS::writeFile(const void * buf, int size, void * f)
 	return 0;
 }
 
-int OS::seekFile(void * f, int offset, int whence)
+int OS::seekFile(FileHandle * f, int offset, int whence)
 {
 	if(f){
 		fseek((FILE*)f, offset, whence);
@@ -11630,7 +11643,7 @@ int OS::seekFile(void * f, int offset, int whence)
 	return 0;
 }
 
-void OS::closeFile(void * f)
+void OS::closeFile(FileHandle * f)
 {
 	if(f){
 		fclose((FILE*)f);
@@ -12358,6 +12371,7 @@ bool OS::init(MemoryManager * p_manager)
 		initFunctionClass();
 		initExceptionClass();
 		initFileClass();
+		initPathModule();
 		initMathModule();
 		initProcessModule();
 		initGCModule();
@@ -12504,6 +12518,8 @@ void OS::Core::shutdown()
 	::qsort(collectedValues.buf, collectedValues.count, sizeof(GCValue*), compareGCValues);
 	for(i = collectedValues.count-1; i >= 0; i--){
 		GCValue * value = collectedValues[i];
+		value->name = NULL;
+		value->prototype = NULL;
 		clearValue(value);
 		deleteValue(value);
 	}
@@ -12640,7 +12656,7 @@ bool OS::isAbsolutePath(const String& p_filename)
 OS::String OS::resolvePath(const String& filename, const String& cur_path)
 {
 	String resolved_path = filename;
-	if(!isAbsolutePath(filename) && !cur_path.isEmpty()){
+	if(!cur_path.isEmpty() && !isAbsolutePath(filename)){
 		if(filename.getLen() < cur_path.getLen() || String(this, filename.toChar(), cur_path.getLen()) != cur_path){
 			resolved_path = cur_path + OS_PATH_SEPARATOR + filename;
 		}
@@ -12648,13 +12664,18 @@ OS::String OS::resolvePath(const String& filename, const String& cur_path)
 	if(isFileExist(resolved_path)){
 		return resolved_path;
 	}
-	resolved_path = changeFilenameExt(resolved_path, OS_EXT_SOURCECODE);
-	if(isFileExist(resolved_path)){
-		return resolved_path;
+	String ext = getFilenameExt(resolved_path);
+	if(ext.isEmpty() || ext == OS_EXT_COMPILED){
+		resolved_path = changeFilenameExt(resolved_path, OS_EXT_SOURCECODE);
+		if(isFileExist(resolved_path)){
+			return resolved_path;
+		}
 	}
-	resolved_path = changeFilenameExt(resolved_path, OS_EXT_COMPILED);
-	if(isFileExist(resolved_path)){
-		return resolved_path;
+	if(ext.isEmpty() || ext == OS_EXT_SOURCECODE){
+		resolved_path = changeFilenameExt(resolved_path, OS_EXT_COMPILED);
+		if(isFileExist(resolved_path)){
+			return resolved_path;
+		}
 	}
 	// core->error(OS_E_WARNING, String::format(this, OS_TEXT("filename %s is not resolved"), filename.toChar()));
 	return String(this);
@@ -13250,9 +13271,16 @@ void OS::Core::clearValue(GCValue * val)
 		val->table = NULL;
 		deleteTable(table);
 	}
-	val->name = NULL;
-	// prototype could be already destroyed by gc or will be destroyed soon
-	val->prototype = NULL;
+	if(val->name){
+		OS_ASSERT(val->name->external_ref_count > 0);
+		val->name->external_ref_count--;
+		val->name = NULL;
+	}
+	if(val->prototype){
+		OS_ASSERT(val->prototype->external_ref_count > 0);
+		val->prototype->external_ref_count--;
+		val->prototype = NULL;
+	}
 	val->type = OS_VALUE_TYPE_UNKNOWN;
 }
 
@@ -13516,6 +13544,19 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 		return;
 	}
 
+	int index_type = OS_VALUE_TYPE(index);
+	switch(index_type){
+	case OS_VALUE_TYPE_STRING:
+	case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+		// TODO: correct ???
+		gcAddToGreyList(OS_VALUE_VARIANT(index).value);
+	}
+
 	switch(OS_VALUE_TYPE(value)){
 	case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
@@ -13527,8 +13568,10 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 		OS_ASSERT(dynamic_cast<GCValue*>(OS_VALUE_VARIANT(value).value));
 		// TODO: correct ???
 		gcAddToGreyList(OS_VALUE_VARIANT(value).value);
-		if(!OS_VALUE_VARIANT(value).value->name && OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
+		if(!OS_VALUE_VARIANT(value).value->name && index_type == OS_VALUE_TYPE_STRING){
 			OS_VALUE_VARIANT(value).value->name = OS_VALUE_VARIANT(index).string;
+			OS_VALUE_VARIANT(value).value->name->external_ref_count++;
+			// gcAddToGreyList(OS_VALUE_VARIANT(value).value->name);
 		}
 		break;
 	}
@@ -13544,13 +13587,16 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 	/* if(prototype_enabled){
 	} */
 
-	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
+	if(index_type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
 		switch(table_value->type){
 		case OS_VALUE_TYPE_STRING:
 		case OS_VALUE_TYPE_ARRAY:
 		case OS_VALUE_TYPE_OBJECT:
 		case OS_VALUE_TYPE_FUNCTION:
+			OS_ASSERT(table_value->prototype && table_value->prototype->external_ref_count > 0);
+			table_value->prototype->external_ref_count--;
 			table_value->prototype = OS_VALUE_VARIANT(value).value;
+			table_value->prototype->external_ref_count++;
 			break;
 
 		case OS_VALUE_TYPE_USERDATA:
@@ -13578,7 +13624,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 
 	if(setter_enabled && !hasSpecialPrefix(index)){
 		Value func;
-		if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
+		if(index_type == OS_VALUE_TYPE_STRING){
 			const void * buf1 = strings->__setAt.toChar();
 			int size1 = strings->__setAt.getDataSize();
 			const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
@@ -13689,7 +13735,10 @@ void OS::Core::setPrototype(const Value& val, const Value& proto, int userdata_c
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
+		OS_ASSERT(OS_VALUE_VARIANT(val).value->prototype && OS_VALUE_VARIANT(val).value->prototype->external_ref_count > 0);
+		OS_VALUE_VARIANT(val).value->prototype->external_ref_count--;
 		OS_VALUE_VARIANT(val).value->prototype = proto.getGCValue();
+		OS_VALUE_VARIANT(val).value->prototype->external_ref_count++;
 		return;
 	}
 }
@@ -13887,6 +13936,7 @@ OS::Core::GCCFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, int 
 	}
 	GCCFunctionValue * res = new (malloc(sizeof(GCCFunctionValue) + sizeof(Value) * num_closure_values OS_DBG_FILEPOS)) GCCFunctionValue();
 	res->prototype = prototypes[PROTOTYPE_FUNCTION];
+	res->prototype->external_ref_count++;
 	res->func = func;
 	res->user_param = user_param;
 	res->num_closure_values = num_closure_values;
@@ -13904,6 +13954,7 @@ OS::Core::GCUserdataValue * OS::Core::newUserdataValue(int crc, int data_size, O
 {
 	GCUserdataValue * res = new (malloc(sizeof(GCUserdataValue) + data_size OS_DBG_FILEPOS)) GCUserdataValue();
 	res->prototype = prototypes[PROTOTYPE_USERDATA];
+	res->prototype->external_ref_count++;
 	res->crc = crc;
 	res->dtor = dtor;
 	res->user_param = user_param;
@@ -13955,6 +14006,7 @@ OS::Core::GCUserdataValue * OS::Core::newUserPointerValue(int crc, void * ptr, O
 	}
 	GCUserdataValue * res = new (malloc(sizeof(GCUserdataValue) OS_DBG_FILEPOS)) GCUserdataValue();
 	res->prototype = prototypes[PROTOTYPE_USERDATA];
+	res->prototype->external_ref_count++;
 	res->crc = crc;
 	res->dtor = dtor;
 	res->user_param = user_param;
@@ -13980,6 +14032,7 @@ OS::Core::GCObjectValue * OS::Core::newObjectValue(GCValue * prototype)
 {
 	GCObjectValue * res = new (malloc(sizeof(GCObjectValue) OS_DBG_FILEPOS)) GCObjectValue();
 	res->prototype = prototype;
+	if(res->prototype) res->prototype->external_ref_count++;
 	res->type = OS_VALUE_TYPE_OBJECT;
 	registerValue(res);
 	return res;
@@ -13989,6 +14042,7 @@ OS::Core::GCArrayValue * OS::Core::newArrayValue(int initial_capacity)
 {
 	GCArrayValue * res = new (malloc(sizeof(GCArrayValue) OS_DBG_FILEPOS)) GCArrayValue();
 	res->prototype = prototypes[PROTOTYPE_ARRAY];
+	res->prototype->external_ref_count++;
 	res->type = OS_VALUE_TYPE_ARRAY;
 	if(initial_capacity > 0){
 		allocator->vectorReserveCapacity(res->values, initial_capacity OS_DBG_FILEPOS);
@@ -18024,7 +18078,10 @@ void OS::initCoreFunctions()
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_FUNCTION:
+				OS_ASSERT(OS_VALUE_VARIANT(right_value).value->prototype && OS_VALUE_VARIANT(right_value).value->prototype->external_ref_count > 0);
+				OS_VALUE_VARIANT(right_value).value->prototype->external_ref_count--;
 				OS_VALUE_VARIANT(right_value).value->prototype = os->core->getStackValue(-params).getGCValue();
+				OS_VALUE_VARIANT(right_value).value->prototype->external_ref_count++;
 				break;
 
 			case OS_VALUE_TYPE_USERDATA:
@@ -18949,7 +19006,9 @@ dump_object:
 					value = OS_VALUE_VARIANT(val).value;
 					Core::GCArrayValue * arr = (Core::GCArrayValue*)value;
 					new_value = os->core->pushArrayValue(arr->values.count);
+					new_value->prototype->external_ref_count--;
 					new_value->prototype = value->prototype;
+					new_value->prototype->external_ref_count++;
 					Core::GCArrayValue * new_arr = (Core::GCArrayValue*)new_value;
 					OS_MEMCPY(new_arr->values.buf, arr->values.buf, sizeof(Core::Value)*arr->values.count);
 					new_arr->values.count = arr->values.count;
@@ -20184,6 +20243,39 @@ void OS::initMathModule()
 	pop();
 }
 
+void OS::initPathModule()
+{
+	struct Lib 
+	{
+		static OS::String dirname(OS * os, const OS::String& filename)
+		{
+			return os->getFilenamePath(filename);
+		}
+
+		static OS::String basename(OS * os, const OS::String& filename)
+		{
+			return os->getFilename(filename);
+		}
+
+		static OS::String extname(OS * os, const OS::String& filename)
+		{
+			return os->getFilenameExt(filename);
+		}
+	};
+	
+	OS::FuncDef funcs[] = {
+		def(OS_TEXT("dirname"), &Lib::dirname),
+		def(OS_TEXT("basename"), &Lib::basename),
+		def(OS_TEXT("extname"), &Lib::extname),
+		// resolve will set to reuire.resolve inside of initPostScript
+		{}
+	};
+
+	getModule(OS_TEXT("path"));
+	setFuncs(funcs);
+	pop();
+}
+
 void OS::initProcessModule()
 {
 	struct Lib
@@ -20191,8 +20283,8 @@ void OS::initProcessModule()
 		static int cwd(OS * os, int params, int, int, void*)
 		{
             const int OS_PATH_MAX = 1024;
-            Core::Buffer buf(os);
-            buf.reserveCapacity(OS_PATH_MAX+1);
+			Core::Buffer buf(os);
+            buf.reserveCapacity((OS_PATH_MAX+1) * sizeof(OS_CHAR));
             OS_GETCWD((OS_CHAR*)buf.buffer.buf, OS_PATH_MAX);
             os->pushString(buf);
 			return 1;
@@ -20571,6 +20663,8 @@ void OS::initPostScript()
 		// it's ObjectScript code here
 		Object.__setempty = Object.push
 		Object.__getempty = Object.pop
+
+		path.resolve = require.resolve
 		
 		function Buffer.printf(){
 			@append(sprintf.apply(_E, arguments))
@@ -21128,7 +21222,7 @@ int OS::setSetting(OS_ESettings setting, int value)
 	return -1;
 }
 
-int OS::gc()
+int OS::gcStep()
 {
 	return core->gcStep();
 }

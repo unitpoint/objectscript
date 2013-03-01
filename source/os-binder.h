@@ -177,9 +177,9 @@ OS_DECL_CTYPE(ObjectScript::OS);
 template <>
 struct CtypeValue<ObjectScript::OS*>
 {
-	typedef const ObjectScript::OS * type;
+	typedef ObjectScript::OS * type;
 
-	static bool isValid(const ObjectScript::OS * p){ return p != NULL; }
+	static bool isValid(ObjectScript::OS * p){ return p != NULL; }
 
 	static type def(ObjectScript::OS * os){ return os; }
 	static type getArg(ObjectScript::OS * os, int& offs)
