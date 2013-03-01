@@ -1,3 +1,10 @@
+print { 
+	dirname = path.dirname(__FILE__)
+	basename = path.basename(__FILE__)
+	extname = path.extname(__FILE__)
+	resolve = path.resolve("test.db")
+}
+
 ;{
 var a = 6
 var b = 1
@@ -512,5 +519,13 @@ if("Curl" in _G){
 	print "Curl library is not enabled"
 }
 
+print "Test sqlite database"
+var conn = SqliteConnection(path.resolve("test.db"))
+var stmt = conn.query("select * from session_log where user_id > :user_id", {
+	user_id = 2
+})
+for(var i, row in stmt){
+	print row
+}
 terminate()
 print "This text is never printed"
