@@ -3592,6 +3592,7 @@ bool OS::Core::Compiler::compile()
 			dump += OS::Core::String::format(allocator, "[%d] %s\n", tokenizer->getErrorLine()+1, tokenizer->getLineString(tokenizer->getErrorLine()).toChar());
 			dump += OS::Core::String::format(allocator, "pos %d\n", tokenizer->getErrorPos()+1);
 		}
+		// TODO: set exception
 		allocator->echo(dump.toString());
 		// FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
 
@@ -9002,11 +9003,11 @@ void OS::Core::Program::pushStartFunction()
 	GCFunctionValue * func_value = allocator->core->newFunctionValue(NULL, this, func_decl, allocator->core->global_vars);
 	allocator->core->pushValue(func_value);
 	if(filename.getDataSize()){
-		func_value->name = allocator->core->newStringValue(OS_TEXT("{{main}}"));
+		func_value->name = allocator->core->strings->func_main.string; // allocator->core->newStringValue(OS_TEXT("{{main}}"));
 	}else{
-		func_value->name = allocator->core->newStringValue(OS_TEXT("{{CORE}}"));
+		func_value->name = allocator->core->strings->func_core.string; // allocator->core->newStringValue(OS_TEXT("{{CORE}}"));
 	}
-	func_value->name->external_ref_count++;
+	// func_value->name->external_ref_count++;
 
 	allocator->core->gcMarkProgram(this);
 }
@@ -10408,7 +10409,7 @@ OS::Core::GCFunctionValue * OS::Core::newFunctionValue(StackFunction * stack_fun
 	GCFunctionValue * func_value = new (allocator->malloc(sizeof(GCFunctionValue) OS_DBG_FILEPOS)) GCFunctionValue();
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
 	func_value->prototype = prototypes[PROTOTYPE_FUNCTION];
-	func_value->prototype->external_ref_count++;
+	// func_value->prototype->external_ref_count++;
 	func_value->prog = prog->retain();
 	func_value->func_decl = func_decl;
 	func_value->env = env; // global_vars;
@@ -10433,6 +10434,7 @@ void OS::Core::clearFunctionValue(GCFunctionValue * func_value)
 		releaseLocals(func_value->locals);
 		func_value->locals = NULL;
 	}
+	/*
 	if(func_value->name){
 		OS_ASSERT(func_value->name->external_ref_count > 0);
 		func_value->name->external_ref_count--;
@@ -10443,7 +10445,9 @@ void OS::Core::clearFunctionValue(GCFunctionValue * func_value)
 		func_value->prototype->external_ref_count--;
 		func_value->prototype = NULL;
 	}
-
+	*/
+	OS_ASSERT((func_value->name = NULL, true));
+	OS_ASSERT((func_value->prototype = NULL, true));
 	func_value->func_decl = NULL;
 
 	func_value->prog->release();
@@ -10771,7 +10775,7 @@ OS::Core::GCStringValue * OS::Core::GCStringValue::alloc(OS * allocator, const v
 	GCStringValue * string = new (allocator->malloc(alloc_size OS_DBG_FILEPOS_PARAM)) GCStringValue(data_size);
 	string->type = OS_VALUE_TYPE_STRING;
 	string->prototype = allocator->core->prototypes[PROTOTYPE_STRING];
-	string->prototype->external_ref_count++;
+	// string->prototype->external_ref_count++;
 	OS_BYTE * data_buf = string->toBytes();
 	OS_MEMCPY(data_buf, buf, data_size);
 	OS_MEMSET(data_buf + data_size, 0, sizeof(wchar_t) + sizeof(wchar_t)/2);
@@ -10790,7 +10794,7 @@ OS::Core::GCStringValue * OS::Core::GCStringValue::alloc(OS * allocator, const v
 	GCStringValue * string = new (allocator->malloc(alloc_size OS_DBG_FILEPOS_PARAM)) GCStringValue(len1 + len2);
 	string->type = OS_VALUE_TYPE_STRING;
 	string->prototype = allocator->core->prototypes[PROTOTYPE_STRING];
-	string->prototype->external_ref_count++;
+	// string->prototype->external_ref_count++;
 	OS_BYTE * data_buf = string->toBytes();
 	OS_MEMCPY(data_buf, buf1, len1); data_buf += len1;
 	if(len2){ OS_MEMCPY(data_buf, buf2, len2); data_buf += len2; }
@@ -11487,6 +11491,9 @@ OS::Core::Strings::Strings(OS * allocator)
 	func_concat(allocator, OS_TEXT("concat")),
 	func_echo(allocator, OS_TEXT("echo")),
 	func_require(allocator, OS_TEXT("require")),
+
+	func_core(allocator, OS_TEXT("{{CORE}}")),
+	func_main(allocator, OS_TEXT("{{main}}")),
 
 	typeof_null(allocator, OS_TEXT("null")),
 	typeof_boolean(allocator, OS_TEXT("boolean")),
@@ -12415,7 +12422,7 @@ bool OS::Core::init()
 	for(i = 0; i < PROTOTYPE_COUNT; i++){
 		prototypes[i] = newObjectValue(NULL);
 		prototypes[i]->type = OS_VALUE_TYPE_OBJECT;
-		prototypes[i]->external_ref_count++;
+		// prototypes[i]->external_ref_count++;
 	}
 	check_recursion = newObjectValue();
 	global_vars = newObjectValue();
@@ -13271,6 +13278,7 @@ void OS::Core::clearValue(GCValue * val)
 		val->table = NULL;
 		deleteTable(table);
 	}
+	/*
 	if(val->name){
 		OS_ASSERT(val->name->external_ref_count > 0);
 		val->name->external_ref_count--;
@@ -13281,6 +13289,9 @@ void OS::Core::clearValue(GCValue * val)
 		val->prototype->external_ref_count--;
 		val->prototype = NULL;
 	}
+	*/
+	OS_ASSERT((val->name = NULL, true));
+	OS_ASSERT((val->prototype = NULL, true));
 	val->type = OS_VALUE_TYPE_UNKNOWN;
 }
 
@@ -13357,13 +13368,14 @@ bool OS::Core::isValueUsed(GCValue * val)
 			if(cur == val){
 				return true;
 			}
+			/* prototype & name can be destroyed!!!
 			if(cur->prototype && findAt(cur->prototype)){
 				return true;
 			}
-			if(cur->table && findAt(cur->table)){
-				return true;
-			}
 			if(cur->name && findAt(cur->name)){
+				return true;
+			} */
+			if(cur->table && findAt(cur->table)){
 				return true;
 			}
 			switch(cur->type){
@@ -13570,7 +13582,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 		gcAddToGreyList(OS_VALUE_VARIANT(value).value);
 		if(!OS_VALUE_VARIANT(value).value->name && index_type == OS_VALUE_TYPE_STRING){
 			OS_VALUE_VARIANT(value).value->name = OS_VALUE_VARIANT(index).string;
-			OS_VALUE_VARIANT(value).value->name->external_ref_count++;
+			// OS_VALUE_VARIANT(value).value->name->external_ref_count++;
 			// gcAddToGreyList(OS_VALUE_VARIANT(value).value->name);
 		}
 		break;
@@ -13593,10 +13605,10 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 		case OS_VALUE_TYPE_ARRAY:
 		case OS_VALUE_TYPE_OBJECT:
 		case OS_VALUE_TYPE_FUNCTION:
-			OS_ASSERT(table_value->prototype && table_value->prototype->external_ref_count > 0);
-			table_value->prototype->external_ref_count--;
+			// OS_ASSERT(table_value->prototype && table_value->prototype->external_ref_count > 0);
+			// table_value->prototype->external_ref_count--;
 			table_value->prototype = OS_VALUE_VARIANT(value).value;
-			table_value->prototype->external_ref_count++;
+			// table_value->prototype->external_ref_count++;
 			break;
 
 		case OS_VALUE_TYPE_USERDATA:
@@ -13735,10 +13747,10 @@ void OS::Core::setPrototype(const Value& val, const Value& proto, int userdata_c
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		OS_ASSERT(OS_VALUE_VARIANT(val).value->prototype && OS_VALUE_VARIANT(val).value->prototype->external_ref_count > 0);
-		OS_VALUE_VARIANT(val).value->prototype->external_ref_count--;
+		// OS_ASSERT(OS_VALUE_VARIANT(val).value->prototype && OS_VALUE_VARIANT(val).value->prototype->external_ref_count > 0);
+		// OS_VALUE_VARIANT(val).value->prototype->external_ref_count--;
 		OS_VALUE_VARIANT(val).value->prototype = proto.getGCValue();
-		OS_VALUE_VARIANT(val).value->prototype->external_ref_count++;
+		// OS_VALUE_VARIANT(val).value->prototype->external_ref_count++;
 		return;
 	}
 }
@@ -13936,7 +13948,7 @@ OS::Core::GCCFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, int 
 	}
 	GCCFunctionValue * res = new (malloc(sizeof(GCCFunctionValue) + sizeof(Value) * num_closure_values OS_DBG_FILEPOS)) GCCFunctionValue();
 	res->prototype = prototypes[PROTOTYPE_FUNCTION];
-	res->prototype->external_ref_count++;
+	// res->prototype->external_ref_count++;
 	res->func = func;
 	res->user_param = user_param;
 	res->num_closure_values = num_closure_values;
@@ -13954,7 +13966,7 @@ OS::Core::GCUserdataValue * OS::Core::newUserdataValue(int crc, int data_size, O
 {
 	GCUserdataValue * res = new (malloc(sizeof(GCUserdataValue) + data_size OS_DBG_FILEPOS)) GCUserdataValue();
 	res->prototype = prototypes[PROTOTYPE_USERDATA];
-	res->prototype->external_ref_count++;
+	// res->prototype->external_ref_count++;
 	res->crc = crc;
 	res->dtor = dtor;
 	res->user_param = user_param;
@@ -14006,7 +14018,7 @@ OS::Core::GCUserdataValue * OS::Core::newUserPointerValue(int crc, void * ptr, O
 	}
 	GCUserdataValue * res = new (malloc(sizeof(GCUserdataValue) OS_DBG_FILEPOS)) GCUserdataValue();
 	res->prototype = prototypes[PROTOTYPE_USERDATA];
-	res->prototype->external_ref_count++;
+	// res->prototype->external_ref_count++;
 	res->crc = crc;
 	res->dtor = dtor;
 	res->user_param = user_param;
@@ -14032,7 +14044,7 @@ OS::Core::GCObjectValue * OS::Core::newObjectValue(GCValue * prototype)
 {
 	GCObjectValue * res = new (malloc(sizeof(GCObjectValue) OS_DBG_FILEPOS)) GCObjectValue();
 	res->prototype = prototype;
-	if(res->prototype) res->prototype->external_ref_count++;
+	// if(res->prototype) res->prototype->external_ref_count++;
 	res->type = OS_VALUE_TYPE_OBJECT;
 	registerValue(res);
 	return res;
@@ -14042,7 +14054,7 @@ OS::Core::GCArrayValue * OS::Core::newArrayValue(int initial_capacity)
 {
 	GCArrayValue * res = new (malloc(sizeof(GCArrayValue) OS_DBG_FILEPOS)) GCArrayValue();
 	res->prototype = prototypes[PROTOTYPE_ARRAY];
-	res->prototype->external_ref_count++;
+	// res->prototype->external_ref_count++;
 	res->type = OS_VALUE_TYPE_ARRAY;
 	if(initial_capacity > 0){
 		allocator->vectorReserveCapacity(res->values, initial_capacity OS_DBG_FILEPOS);
@@ -18078,10 +18090,10 @@ void OS::initCoreFunctions()
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
 			case OS_VALUE_TYPE_FUNCTION:
-				OS_ASSERT(OS_VALUE_VARIANT(right_value).value->prototype && OS_VALUE_VARIANT(right_value).value->prototype->external_ref_count > 0);
-				OS_VALUE_VARIANT(right_value).value->prototype->external_ref_count--;
+				// OS_ASSERT(OS_VALUE_VARIANT(right_value).value->prototype && OS_VALUE_VARIANT(right_value).value->prototype->external_ref_count > 0);
+				// OS_VALUE_VARIANT(right_value).value->prototype->external_ref_count--;
 				OS_VALUE_VARIANT(right_value).value->prototype = os->core->getStackValue(-params).getGCValue();
-				OS_VALUE_VARIANT(right_value).value->prototype->external_ref_count++;
+				// OS_VALUE_VARIANT(right_value).value->prototype->external_ref_count++;
 				break;
 
 			case OS_VALUE_TYPE_USERDATA:
@@ -19006,9 +19018,9 @@ dump_object:
 					value = OS_VALUE_VARIANT(val).value;
 					Core::GCArrayValue * arr = (Core::GCArrayValue*)value;
 					new_value = os->core->pushArrayValue(arr->values.count);
-					new_value->prototype->external_ref_count--;
+					// new_value->prototype->external_ref_count--;
 					new_value->prototype = value->prototype;
-					new_value->prototype->external_ref_count++;
+					// new_value->prototype->external_ref_count++;
 					Core::GCArrayValue * new_arr = (Core::GCArrayValue*)new_value;
 					OS_MEMCPY(new_arr->values.buf, arr->values.buf, sizeof(Core::Value)*arr->values.count);
 					new_arr->values.count = arr->values.count;

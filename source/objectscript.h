@@ -2450,6 +2450,8 @@ namespace ObjectScript
 				String func_concat;
 				String func_echo;
 				String func_require;
+				String func_core;
+				String func_main;
 
 				String typeof_null;
 				String typeof_boolean;
