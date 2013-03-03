@@ -13156,7 +13156,7 @@ void OS::Core::gcFinishMarkPhase()
 bool OS::gcStepIfNeeded()
 {
 	int used_bytes = getAllocatedBytes() - getCachedBytes();
-	if(core->gc_start_used_bytes > used_bytes && core->gc_start_next_values <= core->values.count){
+	if(core->gc_start_used_bytes <= used_bytes && core->gc_start_next_values <= core->values.count){
 		core->gcFinishSweepPhase();
 		core->gcStep();
 		return true;
