@@ -10020,13 +10020,23 @@ void OS::Core::changePropertyIndex(Table * table, Property * prop, const Value& 
 	}
 }
 
+// performance optimization
+#define OS_EQUAL_EXACTLY(temp, left_value, right_value) \
+	((temp = OS_VALUE_TYPE(left_value)) == OS_VALUE_TYPE(right_value) \
+		&& (temp == OS_VALUE_TYPE_NUMBER ? OS_VALUE_NUMBER(left_value) == OS_VALUE_NUMBER(right_value) \
+		: temp == OS_VALUE_TYPE_BOOL ? OS_VALUE_VARIANT(left_value).boolean == OS_VALUE_VARIANT(right_value).boolean \
+		: temp == OS_VALUE_TYPE_NULL ? true \
+		: OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value))
+
 OS::Core::Property * OS::Core::removeTableProperty(Table * table, const Value& index)
 {
 	OS_ASSERT(table);
 	int slot = getValueHash(index) & table->head_mask;
 	Property * cur = table->heads[slot], * chain_prev = NULL;
-	for(; cur; chain_prev = cur, cur = cur->hash_next){
-		if(isEqualExactly(cur->index, index)){
+	for(int temp; cur; chain_prev = cur, cur = cur->hash_next){
+		// if(isEqualExactly(cur->index, index)){
+		// performance optimization
+		if(OS_EQUAL_EXACTLY(temp, cur->index, index)){
 			if(table->first == cur){
 				table->first = cur->next;
 				if(table->first){
@@ -10368,8 +10378,10 @@ OS::Core::Property * OS::Core::Table::get(const Value& index)
 {
 	if(heads){
 		Property * cur = heads[getValueHash(index) & head_mask];
-		for(; cur; cur = cur->hash_next){
-			if(isEqualExactly(cur->index, index)){
+		for(int temp; cur; cur = cur->hash_next){
+			// if(isEqualExactly(cur->index, index)){
+			// performance optimization
+			if(OS_EQUAL_EXACTLY(temp, cur->index, index)){
 				return cur;
 			}
 		}
@@ -14617,6 +14629,10 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 
 bool OS::Core::isEqualExactly(const Value& left_value, const Value& right_value)
 {
+	// performance optimization
+	int temp;
+	return OS_EQUAL_EXACTLY(temp, left_value, right_value);
+	/*
 	int left_type = OS_VALUE_TYPE(left_value);
 	if(left_type == OS_VALUE_TYPE(right_value)){ // && left_value->prototype == right_value->prototype){
 		switch(left_type){
@@ -14636,7 +14652,7 @@ bool OS::Core::isEqualExactly(const Value& left_value, const Value& right_value)
 			return OS_VALUE_VARIANT(left_value).value_id == OS_VALUE_VARIANT(right_value).value_id;
 		}
 	}
-	return false;
+	return false; */
 }
 
 void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, const Value& right_value)
@@ -16488,7 +16504,11 @@ corrupted:
 
 				// b = GETARG_B(instruction); // inverse
 				// c = GETARG_C(instruction); // if opcode
+#if 1 // performance optimization
+				res = OS_EQUAL_EXACTLY(c, *left_value, *right_value) ^ OS_GETARG_B(instruction);
+#else
 				res = (int)isEqualExactly(*left_value, *right_value) ^ OS_GETARG_B(instruction);
+#endif
 				if(!(OS_GETARG_C(instruction))){
 					stack_func_locals[a] = res != 0;
 					break;
