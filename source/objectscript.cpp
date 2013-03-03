@@ -5036,7 +5036,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		exp->slots.c = exp1->slots.a;
 		scope->popTempVar(2);
-		if(exp1->type == EXP_TYPE_MOVE){
+		// TODO: is it really needed to check exp1->slots.a
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5060,7 +5061,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		exp->slots.c = exp1->slots.a;
 		scope->popTempVar(2);
-		if(exp1->type == EXP_TYPE_MOVE){
+		// TODO: is it really needed to check exp1->slots.a
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5076,11 +5078,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = exp1->slots.a;
 		exp->slots.c = exp2->slots.a;
 		scope->popTempVar(2);
-		if(exp1->type == EXP_TYPE_MOVE){
+		// TODO: is it really needed to check exp1->slots.a
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		if(exp2->type == EXP_TYPE_MOVE){
+		// TODO: is it really needed exp2->slots.a >= 
+		if(exp2->type == EXP_TYPE_MOVE && exp2->slots.a >= scope->function->num_locals){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -5358,7 +5362,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.a = stack_pos;
 		exp->slots.b = stack_pos;
 		exp1 = exp->list[0];
-		if(exp1->type == EXP_TYPE_MOVE){
+		// TODO: is it really needed to check exp1->slots.a
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}		
@@ -5402,11 +5407,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = stack_pos;
 		exp->slots.c = stack_pos+1;
 		scope->popTempVar();
-		if(exp1->type == EXP_TYPE_MOVE){
+		// TODO: is it really needed to check exp1->slots.a
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		if(exp2->type == EXP_TYPE_MOVE){
+		// TODO: is it really needed to check exp1->slots.a
+		if(exp2->type == EXP_TYPE_MOVE && exp2->slots.a >= scope->function->num_locals){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -5500,17 +5507,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = stack_pos;
 		scope->function->stack_cur_size = stack_pos;
 		exp1 = exp->list[0];
-		if(exp1->type == EXP_TYPE_MOVE){
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
 		exp1 = exp->list[1];
-		if(exp1->type == EXP_TYPE_MOVE){
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
 			exp->slots.a = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
 		exp1 = exp->list[2];
-		if(exp1->type == EXP_TYPE_MOVE){
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5582,11 +5589,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = stack_pos; // exp1->slots.a;
 		exp->slots.c = stack_pos + 1; // exp2->slots.a;
 		scope->popTempVar();
-		if(exp1->type == EXP_TYPE_MOVE){
+		// TODO: is it really needed to check exp1->slots.a
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		if(exp2->type == EXP_TYPE_MOVE){
+		// TODO: is it really needed to check exp1->slots.a
+		if(exp2->type == EXP_TYPE_MOVE && exp2->slots.a >= scope->function->num_locals){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
