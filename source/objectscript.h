@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.1.1-dev")
+#define OS_VERSION OS_TEXT("1.2-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -1415,17 +1415,29 @@ namespace ObjectScript
 
 			struct WeakRef { WeakRef(){} };
 
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(OS_NUMBER_TO_INT_ASM_DISABLED)
+#define OS_NUMBER_TO_INT(i, _n) do { OS_FLOAT n = (OS_FLOAT)(_n); __asm { __asm fld n __asm fistp i } }while(false)
+#else
+#define OS_NUMBER_TO_INT(i, n) i = (int)(n)
+#endif
+
 /* Microsoft compiler on a Pentium (32 bit) ? */
 #if defined(_MSC_VER) && defined(_M_IX86)
 
 #define OS_NUMBER_IEEEENDIAN	0
+
+#ifndef OS_NUMBER_NAN_TRICK_DISABLED
 #define OS_NUMBER_NAN_TRICK
+#endif // OS_NUMBER_NAN_TRICK_DISABLED
 
 /* pentium 32 bits? */
 #elif defined(__i386__) || defined(__i386) || defined(__X86__)
 
 #define OS_NUMBER_IEEEENDIAN	1
+
+#ifndef OS_NUMBER_NAN_TRICK_DISABLED
 #define OS_NUMBER_NAN_TRICK
+#endif // OS_NUMBER_NAN_TRICK_DISABLED
 
 #elif defined(__x86_64)
 
@@ -1595,6 +1607,7 @@ namespace ObjectScript
 				Property * prev, * next;
 
 				Property(const Value& index);
+				Property(const Value& index, const Value& value);
 				Property(GCStringValue * index);
 				Property(const String& index);
 				~Property();
@@ -2839,16 +2852,14 @@ namespace ObjectScript
 			bool hasSpecialPrefix(const Value&);
 
 			Property * setTableValue(Table * table, const Value& index, const Value& val);
-			void setPropertyValue(GCValue * table_value, Value index, Value val, bool setter_enabled);
+			void setPropertyValue(GCValue * table_value, const Value& index, Value val, bool setter_enabled);
 			void setPropertyValue(const Value& table_value, const Value& index, const Value& val, bool setter_enabled);
 
-			bool getPropertyValue(Value& result, Table * table, const Value& index);
 			bool getPropertyValue(Value& result, GCValue * table_value, const Value& index, bool prototype_enabled);
 			bool getPropertyValue(Value& result, const Value& table_value, const Value& index, bool prototype_enabled);
 
 			bool hasProperty(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled);
-			void pushPropertyValue(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled);
-			void pushPropertyValueForPrimitive(Value self, Value index, bool getter_enabled, bool prototype_enabled);
+			void pushPropertyValue(GCValue * table_value, const Value& index, bool getter_enabled, bool prototype_enabled);
 			void pushPropertyValue(const Value& table_value, const Value& index, bool getter_enabled, bool prototype_enabled);
 
 			void setPrototype(const Value& val, const Value& proto, int userdata_crc);
@@ -2989,6 +3000,7 @@ namespace ObjectScript
 		void setException(const OS_CHAR*);
 		void setException(const Core::String&);
 		void handleException();
+		void resetException();
 
 		void getProperty(bool getter_enabled = true, bool prototype_enabled = true);
 		void getProperty(const OS_CHAR*, bool getter_enabled = true, bool prototype_enabled = true);

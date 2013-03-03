@@ -3,12 +3,14 @@
 #include <time.h>
 
 #ifdef _MSC_VER
+#ifndef IW_SDK
 #include <direct.h>
-#else
+#endif // IW_SDK
+#else // _MSC_VER
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#endif
+#endif // _MSC_VER
 
 using namespace ObjectScript;
 
@@ -598,6 +600,9 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 				float_val *= m;
 			}
 		}
+		if(*str == OS_TEXT('f')){
+			str++;
+		}
 		result = sign > 0 ? float_val : -float_val;
 		return true;
 	}
@@ -650,7 +655,7 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a, int precision)
 			for(int i = -precision-1; i > 0; i--){
 				p *= (OS_FLOAT)10.0;
 			}
-			a = ::floor(a / p + (OS_FLOAT)0.5) * p;
+			a = (OS_FLOAT)::floor(a / p + (OS_FLOAT)0.5) * p;
 		}
 		OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, FloatFormatStr<OS_NUMBER>::roundFmt(), a);
 		return dst;
@@ -2718,10 +2723,10 @@ int OS::Core::Compiler::cacheString(Table * strings_table, Vector<String>& strin
 	Property * prop = strings_table->get(index);
 	if(prop){
 		OS_ASSERT(OS_IS_VALUE_NUMBER(prop->value));
-		return (int)OS_VALUE_NUMBER(prop->value);
+		int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(prop->value));
+		return i;
 	}
-	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index);
-	prop->value = Value(strings_table->count);
+	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index, Value(strings_table->count));
 	allocator->core->addTableProperty(strings_table, prop);
 	allocator->vectorAddItem(strings, str OS_DBG_FILEPOS);
 	OS_ASSERT(strings_table->count == strings.count);
@@ -2739,10 +2744,10 @@ int OS::Core::Compiler::cacheNumber(OS_NUMBER num)
 	Property * prop = prog_numbers_table->get(index);
 	if(prop){
 		OS_ASSERT(OS_IS_VALUE_NUMBER(prop->value));
-		return (int)OS_VALUE_NUMBER(prop->value);
+		int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(prop->value));
+		return i;
 	}
-	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index);
-	prop->value = Value(prog_numbers_table->count);
+	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index, Value(prog_numbers_table->count));
 	allocator->core->addTableProperty(prog_numbers_table, prop);
 	allocator->vectorAddItem(prog_numbers, num OS_DBG_FILEPOS);
 	OS_ASSERT(prog_numbers_table->count == prog_numbers.count);
@@ -5950,7 +5955,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectOrFunctionExpre
 			readToken();
 			return lib.finishValue(scope, org_p, allow_finish_exp);
 		}
-#if 11
 		if(!recent_token){
 			return lib.error(Tokenizer::END_CODE_BLOCK, recent_token);
 		}
@@ -5959,13 +5963,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectOrFunctionExpre
 		case Tokenizer::CODE_SEPARATOR:
 			readToken();
 		}
-#else
-		if(!recent_token || (recent_token->type != Tokenizer::PARAM_SEPARATOR
-			&& recent_token->type != Tokenizer::CODE_SEPARATOR)){
-				return lib.error(Tokenizer::PARAM_SEPARATOR, recent_token);
-		}
-		readToken();
-#endif
 	}
 	return NULL; // shut up compiler
 }
@@ -6003,7 +6000,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 			readToken();
 			return finishValueExpression(scope, params, next_p);
 		}
-#if 11
 		if(!recent_token){
 			setError(Tokenizer::END_ARRAY_BLOCK, recent_token);
 			allocator->deleteObj(params);
@@ -6014,15 +6010,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 		case Tokenizer::CODE_SEPARATOR:
 			readToken();
 		}
-#else
-		if(!recent_token || (recent_token->type != Tokenizer::PARAM_SEPARATOR
-			&& recent_token->type != Tokenizer::CODE_SEPARATOR)){
-				setError(Tokenizer::PARAM_SEPARATOR, recent_token);
-				allocator->deleteObj(params);
-				return NULL;
-		}
-		readToken();
-#endif
 	}
 	return NULL; // shut up compiler
 }
@@ -6286,14 +6273,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Sc
 			if(recent_token->type == Tokenizer::PARAM_SEPARATOR){
 				continue;
 			}
-#if 11
 			ungetToken();
 			continue;
-#else
-			setError(ERROR_SYNTAX, recent_token);
-			allocator->deleteObj(scope);
-			return NULL;
-#endif
 
 		default:
 			setError(ERROR_SYNTAX, recent_token);
@@ -6347,14 +6328,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 			if(recent_token->type == Tokenizer::PARAM_SEPARATOR){
 				continue;
 			}
-#if 11
 			ungetToken();
 			continue;
-#else
-			setError(ERROR_SYNTAX, recent_token);
-			allocator->deleteObj(scope);
-			return NULL;
-#endif
 
 		default:
 			setError(ERROR_SYNTAX, recent_token);
@@ -8169,7 +8144,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return finishValueExpressionNoAutoCall(scope, exp, p);
 		}
 		if(token->str == allocator->core->strings->syntax_line){
-			token->setFloat(token->line + 1);
+			token->setFloat((OS_FLOAT)(token->line + 1));
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NUMBER, token);
 			exp->ret_values = 1;
 			readToken();
@@ -9764,7 +9739,7 @@ int OS::Core::getValueHash(const Value& index)
 
 	case OS_VALUE_TYPE_NUMBER:
 		{
-#if 1
+#if 1 // calculate hash accuratelly
 			float d = (float)OS_VALUE_NUMBER(index);
 			OS_BYTE * buf = (OS_BYTE*)&d;
 			int hash = OS_STR_HASH_START_VALUE;
@@ -9813,6 +9788,13 @@ inline std::size_t float_hash_value(T v)
 // =====================================================================
 
 OS::Core::Property::Property(const Value& p_index): index(p_index)
+{
+	hash_next = NULL;
+	prev = NULL;
+	next = NULL;
+}
+
+OS::Core::Property::Property(const Value& p_index, const Value& p_value): index(p_index), value(p_value)
 {
 	hash_next = NULL;
 	prev = NULL;
@@ -10224,7 +10206,7 @@ void OS::Core::sortTable(Table * table, int(*comp)(OS*, const void*, const void*
 		table->last = props[i-1];
 
 		if(reorder_keys){
-#if 1 // speed optimization
+#if 1 // performance optimization
 			OS_MEMSET(table->heads, 0, sizeof(Property*)*(table->head_mask+1));
 			for(i = 0; i < table->count; i++){
 				Property * cur = props[i];
@@ -12044,7 +12026,7 @@ void * OS::SmartMemoryManager::malloc(int size OS_DBG_FILEPOS_DECL)
 	if(size <= 0){
 		return NULL;
 	}
-#if 1
+#if 1 // performance optimization
 	if(size < page_map_size){
 		int i = page_map[size];
 		if(i < 0){
@@ -12221,6 +12203,11 @@ void OS::resetTerminated()
 	}
 }
 
+void OS::resetException()
+{
+	resetTerminated();
+}
+
 bool OS::isExceptionSet()
 {
 	return core->terminated && !core->terminated_exception.isNull();
@@ -12294,7 +12281,7 @@ void OS::handleException()
 {
 	if(isExceptionSet()){
 		getException();
-		resetTerminated();
+		resetException();
 		getGlobal(core->strings->func_unhandledException);
 		pushGlobals();
 		pushStackValue(-3); // exception
@@ -12672,17 +12659,15 @@ OS::String OS::resolvePath(const String& filename, const String& cur_path)
 		return resolved_path;
 	}
 	String ext = getFilenameExt(resolved_path);
-	if(ext.isEmpty() || ext == OS_EXT_COMPILED){
-		resolved_path = changeFilenameExt(resolved_path, OS_EXT_SOURCECODE);
+	if(ext.isEmpty()){ // || ext == OS_EXT_COMPILED){
+		resolved_path = resolved_path + OS_EXT_SOURCECODE; // changeFilenameExt(resolved_path, OS_EXT_SOURCECODE);
 		if(isFileExist(resolved_path)){
 			return resolved_path;
 		}
-	}
-	if(ext.isEmpty() || ext == OS_EXT_SOURCECODE){
-		resolved_path = changeFilenameExt(resolved_path, OS_EXT_COMPILED);
+		/* resolved_path = getCompiledFilename(resolved_path);
 		if(isFileExist(resolved_path)){
 			return resolved_path;
-		}
+		} */
 	}
 	// core->error(OS_E_WARNING, String::format(this, OS_TEXT("filename %s is not resolved"), filename.toChar()));
 	return String(this);
@@ -12727,13 +12712,19 @@ OS::String OS::resolvePath(const String& filename)
 				cur_path = popString();
 				if(!cur_path.isEmpty()){
 					resolved_path = resolvePath(filename, cur_path);
-					if(resolved_path.getLen()){
-						break;
+					if(!resolved_path.isEmpty()){
+						pop();
+						return resolved_path;
 					}
 				}
 			}
 		}
 		pop();
+
+		String ext = getFilenameExt(resolved_path);
+		if(ext.isEmpty() || ext == OS_EXT_COMPILED){
+			return resolvePath(getCompiledFilename(filename));
+		}
 	}
 	return resolved_path;
 }
@@ -13510,8 +13501,7 @@ OS::Core::Property * OS::Core::setTableValue(Table * table, const Value& index, 
 		prop->value = value;
 		return prop;
 	}
-	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index);
-	prop->value = value;
+	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index, value);
 	addTableProperty(table, prop);
 	return prop;
 }
@@ -13535,28 +13525,148 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 #endif
 }
 
-void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value, bool setter_enabled)
+#define OS_SETTER_VALUE_PTR(_table_value, _index, _value, _setter_enabled) \
+	do { \
+		GCValue * local7_table_value = (_table_value); \
+		const Value& local7_index = (_index); \
+		const Value& local7_value = (_value); \
+		OS_ASSERT(local7_table_value->type != OS_VALUE_TYPE_STRING); \
+		if(local7_table_value->type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(local7_index)){ \
+			OS_ASSERT(dynamic_cast<GCArrayValue*>(local7_table_value)); \
+			GCArrayValue * arr = (GCArrayValue*)local7_table_value; \
+			int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(local7_index)); \
+			if(i >= 0 || (i += arr->values.count) >= 0){ \
+				if(i == arr->values.count){ \
+					allocator->vectorAddItem(arr->values, local7_value OS_DBG_FILEPOS); \
+				}else{ \
+					while(i >= arr->values.count){ \
+						allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS); \
+					} \
+					OS_ASSERT(i < arr->values.count); \
+					arr->values[i] = local7_value; \
+				} \
+			} \
+			break; \
+		} \
+		\
+		int index_type = OS_VALUE_TYPE(local7_index); \
+		switch(index_type){ \
+		case OS_VALUE_TYPE_STRING: \
+		case OS_VALUE_TYPE_ARRAY: \
+		case OS_VALUE_TYPE_OBJECT: \
+		case OS_VALUE_TYPE_USERDATA: \
+		case OS_VALUE_TYPE_USERPTR: \
+		case OS_VALUE_TYPE_FUNCTION: \
+		case OS_VALUE_TYPE_CFUNCTION: \
+			OS_ASSERT(dynamic_cast<GCValue*>(OS_VALUE_VARIANT(local7_index).value)); \
+			/* TODO: correct ??? */ \
+			gcAddToGreyList(OS_VALUE_VARIANT(local7_index).value); \
+		} \
+		\
+		switch(OS_VALUE_TYPE(local7_value)){ \
+		case OS_VALUE_TYPE_STRING: \
+		case OS_VALUE_TYPE_ARRAY: \
+		case OS_VALUE_TYPE_OBJECT: \
+		case OS_VALUE_TYPE_USERDATA: \
+		case OS_VALUE_TYPE_USERPTR: \
+		case OS_VALUE_TYPE_FUNCTION: \
+		case OS_VALUE_TYPE_CFUNCTION: \
+			OS_ASSERT(dynamic_cast<GCValue*>(OS_VALUE_VARIANT(local7_value).value)); \
+			/* TODO: correct ??? */ \
+			gcAddToGreyList(OS_VALUE_VARIANT(local7_value).value); \
+			if(!OS_VALUE_VARIANT(local7_value).value->name && index_type == OS_VALUE_TYPE_STRING){ \
+				OS_VALUE_VARIANT(local7_value).value->name = OS_VALUE_VARIANT(local7_index).string; \
+			} \
+			break; \
+		} \
+		\
+		Property * prop = NULL; \
+		Table * table = local7_table_value->table; \
+		if(table && (prop = table->get(local7_index))){ \
+			prop->value = local7_value; \
+			break; \
+		} \
+		\
+		/* prototype should not be used in set */ \
+		if(index_type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(local7_index).string){ \
+			switch(local7_table_value->type){ \
+			case OS_VALUE_TYPE_STRING: \
+			case OS_VALUE_TYPE_ARRAY: \
+			case OS_VALUE_TYPE_OBJECT: \
+			case OS_VALUE_TYPE_FUNCTION: \
+				local7_table_value->prototype = OS_VALUE_VARIANT(local7_value).value; \
+				break; \
+				\
+			case OS_VALUE_TYPE_USERDATA: \
+			case OS_VALUE_TYPE_USERPTR: \
+			case OS_VALUE_TYPE_CFUNCTION: \
+				/* TODO: throw exception? */ \
+				break; \
+			} \
+			break; \
+		} \
+		\
+		Value local7_index_copy = local7_index; \
+		bool local7_setter_enabled = (_setter_enabled); \
+		if(local7_setter_enabled && !hasSpecialPrefix(local7_index_copy)){ \
+			Value func; \
+			if(index_type == OS_VALUE_TYPE_STRING){ \
+				const void * buf1 = strings->__setAt.toChar(); \
+				int size1 = strings->__setAt.getDataSize(); \
+				const void * buf2 = OS_VALUE_VARIANT(local7_index_copy).string->toChar(); \
+				int size2 = OS_VALUE_VARIANT(local7_index_copy).string->getDataSize(); \
+				GCStringValue * setter_name = newStringValue(buf1, size1, buf2, size2); \
+				if(getPropertyValue(func, local7_table_value, setter_name, true)){ \
+					pushValue(func); \
+					pushValue(local7_table_value); \
+					pushValue(local7_value); \
+					call(1, 0); \
+					break; \
+				} \
+			} \
+			if(getPropertyValue(func, local7_table_value, strings->__set, true)){ \
+				pushValue(func); \
+				pushValue(local7_table_value); \
+				pushValue(local7_index_copy); \
+				pushValue(local7_value); \
+				call(2, 0); \
+				break; \
+			} \
+		} \
+		OS_ASSERT(local7_table_value->type != OS_VALUE_TYPE_STRING); \
+		if(!table){ \
+			local7_table_value->table = table = newTable(OS_DBG_FILEPOS_START); \
+		} \
+		prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(local7_index_copy, local7_value); \
+		addTableProperty(table, prop); \
+	} while(false)
+
+
+void OS::Core::setPropertyValue(GCValue * table_value, const Value& _index, Value value, bool setter_enabled)
 {
-#if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
-	if(table_value != check_recursion && index.index.type == OS_VALUE_TYPE_NULL){
-		error(OS_E_WARNING, OS_TEXT("object set null index"));
-	}
-#endif
-	if(OS_IS_VALUE_NUMBER(index) && table_value->type == OS_VALUE_TYPE_ARRAY){
+#if 1 // performance optimization
+	OS_SETTER_VALUE_PTR(table_value, _index, value, setter_enabled);
+#else
+	OS_ASSERT(table_value->type != OS_VALUE_TYPE_STRING);
+	if(table_value->type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(_index)){
 		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
 		GCArrayValue * arr = (GCArrayValue*)table_value;
-		int i = (int)OS_VALUE_NUMBER(index);
+		int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(_index));
 		if(i >= 0 || (i += arr->values.count) >= 0){
-			while(i >= arr->values.count){
-				allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
+			if(i == arr->values.count){
+				allocator->vectorAddItem(arr->values, value OS_DBG_FILEPOS);
+			}else{
+				while(i >= arr->values.count){
+					allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
+				}
+				OS_ASSERT(i < arr->values.count);
+				arr->values[i] = value;
 			}
-			OS_ASSERT(i < arr->values.count);
-			arr->values[i] = value;
 		}
 		return;
 	}
 
-	int index_type = OS_VALUE_TYPE(index);
+	int index_type = OS_VALUE_TYPE(_index);
 	switch(index_type){
 	case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
@@ -13565,8 +13675,9 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
+		OS_ASSERT(dynamic_cast<GCValue*>(OS_VALUE_VARIANT(_index).value));
 		// TODO: correct ???
-		gcAddToGreyList(OS_VALUE_VARIANT(index).value);
+		gcAddToGreyList(OS_VALUE_VARIANT(_index).value);
 	}
 
 	switch(OS_VALUE_TYPE(value)){
@@ -13581,7 +13692,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 		// TODO: correct ???
 		gcAddToGreyList(OS_VALUE_VARIANT(value).value);
 		if(!OS_VALUE_VARIANT(value).value->name && index_type == OS_VALUE_TYPE_STRING){
-			OS_VALUE_VARIANT(value).value->name = OS_VALUE_VARIANT(index).string;
+			OS_VALUE_VARIANT(value).value->name = OS_VALUE_VARIANT(_index).string;
 			// OS_VALUE_VARIANT(value).value->name->external_ref_count++;
 			// gcAddToGreyList(OS_VALUE_VARIANT(value).value->name);
 		}
@@ -13590,7 +13701,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 
 	Property * prop = NULL;
 	Table * table = table_value->table;
-	if(table && (prop = table->get(index))){
+	if(table && (prop = table->get(_index))){
 		prop->value = value;
 		return;
 	}
@@ -13599,7 +13710,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 	/* if(prototype_enabled){
 	} */
 
-	if(index_type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
+	if(index_type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(_index).string){
 		switch(table_value->type){
 		case OS_VALUE_TYPE_STRING:
 		case OS_VALUE_TYPE_ARRAY:
@@ -13614,26 +13725,13 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 		case OS_VALUE_TYPE_USERDATA:
 		case OS_VALUE_TYPE_USERPTR:
 		case OS_VALUE_TYPE_CFUNCTION:
-			// TODO: warning???
+			// TODO: throw exception?
 			break;
 		}
 		return;
 	}
 
-	if(table_value->type == OS_VALUE_TYPE_ARRAY){
-		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
-		GCArrayValue * arr = (GCArrayValue*)table_value;
-		int i = (int)valueToInt(index);
-		if(i >= 0 || (i += arr->values.count) >= 0){
-			while(i >= arr->values.count){
-				allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
-			}
-			OS_ASSERT(i < arr->values.count);
-			arr->values[i] = value;
-		}
-		return;
-	}
-
+	Value index = _index;
 	if(setter_enabled && !hasSpecialPrefix(index)){
 		Value func;
 		if(index_type == OS_VALUE_TYPE_STRING){
@@ -13659,37 +13757,94 @@ void OS::Core::setPropertyValue(GCValue * table_value, Value index, Value value,
 			return;
 		}
 	}
-	if(table_value->type == OS_VALUE_TYPE_STRING){
-		// TODO: trigger error???
-		return;
-	}
+	OS_ASSERT(table_value->type != OS_VALUE_TYPE_STRING);
 	if(!table){
 		table_value->table = table = newTable(OS_DBG_FILEPOS_START);
 	}
-	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index);
-	prop->value = value;
+	prop = new (malloc(sizeof(Property) OS_DBG_FILEPOS)) Property(index, value);
 	addTableProperty(table, prop);
+#endif
 }
+
+#define OS_SETTER_VALUE(_table_value, _index, _value, _setter_enabled) \
+	do { \
+		const Value& local8_table_value = (_table_value); \
+		const Value& local8_index = (_index); \
+		const Value& local8_value = (_value); \
+		const int type = OS_VALUE_TYPE(local8_table_value); \
+		if(type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(local8_index)){ \
+			OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(local8_table_value).value)); \
+			GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(local8_table_value).value; \
+			int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(local8_index)); \
+			if(i >= 0 || (i += arr->values.count) >= 0){ \
+				if(i == arr->values.count){ \
+					allocator->vectorAddItem(arr->values, local8_value OS_DBG_FILEPOS); \
+				}else{ \
+					while(i >= arr->values.count){ \
+						allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS); \
+					} \
+					OS_ASSERT(i < arr->values.count); \
+					arr->values[i] = local8_value; \
+				} \
+			} \
+			break; \
+		} \
+		switch(type){ \
+		case OS_VALUE_TYPE_NULL: \
+			/* TODO: throw exception? */ \
+			break; \
+			\
+		case OS_VALUE_TYPE_BOOL: \
+			/* TODO: throw exception? */ \
+			break; \
+			\
+		case OS_VALUE_TYPE_NUMBER: \
+			/* TODO: throw exception? */ \
+			break; \
+			\
+		case OS_VALUE_TYPE_STRING: \
+			/* TODO: throw exception? */ \
+			break; \
+			\
+		case OS_VALUE_TYPE_ARRAY: \
+		case OS_VALUE_TYPE_OBJECT: \
+		case OS_VALUE_TYPE_USERDATA: \
+		case OS_VALUE_TYPE_USERPTR: \
+		case OS_VALUE_TYPE_FUNCTION: \
+		case OS_VALUE_TYPE_CFUNCTION: \
+			{ \
+				bool local8_setter_enabled = (_setter_enabled); \
+				OS_SETTER_VALUE_PTR(OS_VALUE_VARIANT(local8_table_value).value, local8_index, local8_value, local8_setter_enabled); \
+				break; \
+			} \
+		} \
+	} while(false)
 
 void OS::Core::setPropertyValue(const Value& table_value, const Value& index, const Value& value, bool setter_enabled)
 {
+#if 1 // performance optimization
+	OS_SETTER_VALUE(table_value, index, value, setter_enabled);
+#else
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
+		// TODO: throw exception?
 		return;
 
 	case OS_VALUE_TYPE_BOOL:
+		// TODO: throw exception?
 		// return setPropertyValue(prototypes[PROTOTYPE_BOOL], index, value, setter_enabled);
 		return;
 
 	case OS_VALUE_TYPE_NUMBER:
+		// TODO: throw exception?
 		// return setPropertyValue(prototypes[PROTOTYPE_NUMBER], index, value, setter_enabled);
 		return;
 
 	case OS_VALUE_TYPE_STRING:
+		// TODO: throw exception?
 		// return setPropertyValue(prototypes[PROTOTYPE_STRING], index, value, setter_enabled);
-		// return;
-		// no break
-
+		return;
+		
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
@@ -13698,6 +13853,7 @@ void OS::Core::setPropertyValue(const Value& table_value, const Value& index, co
 	case OS_VALUE_TYPE_CFUNCTION:
 		return setPropertyValue(OS_VALUE_VARIANT(table_value).value, index, value, setter_enabled);
 	}
+#endif
 }
 
 void OS::Core::pushPrototype(const Value& val)
@@ -14094,7 +14250,7 @@ void OS::Core::copyValue(int raw_from, int raw_to)
 
 void OS::Core::pushBool(bool val)
 {
-#if 1 // speed optimization
+#if 1 // performance optimization
 	StackValues& stack_values = this->stack_values;
 	if(stack_values.capacity < stack_values.count+1){
 		reserveStackValues(stack_values.count+1);
@@ -15553,38 +15709,66 @@ OS::String OS::getValueName(int offs)
 	return OS::String(this);
 }
 
-bool OS::Core::getPropertyValue(Value& result, Table * table, const Value& index)
-{
-#if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
-	if(table != check_recursion->table && index.index.type == OS_VALUE_TYPE_NULL){
-		error(OS_E_WARNING, OS_TEXT("object get null index"));
-	}
-#endif
-	if(table){
-		Property * prop = table->get(index);
-		if(prop){
-			result = prop->value;
-			return true;
-		}
-	}
-	return false;
-}
+#define OS_GET_PROP_VALUE_PTR(_result_bool, _result_value, _table_value, _index, prototype_enabled) \
+	do { \
+		bool& local_result_bool = (_result_bool); \
+		Value& local_result = (_result_value); \
+		GCValue * local_table_value = (_table_value); \
+		const Value& local_index = (_index); \
+		if(local_table_value->type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(local_index)){ \
+			OS_ASSERT(dynamic_cast<GCArrayValue*>(local_table_value)); \
+			int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(local_index)); \
+			if((i >= 0 || (i += ((GCArrayValue*)local_table_value)->values.count) >= 0) && i < ((GCArrayValue*)local_table_value)->values.count){ \
+				local_result = ((GCArrayValue*)local_table_value)->values[i]; \
+			}else{ \
+				OS_SET_VALUE_NULL(local_result); \
+			} \
+			local_result_bool = true; \
+			break; \
+		} \
+		Property * prop = NULL; \
+		Table * table = local_table_value->table; \
+		if(table && (prop = table->get(local_index))){ \
+			local_result = prop->value; \
+			local_result_bool = true; break; \
+		} \
+		if(prototype_enabled){ \
+			bool finished = false; \
+			GCValue * cur_value = local_table_value; \
+			while(cur_value->prototype){ \
+				cur_value = cur_value->prototype; \
+				Table * cur_table = cur_value->table; \
+				if(cur_table && (prop = cur_table->get(local_index))){ \
+					local_result = prop->value; \
+					local_result_bool = true; \
+					finished = true; \
+					break; \
+				} \
+			} \
+			if(finished) break; \
+		} \
+		if(OS_VALUE_TYPE(local_index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(local_index).string){ \
+			local_result = local_table_value->prototype; \
+			local_result_bool = true; \
+			break; \
+		} \
+		local_result_bool = false; \
+	}while(false)
 
 bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Value& index, bool prototype_enabled)
 {
-#if defined OS_DEBUG && defined OS_WARN_NULL_INDEX
-	if(table_value != check_recursion && index.index.type == OS_VALUE_TYPE_NULL){
-		error(OS_E_WARNING, OS_TEXT("object get null index"));
-	}
-#endif
-
+#if 1 // performance optimization
+	bool result_bool;
+	OS_GET_PROP_VALUE_PTR(result_bool, result, table_value, index, prototype_enabled);
+	return result_bool;
+#else
 	if(table_value->type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(index)){
 		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
-		int i = (int)OS_VALUE_NUMBER(index);
+		int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(index));
 		if((i >= 0 || (i += ((GCArrayValue*)table_value)->values.count) >= 0) && i < ((GCArrayValue*)table_value)->values.count){
 			result = ((GCArrayValue*)table_value)->values[i];
 		}else{
-			result = Value();
+			OS_SET_VALUE_NULL(result);
 		}
 		return true;
 	}
@@ -15609,46 +15793,197 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Valu
 		result = table_value->prototype;
 		return true;
 	}
-	if(table_value->type == OS_VALUE_TYPE_ARRAY){
-		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
-		OS_NUMBER number;
-		if(isValueNumber(index, &number)){
-			int i = (int)number;
-			if((i >= 0 || (i += ((GCArrayValue*)table_value)->values.count) >= 0) && i < ((GCArrayValue*)table_value)->values.count){
-				result = ((GCArrayValue*)table_value)->values[i];
-			}else{
-				result = Value();
-			}
-			return true;
-		}
-	}
 	return false;
+#endif
 }
 
-bool OS::Core::getPropertyValue(Value& result, const Value& table_value, const Value& index, bool prototype_enabled)
+#define OS_GET_PROP_VALUE(_result_bool, _result_value, _obj, _index, _prototype_enabled) \
+	do { \
+		bool& local_result_bool = (_result_bool); \
+		Value& local_result = (_result_value); \
+		const Value& local_obj= (_obj); \
+		const Value& local_index = (_index); \
+		GCValue * table_value; \
+		bool local_prototype_enabled = (_prototype_enabled); \
+		bool primitive_type = false, finished = false; \
+		switch(OS_VALUE_TYPE(local_obj)){ \
+		default: \
+		case OS_VALUE_TYPE_NULL: \
+			/* TODO: throw exception? */ \
+			local_result_bool = false; \
+			finished = true; \
+			break; \
+			\
+		case OS_VALUE_TYPE_BOOL: \
+			if(!prototype_enabled){ \
+				local_result_bool = false; \
+				finished = true; \
+				break; \
+			} \
+			table_value = prototypes[PROTOTYPE_BOOL]; \
+			primitive_type = true; \
+			break; \
+			\
+		case OS_VALUE_TYPE_NUMBER: \
+			if(!prototype_enabled){ \
+				result_bool = false; \
+				finished = true; \
+				break; \
+			} \
+			table_value = prototypes[PROTOTYPE_NUMBER]; \
+			primitive_type = true; \
+			break; \
+			\
+		case OS_VALUE_TYPE_STRING: \
+			if(!prototype_enabled){ \
+				local_result_bool = false; \
+				finished = true; \
+				break; \
+			} \
+			table_value = prototypes[PROTOTYPE_STRING]; \
+			primitive_type = true; \
+			break; \
+			\
+		case OS_VALUE_TYPE_ARRAY: \
+			table_value = OS_VALUE_VARIANT(local_obj).value; \
+			if(OS_IS_VALUE_NUMBER(local_index)){ \
+				OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value)); \
+				int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(local_index)); \
+				if((i >= 0 || (i += ((GCArrayValue*)table_value)->values.count) >= 0) && i < ((GCArrayValue*)table_value)->values.count){ \
+					local_result = ((GCArrayValue*)table_value)->values[i]; \
+				}else{ \
+					/* TODO: throw exception? */ \
+					OS_SET_VALUE_NULL(local_result); \
+				} \
+				local_result_bool = true; \
+				finished = true; \
+				break; \
+			} \
+			break; \
+			\
+		case OS_VALUE_TYPE_OBJECT: \
+		case OS_VALUE_TYPE_USERDATA: \
+		case OS_VALUE_TYPE_USERPTR: \
+		case OS_VALUE_TYPE_FUNCTION: \
+		case OS_VALUE_TYPE_CFUNCTION: \
+			table_value = OS_VALUE_VARIANT(local_obj).value; \
+			break; \
+		} \
+		if(finished) break; \
+		Property * prop = NULL; \
+		Table * table = table_value->table; \
+		if(table && (prop = table->get(local_index))){ \
+			local_result = prop->value; \
+			local_result_bool = true; \
+			break; \
+		} \
+		if(prototype_enabled){ \
+			GCValue * cur_value = table_value; \
+			while(cur_value->prototype){ \
+				cur_value = cur_value->prototype; \
+				Table * cur_table = cur_value->table; \
+				if(cur_table && (prop = cur_table->get(local_index))){ \
+					local_result = prop->value; \
+					local_result_bool = true; \
+					finished = true; \
+					break; \
+				} \
+			} \
+			if(finished) break; \
+		} \
+		if(OS_VALUE_TYPE(local_index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(local_index).string){ \
+			local_result = primitive_type ? table_value : table_value->prototype; \
+			local_result_bool = true; \
+			break; \
+		} \
+		local_result_bool = false; \
+	}while(false)
+
+bool OS::Core::getPropertyValue(Value& result, const Value& obj, const Value& index, bool prototype_enabled)
 {
-	switch(OS_VALUE_TYPE(table_value)){
+#if 1 // performance optimization
+	bool result_bool;
+	OS_GET_PROP_VALUE(result_bool, result, obj, index, prototype_enabled);
+	return result_bool;
+#else
+	GCValue * table_value;
+	bool primitive_type = false;
+	switch(OS_VALUE_TYPE(obj)){
+	default:
 	case OS_VALUE_TYPE_NULL:
+		// TODO: throw exception?
 		return false;
 
 	case OS_VALUE_TYPE_BOOL:
-		return prototype_enabled && getPropertyValue(result, prototypes[PROTOTYPE_BOOL], index, prototype_enabled);
+		if(!prototype_enabled){
+			return false;
+		}
+		table_value = prototypes[PROTOTYPE_BOOL];
+		primitive_type = true;
+		break;
 
 	case OS_VALUE_TYPE_NUMBER:
-		return prototype_enabled && getPropertyValue(result, prototypes[PROTOTYPE_NUMBER], index, prototype_enabled);
+		if(!prototype_enabled){
+			return false;
+		}
+		table_value = prototypes[PROTOTYPE_NUMBER];
+		primitive_type = true;
+		break;
 
 	case OS_VALUE_TYPE_STRING:
-		// return prototype_enabled && getPropertyValue(result, prototypes[PROTOTYPE_STRING], index, prototype_enabled);
+		if(!prototype_enabled){
+			return false;
+		}
+		table_value = prototypes[PROTOTYPE_STRING];
+		primitive_type = true;
+		break;
 
 	case OS_VALUE_TYPE_ARRAY:
+		table_value = OS_VALUE_VARIANT(obj).value;
+		if(OS_IS_VALUE_NUMBER(index)){
+			OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
+			int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(index));
+			if((i >= 0 || (i += ((GCArrayValue*)table_value)->values.count) >= 0) && i < ((GCArrayValue*)table_value)->values.count){
+				result = ((GCArrayValue*)table_value)->values[i];
+			}else{
+				// TODO: throw exception?
+				OS_SET_VALUE_NULL(result);
+			}
+			return true;
+		}
+		break;
+
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
-		return getPropertyValue(result, OS_VALUE_VARIANT(table_value).value, index, prototype_enabled);
+		table_value = OS_VALUE_VARIANT(obj).value;
+		break;
+	}
+	Property * prop = NULL;
+	Table * table = table_value->table;
+	if(table && (prop = table->get(index))){
+		result = prop->value;
+		return true;
+	}
+	if(prototype_enabled){
+		GCValue * cur_value = table_value;
+		while(cur_value->prototype){
+			cur_value = cur_value->prototype;
+			Table * cur_table = cur_value->table;
+			if(cur_table && (prop = cur_table->get(index))){
+				result = prop->value;
+				return true;
+			}
+		}
+	}
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
+		result = primitive_type ? table_value : table_value->prototype;
+		return true;
 	}
 	return false;
+#endif
 }
 
 bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled)
@@ -15697,122 +16032,197 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 	return false;
 }
 
-void OS::Core::pushPropertyValue(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled)
+#define OS_GETTER_VALUE_PTR(_result_value, _table_value, _index, _getter_enabled, _prototype_enabled) \
+	do { \
+		Value& local3_result = (_result_value); \
+		GCValue * local3_table_value = (_table_value); \
+		Value local3_index = (_index); \
+		bool local3_prototype_enabled = (_prototype_enabled); \
+		bool local3_result_bool; \
+		OS_GET_PROP_VALUE_PTR(local3_result_bool, local3_result, local3_table_value, local3_index, local3_prototype_enabled); \
+		if(local3_result_bool) break; \
+		bool local3_getter_enabled = (_getter_enabled); \
+		if(local3_getter_enabled && !hasSpecialPrefix(local3_index)){ \
+			if(OS_VALUE_TYPE(local3_index) == OS_VALUE_TYPE_STRING){ \
+				const void * buf1 = strings->__getAt.toChar(); \
+				int size1 = strings->__getAt.getDataSize(); \
+				const void * buf2 = OS_VALUE_VARIANT(local3_index).string->toChar(); \
+				int size2 = OS_VALUE_VARIANT(local3_index).string->getDataSize(); \
+				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2); \
+				OS_GET_PROP_VALUE_PTR(local3_result_bool, local3_result, local3_table_value, getter_name, local3_prototype_enabled); \
+				if(local3_result_bool){ \
+					if(!local3_result.isFunction()){ \
+						/* TODO: throw exception? */ \
+						OS_SET_VALUE_NULL(local3_result); \
+						break; \
+					} \
+					pushValue(local3_result); \
+					pushValue(local3_table_value); \
+					call(0, 1); \
+					local3_result = stack_values.buf[--stack_values.count]; \
+					break; \
+				} \
+			} \
+			OS_GET_PROP_VALUE_PTR(local3_result_bool, local3_result, local3_table_value, strings->__get, local3_prototype_enabled); \
+			if(local3_result_bool){ \
+				if(!local3_result.isFunction()){ \
+					/* TODO: throw exception? */ \
+					OS_SET_VALUE_NULL(local3_result); \
+					break; \
+				} \
+				if(pushGetRecursion(local3_table_value, local3_index)){ \
+					pushValue(local3_result); \
+					pushValue(local3_table_value); \
+					pushValue(local3_index); \
+					call(1, 1); \
+					local3_result = stack_values.buf[--stack_values.count]; \
+					popGetRecursion(local3_table_value, local3_index); \
+					break; \
+				} \
+				allocator->setException(String::format(allocator, OS_TEXT("recursive get '%s'"), valueToString(local3_index).toChar())); \
+			} \
+		} \
+		OS_SET_VALUE_NULL(local3_result); \
+	}while(false)
+
+void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, bool getter_enabled, bool prototype_enabled)
 {
-	GCValue * self = table_value;
-	for(;;){
-		Value value;
-		if(getPropertyValue(value, table_value, index, prototype_enabled)){
-			return pushValue(value);
-		}
-		if(getter_enabled && !hasSpecialPrefix(index)){
-			if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
-				const void * buf1 = strings->__getAt.toChar();
-				int size1 = strings->__getAt.getDataSize();
-				const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
-				int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
-				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-				if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
-					pushValue(value);
-					pushValue(self);
-					call(0, 1);
-					return;
-				}
-			}
-			if(getPropertyValue(value, table_value, strings->__get, prototype_enabled)){
-				if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
-					table_value = OS_VALUE_VARIANT(value).value;
-					continue;
+#if 1 // performance optimization
+	Value value;
+	OS_GETTER_VALUE_PTR(value, table_value, _index, getter_enabled, prototype_enabled);
+	pushValue(value);
+#else
+	Value value;
+	if(getPropertyValue(value, table_value, _index, prototype_enabled)){
+		return pushValue(value);
+	}
+	Value index = _index;
+	if(getter_enabled && !hasSpecialPrefix(index)){
+		if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
+			const void * buf1 = strings->__getAt.toChar();
+			int size1 = strings->__getAt.getDataSize();
+			const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
+			int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
+			GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
+			if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
+				if(!value.isFunction()){
+					// TODO: throw exception?
+					return pushNull();
 				}
 				pushValue(value);
-				pushValue(self);
-				pushValue(index);
-				call(1, 1);
+				pushValue(table_value);
+				call(0, 1);
 				return;
 			}
 		}
-		break;
-	}
-	return pushNull();
-}
-
-void OS::Core::pushPropertyValueForPrimitive(Value self, Value index, bool getter_enabled, bool prototype_enabled)
-{
-	GCValue * proto;
-	switch(OS_VALUE_TYPE(self)){
-	case OS_VALUE_TYPE_NUMBER:
-		proto = prototypes[PROTOTYPE_NUMBER];
-		break;
-
-	case OS_VALUE_TYPE_BOOL:
-		proto = prototypes[PROTOTYPE_BOOL];
-		break;
-
-	default:
-		pushNull();
-		return;
-	}
-	for(;;){
-		OS_ASSERT(proto);
-		Value value;
-		if(prototype_enabled && getPropertyValue(value, proto, index, prototype_enabled)){
-			return pushValue(value);
-		}
-		if(getter_enabled && !hasSpecialPrefix(index)){
-			if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
-				const void * buf1 = strings->__getAt.toChar();
-				int size1 = strings->__getAt.getDataSize();
-				const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
-				int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
-				GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-				if(getPropertyValue(value, proto, getter_name, prototype_enabled)){
-					pushValue(value);
-					pushValue(self);
-					call(0, 1);
-					return;
-				}
+		if(getPropertyValue(value, table_value, strings->__get, prototype_enabled)){
+			if(!value.isFunction()){
+				// TODO: throw exception?
+				return pushNull();
 			}
-			if(getPropertyValue(value, proto, strings->__get, prototype_enabled)){
-				if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
-					proto = OS_VALUE_VARIANT(value).value;
-					continue;
-				}
+			if(pushGetRecursion(table_value, index)){
 				pushValue(value);
-				pushValue(self);
+				pushValue(table_value);
 				pushValue(index);
 				call(1, 1);
+				popGetRecursion(table_value, index);
 				return;
 			}
+			allocator->setException(String::format(allocator, OS_TEXT("recursive get '%s'"), valueToString(index).toChar()));
 		}
-		break;
 	}
 	return pushNull();
+#endif
 }
+
+#define OS_GETTER_VALUE(_result_value, _table_value, _index, _getter_enabled, _prototype_enabled) \
+	do { \
+		Value& local5_result = (_result_value); \
+		const Value& local5_table_value = (_table_value); \
+		const Value& local5_index = (_index); \
+		const int type = OS_VALUE_TYPE(local5_table_value); \
+		if(type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(local5_index)){ \
+			OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(local5_table_value).arr)); \
+			GCArrayValue * arr = OS_VALUE_VARIANT(local5_table_value).arr; \
+			int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(local5_index)); \
+			if((i >= 0 || (i += arr->values.count) >= 0) && i < arr->values.count){ \
+				local5_result = arr->values[i]; \
+			}else{ \
+				OS_SET_VALUE_NULL(local5_result); \
+			} \
+			break; \
+		} \
+		bool local5_getter_enabled = (_getter_enabled); \
+		bool local5_prototype_enabled = (_prototype_enabled); \
+		GCValue * local5_gc_table_value = NULL; \
+		switch(type){ \
+		default: \
+		case OS_VALUE_TYPE_NULL: \
+			break; \
+			\
+		case OS_VALUE_TYPE_BOOL: \
+			if(local5_prototype_enabled){ \
+				local5_gc_table_value = prototypes[PROTOTYPE_BOOL]; \
+			} \
+			break; \
+			\
+		case OS_VALUE_TYPE_NUMBER: \
+			if(local5_prototype_enabled){ \
+				local5_gc_table_value = prototypes[PROTOTYPE_NUMBER]; \
+			} \
+			break; \
+			\
+		case OS_VALUE_TYPE_STRING: \
+			if(local5_prototype_enabled){ \
+				local5_gc_table_value = prototypes[PROTOTYPE_STRING]; \
+			} \
+			break; \
+			\
+		case OS_VALUE_TYPE_ARRAY: \
+		case OS_VALUE_TYPE_OBJECT: \
+		case OS_VALUE_TYPE_USERDATA: \
+		case OS_VALUE_TYPE_USERPTR: \
+		case OS_VALUE_TYPE_FUNCTION: \
+		case OS_VALUE_TYPE_CFUNCTION: \
+			local5_gc_table_value = OS_VALUE_VARIANT(local5_table_value).value; \
+			break; \
+		} \
+		if(local5_gc_table_value){ \
+			OS_GETTER_VALUE_PTR(local5_result, local5_gc_table_value, \
+				local5_index, local5_getter_enabled, local5_prototype_enabled); \
+			break; \
+		} \
+		OS_SET_VALUE_NULL(local5_result); \
+	} while(false)
 
 void OS::Core::pushPropertyValue(const Value& table_value, const Value& index, bool getter_enabled, bool prototype_enabled)
 {
+#if 1 // performance optimization
+	Value value;
+	OS_GETTER_VALUE(value, table_value, index, getter_enabled, prototype_enabled);
+	pushValue(value);
+#else
 	switch(OS_VALUE_TYPE(table_value)){
 	case OS_VALUE_TYPE_NULL:
 		break;
 
 	case OS_VALUE_TYPE_BOOL:
-		/* if(prototype_enabled){
+		if(prototype_enabled){
 			return pushPropertyValue(prototypes[PROTOTYPE_BOOL], index, getter_enabled, prototype_enabled);
 		}
-		break; */
+		break;
 
 	case OS_VALUE_TYPE_NUMBER:
-		/* if(prototype_enabled){
+		if(prototype_enabled){
 			return pushPropertyValue(prototypes[PROTOTYPE_NUMBER], index, getter_enabled, prototype_enabled);
 		}
-		break; */
-		return pushPropertyValueForPrimitive(table_value, index, getter_enabled, prototype_enabled);
+		break;
 
 	case OS_VALUE_TYPE_STRING:
-		/* if(prototype_enabled){
+		if(prototype_enabled){
 			return pushPropertyValue(prototypes[PROTOTYPE_STRING], index, getter_enabled, prototype_enabled);
 		}
-		break; */
+		break;
 
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
@@ -15823,6 +16233,7 @@ void OS::Core::pushPropertyValue(const Value& table_value, const Value& index, b
 		return pushPropertyValue(OS_VALUE_VARIANT(table_value).value, index, getter_enabled, prototype_enabled);
 	}
 	pushNull();
+#endif
 }
 
 void OS::getProperty(bool getter_enabled, bool prototype_enabled)
@@ -16701,91 +17112,13 @@ corrupted:
 				b = OS_GETARG_B(instruction);
 				OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
 				c = OS_GETARG_C(instruction);
-				// pushPropertyValue(stack_func_locals[b], OS_GETARG_C_VALUE(instruction), true, true, true, false);
-				Value& obj = stack_func_locals[b];
-				const Value index(OS_GETARG_C_VALUE());
-				int obj_type = OS_VALUE_TYPE(obj);
-				if(OS_IS_VALUE_NUMBER(index) && obj_type == OS_VALUE_TYPE_ARRAY){
-					OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
-					GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(obj).value;
-					int i = (int)OS_VALUE_NUMBER(index);
-					if((i >= 0 || (i += arr->values.count) >= 0) && i < arr->values.count){
-						stack_func_locals[a] = arr->values[i];
-					}else{
-						stack_func_locals[a] = Value();
-					}
-					break;
-				}
-				const bool getter_enabled = true, prototype_enabled = true;
-				switch(obj_type){
-				case OS_VALUE_TYPE_NULL:
-				default:
-					stack_func_locals[a] = Value();
-					break;
-
-				case OS_VALUE_TYPE_BOOL:
-				case OS_VALUE_TYPE_NUMBER:
-					pushPropertyValueForPrimitive(obj, index, getter_enabled, prototype_enabled);
-					stack_func_locals[a] = stack_values.buf[--stack_values.count];
-					break;
-
-				case OS_VALUE_TYPE_ARRAY:
-					OS_ASSERT(!OS_IS_VALUE_NUMBER(index));
-					// no break
-
-				case OS_VALUE_TYPE_STRING:
-				case OS_VALUE_TYPE_OBJECT:
-				case OS_VALUE_TYPE_USERDATA:
-				case OS_VALUE_TYPE_USERPTR:
-				case OS_VALUE_TYPE_FUNCTION:
-				case OS_VALUE_TYPE_CFUNCTION:
-					{
-						GCValue * self = OS_VALUE_VARIANT(obj).value;
-						GCValue * table_value = self;
-						for(;;){
-							if(getPropertyValue(value, table_value, index, prototype_enabled)){
-								stack_func_locals[a] = value;
-								break;
-							}
-							if(getter_enabled && !hasSpecialPrefix(index)){
-								if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
-									const void * buf1 = strings->__getAt.toChar();
-									int size1 = strings->__getAt.getDataSize();
-									const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
-									int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
-									GCStringValue * getter_name = newStringValue(buf1, size1, buf2, size2);
-									if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
-										pushValue(value);
-										pushValue(self);
-										call(0, 1);
-										stack_func_locals[a] = stack_values.buf[--stack_values.count];
-										break;
-									}
-								}
-								if(getPropertyValue(value, table_value, strings->__get, prototype_enabled)){
-									if(OS_VALUE_TYPE(value) == OS_VALUE_TYPE_OBJECT){
-										table_value = OS_VALUE_VARIANT(value).value;
-										continue;
-									}
-									if(pushGetRecursion(self, index)){
-										pushValue(value);
-										pushValue(self);
-										pushValue(index);
-										call(1, 1);
-										stack_func_locals[a] = stack_values.buf[--stack_values.count];
-										popGetRecursion(self, index);
-										break;
-									}else{
-										allocator->setException(String::format(allocator, OS_TEXT("Recursive get '%s'"), valueToString(index).toChar()));
-									}
-								}
-							}
-							stack_func_locals[a] = Value();
-							break;
-						}
-						break;
-					}
-				}
+#if 1 // performance optimization
+				OS_GETTER_VALUE(value, stack_func_locals[b], OS_GETARG_C_VALUE(), true, true);
+				stack_func_locals[a] = value;
+#else
+				pushPropertyValue(stack_func_locals[b], OS_GETARG_C_VALUE(), true, true);
+				stack_func_locals[a] = stack_values.buf[--stack_values.count];
+#endif
 				break;
 			}
 
@@ -16794,64 +17127,24 @@ corrupted:
 			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
 			b = OS_GETARG_B(instruction);
 			c = OS_GETARG_C(instruction);
+#if 1 // performance optimization
+			OS_SETTER_VALUE(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), false);
+#else
 			setPropertyValue(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), false);
+#endif
 			break;
 
 		OS_CASE_OPCODE_ALL(OP_SET_PROPERTY):
-			{
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_B(instruction);
-				c = OS_GETARG_C(instruction);
-				
-				Value& obj = stack_func_locals[a];
-				Value& index(OS_GETARG_B_VALUE());
-				int obj_type = OS_VALUE_TYPE(obj);
-				if(OS_IS_VALUE_NUMBER(index) && obj_type == OS_VALUE_TYPE_ARRAY){
-					OS_ASSERT(dynamic_cast<GCArrayValue*>(OS_VALUE_VARIANT(obj).value));
-					GCArrayValue * arr = (GCArrayValue*)OS_VALUE_VARIANT(obj).value;
-					int i = (int)OS_VALUE_NUMBER(index);
-					if(i >= 0 || (i += arr->values.count) >= 0){
-						while(i >= arr->values.count){
-							allocator->vectorAddItem(arr->values, Value() OS_DBG_FILEPOS);
-						}
-						OS_ASSERT(i < arr->values.count);
-						arr->values[i] = OS_GETARG_C_VALUE();
-					}
-				}else{
-#if 0
-					// setPropertyValue(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), true);
-					setPropertyValue(obj, index, OS_GETARG_C_VALUE(), true);
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction);
+			c = OS_GETARG_C(instruction);
+#if 1 // performance optimization
+			OS_SETTER_VALUE(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), true);
 #else
-					switch(obj_type){
-					case OS_VALUE_TYPE_NULL:
-						break;
-
-					case OS_VALUE_TYPE_BOOL:
-						// return setPropertyValue(prototypes[PROTOTYPE_BOOL], index, value, setter_enabled);
-						break;
-
-					case OS_VALUE_TYPE_NUMBER:
-						// return setPropertyValue(prototypes[PROTOTYPE_NUMBER], index, value, setter_enabled);
-						break;
-
-					case OS_VALUE_TYPE_STRING:
-						// return setPropertyValue(prototypes[PROTOTYPE_STRING], index, value, setter_enabled);
-						// return;
-						// no break
-
-					case OS_VALUE_TYPE_ARRAY:
-					case OS_VALUE_TYPE_OBJECT:
-					case OS_VALUE_TYPE_USERDATA:
-					case OS_VALUE_TYPE_USERPTR:
-					case OS_VALUE_TYPE_FUNCTION:
-					case OS_VALUE_TYPE_CFUNCTION:
-						setPropertyValue(OS_VALUE_VARIANT(obj).value, index, OS_GETARG_C_VALUE(), true);
-					}
+			setPropertyValue(stack_func_locals[a], OS_GETARG_B_VALUE(), OS_GETARG_C_VALUE(), true);
 #endif
-				}
-				break;
-			}
+			break;
 
 		OS_CASE_OPCODE(OP_NEW_OBJECT):
 			a = OS_GETARG_A(instruction);
@@ -17904,7 +18197,7 @@ void OS::initCoreFunctions()
 					break;
 
 				case OS_TEXT('n'):
-					flt(buf, arg_num < params ? os->toDouble(-params + arg_num++) : 0);
+					flt(buf, (OS_FLOAT)(arg_num < params ? os->toDouble(-params + arg_num++) : 0));
 					break;
 
 				case OS_TEXT('E'):
@@ -18366,7 +18659,7 @@ void OS::initObjectClass()
 			return 1;
 		}
 
-		static int getName(OS * os, int params, int, int, void*)
+		static int getValueName(OS * os, int params, int, int, void*)
 		{
 			os->pushString(os->getValueName(-params-1));
 			return 1;
@@ -19091,8 +19384,8 @@ dump_object:
 		{OS_TEXT("setSmartProperty"), Object::setSmartProperty},
 		{OS_TEXT("__get@id"), Object::getValueId},
 		{OS_TEXT("getId"), Object::getValueId},
-		{OS_TEXT("__get@name"), Object::getName},
-		{OS_TEXT("getName"), Object::getName},
+		{OS_TEXT("__get@name"), Object::getValueName},
+		{OS_TEXT("getName"), Object::getValueName},
 		{core->strings->__len, Object::length},
 		{core->strings->__iter, Object::iterator},
 		{OS_TEXT("reverseIter"), Object::reverseIterator},
@@ -20294,25 +20587,36 @@ void OS::initProcessModule()
 	{
 		static int cwd(OS * os, int params, int, int, void*)
 		{
+#ifndef IW_SDK
             const int OS_PATH_MAX = 1024;
 			Core::Buffer buf(os);
             buf.reserveCapacity((OS_PATH_MAX+1) * sizeof(OS_CHAR));
             OS_GETCWD((OS_CHAR*)buf.buffer.buf, OS_PATH_MAX);
             os->pushString(buf);
 			return 1;
+#else
+			os->setException(OS_TEXT("this function is disabled for platform"));
+			return 0;
+#endif
 		}
 		
 		static int chdir(OS * os, int params, int, int, void*)
 		{
+#ifndef IW_SDK
 			if(params >= 1){
 				os->pushBool(OS_CHDIR(os->toString(-params).toChar()) == 0);
 				return 1;
 			}
 			return 0;
+#else
+			os->setException(OS_TEXT("this function is disabled for platform"));
+			return 0;
+#endif
 		}
 		
 		static int mkdir(OS * os, int params, int, int, void*)
 		{
+#ifndef IW_SDK
 			if(params >= 1){
 #ifdef _MSC_VER
 				os->pushBool(OS_MKDIR(os->toString(-params).toChar()) == 0);
@@ -20322,6 +20626,10 @@ void OS::initProcessModule()
 				return 1;
 			}
 			return 0;
+#else
+			os->setException(OS_TEXT("this function is disabled for platform"));
+			return 0;
+#endif
 		}
 		
 		static int rmdir(OS * os, int params, int, int, void*)
@@ -20337,7 +20645,7 @@ void OS::initProcessModule()
 			return 0;
 		}
 		
-		static int exit(OS * os, int params, int, int, void*)
+		static int exitFunc(OS * os, int params, int, int, void*)
 		{
 #if 0		// TODO: script should be exit using terminate function
 			::exit(params >= 1 ? os->toInt(-params) : 0);
@@ -20423,7 +20731,7 @@ void OS::initProcessModule()
 		{OS_TEXT("chdir"), Lib::chdir},
 		{OS_TEXT("mkdir"), Lib::mkdir},
 		{OS_TEXT("rmdir"), Lib::rmdir},
-		{OS_TEXT("exit"), Lib::exit},
+		{OS_TEXT("exit"), Lib::exitFunc}, // exit identifier could be defined for platform
 		{OS_TEXT("getgid"), Lib::getgid},
 		{OS_TEXT("setgid"), Lib::setgid},
 		{OS_TEXT("getuid"), Lib::getuid},
@@ -20911,6 +21219,10 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 				case OS_VALUE_TYPE_NUMBER:
 					stack_func->self_for_proto = prototypes[PROTOTYPE_NUMBER];
 					break;
+
+				case OS_VALUE_TYPE_STRING:
+					stack_func->self_for_proto = prototypes[PROTOTYPE_STRING];
+					break;
 				}
 			}
 
@@ -21003,14 +21315,13 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		{
-			Value func_value = func;
+			Value ctor;
 			bool prototype_enabled = true;
-			Value func;
-			if(getPropertyValue(func, func_value, strings->__construct, prototype_enabled)
-				&& func.isFunction())
+			if(getPropertyValue(ctor, func, strings->__construct, prototype_enabled)
+				&& ctor.isFunction())
 			{
-				stack_values.buf[start_pos + 0] = func;
-				stack_values.buf[start_pos + 1] = func_value;
+				stack_values.buf[start_pos + 0] = ctor;
+				stack_values.buf[start_pos + 1] = func;
 				call(start_pos, call_params, ret_values);
 				return;
 			}
@@ -21041,8 +21352,9 @@ OS_ESourceCodeType OS::getSourceCodeType(const String& filename)
 bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	String filename = resolvePath(p_filename);
-	String compiled_filename = getCompiledFilename(filename);
-	bool sourcecode_file_exist = isFileExist(filename);
+	bool is_compiled = getFilenameExt(filename) == OS_EXT_COMPILED;
+	String compiled_filename = is_compiled ? filename : getCompiledFilename(filename);
+	bool sourcecode_file_exist = is_compiled ? false : isFileExist(filename);
 	bool compiled_file_exist = isFileExist(compiled_filename);
 	bool recompile_enabled = false;
 	if(compiled_file_exist && sourcecode_file_exist){
@@ -21131,7 +21443,7 @@ void OS::eval(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeTyp
 
 void OS::eval(const String& str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	resetTerminated();
+	resetException();
 	
 	compile(str, source_code_type, check_utf8_bom);
 	pushNull();
@@ -21143,7 +21455,7 @@ void OS::eval(const String& str, int params, int ret_values, OS_ESourceCodeType 
 
 void OS::evalProtected(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	resetTerminated();
+	resetException();
 	
 	OS * os = OS::create(new OS(), memory_manager);
 	int i;
@@ -21167,7 +21479,7 @@ void OS::require(const OS_CHAR * filename, bool required, int ret_values, OS_ESo
 
 void OS::require(const String& filename, bool required, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
-	resetTerminated();
+	resetException();
 	
 	getGlobal(core->strings->func_require);
 	pushGlobals();

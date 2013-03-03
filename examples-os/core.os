@@ -95,7 +95,7 @@ function setTimeout(func, delay, count, priority){
 		count = count
 		priority = priority || 0
 	}
-	timers.sort {|a b| b.priority - a.priority }
+	timers.sort {|a b| b.priority <=> a.priority }
 	// timers.rsort "priority"
 	return func
 }

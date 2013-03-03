@@ -1573,7 +1573,7 @@ file_option:
 			os->pushValueById(debug->func_id);
 			os->pushNull();
 			os->pushNumber(type);
-			os->pushString((void*)buf, buf_len);
+			os->pushString((void*)buf, (int)buf_len);
 			os->call(2);
 			break;
 

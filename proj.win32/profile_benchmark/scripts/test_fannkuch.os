@@ -3,7 +3,7 @@ var fannkuch = function(n)
 {
   var p, q, s, sign, maxflips, sum = [], [], [], 1, 0, 0
   var i
-  for(i=1; i<=n; i++) p[i], q[i], s[i] = i, i, i
+  for(i=1; i<=n; i++) p[i] = q[i] = s[i] = i
   for(;;){
     // Copy and flip.
     var q1 = p[1]				// Cache 1st element.
