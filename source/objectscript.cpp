@@ -9748,7 +9748,10 @@ int OS::Core::getValueHash(const Value& index)
 
 	case OS_VALUE_TYPE_NUMBER:
 		{
-#if 1 // calculate hash accuratelly
+#if 0 // calculate hash accuratelly
+			int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(index));
+			return i;
+#elif 1 // it's really faster
 			float d = (float)OS_VALUE_NUMBER(index);
 			OS_BYTE * buf = (OS_BYTE*)&d;
 			int hash = OS_STR_HASH_START_VALUE;
@@ -13628,7 +13631,7 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 		} \
 		\
 		Value local7_index_copy = local7_index; \
-		bool local7_setter_enabled = (_setter_enabled); \
+		const bool local7_setter_enabled = (_setter_enabled); \
 		if(local7_setter_enabled && !hasSpecialPrefix(local7_index_copy)){ \
 			Value func; \
 			if(index_type == OS_VALUE_TYPE_STRING){ \
@@ -13834,7 +13837,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const Value& _index, Valu
 		case OS_VALUE_TYPE_FUNCTION: \
 		case OS_VALUE_TYPE_CFUNCTION: \
 			{ \
-				bool local8_setter_enabled = (_setter_enabled); \
+				const bool local8_setter_enabled = (_setter_enabled); \
 				OS_SETTER_VALUE_PTR(OS_VALUE_VARIANT(local8_table_value).value, local8_index, local8_value, local8_setter_enabled); \
 				break; \
 			} \
@@ -15829,7 +15832,7 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Valu
 		const Value& local_obj= (_obj); \
 		const Value& local_index = (_index); \
 		GCValue * table_value; \
-		bool local_prototype_enabled = (_prototype_enabled); \
+		const bool local_prototype_enabled = (_prototype_enabled); \
 		bool primitive_type = false, finished = false; \
 		switch(OS_VALUE_TYPE(local_obj)){ \
 		default: \
@@ -16062,11 +16065,11 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 		Value& local3_result = (_result_value); \
 		GCValue * local3_table_value = (_table_value); \
 		Value local3_index = (_index); \
-		bool local3_prototype_enabled = (_prototype_enabled); \
+		const bool local3_prototype_enabled = (_prototype_enabled); \
 		bool local3_result_bool; \
 		OS_GET_PROP_VALUE_PTR(local3_result_bool, local3_result, local3_table_value, local3_index, local3_prototype_enabled); \
 		if(local3_result_bool) break; \
-		bool local3_getter_enabled = (_getter_enabled); \
+		const bool local3_getter_enabled = (_getter_enabled); \
 		if(local3_getter_enabled && !hasSpecialPrefix(local3_index)){ \
 			if(OS_VALUE_TYPE(local3_index) == OS_VALUE_TYPE_STRING){ \
 				const void * buf1 = strings->__getAt.toChar(); \
@@ -16177,8 +16180,8 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 			} \
 			break; \
 		} \
-		bool local5_getter_enabled = (_getter_enabled); \
-		bool local5_prototype_enabled = (_prototype_enabled); \
+		const bool local5_getter_enabled = (_getter_enabled); \
+		const bool local5_prototype_enabled = (_prototype_enabled); \
 		GCValue * local5_gc_table_value = NULL; \
 		switch(type){ \
 		default: \
@@ -16356,9 +16359,10 @@ void OS::Core::execute()
 	allocator->checkNativeStackUsage(OS_TEXT("OS::Core::execute"));
 #endif
 	StackFunction * stack_func;
-	int a, b, c, up_count, res, ret_stack_funcs = call_stack_funcs.count-1;
+	int a, b, c, res, ret_stack_funcs = call_stack_funcs.count-1;
 	Program * prog;
 	Value * left_value, * right_value, value;
+	Locals * scope;
 #ifdef OS_INFINITE_LOOP_OPCODES
 	for(int opcodes_executed = 0;; opcodes_executed++){
 #else
@@ -16522,7 +16526,7 @@ corrupted:
 					stack_func->opcodes++;
 				}else{
 					instruction = stack_func->opcodes[0];
-					int b = OS_GETARG_sBx(instruction);
+					b = OS_GETARG_sBx(instruction);
 					stack_func->opcodes += b + 1;
 				}
 				break;
@@ -16539,7 +16543,7 @@ corrupted:
 				left_value = &stack_func_locals[a];
 				right_value = left_value + 1;
 
-				int b = OS_GETARG_B(instruction); // inverse
+				b = OS_GETARG_B(instruction); // inverse
 				// c = GETARG_C(instruction); // if opcode
 
 				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
@@ -16579,7 +16583,7 @@ corrupted:
 				left_value = &stack_func_locals[a];
 				right_value = left_value + 1;
 
-				int b = OS_GETARG_B(instruction); // inverse
+				b = OS_GETARG_B(instruction); // inverse
 				// c = GETARG_C(instruction); // if opcode
 
 				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
@@ -16619,7 +16623,7 @@ corrupted:
 				left_value = &stack_func_locals[a];
 				right_value = left_value + 1;
 
-				int b = OS_GETARG_B(instruction); // inverse
+				b = OS_GETARG_B(instruction); // inverse
 				// c = GETARG_C(instruction); // if opcode
 
 				if(OS_IS_VALUE_NUMBER(*left_value) && OS_IS_VALUE_NUMBER(*right_value)){
@@ -16918,17 +16922,15 @@ corrupted:
 			}
 
 		OS_CASE_OPCODE(OP_CALL):
-			{
-				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_B(instruction);
-				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
-				c = OS_GETARG_C(instruction);
-				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
-				call(stack_func->locals_stack_pos + a, b, c, NULL, true);
-				continue;
-			}
+			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction);
+			OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
+			c = OS_GETARG_C(instruction);
+			OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
+			call(stack_func->locals_stack_pos + a, b, c, NULL, true);
+			continue;
 
 #ifdef OS_TAIL_CALL_ENABLED
 		case OP_TAIL_CALL:
@@ -16971,20 +16973,24 @@ corrupted:
 #endif
 
 		OS_CASE_OPCODE(OP_CALL_METHOD):
-			{
-				OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_B(instruction);
-				OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
-				c = OS_GETARG_C(instruction);
-				OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
-				pushPropertyValue(stack_func_locals[a], stack_func_locals[a + 1], true, true);
-				stack_func_locals[a + 1] = stack_func_locals[a]; // this
-				stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
-				call(this->stack_func->locals_stack_pos + a, b, c, NULL, true);
-				continue;
-			}
+			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction);
+			OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
+			c = OS_GETARG_C(instruction);
+			OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
+#if 1 // performance optimization
+			OS_GETTER_VALUE(value, stack_func_locals[a], stack_func_locals[a + 1], true, true);
+			stack_func_locals[a + 1] = stack_func_locals[a]; // this
+			stack_func_locals[a] = value; // func
+#else
+			pushPropertyValue(stack_func_locals[a], stack_func_locals[a + 1], true, true);
+			stack_func_locals[a + 1] = stack_func_locals[a]; // this
+			stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
+#endif
+			call(this->stack_func->locals_stack_pos + a, b, c, NULL, true);
+			continue;
 
 #ifdef OS_TAIL_CALL_ENABLED
 		case OP_TAIL_CALL_METHOD:
@@ -17066,90 +17072,78 @@ corrupted:
 			}
 
 		OS_CASE_OPCODE_ALL(OP_MOVE):
-			{
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_B(instruction);
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction);
 #if OS_MAX_GENERIC_CONST_INDEX == 0
-				stack_func_locals[a] = stack_func_locals[b];
+			stack_func_locals[a] = stack_func_locals[b];
 #else
-				stack_func_locals[a] = OS_GETARG_B_VALUE();
+			stack_func_locals[a] = OS_GETARG_B_VALUE();
 #endif
-				break;
-			}
+			break;
 
 		OS_CASE_OPCODE_ALL(OP_MOVE2):
-			{
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_B(instruction);
-				c = OS_GETARG_C(instruction);
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a+1 < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction);
+			c = OS_GETARG_C(instruction);
 #if OS_MAX_GENERIC_CONST_INDEX == 0
-				stack_func_locals[a] = stack_func_locals[b];
-				stack_func_locals[a + 1] = stack_func_locals[c];
+			stack_func_locals[a] = stack_func_locals[b];
+			stack_func_locals[a + 1] = stack_func_locals[c];
 #else
-				stack_func_locals[a] = OS_GETARG_B_VALUE();
-				stack_func_locals[a + 1] = OS_GETARG_C_VALUE();
+			stack_func_locals[a] = OS_GETARG_B_VALUE();
+			stack_func_locals[a + 1] = OS_GETARG_C_VALUE();
 #endif
-				break;
-			}
+			break;
 
 		OS_CASE_OPCODE(OP_GET_XCONST):
-			{
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_Bx(instruction);
-				OS_ASSERT(b >= 0 && b < stack_func->func->prog->num_numbers + stack_func->func->prog->num_strings + CONST_STD_VALUES);
-				stack_func_locals[a] = stack_func_prog_values[b];
-				break;
-			}
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_Bx(instruction);
+			OS_ASSERT(b >= 0 && b < stack_func->func->prog->num_numbers + stack_func->func->prog->num_strings + CONST_STD_VALUES);
+			stack_func_locals[a] = stack_func_prog_values[b];
+			break;
 
 		OS_CASE_OPCODE(OP_GET_UPVALUE):
-			{
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_B(instruction); // local
-				up_count = OS_GETARG_C(instruction);
-				OS_ASSERT(up_count <= stack_func->func->func_decl->max_up_count);
-				Locals * func_locals = stack_func->locals;
-				OS_ASSERT(up_count <= func_locals->num_parents);
-				Locals * scope = func_locals->getParent(up_count-1);
-				OS_ASSERT(b >= 0 && b < scope->func_decl->num_locals);
-				stack_func_locals[a] = scope->values[b];
-				break;
-			}
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction); // local
+			c = OS_GETARG_C(instruction);
+			OS_ASSERT(c <= stack_func->func->func_decl->max_up_count);
+			scope = stack_func->locals;
+			OS_ASSERT(c <= scope->num_parents);
+			scope = scope->getParent(c-1);
+			OS_ASSERT(b >= 0 && b < scope->func_decl->num_locals);
+			stack_func_locals[a] = scope->values[b];
+			break;
 
 		OS_CASE_OPCODE(OP_SET_UPVALUE):
-			{
-				a = OS_GETARG_A(instruction); // local
-				b = OS_GETARG_B(instruction);
-				OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
-				up_count = OS_GETARG_C(instruction);
-				OS_ASSERT(up_count <= stack_func->func->func_decl->max_up_count);
-				Locals * func_locals = stack_func->locals;
-				OS_ASSERT(up_count <= func_locals->num_parents);
-				Locals * scope = func_locals->getParent(up_count-1);
-				OS_ASSERT(a >= 0 && a < scope->func_decl->num_locals);
-				scope->values[a] = stack_func_locals[b];
-				break;
-			}
+			a = OS_GETARG_A(instruction); // local
+			b = OS_GETARG_B(instruction);
+			OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
+			c = OS_GETARG_C(instruction);
+			OS_ASSERT(c <= stack_func->func->func_decl->max_up_count);
+			scope = stack_func->locals;
+			OS_ASSERT(c <= scope->num_parents);
+			scope = scope->getParent(c-1);
+			OS_ASSERT(a >= 0 && a < scope->func_decl->num_locals);
+			scope->values[a] = stack_func_locals[b];
+			break;
 
 		OS_CASE_OPCODE_ALL(OP_GET_PROPERTY):
-			{
-				a = OS_GETARG_A(instruction);
-				OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-				b = OS_GETARG_B(instruction);
-				OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
-				c = OS_GETARG_C(instruction);
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
+			b = OS_GETARG_B(instruction);
+			OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
+			c = OS_GETARG_C(instruction);
 #if 1 // performance optimization
-				OS_GETTER_VALUE(value, stack_func_locals[b], OS_GETARG_C_VALUE(), true, true);
-				stack_func_locals[a] = value;
+			OS_GETTER_VALUE(value, stack_func_locals[b], OS_GETARG_C_VALUE(), true, true);
+			stack_func_locals[a] = value;
 #else
-				pushPropertyValue(stack_func_locals[b], OS_GETARG_C_VALUE(), true, true);
-				stack_func_locals[a] = stack_values.buf[--stack_values.count];
+			pushPropertyValue(stack_func_locals[b], OS_GETARG_C_VALUE(), true, true);
+			stack_func_locals[a] = stack_values.buf[--stack_values.count];
 #endif
-				break;
-			}
+			break;
 
 		OS_CASE_OPCODE_ALL(OP_INIT_PROPERTY):
 			a = OS_GETARG_A(instruction);
@@ -17220,7 +17214,7 @@ corrupted:
 						}					
 						stack_func_locals[a] = proto;
 					}else{
-						stack_func_locals[a] = Value();
+						OS_SET_VALUE_NULL(stack_func_locals[a]);
 					}
 					break;
 
