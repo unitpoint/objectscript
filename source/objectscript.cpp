@@ -9737,8 +9737,38 @@ template <> int getNumberHash<int>(int t)
 	return t;
 }
 
+#define OS_CALC_VALUE_HASH(_value) \
+	do { \
+		const Value& local4_value = (_value); \
+		hash = OS_VALUE_TYPE(local4_value); \
+		if(hash == OS_VALUE_TYPE_NUMBER){ \
+			float d = (float)OS_VALUE_NUMBER(local4_value); \
+			OS_BYTE * buf = (OS_BYTE*)&d; \
+			hash = OS_STR_HASH_START_VALUE; \
+			OS_ADD_STR_HASH_VALUE; buf++; \
+			OS_ADD_STR_HASH_VALUE; buf++; \
+			OS_ADD_STR_HASH_VALUE; buf++; \
+			OS_ADD_STR_HASH_VALUE; \
+		}else if(hash == OS_VALUE_TYPE_STRING){ \
+			hash = OS_VALUE_VARIANT(local4_value).string->hash; \
+		}else if(hash == OS_VALUE_TYPE_BOOL){ \
+			hash = OS_VALUE_VARIANT(local4_value).boolean; \
+		}else if(hash == OS_VALUE_TYPE_NULL){ \
+			hash = 0; \
+		}else{ \
+			/* all other values share same area with index.v.value so just use it as hash */ \
+			hash = OS_PTR_HASH(OS_VALUE_VARIANT(local4_value).value); \
+		} \
+	} while(false)
+
+
 int OS::Core::getValueHash(const Value& index)
 {
+#if 000
+	int hash;
+	OS_CALC_VALUE_HASH(index);
+	return hash;
+#else
 	switch(OS_VALUE_TYPE(index)){
 	case OS_VALUE_TYPE_NULL:
 		return 0;
@@ -9795,6 +9825,7 @@ inline std::size_t float_hash_value(T v)
 	}
 	// all other values share same area with index.v.value so just use it as hash
 	return OS_PTR_HASH(OS_VALUE_VARIANT(index).value);
+#endif
 }
 
 // =====================================================================
@@ -9966,7 +9997,13 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 		table->head_mask = new_size-1;
 
 		for(Property * cur = table->first; cur; cur = cur->next){
+#if 000
+			int hash;
+			OS_CALC_VALUE_HASH(cur->index);
+			int slot = hash & table->head_mask;
+#else
 			int slot = getValueHash(cur->index) & table->head_mask;
+#endif
 			cur->hash_next = table->heads[slot];
 			table->heads[slot] = cur;
 		}
@@ -9975,7 +10012,13 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 		free(old_heads);
 	}
 
+#if 000
+	int hash;
+	OS_CALC_VALUE_HASH(prop->index);
+	int slot = hash & table->head_mask;
+#else
 	int slot = getValueHash(prop->index) & table->head_mask;
+#endif
 	prop->hash_next = table->heads[slot];
 	table->heads[slot] = prop;
 
@@ -9997,7 +10040,13 @@ void OS::Core::addTableProperty(Table * table, Property * prop)
 
 void OS::Core::changePropertyIndex(Table * table, Property * prop, const Value& new_index)
 {
+#if 000
+	int hash;
+	OS_CALC_VALUE_HASH(prop->index);
+	int slot = hash & table->head_mask;
+#else
 	int slot = getValueHash(prop->index) & table->head_mask;
+#endif
 	Property * cur = table->heads[slot], * chain_prev = NULL;
 	for(; cur; chain_prev = cur, cur = cur->hash_next){
 		if(cur == prop){ // cur->isEqual(index)){
@@ -10013,7 +10062,12 @@ void OS::Core::changePropertyIndex(Table * table, Property * prop, const Value& 
 	if(cur){
 		*prop = new_index;
 
+#if 000
+		OS_CALC_VALUE_HASH(prop->index);
+		slot = hash & table->head_mask;
+#else
 		slot = getValueHash(prop->index) & table->head_mask;
+#endif
 		prop->hash_next = table->heads[slot];
 		table->heads[slot] = prop;
 
@@ -10034,7 +10088,13 @@ void OS::Core::changePropertyIndex(Table * table, Property * prop, const Value& 
 OS::Core::Property * OS::Core::removeTableProperty(Table * table, const Value& index)
 {
 	OS_ASSERT(table);
+#if 000
+	int hash;
+	OS_CALC_VALUE_HASH(index);
+	int slot = hash & table->head_mask;
+#else
 	int slot = getValueHash(index) & table->head_mask;
+#endif
 	Property * cur = table->heads[slot], * chain_prev = NULL;
 	for(int temp; cur; chain_prev = cur, cur = cur->hash_next){
 		// if(isEqualExactly(cur->index, index)){
@@ -10233,7 +10293,13 @@ void OS::Core::sortTable(Table * table, int(*comp)(OS*, const void*, const void*
 			for(i = 0; i < table->count; i++){
 				Property * cur = props[i];
 				cur->index = Value(i);
+#if 000
+				int hash;
+				OS_CALC_VALUE_HASH(cur->index);
+				int slot = hash & table->head_mask;
+#else
 				int slot = getValueHash(cur->index) & table->head_mask;
+#endif
 				cur->hash_next = table->heads[slot];
 				table->heads[slot] = cur;
 			}
@@ -10380,7 +10446,13 @@ int OS::Core::compareUserReverse(OS * os, const void * a, const void * b, void *
 OS::Core::Property * OS::Core::Table::get(const Value& index)
 {
 	if(heads){
+#if 000
+		int hash;
+		OS_CALC_VALUE_HASH(index);
+		Property * cur = heads[hash & head_mask];
+#else
 		Property * cur = heads[getValueHash(index) & head_mask];
+#endif
 		for(int temp; cur; cur = cur->hash_next){
 			// if(isEqualExactly(cur->index, index)){
 			// performance optimization
@@ -16064,11 +16136,12 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 	do { \
 		Value& local3_result = (_result_value); \
 		GCValue * local3_table_value = (_table_value); \
-		Value local3_index = (_index); \
+		const Value& local3_index_ref = (_index); \
 		const bool local3_prototype_enabled = (_prototype_enabled); \
 		bool local3_result_bool; \
-		OS_GET_PROP_VALUE_PTR(local3_result_bool, local3_result, local3_table_value, local3_index, local3_prototype_enabled); \
+		OS_GET_PROP_VALUE_PTR(local3_result_bool, local3_result, local3_table_value, local3_index_ref, local3_prototype_enabled); \
 		if(local3_result_bool) break; \
+		Value local3_index = local3_index_ref; \
 		const bool local3_getter_enabled = (_getter_enabled); \
 		if(local3_getter_enabled && !hasSpecialPrefix(local3_index)){ \
 			if(OS_VALUE_TYPE(local3_index) == OS_VALUE_TYPE_STRING){ \
@@ -16182,27 +16255,36 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 		} \
 		const bool local5_getter_enabled = (_getter_enabled); \
 		const bool local5_prototype_enabled = (_prototype_enabled); \
-		GCValue * local5_gc_table_value = NULL; \
 		switch(type){ \
 		default: \
 		case OS_VALUE_TYPE_NULL: \
+			OS_SET_VALUE_NULL(local5_result); \
 			break; \
 			\
 		case OS_VALUE_TYPE_BOOL: \
 			if(local5_prototype_enabled){ \
-				local5_gc_table_value = prototypes[PROTOTYPE_BOOL]; \
+				OS_GETTER_VALUE_PTR(local5_result, prototypes[PROTOTYPE_BOOL], \
+					local5_index, local5_getter_enabled, local5_prototype_enabled); \
+			}else{ \
+				OS_SET_VALUE_NULL(local5_result); \
 			} \
 			break; \
 			\
 		case OS_VALUE_TYPE_NUMBER: \
 			if(local5_prototype_enabled){ \
-				local5_gc_table_value = prototypes[PROTOTYPE_NUMBER]; \
+				OS_GETTER_VALUE_PTR(local5_result, prototypes[PROTOTYPE_NUMBER], \
+					local5_index, local5_getter_enabled, local5_prototype_enabled); \
+			}else{ \
+				OS_SET_VALUE_NULL(local5_result); \
 			} \
 			break; \
 			\
 		case OS_VALUE_TYPE_STRING: \
 			if(local5_prototype_enabled){ \
-				local5_gc_table_value = prototypes[PROTOTYPE_STRING]; \
+				OS_GETTER_VALUE_PTR(local5_result, prototypes[PROTOTYPE_STRING], \
+					local5_index, local5_getter_enabled, local5_prototype_enabled); \
+			}else{ \
+				OS_SET_VALUE_NULL(local5_result); \
 			} \
 			break; \
 			\
@@ -16212,15 +16294,10 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 		case OS_VALUE_TYPE_USERPTR: \
 		case OS_VALUE_TYPE_FUNCTION: \
 		case OS_VALUE_TYPE_CFUNCTION: \
-			local5_gc_table_value = OS_VALUE_VARIANT(local5_table_value).value; \
-			break; \
-		} \
-		if(local5_gc_table_value){ \
-			OS_GETTER_VALUE_PTR(local5_result, local5_gc_table_value, \
+			OS_GETTER_VALUE_PTR(local5_result, OS_VALUE_VARIANT(local5_table_value).value, \
 				local5_index, local5_getter_enabled, local5_prototype_enabled); \
 			break; \
 		} \
-		OS_SET_VALUE_NULL(local5_result); \
 	} while(false)
 
 void OS::Core::pushPropertyValue(const Value& table_value, const Value& index, bool getter_enabled, bool prototype_enabled)
