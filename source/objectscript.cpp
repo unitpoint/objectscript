@@ -10158,6 +10158,15 @@ bool OS::Core::deleteTableProperty(Table * table, const Value& index)
 
 void OS::Core::deleteValueProperty(GCValue * table_value, Value index, bool del_enabled, bool prototype_enabled)
 {
+	if(table_value->type == OS_VALUE_TYPE_ARRAY && OS_IS_VALUE_NUMBER(index)){
+		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
+		GCArrayValue * arr = (GCArrayValue*)table_value;
+		int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(index)); // = (int)valueToInt(index);
+		if(i >= 0 && i < arr->values.count){
+			allocator->vectorRemoveAtIndex(arr->values, i);
+		}
+		return;
+	}
 	Table * table = table_value->table;
 	if(table && deleteTableProperty(table, index)){
 		return;
@@ -10184,16 +10193,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, Value index, bool del_
 	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
 		return;
 	}
-	if(table_value->type == OS_VALUE_TYPE_ARRAY){
-		OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
-		GCArrayValue * arr = (GCArrayValue*)table_value;
-		int i = (int)valueToInt(index);
-		if(i >= 0 && i < arr->values.count){
-			allocator->vectorRemoveAtIndex(arr->values, i);
-		}
-		return;
-	}
-	if(del_enabled && !hasSpecialPrefix(index)){
+	if(del_enabled /*&& !hasSpecialPrefix(index)*/){
 		Value value;
 		if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 			const void * buf1 = strings->__delAt.toChar();
@@ -13602,6 +13602,7 @@ OS::Core::Property * OS::Core::setTableValue(Table * table, const Value& index, 
 	return prop;
 }
 
+/*
 bool OS::Core::hasSpecialPrefix(const Value& value)
 {
 	if(OS_VALUE_TYPE(value) != OS_VALUE_TYPE_STRING){
@@ -13620,6 +13621,7 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 	return false;
 #endif
 }
+*/
 
 #define OS_SETTER_VALUE_PTR(_table_value, _index, _value, _setter_enabled) \
 	do { \
@@ -13704,7 +13706,7 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 		\
 		Value local7_index_copy = local7_index; \
 		const bool local7_setter_enabled = (_setter_enabled); \
-		if(local7_setter_enabled && !hasSpecialPrefix(local7_index_copy)){ \
+		if(local7_setter_enabled /*&& !hasSpecialPrefix(local7_index_copy)*/){ \
 			Value func; \
 			if(index_type == OS_VALUE_TYPE_STRING){ \
 				const void * buf1 = strings->__setAt.toChar(); \
@@ -13828,7 +13830,7 @@ void OS::Core::setPropertyValue(GCValue * table_value, const Value& _index, Valu
 	}
 
 	Value index = _index;
-	if(setter_enabled && !hasSpecialPrefix(index)){
+	if(setter_enabled /*&& !hasSpecialPrefix(index)*/){
 		Value func;
 		if(index_type == OS_VALUE_TYPE_STRING){
 			const void * buf1 = strings->__setAt.toChar();
@@ -14738,8 +14740,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		{
 			Value func;
 			bool prototype_enabled = true;
-			Value index(method_name);
-			if(core->getPropertyValue(func, left_value, index, prototype_enabled) && func.isFunction()){
+			if(core->getPropertyValue(func, left_value, method_name, prototype_enabled) && func.isFunction()){
 				core->pushValue(func);
 				core->pushValue(left_value);
 				core->pushValue(right_value);
@@ -16092,7 +16093,7 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 	if(getPropertyValue(value, table_value, index, prototype_enabled)){
 		return true; // OS_VALUE_TYPE(value) != OS_VALUE_TYPE_NULL;
 	}
-	if(!getter_enabled || hasSpecialPrefix(index)){
+	if(!getter_enabled /*|| hasSpecialPrefix(index)*/){
 		return false;
 	}
 	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
@@ -16143,7 +16144,7 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 		if(local3_result_bool) break; \
 		Value local3_index = local3_index_ref; \
 		const bool local3_getter_enabled = (_getter_enabled); \
-		if(local3_getter_enabled && !hasSpecialPrefix(local3_index)){ \
+		if(local3_getter_enabled /*&& !hasSpecialPrefix(local3_index)*/){ \
 			if(OS_VALUE_TYPE(local3_index) == OS_VALUE_TYPE_STRING){ \
 				const void * buf1 = strings->__getAt.toChar(); \
 				int size1 = strings->__getAt.getDataSize(); \
@@ -16198,7 +16199,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 		return pushValue(value);
 	}
 	Value index = _index;
-	if(getter_enabled && !hasSpecialPrefix(index)){
+	if(getter_enabled /*&& !hasSpecialPrefix(index)*/){
 		if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 			const void * buf1 = strings->__getAt.toChar();
 			int size1 = strings->__getAt.getDataSize();
@@ -18502,9 +18503,30 @@ void OS::initCoreFunctions()
 		static int in(OS * os, int params, int, int, void*)
 		{
 			if(params != 2) return 0;
-			Core::GCValue * self = os->core->getStackValue(-params+1).getGCValue();
-			bool has_property = self && os->core->hasProperty(self, os->core->getStackValue(-params), true, true);
-			os->pushBool(has_property);
+			Core::Value obj = os->core->getStackValue(-params+1);
+			Core::GCValue * self = obj.getGCValue();
+			if(self){
+				if(self->type == OS_VALUE_TYPE_ARRAY){
+					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self));
+					Core::GCArrayValue * arr = (Core::GCArrayValue*)self;
+					int count = arr->values.count;
+					for(int i = 0; i < count; i++){
+						os->pushStackValue(-params);
+						os->core->pushValue(arr->values[i]);
+						os->runOp(OP_COMPARE);
+						if(os->popNumber() == 0){
+							os->pushBool(true);
+							return 1;
+						}
+					}
+					os->pushBool(false);
+					return 1;
+				}
+				bool has_property = os->core->hasProperty(self, os->core->getStackValue(-params), true, true);
+				os->pushBool(has_property);
+				return 1;
+			}
+			os->pushBool(false);
 			return 1;
 		}
 
@@ -19136,11 +19158,14 @@ dump_object:
 
 		static int hasOwnProperty(OS * os, int params, int, int, void*)
 		{
-			Core::Value self_var = os->core->getStackValue(-params-1);
-			Core::Value index = os->core->getStackValue(-params);
-			Core::GCValue * self = self_var.getGCValue();
+			Core::GCValue * self = os->core->getStackValue(-params-1).getGCValue();
 			if(self){
-				os->pushBool( os->core->hasProperty(self, index, true, false) );
+				if(params > 0){
+					Core::Value index = os->core->getStackValue(-params+0);
+					os->pushBool(os->core->hasProperty(self, index, true, false));
+				}else{
+					os->pushBool(self->table && self->table->count > 0);
+				}
 				return 1;
 			}
 			return 0;
@@ -19148,22 +19173,15 @@ dump_object:
 
 		static int hasProperty(OS * os, int params, int, int, void*)
 		{
-			Core::Value self_var = os->core->getStackValue(-params-1);
-			Core::Value index = os->core->getStackValue(-params);
-			Core::GCValue * self = self_var.getGCValue();
+			Core::GCValue * self = os->core->getStackValue(-params-1).getGCValue();
 			if(self){
-				os->pushBool( os->core->hasProperty(self, index, true, true) );
-				return 1;
-			}
-			return 0;
-		}
-
-		static int hasProperties(OS * os, int params, int, int, void*)
-		{
-			Core::Value self_var = os->core->getStackValue(-params-1);
-			Core::GCValue * self = self_var.getGCValue();
-			if(self){
-				os->pushBool(self->table && self->table->count > 0);
+				if(params > 0){
+					Core::Value index = os->core->getStackValue(-params);
+					os->pushBool(os->core->hasProperty(self, index, true, true));
+				}else{
+					// os->pushBool(self->table && self->table->count > 0);
+					return 0;
+				}
 				return 1;
 			}
 			return 0;
@@ -19217,6 +19235,7 @@ dump_object:
 				len = size - start;
 			}
 			if(!start && len == size){
+				// TODO: clone array?
 				os->core->pushValue(self_var);
 				return 1;
 			}
@@ -19385,10 +19404,16 @@ dump_object:
 		static int clear(OS * os, int params, int, int, void*)
 		{
 			Core::GCValue * value = os->core->getStackValue(-params-1).getGCValue();
-			if(value && value->table){
-				Core::Table * table = value->table;
-				value->table = NULL;
-				os->core->deleteTable(table);
+			if(value){
+				if(value->table){
+					Core::Table * table = value->table;
+					value->table = NULL;
+					os->core->deleteTable(table);
+				}
+				if(value->type == OS_VALUE_TYPE_ARRAY){
+					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(value));
+					os->vectorClear(((Core::GCArrayValue*)value)->values);
+				}
 			}
 			return 0;
 		}
@@ -19496,7 +19521,6 @@ dump_object:
 		{OS_TEXT("pop"), Object::pop},
 		{OS_TEXT("hasOwnProperty"), Object::hasOwnProperty},
 		{OS_TEXT("hasProperty"), Object::hasProperty},
-		{OS_TEXT("hasProperties"), Object::hasProperties},
 		{OS_TEXT("merge"), Object::merge},
 		{OS_TEXT("join"), Object::join},
 		{OS_TEXT("clear"), Object::clear},
@@ -19528,6 +19552,7 @@ void OS::initArrayClass()
 			}
 			switch(params){
 			case 0:
+				// TODO: clone array?
 				os->core->pushValue(self_var);
 				return 1;
 
@@ -19561,6 +19586,7 @@ void OS::initArrayClass()
 				len = size - start;
 			}
 			if(!start && len == size){
+				// TODO: clone array?
 				os->core->pushValue(self_var);
 				return 1;
 			}
@@ -21040,7 +21066,7 @@ void OS::initPreScript()
 		// it's ObjectScript code here
 		function Object.__get@length(){ return #this }
 		function Function.__iter(){
-			if(this === Function || @hasProperties()){
+			if(this === Function || @hasProperty()){
 				return super()
 			}
 			return this

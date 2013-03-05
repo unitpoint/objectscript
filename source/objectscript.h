@@ -2,7 +2,7 @@
 #define __OBJECT_SCRIPT_H__
 
 /******************************************************************************
-* Copyright (C) 2012 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+* Copyright (C) 2012-2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
 *
 * Latest source code: https://github.com/unitpoint/objectscript
 *
@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.2-dev")
+#define OS_VERSION OS_TEXT("1.2.1-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -2848,8 +2848,6 @@ namespace ObjectScript
 			static int compareUserArrayValuesReverse(OS*, const void*, const void*, void*);
 
 			static int compareUserReverse(OS*, const void*, const void*, void*);
-
-			bool hasSpecialPrefix(const Value&);
 
 			Property * setTableValue(Table * table, const Value& index, const Value& val);
 			void setPropertyValue(GCValue * table_value, const Value& index, Value val, bool setter_enabled);

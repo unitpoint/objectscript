@@ -479,4 +479,4 @@ begin function
   end call method: start 20, params 4, ret values 0
 
   return: var _E (2), count 1
-end function: <<->> (0), index 0
+end function: {main} (0), index 0

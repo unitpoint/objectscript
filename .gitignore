@@ -6,6 +6,4 @@
 *.osd
 *.osc
 *.o
-*.sdf
-*.suo
-*.opensdf
+/unit-tests-os/

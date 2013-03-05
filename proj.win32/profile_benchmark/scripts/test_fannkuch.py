@@ -45,4 +45,16 @@ def fannkuch(n):
 from sys import argv
 n = int(argv[1])
 
+from datetime import datetime
+from datetime import timedelta
+
+start_time = datetime.now()
+
+# returns the elapsed milliseconds since the start of the program
+def secs():
+   dt = datetime.now() - start_time
+   ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
+   return ms / 1000.0
+   
 print(( "Pfannkuchen(%i) = %i" % (n, fannkuch(n)) ))
+print(( "time: %.3f" % secs()))

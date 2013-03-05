@@ -83,9 +83,9 @@ public:
 		return new TestClass(*this);
 	}
 
-	TestClass * add(TestClass * a, TestClass * b)
+	TestClass * add(TestClass * b)
 	{
-		return new TestClass(a->i + b->i, a->j + b->j);
+		return new TestClass(i + b->i, j + b->j);
 	}
 
 	double doSomething(int a, float b, double c, TestClass * pb)
@@ -213,7 +213,7 @@ struct CtypeValue<TestStruct>
 
 			return TestStruct(a, b);
 		}
-		os->triggerError(OS_E_ERROR, "TestStruct expected");
+		os->setException("TestStruct expected");
 		return TestStruct(0, 0);
 	}
 

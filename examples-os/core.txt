@@ -298,7 +298,7 @@ target " (-27)
                     end else value
                   end question ret values 1
 
-[32] t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+[32] t.object === _G ? t.name : t.object ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
 
                   begin question
                     begin bool exp
@@ -320,7 +320,7 @@ target " (-27)
                             move: # (16) = const string "concat" (-42)
                             move: # (17) = const string "{obj-" (-50)
                             get property: # (18) = var t (6) [const string "object" (-48)]
-                            get property: # (18) = # (18) [const string "osValueId" (-51)]
+                            get property: # (18) = # (18) [const string "id" (-51)]
                             move: # (19) = const string "}." (-52)
                             get property: # (20) = var t (6) [const string "name" (-49)]
                           end call method: start 15, params 6, ret values 1
@@ -448,7 +448,7 @@ target " (-27)
               end else value
             end question ret values 1
 
-[43] t.object === _G ? t.name : t.object ? "{obj-"..t.object.osValueId.."}."..t.name : t.name, t.arguments);
+[43] t.object === _G ? t.name : t.object ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
 
             begin question
               begin bool exp
@@ -470,7 +470,7 @@ target " (-27)
                       move: # (16) = const string "concat" (-42)
                       move: # (17) = const string "{obj-" (-50)
                       get property: # (18) = var t (6) [const string "object" (-48)]
-                      get property: # (18) = # (18) [const string "osValueId" (-51)]
+                      get property: # (18) = # (18) [const string "id" (-51)]
                       move: # (19) = const string "}." (-52)
                       get property: # (20) = var t (6) [const string "name" (-49)]
                     end call method: start 15, params 6, ret values 1
@@ -896,7 +896,7 @@ target " (-27)
     set property: # (9) [param func (2)] = # (8)
 
 
-[98] timers.sort {|a b| b.priority - a.priority }
+[98] timers.sort {|a b| b.priority <=> a.priority }
 
     begin call method
       get upvalue: # (8) = var timers (5 1)
@@ -912,7 +912,7 @@ target " (-27)
         end locals
           get property: # (6) = param b (3) [const string "priority" (-76)]
           get property: # (7) = param a (2) [const string "priority" (-76)]
-          # (6) = # (6) [operator -] # (7)
+          # (6) = # (6) [operator <=>] # (7)
         return: # (6), count 1
       end function: # (10), index 13
     end call method: start 8, params 3, ret values 0

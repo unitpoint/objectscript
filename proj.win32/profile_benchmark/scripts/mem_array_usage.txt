@@ -1,17 +1,20 @@
 
 [FILE] mem_array_usage.os
-[1] var function range(a, b){
+[1] var function range(a, b, arr){
 
 begin function
-  begin locals 8, stack 13
+  begin locals 11, stack 17
     0 _F (param)
     1 this (param)
     2 _E
     3 _G
     4 range
-    5 memory_get_usage
-    6 start_memory
-    7 array
+    5 usedBytes
+    6 start_memory_allocated
+    7 start_memory
+    8 values
+    9 test
+    10 test
   end locals
   begin function
     begin locals 7, stack 11
@@ -19,18 +22,12 @@ begin function
       1 this (param)
       2 a (param)
       3 b (param)
-      4 _E
-      5 _G
-      6 arr
+      4 arr (param)
+      5 _E
+      6 _G
     end locals
 
-[2] var arr = {}
-
-    new object 0: # (7)
-    move: var arr (6) = # (7)
-
-
-[3] for(; a <= b; a++){
+[2] for(; a <= b; a++){
 
     begin scope
 
@@ -48,32 +45,32 @@ begin function
         end if ret values 0
 
 
-[4] arr[] = a
+[3] arr[] = a
 
         begin scope
           begin call method
             move: # (7) = param a (2)
-            move: # (8) = var arr (6)
-            move: # (9) = const string "__setempty" (-6)
+            move: # (8) = param arr (4)
+            move: # (9) = const string "__setempty" (-7)
             move: # (10) = # (7)
           end call method: start 8, params 3, ret values 0
         end scope ret values 0
 
 
-[3] for(; a <= b; a++){
+[2] for(; a <= b; a++){
 
         param a (2) = param a (2) [operator +] const number 1 (-4)
       end loop ret values 0
     end scope ret values 0
 
 
-[6] return arr
+[5] return arr
 
-    return: var arr (6), count 1
+    return: param arr (4), count 1
   end function: var range (4), index 1
 
 
-[9] var function memory_get_usage()
+[8] var function usedBytes()
 
   begin function
     begin locals 4, stack 7
@@ -83,50 +80,248 @@ begin function
       3 _G
     end locals
 
-[11] return GC.allocatedBytes - GC.cachedBytes
+[10] return GC.allocatedBytes - GC.cachedBytes
 
-      get property: # (4) = var _E (2) [const string "GC" (-7)]
-      get property: # (4) = # (4) [const string "allocatedBytes" (-8)]
-      get property: # (5) = var _E (2) [const string "GC" (-7)]
-      get property: # (5) = # (5) [const string "cachedBytes" (-9)]
+      get property: # (4) = var _E (2) [const string "GC" (-8)]
+      get property: # (4) = # (4) [const string "allocatedBytes" (-9)]
+      get property: # (5) = var _E (2) [const string "GC" (-8)]
+      get property: # (5) = # (5) [const string "cachedBytes" (-10)]
       # (4) = # (4) [operator -] # (5)
     return: # (4), count 1
-  end function: var memory_get_usage (5), index 2
+  end function: var usedBytes (5), index 2
 
 
-[14] var start_memory = memory_get_usage()
-
-  begin call
-    move: # (8) = var memory_get_usage (5)
-    move: # (9) = const null (-1)
-  end call: start 8, params 2, ret values 1
-  move: var start_memory (6) = # (8)
-
-
-[15] var array = range(1, 100000)
-
-  begin call
-    move: # (8) = var range (4)
-    move: # (9) = const null (-1)
-    move: # (10) = const number 1 (-4)
-    move: # (11) = const number 100000 (-5)
-  end call: start 8, params 4, ret values 1
-  move: var array (7) = # (8)
-
-
-[16] printf("%d bytes\n", memory_get_usage() - start_memory)
+[13] GC.full()
 
   begin call method
-    move: # (8) = var _E (2)
-    move: # (9) = const string "printf" (-10)
-    move: # (10) = const string "%d bytes
-" (-11)
+    get property: # (11) = var _E (2) [const string "GC" (-8)]
+    move: # (12) = const string "full" (-11)
+  end call method: start 11, params 2, ret values 0
+
+
+[14] printf("==== START MEMORY USAGE ====\n")
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "==== START MEMORY USAGE ====
+" (-13)
+  end call method: start 11, params 3, ret values 0
+
+
+[15] printf("     used %3.0f Kb\n", usedBytes() / 1024)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "     used %3.0f Kb
+" (-14)
     begin call
-      move: # (11) = var memory_get_usage (5)
-      move: # (12) = const null (-1)
-    end call: start 11, params 2, ret values 1
-    # (11) = # (11) [operator -] var start_memory (6)
-  end call method: start 8, params 4, ret values 0
+      move: # (14) = var usedBytes (5)
+      move: # (15) = const null (-1)
+    end call: start 14, params 2, ret values 1
+    # (14) = # (14) [operator /] const number 1024 (-5)
+  end call method: start 11, params 4, ret values 0
+
+
+[16] printf("allocated %.0f Kb\n\n", GC.allocatedBytes / 1024)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "allocated %.0f Kb
+
+" (-15)
+    get property: # (14) = var _E (2) [const string "GC" (-8)]
+    get property: # (14) = # (14) [const string "allocatedBytes" (-9)]
+    # (14) = # (14) [operator /] const number 1024 (-5)
+  end call method: start 11, params 4, ret values 0
+
+
+[18] var start_memory_allocated = GC.allocatedBytes
+
+  get property: # (11) = var _E (2) [const string "GC" (-8)]
+  get property: var start_memory_allocated (6) = # (11) [const string "allocatedBytes" (-9)]
+
+
+[19] var start_memory = usedBytes()
+
+  begin call
+    move: # (11) = var usedBytes (5)
+    move: # (12) = const null (-1)
+  end call: start 11, params 2, ret values 1
+  move: var start_memory (7) = # (11)
+
+
+[21] var values = 1024*1024
+
+  move: var values (8) = const number 1.04858e+006 (-6)
+
+
+[22] var test = range(1, values, [])
+
+  begin call
+    move: # (11) = var range (4)
+    move: # (12) = const null (-1)
+    move: # (13) = const number 1 (-4)
+    move: # (14) = var values (8)
+    new array 0: # (15)
+  end call: start 11, params 5, ret values 1
+  move: var test (9) = # (11)
+
+
+[23] printf("==== ARRAY of %d values\n", values)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "==== ARRAY of %d values
+" (-16)
+    move: # (14) = var values (8)
+  end call method: start 11, params 4, ret values 0
+
+
+[24] printf("     used %3.0f Kb, per item %d bytes (approximately)\n", usedBytes() / 1024, usedBytes() / values)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "     used %3.0f Kb, per item %d bytes (approximately)
+" (-17)
+    begin call
+      move: # (14) = var usedBytes (5)
+      move: # (15) = const null (-1)
+    end call: start 14, params 2, ret values 1
+    # (14) = # (14) [operator /] const number 1024 (-5)
+    begin call
+      move: # (15) = var usedBytes (5)
+      move: # (16) = const null (-1)
+    end call: start 15, params 2, ret values 1
+    # (15) = # (15) [operator /] var values (8)
+  end call method: start 11, params 5, ret values 0
+
+
+[25] printf("allocated %.0f Kb\n\n", GC.allocatedBytes / 1024)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "allocated %.0f Kb
+
+" (-15)
+    get property: # (14) = var _E (2) [const string "GC" (-8)]
+    get property: # (14) = # (14) [const string "allocatedBytes" (-9)]
+    # (14) = # (14) [operator /] const number 1024 (-5)
+  end call method: start 11, params 4, ret values 0
+
+
+[27] test = null // reset var so the one could be garbage collected
+
+  move: var test (9) = const null (-1)
+
+
+[28] GC.full() // do not use GC.full in general, OS frees unused values automaticaly
+
+  begin call method
+    get property: # (11) = var _E (2) [const string "GC" (-8)]
+    move: # (12) = const string "full" (-11)
+  end call method: start 11, params 2, ret values 0
+
+
+[29] printf("==== FREE UNUSED MEMORY ====\n")
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "==== FREE UNUSED MEMORY ====
+" (-18)
+  end call method: start 11, params 3, ret values 0
+
+
+[30] printf("     used %3.0f Kb\n", usedBytes() / 1024)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "     used %3.0f Kb
+" (-14)
+    begin call
+      move: # (14) = var usedBytes (5)
+      move: # (15) = const null (-1)
+    end call: start 14, params 2, ret values 1
+    # (14) = # (14) [operator /] const number 1024 (-5)
+  end call method: start 11, params 4, ret values 0
+
+
+[31] printf("allocated %.0f Kb\n\n", GC.allocatedBytes / 1024)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "allocated %.0f Kb
+
+" (-15)
+    get property: # (14) = var _E (2) [const string "GC" (-8)]
+    get property: # (14) = # (14) [const string "allocatedBytes" (-9)]
+    # (14) = # (14) [operator /] const number 1024 (-5)
+  end call method: start 11, params 4, ret values 0
+
+
+[33] var test = range(1, values, {})
+
+  begin call
+    move: # (11) = var range (4)
+    move: # (12) = const null (-1)
+    move: # (13) = const number 1 (-4)
+    move: # (14) = var values (8)
+    new object 0: # (15)
+  end call: start 11, params 5, ret values 1
+  move: var test (10) = # (11)
+
+
+[34] printf("==== OBJECT of %d values\n", values)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "==== OBJECT of %d values
+" (-19)
+    move: # (14) = var values (8)
+  end call method: start 11, params 4, ret values 0
+
+
+[35] printf("     used %3.0f Kb, per item %d bytes (approximately)\n", usedBytes() / 1024, usedBytes() / values)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "     used %3.0f Kb, per item %d bytes (approximately)
+" (-17)
+    begin call
+      move: # (14) = var usedBytes (5)
+      move: # (15) = const null (-1)
+    end call: start 14, params 2, ret values 1
+    # (14) = # (14) [operator /] const number 1024 (-5)
+    begin call
+      move: # (15) = var usedBytes (5)
+      move: # (16) = const null (-1)
+    end call: start 15, params 2, ret values 1
+    # (15) = # (15) [operator /] var values (8)
+  end call method: start 11, params 5, ret values 0
+
+
+[36] printf("allocated %.0f Kb\n\n", GC.allocatedBytes / 1024)
+
+  begin call method
+    move: # (11) = var _E (2)
+    move: # (12) = const string "printf" (-12)
+    move: # (13) = const string "allocated %.0f Kb
+
+" (-15)
+    get property: # (14) = var _E (2) [const string "GC" (-8)]
+    get property: # (14) = # (14) [const string "allocatedBytes" (-9)]
+    # (14) = # (14) [operator /] const number 1024 (-5)
+  end call method: start 11, params 4, ret values 0
 
   return: var _E (2), count 1
-end function: <<->> (0), index 0
+end function: {main} (0), index 0

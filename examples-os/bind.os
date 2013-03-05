@@ -12,7 +12,7 @@ print "t.i: "..t.i
 print "t.j: "..t.j
 
 var t2 = TestClass(2, 0.5)
-t2.i = t2.i + t.j
+t2.j = t2.j + t.j
 print "t2"
 t2.print()
 

@@ -1,5 +1,5 @@
 
-[FILE] scripts/test_fannkuch.os
+[FILE] scripts\test_fannkuch.os
 [1] print arg
 
 begin function
@@ -56,7 +56,7 @@ begin function
 [5] var i
 
 
-[6] for(i=1; i<=n; i++) p[i], q[i], s[i] = i, i, i
+[6] for(i=1; i<=n; i++) p[i] = q[i] = s[i] = i
 
     begin scope
       move: var i (11) = const number 1 (-4)
@@ -74,12 +74,9 @@ begin function
           end then
         end if ret values 0
 
-        move: # (21) = var i (11)
-        move: # (22) = var i (11)
-        move: # (23) = var i (11)
-        set property: var s (7) [var i (11)] = # (23)
-        set property: var q (6) [var i (11)] = # (22)
-        set property: var p (5) [var i (11)] = # (21)
+        set property: var s (7) [var i (11)] = var i (11)
+        set property: var q (6) [var i (11)] = var i (11)
+        set property: var p (5) [var i (11)] = var i (11)
 
         var i (11) = var i (11) [operator +] const number 1 (-4)
       end loop ret values 0
@@ -501,4 +498,4 @@ begin function
   end call method: start 9, params 4, ret values 0
 
   return: var _E (2), count 1
-end function: <<->> (0), index 0
+end function: {main} (0), index 0
