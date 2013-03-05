@@ -5,15 +5,16 @@ project(${target})
 
 list(APPEND SOURCES os.cpp)
 list(APPEND SOURCES ./../../source/objectscript.cpp)
-list(APPEND SOURCES ./../../source/ext-curl/oscurl.cpp)
-
-list(APPEND HEADERS ./../../source/ext-curl/oscurl.h)
 
 find_package(CURL QUIET)
 if(CURL_FOUND)
     include_directories(${CURL_INCLUDE_DIR})
+	list(APPEND SOURCES ./../../source/ext-curl/os-curl.cpp)
+	list(APPEND HEADERS ./../../source/ext-curl/os-curl.h)
 else()
-    message(FATAL_ERROR "[ ERROR ]: Could not find cURL")
+    message(STATUS "[ WARNING ]: Could not find cURL")
+	add_definitions( -DOS_CURL_DISABLED )
+	add_definitions( -DOS_SQLITE3_DISABLED )
 endif()
 
 if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")

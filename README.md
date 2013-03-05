@@ -13,7 +13,7 @@ Compile and Install using Linux
 	make 
 	make install
 	
-The result files (os, os-fcgi) will be located inside of bin folder.
+The result files (os, oscript) will be located inside of bin folder.
 
 Compile using Microsoft Visual Studio
 ===================

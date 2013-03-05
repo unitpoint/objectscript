@@ -5,8 +5,14 @@
 
 #include "../../source/objectscript.h"
 #include "../../source/os-binder.h"
+
+#ifndef OS_CURL_DISABLED
 #include "../../source/ext-curl/os-curl.h"
+#endif
+
+#ifndef OS_SQLITE3_DISABLED
 #include "../../source/ext-sqlite3/os-sqlite3.h"
+#endif
 
 using namespace ObjectScript;
 
@@ -93,8 +99,13 @@ int main(int argc, char *argv[])
 	OS * os = OS::create();
 #endif
 	
+#ifndef OS_CURL_DISABLED
 	initCurlLibrary(os);
+#endif
+
+#ifndef OS_SQLITE3_DISABLED
 	initSqlite3Library(os);
+#endif
 
 	// save allocated memory at start point
 	int start_mem_usage = os->getAllocatedBytes();
