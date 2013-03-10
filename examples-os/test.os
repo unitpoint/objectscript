@@ -1,4 +1,4 @@
-print { 
+﻿print { 
 	dirname = path.dirname(__FILE__)
 	basename = path.basename(__FILE__)
 	extname = path.extname(__FILE__)
@@ -6,10 +6,10 @@ print {
 }
 
 ;{
-var a = 6
-var b = 1
-var c = !!(a & b)
-print c
+	var a = 6
+	var b = 1
+	var c = !!(a & b)
+	print c
 }
 
 echo("file: "__FILE__", line: "__LINE__"\n")
@@ -519,13 +519,33 @@ if("Curl" in _G){
 	print "Curl library is not enabled"
 }
 
-print "Test sqlite database"
-var conn = SqliteConnection(path.resolve("test.db"))
-var stmt = conn.query("select * from session_log where user_id > :user_id", {
-	user_id = 2
-})
-for(var i, row in stmt){
-	print row
+;{
+	print "Test sqlite database"
+	var conn = SqliteConnection(path.resolve("test.db"))
+	var stmt = conn.query("select * from session_log where user_id > :user_id", {
+		user_id = 2
+	})
+	for(var i, row in stmt){
+		print row
+	}
 }
+
+;{
+	print "Test RegExp"
+	
+	print RegExp("/(\d+)-(\d+)/").replace("xyz-12-1977-abc", "$2-$1")
+	print RegExp("/(\d+)-(\d+)/").replace("xyz-12-1977-abc", {|m, str| m[2].."-"..m[1] })
+
+	print "xyz-12-1977-abc".replace(RegExp("/(\d+)-(\d+)/"), "$2-$1")
+	print "xyz-12-1977-abc".replace(RegExp("/(\d+)-(\d+)/"), {|m, str| m[2].."-"..m[1] })
+
+	var r = RegExp("/(\d+)/isug")
+	print r.exec("123-456")
+	print r.test("123-456")
+
+	print RegExp("#/(?P<year>\d{4})/(?P<month>\d{2})/((?P<id>\d{1,})|(?P<permalink>.{1,}))[/]{0,1}$#")
+			.exec("/2011/10/Lorem-ipsum-dolor-it-amet-consectetur-adipisicing")
+}
+
 terminate()
 print "This text is never printed"

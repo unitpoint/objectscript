@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.2.1-dev")
+#define OS_VERSION OS_TEXT("1.3-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -2396,6 +2396,23 @@ namespace ObjectScript
 				~UserptrRefs();
 			};
 
+			struct CFuncRef
+			{
+				int cfunc_hash;
+				int cfunc_value_id;
+				CFuncRef * hash_next;
+			};
+
+			struct CFuncRefs
+			{
+				CFuncRef ** heads;
+				int head_mask;
+				int count;
+
+				CFuncRefs();
+				~CFuncRefs();
+			};
+
 			struct Values
 			{
 				GCValue ** heads;
@@ -2539,12 +2556,13 @@ namespace ObjectScript
 
 			StringRefs string_refs;
 			UserptrRefs userptr_refs;
+			CFuncRefs cfunc_refs;
 
 			GCObjectValue * check_recursion;
 			Value global_vars;
 			Value user_pool;
 			Value check_get_recursion;
-
+			
 			enum {
 				PROTOTYPE_BOOL,
 				PROTOTYPE_NUMBER,
@@ -2793,6 +2811,11 @@ namespace ObjectScript
 			void unregisterUserptrRef(UserptrRef*);
 			void unregisterUserptrRef(void*, int);
 			void deleteUserptrRefs();
+
+			void registerCFuncRef(CFuncRef*);
+			void unregisterCFuncRef(CFuncRef*);
+			void unregisterCFuncRef(OS_CFunction, void*, int);
+			void deleteCFuncRefs();
 
 			void registerValue(GCValue * val);
 			GCValue * unregisterValue(int value_id);

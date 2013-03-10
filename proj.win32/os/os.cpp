@@ -14,6 +14,10 @@
 #include "../../source/ext-sqlite3/os-sqlite3.h"
 #endif
 
+#ifndef OS_REGEXP_DISABLED
+#include "../../source/ext-regexp/os-regexp.h"
+#endif
+
 using namespace ObjectScript;
 
 static double inv_frequency = 0.0;
@@ -105,6 +109,10 @@ int main(int argc, char *argv[])
 
 #ifndef OS_SQLITE3_DISABLED
 	initSqlite3Library(os);
+#endif
+
+#ifndef OS_REGEXP_DISABLED
+	initRegExpLibrary(os);
 #endif
 
 	// save allocated memory at start point

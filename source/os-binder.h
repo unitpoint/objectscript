@@ -270,6 +270,10 @@ template <class T> struct CtypeUserClass<T*>
 	static type getArg(ObjectScript::OS * os, int offs){ return (type)os->toUserdata(CtypeId<ttype>::getInstanceId(), offs, CtypeId<ttype>::getId()); }
 	static void push(ObjectScript::OS * os, const type val)
 	{
+		if(!val){
+			os->pushNull();
+			return;
+		}
 		// pushCtypeValue(os, val);
 		os->pushUserPointer(CtypeId<ttype>::getInstanceId(), val, UserDataDestructor<ttype>::dtor);
 		os->pushStackValue();
@@ -326,33 +330,24 @@ template <class T> struct CtypeUserClass<T*>
 // namespace ObjectScript {
 
 template <class T>
-void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
+void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * list, const ObjectScript::OS::NumberDef * numbers = NULL)
 {
 	os->pushGlobals();
 	os->pushString(CtypeName<T>::getName());
 	os->pushUserdata(CtypeId<T>::getId(), 0);
 	os->setFuncs(list);
-	os->setProperty();
-}
-
-template <class T>
-void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list, ObjectScript::OS::NumberDef * numbers)
-{
-	os->pushGlobals();
-	os->pushString(CtypeName<T>::getName());
-	os->pushUserdata(CtypeId<T>::getId(), 0);
-	os->setFuncs(list);
-	os->setNumbers(numbers);
+	if(numbers) os->setNumbers(numbers);
 	os->setProperty();
 }
 
 template <class T, class Prototype>
-void registerUserClass(ObjectScript::OS * os, ObjectScript::OS::FuncDef * list)
+void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * list, const ObjectScript::OS::NumberDef * numbers = NULL)
 {
 	os->pushGlobals();
 	os->pushString(CtypeName<T>::getName());
 	os->pushUserdata(CtypeId<T>::getId(), 0);
 	os->setFuncs(list);
+	if(numbers) os->setNumbers(numbers);
 	os->pushStackValue();
 	os->getGlobal(CtypeName<Prototype>::getName());
 	os->setPrototype(CtypeId<T>::getId());

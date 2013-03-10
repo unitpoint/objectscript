@@ -65,7 +65,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
-    <IncludePath>libcurl-7.19.3-win32-ssl-msvc\include;pcrelib-8.32;$(IncludePath)</IncludePath>
+    <IncludePath>libcurl-7.19.3-win32-ssl-msvc\include;pcrelib;$(IncludePath)</IncludePath>
     <LibraryPath>libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -78,7 +78,7 @@
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\bin\</OutDir>
     <TargetName>$(ProjectName)</TargetName>
-    <IncludePath>libcurl-7.19.3-win32-ssl-msvc\include;pcrelib-8.32;$(IncludePath)</IncludePath>
+    <IncludePath>libcurl-7.19.3-win32-ssl-msvc\include;pcrelib;$(IncludePath)</IncludePath>
     <LibraryPath>libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -179,12 +179,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\ext-curl\os-curl.h" />
+    <ClInclude Include="..\..\source\ext-regexp\os-regexp.h" />
     <ClInclude Include="..\..\source\ext-sqlite3\sqlite3.h" />
+    <ClInclude Include="pcrelib\config.h" />
+    <ClInclude Include="pcrelib\pcre.h" />
+    <ClInclude Include="pcrelib\pcreposix.h" />
+    <ClInclude Include="pcrelib\pcre_internal.h" />
+    <ClInclude Include="pcrelib\ucp.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\ext-curl\os-curl.cpp" />
+    <ClCompile Include="..\..\source\ext-regexp\os-regexp.cpp" />
     <ClCompile Include="..\..\source\ext-sqlite3\os-sqlite3.cpp" />
     <ClCompile Include="..\..\source\ext-sqlite3\sqlite3.c" />
     <ClCompile Include="..\..\source\objectscript.cpp">
@@ -192,6 +199,26 @@
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NoListing</AssemblerOutput>
     </ClCompile>
     <ClCompile Include="os.cpp" />
+    <ClCompile Include="pcrelib\pcreposix.c" />
+    <ClCompile Include="pcrelib\pcre_chartables.c" />
+    <ClCompile Include="pcrelib\pcre_compile.c" />
+    <ClCompile Include="pcrelib\pcre_config.c" />
+    <ClCompile Include="pcrelib\pcre_exec.c" />
+    <ClCompile Include="pcrelib\pcre_fullinfo.c" />
+    <ClCompile Include="pcrelib\pcre_get.c" />
+    <ClCompile Include="pcrelib\pcre_globals.c" />
+    <ClCompile Include="pcrelib\pcre_info.c" />
+    <ClCompile Include="pcrelib\pcre_maketables.c" />
+    <ClCompile Include="pcrelib\pcre_newline.c" />
+    <ClCompile Include="pcrelib\pcre_ord2utf8.c" />
+    <ClCompile Include="pcrelib\pcre_refcount.c" />
+    <ClCompile Include="pcrelib\pcre_study.c" />
+    <ClCompile Include="pcrelib\pcre_tables.c" />
+    <ClCompile Include="pcrelib\pcre_try_flipped.c" />
+    <ClCompile Include="pcrelib\pcre_ucd.c" />
+    <ClCompile Include="pcrelib\pcre_valid_utf8.c" />
+    <ClCompile Include="pcrelib\pcre_version.c" />
+    <ClCompile Include="pcrelib\pcre_xclass.c" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

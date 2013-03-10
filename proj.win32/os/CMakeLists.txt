@@ -14,8 +14,10 @@ if(CURL_FOUND)
 else()
     message(STATUS "[ WARNING ]: Could not find cURL")
 	add_definitions( -DOS_CURL_DISABLED )
-	add_definitions( -DOS_SQLITE3_DISABLED )
 endif()
+
+add_definitions( -DOS_SQLITE3_DISABLED )
+add_definitions( -DOS_REGEXP_DISABLED )
 
 if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
   add_custom_target(strip_${target} ALL COMMAND ${CMAKE_STRIP} ${CMAKE_CURRENT_BINARY_DIR}/${target})

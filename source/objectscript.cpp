@@ -11387,6 +11387,117 @@ void OS::Core::deleteUserptrRefs()
 // =====================================================================
 // =====================================================================
 
+OS::Core::CFuncRefs::CFuncRefs()
+{
+	head_mask = 0;
+	heads = NULL;
+	count = 0;
+}
+OS::Core::CFuncRefs::~CFuncRefs()
+{
+	OS_ASSERT(count == 0);
+	OS_ASSERT(!heads);
+}
+
+void OS::Core::registerCFuncRef(CFuncRef * cfunc_ref)
+{
+	OS_ASSERT(!cfunc_ref->hash_next);
+	if((cfunc_refs.count>>HASH_GROW_SHIFT) >= cfunc_refs.head_mask){
+		int new_size = cfunc_refs.heads ? (cfunc_refs.head_mask+1) * 2 : 32;
+		int alloc_size = sizeof(CFuncRef*) * new_size;
+		CFuncRef ** new_heads = (CFuncRef**)malloc(alloc_size OS_DBG_FILEPOS);
+		OS_ASSERT(new_heads);
+		OS_MEMSET(new_heads, 0, alloc_size);
+
+		CFuncRef ** old_heads = cfunc_refs.heads;
+		int old_mask = cfunc_refs.head_mask;
+
+		cfunc_refs.heads = new_heads;
+		cfunc_refs.head_mask = new_size-1;
+
+		if(old_heads){
+			for(int i = 0; i <= old_mask; i++){
+				for(CFuncRef * cfunc_ref = old_heads[i], * next; cfunc_ref; cfunc_ref = next){
+					next = cfunc_ref->hash_next;
+					int slot = cfunc_ref->cfunc_hash & cfunc_refs.head_mask;
+					cfunc_ref->hash_next = cfunc_refs.heads[slot];
+					cfunc_refs.heads[slot] = cfunc_ref;
+				}
+			}
+			free(old_heads);
+		}
+	}
+
+	int slot = cfunc_ref->cfunc_hash & cfunc_refs.head_mask;
+	cfunc_ref->hash_next = cfunc_refs.heads[slot];
+	cfunc_refs.heads[slot] = cfunc_ref;
+	cfunc_refs.count++;
+}
+
+void OS::Core::unregisterCFuncRef(CFuncRef * cfunc_ref)
+{
+	int slot = cfunc_ref->cfunc_hash & cfunc_refs.head_mask;
+	CFuncRef * cur = cfunc_refs.heads[slot], * prev = NULL;
+	for(; cur; prev = cur, cur = cur->hash_next){
+		if(cur == cfunc_ref){
+			if(prev){
+				prev->hash_next = cur->hash_next;
+			}else{
+				cfunc_refs.heads[slot] = cur->hash_next;
+			}
+			OS_ASSERT(cfunc_refs.count > 0);
+			cfunc_refs.count--;
+			cur->hash_next = NULL;
+			return;
+		}
+	}
+	OS_ASSERT(false);
+}
+
+void OS::Core::unregisterCFuncRef(OS_CFunction func, void * user_param, int value_id)
+{
+	if(cfunc_refs.count > 0){
+		OS_ASSERT(cfunc_refs.heads && cfunc_refs.head_mask);
+		int hash = Utils::keyToHash(&func, sizeof(func), user_param ? &user_param : NULL, user_param ? sizeof(user_param) : 0);
+		int slot = hash & cfunc_refs.head_mask;
+		CFuncRef * cfunc_ref = cfunc_refs.heads[slot];
+		for(CFuncRef * prev = NULL; cfunc_ref; prev = cfunc_ref, cfunc_ref = cfunc_ref->hash_next){
+			if(cfunc_ref->cfunc_value_id == value_id){
+				if(!prev){
+					cfunc_refs.heads[slot] = cfunc_ref->hash_next;
+				}else{
+					prev->hash_next = cfunc_ref->hash_next;
+				}
+				free(cfunc_ref);
+				cfunc_refs.count--;
+				return;
+			}
+		}
+	}
+}
+
+void OS::Core::deleteCFuncRefs()
+{
+	if(!cfunc_refs.heads){
+		return;
+	}
+	for(int i = 0; i <= cfunc_refs.head_mask; i++){
+		while(cfunc_refs.heads[i]){
+			CFuncRef * cur = cfunc_refs.heads[i];
+			cfunc_refs.heads[i] = cur->hash_next;
+			free(cur);
+		}
+	}
+	free(cfunc_refs.heads);
+	cfunc_refs.heads = NULL;
+	cfunc_refs.head_mask = 0;
+	cfunc_refs.count = 0;
+}
+
+// =====================================================================
+// =====================================================================
+// =====================================================================
+
 OS::Core::Values::Values()
 {
 	head_mask = 0;
@@ -12626,6 +12737,7 @@ void OS::Core::shutdown()
 	}
 	deleteStringRefs();
 	deleteUserptrRefs();
+	deleteCFuncRefs();
 	if(stack_values.buf){ // it makes sense because of someone could use stack while finalizing
 		free(stack_values.buf);
 		stack_values.buf = NULL;
@@ -12819,7 +12931,11 @@ OS::String OS::resolvePath(const String& filename)
 
 		String ext = getFilenameExt(resolved_path);
 		if(ext.isEmpty() || ext == OS_EXT_COMPILED){
-			return resolvePath(getCompiledFilename(filename));
+			String new_filename = getCompiledFilename(filename);
+			if(new_filename == filename){
+				return String(this);
+			}
+			return resolvePath(new_filename);
 		}
 	}
 	return resolved_path;
@@ -14200,6 +14316,37 @@ OS::Core::GCCFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, int 
 	if(!func){
 		return NULL;
 	}
+	int hash = 0;
+	if(!num_closure_values){
+		hash = Utils::keyToHash(&func, sizeof(func), user_param ? &user_param : NULL, user_param ? sizeof(user_param) : 0);
+		if(cfunc_refs.count > 0){
+			OS_ASSERT(cfunc_refs.heads && cfunc_refs.head_mask > 0);
+			int slot = hash & cfunc_refs.head_mask;
+			CFuncRef * cfunc_ref = cfunc_refs.heads[slot];
+			for(CFuncRef * prev = NULL, * next; cfunc_ref; cfunc_ref = next){
+				next = cfunc_ref->hash_next;
+				GCCFunctionValue * cfunc_value = (GCCFunctionValue*)values.get(cfunc_ref->cfunc_value_id);
+				if(!cfunc_value){
+					if(!prev){
+						cfunc_refs.heads[slot] = next;
+					}else{
+						prev->hash_next = next;					
+					}
+					free(cfunc_ref);
+					cfunc_refs.count--;
+					continue;
+				}
+				OS_ASSERT(cfunc_value->type == OS_VALUE_TYPE_CFUNCTION);
+				OS_ASSERT(dynamic_cast<GCCFunctionValue*>(cfunc_value));
+				if(cfunc_value->func == func && cfunc_value->user_param == user_param){
+					OS_ASSERT(cfunc_ref->cfunc_hash == hash);
+					return cfunc_value;
+				}
+				prev = cfunc_ref;
+			}
+		}
+	}	
+
 	GCCFunctionValue * res = new (malloc(sizeof(GCCFunctionValue) + sizeof(Value) * num_closure_values OS_DBG_FILEPOS)) GCCFunctionValue();
 	res->prototype = prototypes[PROTOTYPE_FUNCTION];
 	// res->prototype->external_ref_count++;
@@ -14213,6 +14360,14 @@ OS::Core::GCCFunctionValue * OS::Core::newCFunctionValue(OS_CFunction func, int 
 	res->type = OS_VALUE_TYPE_CFUNCTION;
 	pop(num_closure_values);
 	registerValue(res);
+
+	if(!num_closure_values){
+		CFuncRef * cfunc_ref = (CFuncRef*)malloc(sizeof(CFuncRef) OS_DBG_FILEPOS);
+		cfunc_ref->cfunc_hash = hash;
+		cfunc_ref->cfunc_value_id = res->value_id;
+		cfunc_ref->hash_next = NULL;
+		registerCFuncRef(cfunc_ref);
+	}
 	return res;
 }
 
@@ -19525,7 +19680,9 @@ dump_object:
 		{OS_TEXT("join"), Object::join},
 		{OS_TEXT("clear"), Object::clear},
 		{OS_TEXT("__get@keys"), Object::getKeys},
+		{OS_TEXT("getKeys"), Object::getKeys},
 		{OS_TEXT("__get@values"), Object::getValues},
+		{OS_TEXT("getValues"), Object::getValues},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_OBJECT]);
@@ -19701,7 +19858,7 @@ void OS::initStringClass()
 			return 1;
 		}
 
-		static int utf8length(OS * os, int params, int, int, void*)
+		static int lengthUtf8(OS * os, int params, int, int, void*)
 		{
 			if(params < 1){
 				return 0;
@@ -19765,7 +19922,7 @@ void OS::initStringClass()
 			return 1;
 		}
 
-		static int utf8sub(OS * os, int params, int, int, void*)
+		static int subUtf8(OS * os, int params, int, int, void*)
 		{
 			int start, len;
 			OS::String str = os->toString(-params-1);
@@ -19836,6 +19993,23 @@ void OS::initStringClass()
 			OS::String subject = os->toString(-params-1);
 			int subject_len = subject.getLen();
 			if(params >= 1){
+				if(!os->isString(-params)){
+					int offs = os->getAbsoluteOffs(-params);
+					os->getGlobal(OS_TEXT("RegExp", false));
+					bool is_reg_exp = os->is(offs, -1);
+					os->pop(1);
+					if(is_reg_exp){
+						os->pushStackValue(offs);
+						os->getProperty(OS_TEXT("replace"));
+						OS_ASSERT(os->isFunction());
+						os->pushStackValue(offs); // this for function
+						os->pushString(subject);
+						if(params >= 2) os->pushStackValue(offs+1);
+						if(params >= 3) os->pushStackValue(offs+2);
+						os->call(params >= 3 ? 3 : params, 1);
+						return 1;
+					}
+				}
 				OS::String search = os->toString(-params);
 				int search_len = search.getLen();
 				if(search_len > 0 && search_len <= subject_len){
@@ -20010,16 +20184,20 @@ void OS::initStringClass()
 	FuncDef list[] = {
 		{core->strings->__cmp, String::cmp},
 		{core->strings->__len, String::length},
-		{OS_TEXT("utf8len"), String::utf8length},
+		{OS_TEXT("lenAnsi"), String::length},
+		{OS_TEXT("lenUtf8"), String::lengthUtf8},
 		{OS_TEXT("sub"), String::sub},
-		{OS_TEXT("utf8sub"), String::utf8sub},
+		{OS_TEXT("subAnsi"), String::sub},
+		{OS_TEXT("subUtf8"), String::subUtf8},
 		{OS_TEXT("find"), String::find},
 		{OS_TEXT("replace"), String::replace},
 		{OS_TEXT("trim"), String::trim},
 		{OS_TEXT("upper"), String::upper},
-		// TODO: need to implement utf8upper
+		{OS_TEXT("upperAnsi"), String::upper},
+		// TODO: need to implement upperUtf8
 		{OS_TEXT("lower"), String::lower},
-		// TODO: need to implement utf8lower
+		{OS_TEXT("lowerAnsi"), String::lower},
+		// TODO: need to implement lowerUtf8
 		{OS_TEXT("split"), String::split},
 		{}
 	};
@@ -20570,13 +20748,13 @@ void OS::initMathModule()
 			return 0;
 		}
 
-		static int getrandseed(OS * os, int params, int, int, void*)
+		static int getRandomSeed(OS * os, int params, int, int, void*)
 		{
 			os->pushNumber((OS_NUMBER)os->core->rand_seed);
 			return 1;
 		}
 
-		static int setrandseed(OS * os, int params, int, int, void*)
+		static int setRandomSeed(OS * os, int params, int, int, void*)
 		{
 			if(!params) return 0;
 			os->core->rand_seed = (OS_U32)os->toNumber(-params);
@@ -20652,8 +20830,8 @@ void OS::initMathModule()
 		def(OS_TEXT("ldexp"), Math::ldexp),
 		def(OS_TEXT("pow"), Math::pow),
 		{OS_TEXT("random"), Math::random},
-		{OS_TEXT("__get@randseed"), Math::getrandseed},
-		{OS_TEXT("__set@randseed"), Math::setrandseed},
+		{OS_TEXT("__get@randomSeed"), Math::getRandomSeed},
+		{OS_TEXT("__set@randomSeed"), Math::setRandomSeed},
 		def(OS_TEXT("fmod"), Math::fmod),
 		{OS_TEXT("modf"), Math::modf},
 		def(OS_TEXT("sqrt"), Math::sqrt),
@@ -21066,7 +21244,7 @@ void OS::initPreScript()
 		// it's ObjectScript code here
 		function Object.__get@length(){ return #this }
 		function Function.__iter(){
-			if(this === Function || @hasProperty()){
+			if(this === Function || @hasOwnProperty()){
 				return super()
 			}
 			return this
