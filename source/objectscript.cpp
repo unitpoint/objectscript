@@ -19995,7 +19995,7 @@ void OS::initStringClass()
 			if(params >= 1){
 				if(!os->isString(-params)){
 					int offs = os->getAbsoluteOffs(-params);
-					os->getGlobal(OS_TEXT("RegExp", false));
+					os->getGlobal(OS_TEXT("RegExp"), false);
 					bool is_reg_exp = os->is(offs, -1);
 					os->pop(1);
 					if(is_reg_exp){
@@ -20138,6 +20138,22 @@ void OS::initStringClass()
 			OS::String subject = os->toString(offs);
 			int subject_len = subject.getLen();
 			if(params >= 1){
+				if(!os->isString(offs+1)){
+					os->getGlobal(OS_TEXT("RegExp"), false);
+					bool is_reg_exp = os->is(offs+1, -1);
+					os->pop(1);
+					if(is_reg_exp){
+						os->pushStackValue(offs+1);
+						os->getProperty(OS_TEXT("split"));
+						OS_ASSERT(os->isFunction());
+						os->pushStackValue(offs+1); // this for function
+						os->pushString(subject);
+						if(params >= 2) os->pushStackValue(offs+2); // limit
+						if(params >= 3) os->pushStackValue(offs+3); // flags
+						os->call(params >= 3 ? 3 : params, 1);
+						return 1;
+					}
+				}
 				OS::String search = os->toString(offs+1);
 				int search_len = search.getLen();
 				if(search_len > 0 && search_len <= subject_len){

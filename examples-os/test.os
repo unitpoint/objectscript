@@ -533,6 +533,8 @@ if("Curl" in _G){
 ;{
 	print "Test RegExp"
 	
+	print RegExp.escape("/(\d+)-(\d+)/", "/")
+	
 	print RegExp("/(\d+)-(\d+)/").replace("xyz-12-1977-abc", "$2-$1")
 	print RegExp("/(\d+)-(\d+)/").replace("xyz-12-1977-abc", {|m, str| m[2].."-"..m[1] })
 
@@ -542,6 +544,8 @@ if("Curl" in _G){
 	var r = RegExp("/(\d+)/isug")
 	print r.exec("123-456")
 	print r.test("123-456")
+	
+	print "123 asfghg  76as hjasdjkah".split(RegExp("/\s+/"))
 
 	print RegExp("#/(?P<year>\d{4})/(?P<month>\d{2})/((?P<id>\d{1,})|(?P<permalink>.{1,}))[/]{0,1}$#")
 			.exec("/2011/10/Lorem-ipsum-dolor-it-amet-consectetur-adipisicing")

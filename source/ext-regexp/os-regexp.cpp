@@ -7,6 +7,10 @@
 #define REGEXP_SET_ORDER				2
 #define REGEXP_OFFSET_CAPTURE			(1<<8)
 
+#define	REGEXP_SPLIT_NO_EMPTY			(1<<0)
+#define REGEXP_SPLIT_DELIM_CAPTURE		(1<<1)
+#define REGEXP_SPLIT_OFFSET_CAPTURE		(1<<2)
+
 #define REGEXP_GLOBAL					(1<<0)
 
 namespace ObjectScript {
@@ -771,7 +775,7 @@ public:
 			return true;	
 		}
 
-		OS::String callbackReplace(int function_id, const char *subject, int *offsets, char **subpat_names, int count, const OS::String& subject_str)
+		OS::String replaceCallback(int function_id, const char *subject, int *offsets, char **subpat_names, int count, const OS::String& subject_str)
 		{
 			OS_ASSERT(cache);
 			OS * os = cache->os;
@@ -874,6 +878,8 @@ public:
 				/* Check for too many substrings condition. */
 				if (count == 0) {
 					triggerError(os, "PCRE matched, but too many substrings");
+					os->free(offsets);
+					os->free(subpat_names);
 					return false;
 					// count = size_offsets/3;
 				}
@@ -892,7 +898,7 @@ public:
 					/* If evaluating or using custom function, copy result to the buffer
 					* and clean up. */
 					if (is_callable_replace) {
-						OS::String callback_result = callbackReplace(replace_id, subject, offsets, subpat_names, count, subject_str);
+						OS::String callback_result = replaceCallback(replace_id, subject, offsets, subpat_names, count, subject_str);
 						result.append(callback_result);
 					} else { /* do regular backreference copying */
 						const char * walk = replace;
@@ -937,6 +943,8 @@ public:
 					}
 				} else {
 					if(checkExecError(count)){
+						os->free(offsets);
+						os->free(subpat_names);
 						return false;
 					}
 					OS_ASSERT(false);
@@ -957,6 +965,262 @@ public:
 			os->free(subpat_names);
 
 			os->pushString(result);
+			return true;
+		}
+
+		static OS::String escape(OS * os, const OS::String& str, const OS::String& delimiter)
+		{
+			const char * in_str = str.toChar();
+			int in_str_len = str.getLen();
+			const char * in_str_end = in_str + in_str_len;
+
+			/* Nothing to do if we got an empty string */
+			if (in_str == in_str_end) {
+				return OS::String(os);
+			}
+
+			char delim_char = '/';
+			if (delimiter.getLen() > 0) {
+				delim_char = delimiter[0];
+			}
+	
+			/* Allocate enough memory so that even if each character
+			   is quoted, we won't run out of room */
+			Core::Buffer out(os);
+			out.reserveCapacity(in_str_len);
+	
+			/* Go through the string and quote necessary characters */
+			for(const char * p = in_str; p < in_str_end; p++) {
+				char c = *p;
+				switch(c) {
+					case '.':
+					case '\\':
+					case '+':
+					case '*':
+					case '?':
+					case '[':
+					case '^':
+					case ']':
+					case '$':
+					case '(':
+					case ')':
+					case '{':
+					case '}':
+					case '=':
+					case '!':
+					case '>':
+					case '<':
+					case '|':
+					case ':':
+					case '-':
+						out.append("\\", 1);
+						out.append(&c, 1);
+						break;
+
+					case '\0':
+						out.append("\\000", 4);
+						break;
+
+					default:
+						if(c == delim_char){
+							out.append("\\", 1);
+						}
+						out.append(&c, 1);
+						break;
+				}
+			}
+			return out.toStringOS();
+		}
+
+		bool split(const OS::String& subject_str, int limit, int flags)
+		{
+			OS_ASSERT(cache);
+			OS * os = cache->os;
+			pcre_extra		*extra = NULL;		/* Holds results of studying */
+			// pcre			*re_bump = NULL;	/* Regex instance for empty matches */
+			// pcre_extra		*extra_bump = NULL;	/* Almost dummy */
+			pcre_extra		 extra_data;		/* Used locally for exec options */
+			int				*offsets;			/* Array of subpattern offsets */
+			int				 size_offsets;		/* Size of the offsets array */
+			int				 exoptions = 0;		/* Execution options */
+			int				 count = 0;			/* Count of matched subpatterns */
+			int				 start_offset;		/* Where the new search starts */
+			int				 next_offset;		/* End of the last delimiter match + 1 */
+			int				 g_notempty = 0;	/* If the match should not be empty */
+			const char		*last_match;		/* Location of last match */
+			int				 rc;
+			int				 no_empty;			/* If NO_EMPTY flag is set */
+			int				 delim_capture; 	/* If delimiters should be captured */
+			int				 offset_capture;	/* If offsets should be captured */
+
+			no_empty = flags & REGEXP_SPLIT_NO_EMPTY;
+			delim_capture = flags & REGEXP_SPLIT_DELIM_CAPTURE;
+			offset_capture = flags & REGEXP_SPLIT_OFFSET_CAPTURE;
+
+			if (limit == 0) {
+				limit = -1;
+			}
+
+			if (extra == NULL) {
+				extra_data.flags = PCRE_EXTRA_MATCH_LIMIT | PCRE_EXTRA_MATCH_LIMIT_RECURSION;
+				extra = &extra_data;
+			}
+
+			os->getGlobal("RegExp");
+			extra->match_limit			 = (os->getProperty(-1, "backtrackLimit"), os->popInt());
+			extra->match_limit_recursion = (os->getProperty(-1, "recursionLimit"), os->popInt());
+			os->pop(); // RegExp
+
+			/* Calculate the size of the offsets array, and allocate memory for it. */
+			rc = pcre_fullinfo(cache->re, extra, PCRE_INFO_CAPTURECOUNT, &size_offsets);
+			if (rc < 0) {
+				triggerError(os, OS::String::format(os, "PCRE internal pcre_fullinfo() error %d", rc));
+				return false;
+			}
+			size_offsets = (size_offsets + 1) * 3;
+			offsets = (int *)os->malloc(size_offsets * sizeof(int) OS_DBG_FILEPOS);
+
+			/* Start at the beginning of the string */
+			start_offset = 0;
+			next_offset = 0;
+			last_match = subject_str.toChar();
+
+			// os->pushValueById(return_id);
+			os->newObject();
+
+			RegExpCache * bump_cache = NULL;
+			struct AutoReleaseCache {
+				RegExpCache *& cache;
+				AutoReleaseCache(RegExpCache *& p_cache): cache(p_cache){}
+				~AutoReleaseCache(){ if(cache) cache->release(); }
+			} auto_release_cache(bump_cache);
+
+			const char * subject = subject_str.toChar();
+			int subject_len = subject_str.getLen();
+
+			/* Get next piece if no limit or limit not yet reached and something matched*/
+			while ((limit == -1 || limit > 1)) {
+				count = pcre_exec(cache->re, extra, subject,
+					subject_len, start_offset,
+					exoptions|g_notempty, offsets, size_offsets);
+
+				/* the string was already proved to be valid UTF-8 */
+				exoptions |= PCRE_NO_UTF8_CHECK;
+
+				/* Check for too many substrings condition. */
+				if (count == 0) {
+					triggerError(os, "PCRE matched, but too many substrings");
+					os->pop();
+					os->free(offsets);
+					return false;
+					// count = size_offsets/3;
+				}
+
+				/* If something matched */
+				if (count > 0) {
+					if (!no_empty || &subject[offsets[0]] != last_match) {
+
+						if (offset_capture) {
+							/* Add (match, offset) pair to the return value */
+							addOffsetPair(last_match, &subject[offsets[0]]-last_match, next_offset, NULL);
+						} else {
+							/* Add the piece to the return value */
+							addNextString(last_match, &subject[offsets[0]]-last_match);
+						}
+
+						/* One less left to do */
+						if (limit != -1)
+							limit--;
+					}
+
+					last_match = &subject[offsets[1]];
+					next_offset = offsets[1];
+
+					if (delim_capture) {
+						int i, match_len;
+						for (i = 1; i < count; i++) {
+							match_len = offsets[(i<<1)+1] - offsets[i<<1];
+							/* If we have matched a delimiter */
+							if (!no_empty || match_len > 0) {
+								if (offset_capture) {
+									addOffsetPair(&subject[offsets[i<<1]], match_len, offsets[i<<1], NULL);
+								} else {
+									addNextString(&subject[offsets[i<<1]], match_len);
+								}
+							}
+						}
+					}
+				} else if (count == PCRE_ERROR_NOMATCH) {
+					/* If we previously set PCRE_NOTEMPTY after a null match,
+					this is not necessarily the end. We need to advance
+					the start offset, and continue. Fudge the offset values
+					to achieve this, unless we're already at the end of the string. */
+					if (g_notempty != 0 && start_offset < subject_len) {
+						if (cache->compile_options & PCRE_UTF8) {
+							if (!bump_cache) {
+								bump_cache = getRegExpCache(os, OS::String(os, "/./us"));
+								if(!bump_cache){
+									os->pop();
+									os->free(offsets);
+									return false;
+								}
+								bump_cache->retain();
+							}
+							count = pcre_exec(bump_cache->re, bump_cache->extra, subject,
+								subject_len, start_offset,
+								exoptions, offsets, size_offsets);
+							if (count < 1) {
+								if(checkExecError(count)){
+									os->pop();
+									os->free(offsets);
+									return false;
+								}
+								OS_ASSERT(false);
+								break;
+							}
+						} else {
+							offsets[0] = start_offset;
+							offsets[1] = start_offset + 1;
+						}
+					} else
+						break;
+				} else {
+					if(checkExecError(count)){
+						os->free(offsets);
+						return false;
+					}
+					OS_ASSERT(false);
+					break;
+				}
+
+				/* If we have matched an empty string, mimic what Perl's /g options does.
+				This turns out to be rather cunning. First we set PCRE_NOTEMPTY and try
+				the match again at the same point. If this fails (picked up above) we
+				advance to the next character. */
+				g_notempty = (offsets[1] == offsets[0])? PCRE_NOTEMPTY | PCRE_ANCHORED : 0;
+
+				/* Advance to the position right after the last full match */
+				start_offset = offsets[1];
+			}
+
+
+			start_offset = last_match - subject; /* the offset might have been incremented, but without further successful matches */
+
+			if (!no_empty || start_offset < subject_len)
+			{
+				if (offset_capture) {
+					/* Add the last (match, offset) pair to the return value */
+					addOffsetPair(&subject[start_offset], subject_len - start_offset, start_offset, NULL);
+				} else {
+					/* Add the last piece to the return value */
+					addNextString(last_match, subject + subject_len - last_match);
+				}
+			}
+
+
+			/* Clean up */
+			os->free(offsets);
+			
 			return true;
 		}
 
@@ -1088,6 +1352,33 @@ void RegExpOS::RegExp::initLibrary(OS * os)
 			int replace_count = 0;
 			return self->replace(subject, replace_id, limit, replace_count) ? 1 : 0;
 		}
+
+		static int escape(OS * os, int params, int, int, void * user_param)
+		{
+			if(params < 1){
+				triggerError(os, "argument required");
+				return 0;
+			}
+			OS::String str = os->toString(-params+0);
+			OS::String delimiter = params >= 2 ? os->toString(-params+1) : OS::String(os);
+			OS::String escaped = RegExp::escape(os, str, delimiter);
+			os->pushString(escaped);
+			return 1;
+		}
+
+		static int split(OS * os, int params, int, int, void * user_param)
+		{
+			OS_GET_SELF(RegExp*);
+
+			if(params < 1){
+				triggerError(os, "argument required");
+				return 0;
+			}
+			OS::String subject = os->toString(-params+0);
+			int limit = params >= 2 ? os->toInt(-params+1, -1) : -1;
+			int flags = params >= 3 ? os->toInt(-params+2, 0) : 0;
+			return self->split(subject, limit, flags) ? 1 : 0;
+		}
 	};
 
 	OS::FuncDef funcs[] = {
@@ -1095,6 +1386,8 @@ void RegExpOS::RegExp::initLibrary(OS * os)
 		{OS_TEXT("exec"), Lib::exec},
 		{OS_TEXT("test"), Lib::test},
 		{OS_TEXT("replace"), Lib::replace},
+		{OS_TEXT("escape"), Lib::escape},
+		{OS_TEXT("split"), Lib::split},
 		{}
 	};
 
@@ -1102,6 +1395,9 @@ void RegExpOS::RegExp::initLibrary(OS * os)
 		{OS_TEXT("PATTERN_ORDER"), REGEXP_PATTERN_ORDER},
 		{OS_TEXT("SET_ORDER"), REGEXP_SET_ORDER},
 		{OS_TEXT("OFFSET_CAPTURE"), REGEXP_OFFSET_CAPTURE},
+		{OS_TEXT("SPLIT_NO_EMPTY"), REGEXP_SPLIT_NO_EMPTY},
+		{OS_TEXT("SPLIT_DELIM_CAPTURE"), REGEXP_SPLIT_DELIM_CAPTURE},
+		{OS_TEXT("SPLIT_OFFSET_CAPTURE"), REGEXP_SPLIT_OFFSET_CAPTURE},
 		{OS_TEXT("backtrackLimit"), 1000000},
 		{OS_TEXT("recursionLimit"), 100000},
 		{}
