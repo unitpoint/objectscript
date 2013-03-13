@@ -556,7 +556,7 @@ if("Curl" in _G){
 	var abc = {xyz = 123} // local variable
 	var2 = "test" // environment (global) variable
 	print "inject \${abc} ${abc.xyz + 7} ${var2}!"
-	print 'inject ${abc} ${abc.xyz + 7} ${var2}!'
+	print 'inject ${abc} ${abc.xyz + 7} ${var2} \'test\' c:\\ \n \t'
 }
 
 ;{

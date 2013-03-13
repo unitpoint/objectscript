@@ -1918,45 +1918,52 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 						addToken(String(allocator, OS_TEXT("(")), BEGIN_BRACKET_BLOCK, cur_line, (int)(str - 2 - line_start) OS_DBG_FILEPOS);
 						break;
 					}else if(c == OS_TEXT('\\')){
-						switch(*str){
-						case OS_TEXT('r'): c = OS_TEXT('\r'); str++; break;
-						case OS_TEXT('n'): c = OS_TEXT('\n'); str++; break;
-						case OS_TEXT('t'): c = OS_TEXT('\t'); str++; break;
-						case OS_TEXT('\"'): c = OS_TEXT('\"'); str++; break;
-						case OS_TEXT('\''): c = OS_TEXT('\''); str++; break;
-						case OS_TEXT('\\'): c = OS_TEXT('\\'); str++; break;
-						case OS_TEXT('$'): c = OS_TEXT('$'); str++; break;
-							//case OS_TEXT('x'): 
-						default:
-							{
-								OS_INT val;
-								int max_val = sizeof(OS_CHAR) == 2 ? 0xFFFF : 0xFF;
-
-								if(*str == OS_TEXT('x') || *str == OS_TEXT('X')){ // parse hex
-									str++;
-									if(!parseSimpleHex(str, val)){
-										cur_pos = (int)(str - line_start);
-										error = ERROR_CONST_STRING_ESCAPE_CHAR;
-										return false;
-									}
-								}else if(*str == OS_TEXT('0')){ // octal
-									if(!parseSimpleOctal(str, val)){
-										cur_pos = (int)(str - line_start);
-										error = ERROR_CONST_STRING_ESCAPE_CHAR;
-										return false;
-									}
-								}else if(*str >= OS_TEXT('1') && *str <= OS_TEXT('9')){
-									if(!parseSimpleDec(str, val)){
-										cur_pos = (int)(str - line_start);
-										error = ERROR_CONST_STRING_ESCAPE_CHAR;
-										return false;
-									}
-								}else{
-									val = c;
-								}
-								c = (OS_CHAR)(val <= max_val ? val : max_val);
+						if(string_type == SIMPLE){
+							switch(*str){
+							case OS_TEXT('\''): c = OS_TEXT('\''); str++; break;
+							case OS_TEXT('\\'): c = OS_TEXT('\\'); str++; break;
 							}
-							break;
+						}else{
+							switch(*str){
+							case OS_TEXT('r'): c = OS_TEXT('\r'); str++; break;
+							case OS_TEXT('n'): c = OS_TEXT('\n'); str++; break;
+							case OS_TEXT('t'): c = OS_TEXT('\t'); str++; break;
+							case OS_TEXT('\"'): c = OS_TEXT('\"'); str++; break;
+							case OS_TEXT('\''): c = OS_TEXT('\''); str++; break;
+							case OS_TEXT('\\'): c = OS_TEXT('\\'); str++; break;
+							case OS_TEXT('$'): c = OS_TEXT('$'); str++; break;
+								//case OS_TEXT('x'): 
+							default:
+								{
+									OS_INT val;
+									int max_val = sizeof(OS_CHAR) == 2 ? 0xFFFF : 0xFF;
+
+									if(*str == OS_TEXT('x') || *str == OS_TEXT('X')){ // parse hex
+										str++;
+										if(!parseSimpleHex(str, val)){
+											cur_pos = (int)(str - line_start);
+											error = ERROR_CONST_STRING_ESCAPE_CHAR;
+											return false;
+										}
+									}else if(*str == OS_TEXT('0')){ // octal
+										if(!parseSimpleOctal(str, val)){
+											cur_pos = (int)(str - line_start);
+											error = ERROR_CONST_STRING_ESCAPE_CHAR;
+											return false;
+										}
+									}else if(*str >= OS_TEXT('1') && *str <= OS_TEXT('9')){
+										if(!parseSimpleDec(str, val)){
+											cur_pos = (int)(str - line_start);
+											error = ERROR_CONST_STRING_ESCAPE_CHAR;
+											return false;
+										}
+									}else{
+										val = c;
+									}
+									c = (OS_CHAR)(val <= max_val ? val : max_val);
+								}
+								break;
+							}
 						}
 					}
 					buf.append(c);
