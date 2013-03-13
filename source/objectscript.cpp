@@ -20181,7 +20181,7 @@ void OS::initStringClass()
 			if(params >= 1){
 				if(!os->isString(-params)){
 					int offs = os->getAbsoluteOffs(-params);
-					os->getGlobal(OS_TEXT("RegExp"), false);
+					os->getGlobal(OS_TEXT("Regexp"), false);
 					bool is_reg_exp = os->is(offs, -1);
 					os->pop(1);
 					if(is_reg_exp){
@@ -20325,7 +20325,7 @@ void OS::initStringClass()
 			int subject_len = subject.getLen();
 			if(params >= 1){
 				if(!os->isString(offs+1)){
-					os->getGlobal(OS_TEXT("RegExp"), false);
+					os->getGlobal(OS_TEXT("Regexp"), false);
 					bool is_reg_exp = os->is(offs+1, -1);
 					os->pop(1);
 					if(is_reg_exp){

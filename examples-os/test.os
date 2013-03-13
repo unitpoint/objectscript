@@ -531,23 +531,23 @@ if("Curl" in _G){
 }
 
 ;{
-	print "Test RegExp"
+	print "Test Regexp"
 	
-	print RegExp.escape("/(\d+)-(\d+)/", "/")
+	print Regexp.escape("/(\d+)-(\d+)/", "/")
 	
-	print RegExp("/(\d+)-(\d+)/").replace("xyz-12-1977-abc", "$2-$1")
-	print RegExp("/(\d+)-(\d+)/").replace("xyz-12-1977-abc", {|m, str| m[2].."-"..m[1] })
+	print Regexp("/(\d+)-(\d+)/").replace("xyz-12-1977-abc", "$2-$1")
+	print Regexp("/(\d+)-(\d+)/").replace("xyz-12-1977-abc", {|m, str| m[2].."-"..m[1] })
 
-	print "xyz-12-1977-abc".replace(RegExp("/(\d+)-(\d+)/"), "$2-$1")
-	print "xyz-12-1977-abc".replace(RegExp("/(\d+)-(\d+)/"), {|m, str| m[2].."-"..m[1] })
+	print "xyz-12-1977-abc".replace(Regexp("/(\d+)-(\d+)/"), "$2-$1")
+	print "xyz-12-1977-abc".replace(Regexp("/(\d+)-(\d+)/"), {|m, str| m[2].."-"..m[1] })
 
-	var r = RegExp("/(\d+)/isug")
+	var r = Regexp("/(\d+)/isug")
 	print r.exec("123-456")
 	print r.test("123-456")
 	
-	print "123 asfghg  76as hjasdjkah".split(RegExp("/\s+/"))
+	print "123 asfghg  76as hjasdjkah".split(Regexp("/\s+/"))
 
-	print RegExp("#/(?P<year>\d{4})/(?P<month>\d{2})/((?P<id>\d{1,})|(?P<permalink>.{1,}))[/]{0,1}$#")
+	print Regexp("#/(?P<year>\d{4})/(?P<month>\d{2})/((?P<id>\d{1,})|(?P<permalink>.{1,}))[/]{0,1}$#")
 			.exec("/2011/10/Lorem-ipsum-dolor-it-amet-consectetur-adipisicing")
 }
 

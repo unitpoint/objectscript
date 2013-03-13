@@ -15,13 +15,13 @@
 
 namespace ObjectScript {
 
-class RegExpOS: public OS
+class RegexpOS: public OS
 {
 public:
 
 	static void triggerError(OS * os, const OS::String& msg)
 	{
-		os->getGlobal(OS_TEXT("RegExpException"));
+		os->getGlobal(OS_TEXT("RegexpException"));
 		os->pushGlobals();
 		os->pushString(msg);
 		os->call(1, 1);
@@ -33,7 +33,7 @@ public:
 		triggerError(os, OS::String(os, msg));
 	}
 
-	struct RegExpCache
+	struct RegexpCache
 	{
 		OS * os;
 		pcre * re;
@@ -46,7 +46,7 @@ public:
 		char *locale;
 		unsigned const char *tables;
 #endif
-		RegExpCache(OS * p_os)
+		RegexpCache(OS * p_os)
 		{
 			os = p_os;
 			re = NULL;
@@ -56,7 +56,7 @@ public:
 			ref_count = 1;
 		}
 
-		~RegExpCache()
+		~RegexpCache()
 		{
 			pcre_free(re);
 			if (extra) pcre_free(extra);
@@ -66,7 +66,7 @@ public:
 #endif
 		}
 
-		RegExpCache * retain()
+		RegexpCache * retain()
 		{
 			ref_count++;
 			return this;
@@ -77,7 +77,7 @@ public:
 			if(--ref_count <= 0){
 				OS_ASSERT(ref_count == 0);
 				OS * os = this->os;
-				this->~RegExpCache();
+				this->~RegexpCache();
 				os->free(this);
 			}		
 		}
@@ -85,19 +85,19 @@ public:
 		static void initLibrary(OS * os);
 	};
 
-	static RegExpCache * toRegExpCache(OS*);
+	static RegexpCache * toRegexpCache(OS*);
 
-	struct RegExp
+	struct Regexp
 	{
-		RegExpCache * cache;
+		RegexpCache * cache;
 		
-		RegExp(RegExpCache * p_cache)
+		Regexp(RegexpCache * p_cache)
 		{
 			OS_ASSERT(p_cache);
 			cache = p_cache->retain();
 		}
 
-		~RegExp()
+		~Regexp()
 		{
 			OS_ASSERT(cache);
 			cache->release();
@@ -230,7 +230,7 @@ public:
 			return false;
 		}
 
-		static RegExpCache * getRegExpCache(OS * os, const Core::String& regex)
+		static RegexpCache * getRegexpCache(OS * os, const Core::String& regex)
 		{
 			pcre				*re = NULL;
 			pcre_extra			*extra;
@@ -254,17 +254,17 @@ public:
 #if 1
 			/* Try to lookup the cached regex entry, and if successful, just pass
 			back the compiled pattern, otherwise go on and compile it. */
-			os->getGlobal("RegExp");
+			os->getGlobal("Regexp");
 			os->getProperty("cache", false);
 			if(os->isNull()){
 				os->newObject();
-				os->getGlobal("RegExp");
+				os->getGlobal("Regexp");
 				os->pushStackValue(-2);
 				os->setProperty("cache", false);
 			}
 			int cache_id = os->getValueId();
 			os->getProperty(regex, false);
-			RegExpCache * cache = toRegExpCache(os);
+			RegexpCache * cache = toRegexpCache(os);
 			if(cache){
 				/*
 				* We use a quick pcre_fullinfo() check to see whether cache is corrupted, and if it
@@ -451,7 +451,7 @@ public:
 			}
 
 			/* Store the compiled pattern and extra info in the cache. */
-			cache = new (os->malloc(sizeof(*cache) OS_DBG_FILEPOS)) RegExpCache(os); 
+			cache = new (os->malloc(sizeof(*cache) OS_DBG_FILEPOS)) RegexpCache(os); 
 			cache->re = re;
 			cache->extra = extra;
 			cache->regexp_options = regexp_options;
@@ -488,7 +488,7 @@ public:
 			int				 subpats_order;		/* Order of subpattern matches */
 			int				 offset_capture;    /* Capture match offsets: yes/no */
 
-			/* RegExpCache * pce = getRegExpCache(subject);
+			/* RegexpCache * pce = getRegexpCache(subject);
 			if(!pce){
 				return false;
 			} */
@@ -529,10 +529,10 @@ public:
 				extra = &extra_data;
 			}
 
-			os->getGlobal("RegExp");
+			os->getGlobal("Regexp");
 			extra->match_limit			 = (os->getProperty(-1, "backtrackLimit"), os->popInt());
 			extra->match_limit_recursion = (os->getProperty(-1, "recursionLimit"), os->popInt());
-			os->pop(); // RegExp
+			os->pop(); // Regexp
 
 			/* Calculate the size of the offsets array, and allocate memory for it. */
 			rc = pcre_fullinfo(cache->re, extra, PCRE_INFO_CAPTURECOUNT, &num_subpats);
@@ -821,10 +821,10 @@ public:
 				extra = &extra_data;
 			}
 
-			os->getGlobal("RegExp");
+			os->getGlobal("Regexp");
 			extra->match_limit			 = (os->getProperty(-1, "backtrackLimit"), os->popInt());
 			extra->match_limit_recursion = (os->getProperty(-1, "recursionLimit"), os->popInt());
-			os->pop(); // RegExp
+			os->pop(); // Regexp
 
 			os->pushValueById(replace_id);
 			bool is_callable_replace = os->isFunction();
@@ -1066,10 +1066,10 @@ public:
 				extra = &extra_data;
 			}
 
-			os->getGlobal("RegExp");
+			os->getGlobal("Regexp");
 			extra->match_limit			 = (os->getProperty(-1, "backtrackLimit"), os->popInt());
 			extra->match_limit_recursion = (os->getProperty(-1, "recursionLimit"), os->popInt());
-			os->pop(); // RegExp
+			os->pop(); // Regexp
 
 			/* Calculate the size of the offsets array, and allocate memory for it. */
 			rc = pcre_fullinfo(cache->re, extra, PCRE_INFO_CAPTURECOUNT, &size_offsets);
@@ -1088,10 +1088,10 @@ public:
 			// os->pushValueById(return_id);
 			os->newObject();
 
-			RegExpCache * bump_cache = NULL;
+			RegexpCache * bump_cache = NULL;
 			struct AutoReleaseCache {
-				RegExpCache *& cache;
-				AutoReleaseCache(RegExpCache *& p_cache): cache(p_cache){}
+				RegexpCache *& cache;
+				AutoReleaseCache(RegexpCache *& p_cache): cache(p_cache){}
 				~AutoReleaseCache(){ if(cache) cache->release(); }
 			} auto_release_cache(bump_cache);
 
@@ -1158,7 +1158,7 @@ public:
 					if (g_notempty != 0 && start_offset < subject_len) {
 						if (cache->compile_options & PCRE_UTF8) {
 							if (!bump_cache) {
-								bump_cache = getRegExpCache(os, OS::String(os, "/./us"));
+								bump_cache = getRegexpCache(os, OS::String(os, "/./us"));
 								if(!bump_cache){
 									os->pop();
 									os->free(offsets);
@@ -1232,51 +1232,51 @@ public:
 	{
 #define OS_AUTO_TEXT(exp) OS_TEXT(#exp)
 		os->eval(OS_AUTO_TEXT(
-			RegExpException = extends Exception {
+			RegexpException = extends Exception {
 			}
 		));
 	}
 };
 
-template <> struct CtypeName<RegExpOS::RegExp>{ static const OS_CHAR * getName(){ return OS_TEXT("RegExp"); } };
-template <> struct CtypeValue<RegExpOS::RegExp*>: public CtypeUserClass<RegExpOS::RegExp*>{};
-template <> struct UserDataDestructor<RegExpOS::RegExp>
+template <> struct CtypeName<RegexpOS::Regexp>{ static const OS_CHAR * getName(){ return OS_TEXT("Regexp"); } };
+template <> struct CtypeValue<RegexpOS::Regexp*>: public CtypeUserClass<RegexpOS::Regexp*>{};
+template <> struct UserDataDestructor<RegexpOS::Regexp>
 {
 	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
 	{
-		OS_ASSERT(data && dynamic_cast<RegExpOS::RegExp*>((RegExpOS::RegExp*)data));
-		RegExpOS::RegExp * obj = (RegExpOS::RegExp*)data;
-		obj->~RegExp();
+		OS_ASSERT(data && dynamic_cast<RegexpOS::Regexp*>((RegexpOS::Regexp*)data));
+		RegexpOS::Regexp * obj = (RegexpOS::Regexp*)data;
+		obj->~Regexp();
 		os->free(obj);
 	}
 };
 
-template <> struct CtypeName<RegExpOS::RegExpCache>{ static const OS_CHAR * getName(){ return OS_TEXT("RegExpCache"); } };
-template <> struct CtypeValue<RegExpOS::RegExpCache*>: public CtypeUserClass<RegExpOS::RegExpCache*>{};
-template <> struct UserDataDestructor<RegExpOS::RegExpCache>
+template <> struct CtypeName<RegexpOS::RegexpCache>{ static const OS_CHAR * getName(){ return OS_TEXT("RegexpCache"); } };
+template <> struct CtypeValue<RegexpOS::RegexpCache*>: public CtypeUserClass<RegexpOS::RegexpCache*>{};
+template <> struct UserDataDestructor<RegexpOS::RegexpCache>
 {
 	static void dtor(ObjectScript::OS * os, void * data, void * user_param)
 	{
-		OS_ASSERT(data && dynamic_cast<RegExpOS::RegExpCache*>((RegExpOS::RegExpCache*)data));
-		RegExpOS::RegExpCache * buf = (RegExpOS::RegExpCache*)data;
+		OS_ASSERT(data && dynamic_cast<RegexpOS::RegexpCache*>((RegexpOS::RegexpCache*)data));
+		RegexpOS::RegexpCache * buf = (RegexpOS::RegexpCache*)data;
 		buf->release();
-		// buf->~RegExpCache();
+		// buf->~RegexpCache();
 		// os->free(buf);
 	}
 };
 
-RegExpOS::RegExpCache * RegExpOS::toRegExpCache(OS * os)
+RegexpOS::RegexpCache * RegexpOS::toRegexpCache(OS * os)
 {
-	return CtypeValue<RegExpOS::RegExpCache*>::getArg(os, -1);
+	return CtypeValue<RegexpOS::RegexpCache*>::getArg(os, -1);
 }			
 
-void RegExpOS::RegExpCache::initLibrary(OS * os)
+void RegexpOS::RegexpCache::initLibrary(OS * os)
 {
 	struct Lib
 	{
 		static void construct(OS * os)
 		{
-			triggerError(os, OS_TEXT("you should not create new instance of RegExpCache"));
+			triggerError(os, OS_TEXT("you should not create new instance of RegexpCache"));
 		}
 	};
 
@@ -1285,25 +1285,25 @@ void RegExpOS::RegExpCache::initLibrary(OS * os)
 		{}
 	};
 
-	registerUserClass<RegExpCache>(os, funcs);
+	registerUserClass<RegexpCache>(os, funcs);
 }
 
-void RegExpOS::RegExp::initLibrary(OS * os)
+void RegexpOS::Regexp::initLibrary(OS * os)
 {
 	struct Lib
 	{
-		static RegExp * construct(OS * os, const OS::String& pattern)
+		static Regexp * construct(OS * os, const OS::String& pattern)
 		{
-			RegExpCache * cache = getRegExpCache(os, pattern);
+			RegexpCache * cache = getRegexpCache(os, pattern);
 			if(!cache){
 				return NULL;
 			}
-			return new (os->malloc(sizeof(RegExp) OS_DBG_FILEPOS)) RegExp(cache);
+			return new (os->malloc(sizeof(Regexp) OS_DBG_FILEPOS)) Regexp(cache);
 		}
 
 		static int exec(OS * os, int params, int, int, void * user_param)
 		{
-			OS_GET_SELF(RegExp*);
+			OS_GET_SELF(Regexp*);
 
 			if(params < 1){
 				triggerError(os, "argument required");
@@ -1328,7 +1328,7 @@ void RegExpOS::RegExp::initLibrary(OS * os)
 
 		static int test(OS * os, int params, int, int, void * user_param)
 		{
-			OS_GET_SELF(RegExp*);
+			OS_GET_SELF(Regexp*);
 
 			if(params < 1){
 				triggerError(os, "argument required");
@@ -1341,7 +1341,7 @@ void RegExpOS::RegExp::initLibrary(OS * os)
 
 		static int replace(OS * os, int params, int, int, void * user_param)
 		{
-			OS_GET_SELF(RegExp*);
+			OS_GET_SELF(Regexp*);
 
 			if(params < 2){
 				triggerError(os, "two arguments required");
@@ -1362,14 +1362,14 @@ void RegExpOS::RegExp::initLibrary(OS * os)
 			}
 			OS::String str = os->toString(-params+0);
 			OS::String delimiter = params >= 2 ? os->toString(-params+1) : OS::String(os);
-			OS::String escaped = RegExp::escape(os, str, delimiter);
+			OS::String escaped = Regexp::escape(os, str, delimiter);
 			os->pushString(escaped);
 			return 1;
 		}
 
 		static int split(OS * os, int params, int, int, void * user_param)
 		{
-			OS_GET_SELF(RegExp*);
+			OS_GET_SELF(Regexp*);
 
 			if(params < 1){
 				triggerError(os, "argument required");
@@ -1404,14 +1404,14 @@ void RegExpOS::RegExp::initLibrary(OS * os)
 		{}
 	};
 
-	registerUserClass<RegExp>(os, funcs, numbers);
+	registerUserClass<Regexp>(os, funcs, numbers);
 }
 
-void initRegExpLibrary(OS* os)
+void initRegexpLibrary(OS* os)
 {
-	RegExpOS::RegExp::initLibrary(os);
-	RegExpOS::RegExpCache::initLibrary(os);
-	RegExpOS::initLibrary(os);
+	RegexpOS::Regexp::initLibrary(os);
+	RegexpOS::RegexpCache::initLibrary(os);
+	RegexpOS::initLibrary(os);
 }
 
 } // namespace ObjectScript

@@ -3,7 +3,7 @@
 
 namespace ObjectScript {
 
-	void initRegExpLibrary(OS* os);
+	void initRegexpLibrary(OS* os);
 
 };
 

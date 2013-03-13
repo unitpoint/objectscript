@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 #endif
 
 #ifndef OS_REGEXP_DISABLED
-	initRegExpLibrary(os);
+	initRegexpLibrary(os);
 #endif
 
 	// save allocated memory at start point
