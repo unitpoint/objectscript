@@ -1707,7 +1707,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 	bool template_enabled = source_code_type == OS_SOURCECODE_TEMPLATE;
 	bool is_template = template_enabled;
 
-	enum EStringType { NOT_STRING, SIMPLE, QUOTE, MULTI } string_type = NOT_STRING;
+	enum EStringType { NOT_STRING, SIMPLE, QUOTE, MULTI_SIMPLE, MULTI_QUOTE } string_type = NOT_STRING;
 	EStringType saved_string_type = NOT_STRING;
 	bool var_in_string = false;
 	
@@ -1783,13 +1783,13 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 			}
 
 			if(var_in_string && *str == OS_TEXT('}')){
-				OS_ASSERT(saved_string_type == QUOTE || saved_string_type == MULTI);
+				OS_ASSERT(saved_string_type == QUOTE || saved_string_type == MULTI_QUOTE);
 				addToken(String(allocator, OS_TEXT(")")), END_BRACKET_BLOCK, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
 				addToken(String(allocator, OS_TEXT("}")), AFTER_INJECT_VAR, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
 				var_in_string = false;
 				string_type = saved_string_type;
 				saved_string_type = NOT_STRING;
-				if(string_type == MULTI){
+				if(string_type == MULTI_QUOTE){
 					str++;
 				}
 			}else if(*str == OS_TEXT('"')){
@@ -1798,6 +1798,12 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				string_type = SIMPLE;
 			}else if(str[0] == OS_TEXT('<') && str[1] == OS_TEXT('<') && str[2] == OS_TEXT('<')){
 				str += 3;
+				if(*str == OS_TEXT('\'')){
+					string_type = MULTI_SIMPLE;
+					str++;
+				}else{
+					string_type = MULTI_QUOTE;
+				}
 				multi_string_id = str;
 				while(*str && OS_IS_ALPHA(*str)) str++;
 				if(!*str || str == multi_string_id){
@@ -1817,11 +1823,10 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					}
 					str = line_start = text_data->lines[++cur_line].toChar();
 				}
-				string_type = MULTI;
 			}else{
 				string_type = NOT_STRING;
 			}
-			if(!var_in_string && string_type == MULTI){ // begin multi line string
+			if(!var_in_string && string_type == MULTI_QUOTE){ // begin multi line string
 				Buffer buf(allocator);
 				for(;;){
 					const OS_CHAR * token_start = str;
@@ -1856,6 +1861,39 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					if(OS_MEMCMP(str, multi_string_id, multi_string_id_len) == 0 && !OS_IS_ALPHA(str[multi_string_id_len])){
 						string_type = NOT_STRING;
 						str += multi_string_id_len;
+						if(buf.buffer.count >= sizeof(OS_CHAR)){
+							OS_CHAR end = buf.buffer.buf[buf.buffer.count/sizeof(OS_CHAR)-1];
+							if(end == OS_TEXT('\r')){
+								buf.buffer.count -= sizeof(OS_CHAR);
+							}
+						}
+						addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
+						break;
+					}
+					buf.append(OS_TEXT("\n"));
+				}
+				continue;
+			}
+			if(!var_in_string && string_type == MULTI_SIMPLE){ // begin multi line text
+				Buffer buf(allocator);
+				for(;;){
+					const OS_CHAR * token_start = str;
+					buf.append(str);
+					if(cur_line+1 >= text_data->lines.count){
+						cur_pos = (int)(str + OS_STRLEN(str) - line_start);
+						error = ERROR_CONST_STRING;
+						return false;
+					}
+					str = line_start = text_data->lines[++cur_line].toChar();
+					if(OS_MEMCMP(str, multi_string_id, multi_string_id_len) == 0 && !OS_IS_ALPHA(str[multi_string_id_len])){
+						string_type = NOT_STRING;
+						str += multi_string_id_len;
+						if(buf.buffer.count >= sizeof(OS_CHAR)){
+							OS_CHAR end = buf.buffer.buf[buf.buffer.count/sizeof(OS_CHAR)-1];
+							if(end == OS_TEXT('\r')){
+								buf.buffer.count -= sizeof(OS_CHAR);
+							}
+						}
 						addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
 						break;
 					}

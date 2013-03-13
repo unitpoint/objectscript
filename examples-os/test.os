@@ -571,6 +571,15 @@ line ${var2} string
 ${abc.xyz + 7}
 END
 	print s
+	
+	print "Test multi line text"
+	var s = <<<'END
+This is multi
+line ${var2} text
+
+${abc.xyz + 7}
+END
+	print s
 }
 
 terminate()
