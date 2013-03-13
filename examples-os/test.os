@@ -551,5 +551,13 @@ if("Curl" in _G){
 			.exec("/2011/10/Lorem-ipsum-dolor-it-amet-consectetur-adipisicing")
 }
 
+;{
+	print "Test var in string"
+	var abc = {xyz = 123} // local variable
+	var2 = "test" // environment (global) variable
+	print "inject \${abc} ${abc.xyz + 7} ${var2}!"
+	print 'inject ${abc} ${abc.xyz + 7} ${var2}!'
+}
+
 terminate()
 print "This text is never printed"

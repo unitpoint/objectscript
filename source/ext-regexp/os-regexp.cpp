@@ -1186,6 +1186,7 @@ public:
 						break;
 				} else {
 					if(checkExecError(count)){
+						os->pop();
 						os->free(offsets);
 						return false;
 					}

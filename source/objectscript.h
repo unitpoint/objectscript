@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.3-dev")
+#define OS_VERSION OS_TEXT("1.4-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_DEBUGINFO_HEADER OS_TEXT("OBJECTSCRIPT.DEBUGINFO")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -1042,6 +1042,9 @@ namespace ObjectScript
 					OUTPUT_STRING,
 					OUTPUT_NEXT_VALUE,
 
+					BEFORE_INJECT_VAR, 
+					AFTER_INJECT_VAR, 
+
 					NUMBER,      // -?[0..9][.]?[0..9]+(e[+-]?[0..9]+)?
 
 					// [not real operators]
@@ -1785,6 +1788,8 @@ namespace ObjectScript
 					EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER,
 
 					EXP_TYPE_CONCAT, // ..
+					EXP_TYPE_BEFORE_INJECT_VAR, // ..
+					EXP_TYPE_AFTER_INJECT_VAR, // ..
 
 					EXP_TYPE_LOGIC_AND, // &&
 					EXP_TYPE_LOGIC_OR,  // ||

@@ -1277,6 +1277,8 @@ const OS_CHAR * OS::Core::Tokenizer::getTokenTypeName(TokenType token_type)
 
 	case OPERATOR_INDIRECT: return OS_TEXT("OPERATOR_INDIRECT");
 	case OPERATOR_CONCAT:  return OS_TEXT("OPERATOR_CONCAT");
+	case BEFORE_INJECT_VAR:  return OS_TEXT("BEFORE_INJECT_VAR");
+	case AFTER_INJECT_VAR:  return OS_TEXT("AFTER_INJECT_VAR");
 
 	case OPERATOR_THIS: return OS_TEXT("OPERATOR_THIS");
 	case OPERATOR_LOGIC_AND:  return OS_TEXT("OPERATOR_LOGIC_AND");
@@ -1407,6 +1409,8 @@ bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 
 		case OS::Core::Tokenizer::OPERATOR_INDIRECT:  // .
 		case OS::Core::Tokenizer::OPERATOR_CONCAT:	// ..
+		case OS::Core::Tokenizer::BEFORE_INJECT_VAR:
+		case OS::Core::Tokenizer::AFTER_INJECT_VAR:
 		case OS::Core::Tokenizer::OPERATOR_IN:		// in
 		case OS::Core::Tokenizer::OPERATOR_ISPROTOTYPEOF:
 		case OS::Core::Tokenizer::OPERATOR_IS:
@@ -1462,7 +1466,6 @@ bool OS::Core::Tokenizer::operator_initialized = false;
 OS::Core::Tokenizer::OperatorDesc OS::Core::Tokenizer::operator_desc[] = 
 {
 	{ OPERATOR_INDIRECT, OS_TEXT(".") },
-	{ OPERATOR_CONCAT, OS_TEXT("..") },
 	{ REST_ARGUMENTS, OS_TEXT("...") },
 
 	{ OPERATOR_RESERVED, OS_TEXT("->") },
@@ -1703,6 +1706,14 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 	cur_line = cur_pos = 0;
 	bool template_enabled = source_code_type == OS_SOURCECODE_TEMPLATE;
 	bool is_template = template_enabled;
+
+	enum EStringType { NOT_STRING, SIMPLE, QUOTE, MULTI } string_type = NOT_STRING;
+	EStringType saved_string_type = NOT_STRING;
+	bool var_in_string = false;
+	
+	const char * multi_string_id = NULL;
+	int multi_string_id_len = 0;
+
 	for(; cur_line < text_data->lines.count; cur_line++){
 		// parse line
 		const OS_CHAR * line_start = text_data->lines[cur_line].toChar();
@@ -1771,13 +1782,53 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				continue;
 			}
 
-			if(*str == OS_TEXT('"') || *str == OS_TEXT('\'')){ // begin string
-				Buffer s(allocator);
-				OS_CHAR closeChar = *str;
+			if(var_in_string && *str == OS_TEXT('}')){
+				OS_ASSERT(saved_string_type == QUOTE || saved_string_type == MULTI);
+				addToken(String(allocator, OS_TEXT(")")), END_BRACKET_BLOCK, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
+				addToken(String(allocator, OS_TEXT("}")), AFTER_INJECT_VAR, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
+				// str++; NOT NEEDED HERE
+				var_in_string = false;
+				string_type = saved_string_type;
+				saved_string_type = NOT_STRING;
+			}else if(*str == OS_TEXT('"')){
+				string_type = QUOTE;
+			}else if(*str == OS_TEXT('\'')){
+				string_type = SIMPLE;
+			}else if(str[0] == OS_TEXT('<') && str[1] == OS_TEXT('<') && str[2] == OS_TEXT('<')){
+				str += 3;
+				multi_string_id = str;
+				while(*str && OS_IS_ALNUM(*str)) str++;
+				if(!*str || str == multi_string_id){
+					cur_pos = (int)(str - line_start);
+					error = ERROR_CONST_STRING;
+					return false;
+				}
+				multi_string_id_len = str - multi_string_id;
+				while(*str && *str <= OS_TEXT(' ')) str++;
+				if(*str){
+					str = multi_string_id + multi_string_id_len;
+				}
+				string_type = MULTI;
+			}else{
+				string_type = NOT_STRING;
+			}
+			if(!var_in_string && string_type != NOT_STRING){ // begin string
+				Buffer buf(allocator);
+				OS_CHAR close_char = string_type == SIMPLE ? OS_TEXT('\'') : string_type == QUOTE ? OS_TEXT('"') : OS_TEXT('\0');
 				const OS_CHAR * token_start = str;
-				for(str++; *str && *str != closeChar;){
+				for(str++; *str && *str != close_char;){
 					OS_CHAR c = *str++;
-					if(c == OS_TEXT('\\')){
+					if(c == OS_TEXT('$') && string_type != SIMPLE && *str == OS_TEXT('{')){
+						OS_ASSERT(!var_in_string);
+						var_in_string = true;
+						saved_string_type = string_type;
+						string_type = NOT_STRING;
+						str++;
+						addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
+						addToken(String(allocator, OS_TEXT("${")), BEFORE_INJECT_VAR, cur_line, (int)(str - 2 - line_start) OS_DBG_FILEPOS);
+						addToken(String(allocator, OS_TEXT("(")), BEGIN_BRACKET_BLOCK, cur_line, (int)(str - 2 - line_start) OS_DBG_FILEPOS);
+						break;
+					}else if(c == OS_TEXT('\\')){
 						switch(*str){
 						case OS_TEXT('r'): c = OS_TEXT('\r'); str++; break;
 						case OS_TEXT('n'): c = OS_TEXT('\n'); str++; break;
@@ -1785,11 +1836,12 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 						case OS_TEXT('\"'): c = OS_TEXT('\"'); str++; break;
 						case OS_TEXT('\''): c = OS_TEXT('\''); str++; break;
 						case OS_TEXT('\\'): c = OS_TEXT('\\'); str++; break;
+						case OS_TEXT('$'): c = OS_TEXT('$'); str++; break;
 							//case OS_TEXT('x'): 
 						default:
 							{
 								OS_INT val;
-								int maxVal = sizeof(OS_CHAR) == 2 ? 0xFFFF : 0xFF;
+								int max_val = sizeof(OS_CHAR) == 2 ? 0xFFFF : 0xFF;
 
 								if(*str == OS_TEXT('x') || *str == OS_TEXT('X')){ // parse hex
 									str++;
@@ -1813,20 +1865,25 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 								}else{
 									val = c;
 								}
-								c = (OS_CHAR)(val <= maxVal ? val : maxVal);
+								c = (OS_CHAR)(val <= max_val ? val : max_val);
 							}
 							break;
 						}
 					}
-					s.append(c);
+					buf.append(c);
 				}
-				if(*str != closeChar){
+				if(var_in_string){
+					continue;
+				}
+				OS_ASSERT(string_type == SIMPLE || string_type == QUOTE);
+				if(*str != close_char){
 					cur_pos = (int)(str - line_start);
 					error = ERROR_CONST_STRING;
 					return false;
 				}
+				string_type = NOT_STRING;
 				str++;
-				addToken(s, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
+				addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
 				continue;
 			}
 
@@ -2149,6 +2206,8 @@ bool OS::Core::Compiler::Expression::isBinaryOperator() const
 	case EXP_TYPE_ISPROTOTYPEOF:
 	case EXP_TYPE_IS:
 	case EXP_TYPE_CONCAT: // ..
+	case EXP_TYPE_BEFORE_INJECT_VAR: // ..
+	case EXP_TYPE_AFTER_INJECT_VAR: // ..
 
 	case EXP_TYPE_LOGIC_AND: // &&
 	case EXP_TYPE_LOGIC_OR:  // ||
@@ -2574,6 +2633,8 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 	case EXP_TYPE_INDIRECT:
 	case EXP_TYPE_ASSIGN:
 	case EXP_TYPE_CONCAT: // ..
+	case EXP_TYPE_BEFORE_INJECT_VAR: // ..
+	case EXP_TYPE_AFTER_INJECT_VAR: // ..
 	case EXP_TYPE_IN:
 	case EXP_TYPE_ISPROTOTYPEOF:
 	case EXP_TYPE_IS:
@@ -3668,6 +3729,8 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::getExpressionType(TokenTy
 	case Tokenizer::OPERATOR_INDIRECT: return EXP_TYPE_INDIRECT;
 
 	case Tokenizer::OPERATOR_CONCAT: return EXP_TYPE_CONCAT;
+	case Tokenizer::BEFORE_INJECT_VAR: return EXP_TYPE_BEFORE_INJECT_VAR;
+	case Tokenizer::AFTER_INJECT_VAR: return EXP_TYPE_AFTER_INJECT_VAR;
 	case Tokenizer::OPERATOR_LENGTH: return EXP_TYPE_LENGTH;
 
 	case Tokenizer::OPERATOR_LOGIC_AND: return EXP_TYPE_LOGIC_AND;
@@ -3806,6 +3869,8 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::getOpcodeLevel(ExpressionTyp
 		return OP_LEVEL_15;
 
 	case EXP_TYPE_INDIRECT:
+	case EXP_TYPE_BEFORE_INJECT_VAR:
+	case EXP_TYPE_AFTER_INJECT_VAR:
 		return OP_LEVEL_16;
 	}
 	return OP_LEVEL_0;
@@ -4714,6 +4779,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 		break;
 
 	case EXP_TYPE_CONCAT:
+	case EXP_TYPE_BEFORE_INJECT_VAR:
+	case EXP_TYPE_AFTER_INJECT_VAR:
 		OS_ASSERT(exp->list.count == 2);
 		exp->slots.b = cacheString(allocator->core->strings->func_concat);
 		break;
@@ -4814,6 +4881,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			case EXP_TYPE_CONST_FALSE:
 			case EXP_TYPE_CONST_TRUE:
 			case EXP_TYPE_CONCAT:
+			case EXP_TYPE_BEFORE_INJECT_VAR:
+			case EXP_TYPE_AFTER_INJECT_VAR:
 			case EXP_TYPE_LOGIC_PTR_EQ:
 			case EXP_TYPE_LOGIC_PTR_NE:
 			case EXP_TYPE_LOGIC_EQ:
@@ -4843,8 +4912,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		static Expression * addXconst(Compiler * compiler, Expression * exp, Expression * xconst)
 		{
+			OS_ASSERT(!xconst || xconst->ret_values == 1);
 			if(xconst){
-				return new (compiler->malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CODE_LIST, exp->token, xconst, exp OS_DBG_FILEPOS);
+				Expression * exp2 = new (compiler->malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CODE_LIST, exp->token, xconst, exp OS_DBG_FILEPOS);
+				exp2->ret_values = 1;
+				return exp2;
 			}
 			return exp;
 		}
@@ -5027,6 +5099,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = b;
 			exp_xconst->slots.a = b = stack_pos;
+			exp_xconst->ret_values = 1;
 		}else exp_xconst = NULL;
 
 		exp->type = EXP_TYPE_INIT_PROPERTY;
@@ -5052,6 +5125,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = b;
 			exp_xconst->slots.a = b = stack_pos;
+			exp_xconst->ret_values = 1;
 		}else exp_xconst = NULL;
 
 		exp->type = EXP_TYPE_INIT_PROPERTY;
@@ -5113,6 +5187,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp2->type = EXP_TYPE_GET_XCONST;
+			OS_ASSERT(exp2->ret_values == 1);
 		}
 
 		exp1->list[1] = postCompileNewVM(scope, exp1->list[1]);
@@ -5128,6 +5203,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.a = scope->allocTempVar();
 		exp->slots.b = -1 - exp->slots.b - CONST_STD_VALUES;
 		exp->type = exp->slots.b < -OS_MAX_GENERIC_CONST_INDEX ? EXP_TYPE_GET_XCONST : EXP_TYPE_MOVE;
+		OS_ASSERT(exp->ret_values == 1);
 		return exp;
 
 	case EXP_TYPE_CONST_STRING:
@@ -5135,6 +5211,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.a = scope->allocTempVar();
 		exp->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES;
 		exp->type = exp->slots.b < -OS_MAX_GENERIC_CONST_INDEX ? EXP_TYPE_GET_XCONST : EXP_TYPE_MOVE;
+		OS_ASSERT(exp->ret_values == 1);
 		return exp;
 
 	case EXP_TYPE_CONST_NULL:
@@ -5216,15 +5293,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		return exp;
 
 	case EXP_TYPE_CONCAT:
+	case EXP_TYPE_BEFORE_INJECT_VAR:
+	case EXP_TYPE_AFTER_INJECT_VAR:
 		OS_ASSERT(exp->list.count == 2 && exp->ret_values == 1);
-		if(exp->list[0]->type == EXP_TYPE_CONCAT){
+		if(exp->list[0]->type == EXP_TYPE_CONCAT || exp->list[0]->type == EXP_TYPE_BEFORE_INJECT_VAR || exp->list[0]->type == EXP_TYPE_AFTER_INJECT_VAR){
 			stack_pos = scope->function->stack_cur_size;
 			exp1 = postCompileNewVM(scope, exp->list[0]);
 			OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
 			OS_ASSERT(exp1->type == EXP_TYPE_CALL_METHOD);
 			OS_ASSERT(exp1->list.count == 2);
 			scope->function->stack_cur_size = exp1->slots.a + exp1->slots.b;
-  			exp2 = postCompileNewVM(scope, exp->list[1]);
+			exp2 = postCompileNewVM(scope, exp->list[1]);
 			OS_ASSERT(exp2->ret_values == 1);
 			OS_ASSERT(exp1->list[1]->type == EXP_TYPE_PARAMS);
 			exp1->list[1]->list.add(exp2 OS_DBG_FILEPOS);
@@ -5262,6 +5341,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp2->type = EXP_TYPE_GET_XCONST;
+			OS_ASSERT(exp2->ret_values == 1);
 		}
 
 		OS_ASSERT(exp1->list.count == 3);
@@ -5306,6 +5386,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 			if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 				exp2->type = EXP_TYPE_GET_XCONST;
+				OS_ASSERT(exp2->ret_values == 1);
 			}
 
 			exp1 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
@@ -5343,6 +5424,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp2->type = EXP_TYPE_GET_XCONST;
+			OS_ASSERT(exp2->ret_values == 1);
 		}
 
 		exp->type = EXP_TYPE_CALL_METHOD;
@@ -5542,6 +5624,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = exp->slots.c;
 			exp_xconst->slots.a = exp->slots.c = exp->slots.a;
+			exp_xconst->ret_values = 1;
 			return Lib::addXconst(this, exp, exp_xconst);
 		}
 		return exp;
@@ -5562,6 +5645,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = exp->slots.b;
 			exp_xconst->slots.a = exp->slots.b = exp->slots.c + 1;
+			exp_xconst->ret_values = 1;
 			if(exp_xconst->slots.a >= scope->function->stack_size){
 				scope->function->stack_size = exp_xconst->slots.a + 1;
 			}
@@ -7189,11 +7273,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 
 		} lib = {this, token};
 
-		if(exp_type == EXP_TYPE_CONCAT){
+		if(exp_type == EXP_TYPE_CONCAT || exp_type == EXP_TYPE_BEFORE_INJECT_VAR || exp_type == EXP_TYPE_AFTER_INJECT_VAR){
 			return lib.newExpression(String(allocator->core->newStringValue(left_exp->toString(), right_exp->toString())), left_exp, right_exp);
 		}else if(left_exp->type != EXP_TYPE_CONST_STRING && right_exp->type != EXP_TYPE_CONST_STRING)
 		switch(exp_type){
 		case EXP_TYPE_CONCAT:    // ..
+		case EXP_TYPE_BEFORE_INJECT_VAR:    // ..
+		case EXP_TYPE_AFTER_INJECT_VAR:    // ..
 			return lib.newExpression(String(allocator->core->newStringValue(left_exp->toString(), right_exp->toString())), left_exp, right_exp);
 
 		case EXP_TYPE_BIT_AND: // &
@@ -7541,6 +7627,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			return finishValueExpressionNoAutoCall(scope, exp, p);
 
 		case Tokenizer::OPERATOR_CONCAT:    // ..
+		case Tokenizer::BEFORE_INJECT_VAR:    // ..
+		case Tokenizer::AFTER_INJECT_VAR:    // ..
 
 		case Tokenizer::OPERATOR_LOGIC_AND: // &&
 		case Tokenizer::OPERATOR_LOGIC_OR:  // ||
@@ -8563,6 +8651,8 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 		return OS_TEXT("bit ~=");
 
 	case EXP_TYPE_CONCAT: // ..
+	case EXP_TYPE_BEFORE_INJECT_VAR: // ..
+	case EXP_TYPE_AFTER_INJECT_VAR: // ..
 		return OS_TEXT("operator ..");
 
 	case EXP_TYPE_COMPARE:    // <=>
