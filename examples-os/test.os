@@ -559,5 +559,19 @@ if("Curl" in _G){
 	print 'inject ${abc} ${abc.xyz + 7} ${var2}!'
 }
 
+;{
+	print "Test multi line string with vars inside"
+	var abc = {xyz = 123}
+	var var2 = "test"
+	var s = <<<END
+
+This is multi
+line ${var2} string
+
+${abc.xyz + 7}
+END
+	print s
+}
+
 terminate()
 print "This text is never printed"

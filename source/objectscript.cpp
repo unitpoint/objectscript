@@ -1740,14 +1740,14 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 
 		for(;;){
 			if(template_enabled && is_template){
-				Buffer s(allocator);
+				Buffer buf(allocator);
 				for(;;){
 					const OS_CHAR * line_pos = str;
 					const OS_CHAR * open_os_tag = OS_STRSTR(str, OS_TEXT("<%"));
 					if(open_os_tag){
-						s.append(line_pos, (int)(open_os_tag - line_pos));
-						if(s.getSize() > 0){
-							addToken(s, OUTPUT_STRING, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
+						buf.append(line_pos, (int)(open_os_tag - line_pos));
+						if(buf.getSize() > 0){
+							addToken(buf, OUTPUT_STRING, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
 						}
 						str = open_os_tag + 2;
 						is_template = false;
@@ -1758,11 +1758,11 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 						}
 						break;
 					}
-					s.append(line_pos);
-					s.append(OS_TEXT("\n"));
+					buf.append(line_pos);
+					buf.append(OS_TEXT("\n"));
 					if(cur_line+1 >= text_data->lines.count){
-						if(s.getSize() > 0){
-							addToken(s, OUTPUT_STRING, cur_line, (int)(str - line_pos) OS_DBG_FILEPOS);
+						if(buf.getSize() > 0){
+							addToken(buf, OUTPUT_STRING, cur_line, (int)(str - line_pos) OS_DBG_FILEPOS);
 						}
 						return true;
 					}
@@ -1786,10 +1786,12 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				OS_ASSERT(saved_string_type == QUOTE || saved_string_type == MULTI);
 				addToken(String(allocator, OS_TEXT(")")), END_BRACKET_BLOCK, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
 				addToken(String(allocator, OS_TEXT("}")), AFTER_INJECT_VAR, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
-				// str++; NOT NEEDED HERE
 				var_in_string = false;
 				string_type = saved_string_type;
 				saved_string_type = NOT_STRING;
+				if(string_type == MULTI){
+					str++;
+				}
 			}else if(*str == OS_TEXT('"')){
 				string_type = QUOTE;
 			}else if(*str == OS_TEXT('\'')){
@@ -1797,7 +1799,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 			}else if(str[0] == OS_TEXT('<') && str[1] == OS_TEXT('<') && str[2] == OS_TEXT('<')){
 				str += 3;
 				multi_string_id = str;
-				while(*str && OS_IS_ALNUM(*str)) str++;
+				while(*str && OS_IS_ALPHA(*str)) str++;
 				if(!*str || str == multi_string_id){
 					cur_pos = (int)(str - line_start);
 					error = ERROR_CONST_STRING;
@@ -1807,10 +1809,59 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				while(*str && *str <= OS_TEXT(' ')) str++;
 				if(*str){
 					str = multi_string_id + multi_string_id_len;
+				}else{
+					if(cur_line+1 >= text_data->lines.count){
+						cur_pos = (int)(str + OS_STRLEN(str) - line_start);
+						error = ERROR_CONST_STRING;
+						return false;
+					}
+					str = line_start = text_data->lines[++cur_line].toChar();
 				}
 				string_type = MULTI;
 			}else{
 				string_type = NOT_STRING;
+			}
+			if(!var_in_string && string_type == MULTI){ // begin multi line string
+				Buffer buf(allocator);
+				for(;;){
+					const OS_CHAR * token_start = str;
+					while(*str){
+						OS_CHAR c = *str++;
+						if(c == OS_TEXT('$') && string_type != SIMPLE && *str == OS_TEXT('{')){
+							OS_ASSERT(!var_in_string);
+							var_in_string = true;
+							saved_string_type = string_type;
+							string_type = NOT_STRING;
+							str++;
+							addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
+							addToken(String(allocator, OS_TEXT("${")), BEFORE_INJECT_VAR, cur_line, (int)(str - 2 - line_start) OS_DBG_FILEPOS);
+							addToken(String(allocator, OS_TEXT("(")), BEGIN_BRACKET_BLOCK, cur_line, (int)(str - 2 - line_start) OS_DBG_FILEPOS);
+							break;
+						}else if(c == OS_TEXT('\\')){
+							switch(*str){
+							case OS_TEXT('$'): c = OS_TEXT('$'); str++; break;
+							}
+						}
+						buf.append(c);
+					}
+					if(var_in_string){
+						break;
+					}
+					if(cur_line+1 >= text_data->lines.count){
+						cur_pos = (int)(str + OS_STRLEN(str) - line_start);
+						error = ERROR_CONST_STRING;
+						return false;
+					}
+					str = line_start = text_data->lines[++cur_line].toChar();
+					if(OS_MEMCMP(str, multi_string_id, multi_string_id_len) == 0 && !OS_IS_ALPHA(str[multi_string_id_len])){
+						string_type = NOT_STRING;
+						str += multi_string_id_len;
+						addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
+						break;
+					}
+					buf.append(OS_TEXT("\n"));
+				}
+				continue;
 			}
 			if(!var_in_string && string_type != NOT_STRING){ // begin string
 				Buffer buf(allocator);
