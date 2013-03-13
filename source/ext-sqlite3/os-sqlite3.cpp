@@ -69,7 +69,7 @@ public:
 		void addStatement(SqliteStatement * stmt);
 		void removeStatement(SqliteStatement * stmt);
 
-		static void initSqlException(OS * os)
+		static void initScript(OS * os)
 		{
 			os->getGlobal(OS_TEXT("SqlException"), false);
 			bool is_null = os->isNull();
@@ -83,6 +83,12 @@ public:
 							super(msg)
 							@code = code
 						}
+					}
+					function SqliteConnection.execute(sql, params){
+						return @query(sql, params).execute()
+					}
+					function SqliteConnection.fetch(sql, params){
+						return @query(sql, params).fetch()
 					}
 				));
 			}
@@ -120,7 +126,7 @@ public:
 			return 0;
 		}
 
-		static int bind(OS * os, int params, int, int, void * user_param);
+		static int getLastInsertId(OS * os, int params, int, int, void * user_param);
 		static int query(OS * os, int params, int, int, void * user_param);
 	};
 
@@ -206,7 +212,13 @@ public:
 			os->setProperty(-2, name, false);
 		}
 
-		int step(bool is_iter)
+		enum EStepType {
+			ITERATE,
+			FETCH,
+			EXECUTE
+		};
+
+		int step(EStepType type)
 		{
 			OS_ASSERT(owner && stmt);
 			if(step_code == SQLITE_DONE){
@@ -216,9 +228,12 @@ public:
 			step_code = sqlite3_step(stmt);
 			if(step_code == SQLITE_ROW){
 				row_num++;
-				if(is_iter){
+				if(type == ITERATE){
 					os->pushBool(true);
 					os->pushNumber(row_num-1);
+				}else if(type == EXECUTE){
+					os->pushBool(true);
+					return 1;
 				}
 				os->newObject();
 				int cols = sqlite3_column_count(stmt);
@@ -257,7 +272,7 @@ public:
 						addColumn(name);
 					}
 				}
-				return is_iter ? 3 : 1;
+				return type == ITERATE ? 3 : 1;
 			}
 			if(step_code != SQLITE_DONE){
 				checkError(step_code);
@@ -288,6 +303,8 @@ public:
 
 		static int __iter(OS * os, int params, int, int, void * user_param);
 		static int bind(OS * os, int params, int, int, void * user_param);
+		static int execute(OS * os, int params, int, int, void * user_param);
+		static int fetch(OS * os, int params, int, int, void * user_param);
 	};
 };
 
@@ -395,6 +412,11 @@ void SqliteOS::SqliteStatement::bindParams()
 {
 	OS_ASSERT(owner && stmt);
 	OS * os = owner->os;
+
+	if(os->isNull()){
+		return;
+	}
+
 	os->getGlobal(OS_TEXT("Buffer"));
 	int buffer_type_id = os->getValueId();
 	OS_ASSERT(buffer_type_id);
@@ -474,6 +496,26 @@ int SqliteOS::SqliteStatement::bind(OS * os, int params, int, int, void * user_p
 	return 0;
 }
 
+int SqliteOS::SqliteStatement::execute(OS * os, int params, int, int, void * user_param)
+{
+	OS_GET_SELF(SqliteStatement*);
+	if(params > 0){
+		os->pop(params - 1);
+		self->bindParams();
+	}
+	return self->step(EXECUTE);
+}
+
+int SqliteOS::SqliteStatement::fetch(OS * os, int params, int, int, void * user_param)
+{
+	OS_GET_SELF(SqliteStatement*);
+	if(params > 0){
+		os->pop(params - 1);
+		self->bindParams();
+	}
+	return self->step(FETCH);
+}
+
 int SqliteOS::SqliteStatement::__iter(OS * os, int params, int, int, void * user_param)
 {
 	struct Lib
@@ -483,7 +525,7 @@ int SqliteOS::SqliteStatement::__iter(OS * os, int params, int, int, void * user
 			OS_ASSERT(params == 0 && closure_values == 1);
 			SqliteStatement * self = CtypeValue< RemoveConst<SqliteStatement*>::type >::getArg(os, -1);
 			OS_ASSERT(self);
-			return self->step(true);
+			return self->step(ITERATE);
 		}
 	};
 
@@ -493,11 +535,26 @@ int SqliteOS::SqliteStatement::__iter(OS * os, int params, int, int, void * user
 	return 1;
 }
 
+int SqliteOS::Sqlite::getLastInsertId(OS * os, int params, int, int, void * user_param)
+{
+	OS_GET_SELF(Sqlite*);
+	if(!self->db){
+		triggerError(os, OS_TEXT("closed db"));
+		return 0;
+	}
+	os->pushNumber(sqlite3_last_insert_rowid(self->db));
+	return 1;
+}
+
 int SqliteOS::Sqlite::query(OS * os, int params, int, int, void * user_param)
 {
 	OS_GET_SELF(Sqlite*);
 	if(params < 1){
 		triggerError(os, OS_TEXT("sql query required"));
+		return 0;
+	}
+	if(!self->db){
+		triggerError(os, OS_TEXT("closed db"));
 		return 0;
 	}
 	SqliteStatement * stmt = self->prepare(os->toString(-params+0));
@@ -518,6 +575,8 @@ void SqliteOS::initLibrary(OS * os)
 		OS::FuncDef funcs[] = {
 			{OS_TEXT("__construct"), Sqlite::__construct},
 			{OS_TEXT("query"), Sqlite::query},
+			{OS_TEXT("__get@lastInsertId"), Sqlite::getLastInsertId},
+			{OS_TEXT("getLastInsertId"), Sqlite::getLastInsertId},
 			{}
 		};
 
@@ -528,12 +587,14 @@ void SqliteOS::initLibrary(OS * os)
 			{OS_TEXT("__construct"), SqliteStatement::__construct},
 			{OS_TEXT("__iter"), SqliteStatement::__iter},
 			{OS_TEXT("bind"), SqliteStatement::bind},
+			{OS_TEXT("execute"), SqliteStatement::execute},
+			{OS_TEXT("fetch"), SqliteStatement::fetch},
 			{}
 		};
 
 		registerUserClass<SqliteStatement>(os, funcs);
 	}
-	Sqlite::initSqlException(os);
+	Sqlite::initScript(os);
 }
 
 void initSqlite3Library(OS* os)

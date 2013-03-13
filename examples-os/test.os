@@ -522,6 +522,17 @@ if("Curl" in _G){
 ;{
 	print "Test sqlite database"
 	var conn = SqliteConnection(path.resolve("test.db"))
+	
+	print "Test insert sql"
+	conn.execute("insert into session_log (user_id, time, ip, user_agent, referrer) values(:user_id, :time, :ip, :user_agent, :referrer)", {
+		user_id = 10 
+		time = "2013-04-01 10:00",
+		ip = "127.0.01"
+		user_agent = "Test user agent: ${math.round(math.random() * 100)}"
+		referrer = "http://ya.ru"
+	})
+	print "lastInsertId: ${conn.lastInsertId}"
+	
 	var stmt = conn.query("select * from session_log where user_id > :user_id", {
 		user_id = 2
 	})

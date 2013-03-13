@@ -7421,6 +7421,19 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 		}
 	}
 	switch(exp_type){
+	case EXP_TYPE_CONCAT:
+	case EXP_TYPE_BEFORE_INJECT_VAR:
+	case EXP_TYPE_AFTER_INJECT_VAR:
+		if(left_exp->type == EXP_TYPE_CONST_STRING && left_exp->token->str.isEmpty()){
+			allocator->deleteObj(left_exp);
+			return right_exp;
+		}
+		if(right_exp->type == EXP_TYPE_CONST_STRING && right_exp->token->str.isEmpty()){
+			allocator->deleteObj(right_exp);
+			return left_exp;
+		}
+		break;
+
 	case EXP_TYPE_QUESTION:
 		return finishQuestionOperator(scope, token, left_exp, right_exp);
 
