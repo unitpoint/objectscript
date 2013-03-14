@@ -1798,23 +1798,28 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				string_type = SIMPLE;
 			}else if(str[0] == OS_TEXT('<') && str[1] == OS_TEXT('<') && str[2] == OS_TEXT('<')){
 				str += 3;
-				if(*str == OS_TEXT('\'')){
-					string_type = MULTI_SIMPLE;
-					str++;
-				}else{
-					string_type = MULTI_QUOTE;
-				}
 				multi_string_id = str;
-				while(*str && OS_IS_ALPHA(*str)) str++;
-				if(!*str || str == multi_string_id){
+				while(*str && *str != OS_TEXT('\'') && *str != OS_TEXT('"')) str++;
+				if(!*str || (int)(str - multi_string_id) < 2){
 					cur_pos = (int)(str - line_start);
 					error = ERROR_CONST_STRING;
 					return false;
 				}
 				multi_string_id_len = str - multi_string_id;
+				if(*str == OS_TEXT('\'')){
+					string_type = MULTI_SIMPLE;
+					str++;
+				}else if(*str == OS_TEXT('"')){
+					string_type = MULTI_QUOTE;
+					str++;
+				}else{
+					cur_pos = (int)(str - line_start);
+					error = ERROR_CONST_STRING;
+					return false;
+				}
 				while(*str && *str <= OS_TEXT(' ')) str++;
 				if(*str){
-					str = multi_string_id + multi_string_id_len;
+					str = multi_string_id + multi_string_id_len + 1;
 				}else{
 					if(cur_line+1 >= text_data->lines.count){
 						cur_pos = (int)(str + OS_STRLEN(str) - line_start);
@@ -1826,30 +1831,51 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 			}else{
 				string_type = NOT_STRING;
 			}
-			if(!var_in_string && string_type == MULTI_QUOTE){ // begin multi line string
+			if(!var_in_string && (string_type == MULTI_QUOTE || string_type == MULTI_SIMPLE)){ // begin multi line string
 				Buffer buf(allocator);
 				for(;;){
 					const OS_CHAR * token_start = str;
+					bool finished = false;
 					while(*str){
-						OS_CHAR c = *str++;
-						if(c == OS_TEXT('$') && string_type != SIMPLE && *str == OS_TEXT('{')){
-							OS_ASSERT(!var_in_string);
-							var_in_string = true;
-							saved_string_type = string_type;
+						if(OS_MEMCMP(str, multi_string_id, multi_string_id_len) == 0){
 							string_type = NOT_STRING;
-							str++;
+							bool start = str == line_start;
+							str += multi_string_id_len;
+							if(start && buf.buffer.count >= sizeof(OS_CHAR)){
+								OS_CHAR * end = (OS_CHAR*)buf.buffer.buf + (buf.buffer.count/sizeof(OS_CHAR));
+								if(end[-1] == OS_TEXT('\n')){
+									buf.buffer.count -= sizeof(OS_CHAR);
+									end--;
+								}
+								if(end[-1] == OS_TEXT('\r')){
+									buf.buffer.count -= sizeof(OS_CHAR);
+								}
+							}
 							addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
-							addToken(String(allocator, OS_TEXT("${")), BEFORE_INJECT_VAR, cur_line, (int)(str - 2 - line_start) OS_DBG_FILEPOS);
-							addToken(String(allocator, OS_TEXT("(")), BEGIN_BRACKET_BLOCK, cur_line, (int)(str - 2 - line_start) OS_DBG_FILEPOS);
+							finished = true;
 							break;
-						}else if(c == OS_TEXT('\\')){
-							switch(*str){
-							case OS_TEXT('$'): c = OS_TEXT('$'); str++; break;
+						}
+						OS_CHAR c = *str++;
+						if(string_type == MULTI_QUOTE){
+							if(c == OS_TEXT('$') && string_type != SIMPLE && *str == OS_TEXT('{')){
+								OS_ASSERT(!var_in_string);
+								var_in_string = finished = true;
+								saved_string_type = string_type;
+								string_type = NOT_STRING;
+								str++;
+								addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
+								addToken(String(allocator, OS_TEXT("${")), BEFORE_INJECT_VAR, cur_line, (int)(str - 2 - line_start) OS_DBG_FILEPOS);
+								addToken(String(allocator, OS_TEXT("(")), BEGIN_BRACKET_BLOCK, cur_line, (int)(str - 2 - line_start) OS_DBG_FILEPOS);
+								break;
+							}else if(c == OS_TEXT('\\')){
+								switch(*str){
+								case OS_TEXT('$'): c = OS_TEXT('$'); str++; break;
+								}
 							}
 						}
 						buf.append(c);
 					}
-					if(var_in_string){
+					if(finished){
 						break;
 					}
 					if(cur_line+1 >= text_data->lines.count){
@@ -1858,45 +1884,6 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 						return false;
 					}
 					str = line_start = text_data->lines[++cur_line].toChar();
-					if(OS_MEMCMP(str, multi_string_id, multi_string_id_len) == 0 && !OS_IS_ALPHA(str[multi_string_id_len])){
-						string_type = NOT_STRING;
-						str += multi_string_id_len;
-						if(buf.buffer.count >= sizeof(OS_CHAR)){
-							OS_CHAR end = buf.buffer.buf[buf.buffer.count/sizeof(OS_CHAR)-1];
-							if(end == OS_TEXT('\r')){
-								buf.buffer.count -= sizeof(OS_CHAR);
-							}
-						}
-						addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
-						break;
-					}
-					buf.append(OS_TEXT("\n"));
-				}
-				continue;
-			}
-			if(!var_in_string && string_type == MULTI_SIMPLE){ // begin multi line text
-				Buffer buf(allocator);
-				for(;;){
-					const OS_CHAR * token_start = str;
-					buf.append(str);
-					if(cur_line+1 >= text_data->lines.count){
-						cur_pos = (int)(str + OS_STRLEN(str) - line_start);
-						error = ERROR_CONST_STRING;
-						return false;
-					}
-					str = line_start = text_data->lines[++cur_line].toChar();
-					if(OS_MEMCMP(str, multi_string_id, multi_string_id_len) == 0 && !OS_IS_ALPHA(str[multi_string_id_len])){
-						string_type = NOT_STRING;
-						str += multi_string_id_len;
-						if(buf.buffer.count >= sizeof(OS_CHAR)){
-							OS_CHAR end = buf.buffer.buf[buf.buffer.count/sizeof(OS_CHAR)-1];
-							if(end == OS_TEXT('\r')){
-								buf.buffer.count -= sizeof(OS_CHAR);
-							}
-						}
-						addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
-						break;
-					}
 					buf.append(OS_TEXT("\n"));
 				}
 				continue;
@@ -6246,9 +6233,20 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 			return Lib::calcParamsExpression(this, scope, params);
 		}
 		params->list.add(exp OS_DBG_FILEPOS);
+#ifdef OS_PARAMS_WITHOUT_SEPARATOR
 		if(recent_token && (recent_token->type == Tokenizer::PARAM_SEPARATOR || recent_token->type == Tokenizer::CODE_SEPARATOR)){
 			readToken();
 		}
+#else
+		if(recent_token && recent_token->type != end_exp_type){
+			if(recent_token->type != Tokenizer::PARAM_SEPARATOR){
+				setError(Tokenizer::PARAM_SEPARATOR, recent_token);
+				allocator->deleteObj(params);
+				return NULL;
+			}
+			readToken();
+		}
+#endif
 		if(recent_token && recent_token->type == end_exp_type){
 			readToken();
 			return Lib::calcParamsExpression(this, scope, params);
@@ -6459,10 +6457,18 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionExpression(Sc
 			if(recent_token->type == Tokenizer::END_BRACKET_BLOCK){
 				break;
 			}
+#ifdef OS_PARAMS_WITHOUT_SEPARATOR
 			if(recent_token->type == Tokenizer::PARAM_SEPARATOR){
 				continue;
 			}
 			ungetToken();
+#else
+			if(recent_token->type != Tokenizer::PARAM_SEPARATOR){
+				setError(Tokenizer::PARAM_SEPARATOR, recent_token);
+				allocator->deleteObj(scope);
+				return NULL;
+			}
+#endif
 			continue;
 
 		default:
@@ -6514,10 +6520,18 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 			if(recent_token->type == Tokenizer::OPERATOR_BIT_OR){
 				break;
 			}
+#ifdef OS_PARAMS_WITHOUT_SEPARATOR
 			if(recent_token->type == Tokenizer::PARAM_SEPARATOR){
 				continue;
 			}
 			ungetToken();
+#else
+			if(recent_token->type != Tokenizer::PARAM_SEPARATOR){
+				setError(Tokenizer::PARAM_SEPARATOR, recent_token);
+				allocator->deleteObj(scope);
+				return NULL;
+			}
+#endif
 			continue;
 
 		default:
@@ -18680,32 +18694,21 @@ void OS::initCoreFunctions()
 
 	struct Lib
 	{
-		static void echo(OS * os, const OS_CHAR * str)
-		{
-			os->getGlobal(os->core->strings->func_echo);
-			os->pushGlobals();
-			os->pushString(str);
-			os->call(1);
-		}
-
-		static void echo(OS * os, const String& str)
-		{
-			os->getGlobal(os->core->strings->func_echo);
-			os->pushGlobals();
-			os->pushString(str);
-			os->call(1);
-		}
-
 		static int print(OS * os, int params, int, int, void*)
 		{
-			for(int i = 0; i < params; i++){
-				if(i > 0){
-					echo(os, OS_TEXT("\t"));
-				}
-				echo(os, os->toString(-params + i));
-			}
 			if(params > 0){
-				echo(os, OS_TEXT("\n"));
+				int offs = os->getAbsoluteOffs(-params);
+				os->getGlobal(os->core->strings->func_echo);
+				os->pushGlobals();
+				int count = os->getStackSize();
+				for(int i = 0; i < params; i++){
+					if(i > 0){
+						os->pushString(OS_TEXT("\t"));
+					}
+					os->pushStackValue(offs + i);
+				}
+				os->pushString(OS_TEXT("\n"));
+				os->call(os->getStackSize() - count);
 			}
 			return 0;
 		}
@@ -18722,7 +18725,10 @@ void OS::initCoreFunctions()
 		{
 			if(params > 0){
 				Format::sprintf(os, params, 0, 0, NULL);
-				echo(os, os->toString());
+				os->getGlobal(os->core->strings->func_echo);
+				os->pushGlobals();
+				os->pushStackValue(-3);
+				os->call(1);
 			}
 			return 0;
 		}

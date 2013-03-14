@@ -12,17 +12,15 @@
 	print c
 }
 
-echo("file: "__FILE__", line: "__LINE__"\n")
+echo("file: ${__FILE__}, line: ${__LINE__}\n")
 
-// call function with arguments without comma
-print(5 " differences")
+print(5, " differences")
 
 ;{
 	var i = 4
 	// multiple assignment
 	var name, count, time = "Smith", 3 + 2/i, 1.23
-	// call function with arguments without comma
-	print concat("name: " name ", count: " count ", time: " time)
+	print "name: ${name}, count: ${count}, time: ${time}"
 }
 
 // auto call function with single argument, brackets are not used
@@ -50,27 +48,27 @@ print {firstname="Ivan" lastname="Petrov"}
 	
 	// multiple assignment
 	var i, j, k = 0, 1, 3
-	echo("i="i", j="j", k="k"\n")
+	print "i=${i}, j=${j}, k=${k}"
 	
 	// swap using multiple assignment
 	i, j = j, i
-	echo("after swap: i="i", j="j"\n")
+	print "after swap: i=${i}, j=${j}"
 	
 	// multiple returns
 	var test = function(){ return 1, 2 }
 	var a, b = test()
-	print("results from function" "a="..a "b="..b)
+	print("results from function", "a="..a, "b="..b)
 	
 	// multiple returns
 	var a, b, c = test()
-	print("results from function" "a="..a "b="..b "c="..c)
+	print("results from function", "a="..a, "b="..b, "c="..c)
 }
 
 ;{
 	print "Object iterator test"
 	var obj = { null awesome=true 12 "excellent" }
 	for(var k, v in obj){
-		print( k " --> " v )
+		print "${k} --> ${v}"
 	}
 
 	print "Object iterator test, only keys"
@@ -83,13 +81,13 @@ print {firstname="Ivan" lastname="Petrov"}
 		var i, self = 0, this
 		return function(){
 			if(i < #self){
-				print("... inside of array iter func: " i self[i])
+				print "... inside of array iter func: ${i} ${self[i]}"
 				return true, i, self[i++]
 			}
 		}
 	}	
 	for(k, v in [10 20 30 40 50]){
-		print( k " --> " v )
+		print "${k} --> ${v}"
 	}
 	
 	print("Test array prototype:", [1 2 3].prototype === Array)
@@ -116,7 +114,7 @@ print "7 || 9 = "..(7 || 9)
 ;{
 	var v1 = {x=1 y=2}
 	var a = {[v1]="vv1" v2="vv2"}
-	print( a[v1] a.v2 )
+	print(a[v1], a.v2)
 }
 // ========================================================
 
@@ -127,10 +125,10 @@ var Person = {
         @lastname = lastname // equal to this.lastname = lastname
     }
     walk = function(){
-        print @fullname .. " is walking!"
+        print "${@fullname} is walking!"
     }
     __get@fullname = function(){
-        return @firstname .. " " .. @lastname
+        return "${@firstname} ${@lastname}"
     }
 }
 // create new instance of Person class
@@ -162,8 +160,8 @@ Person.walk.call(p)
 
 function foo(a, b){ return a + b }
 function bar(){ return foo.apply(null, arguments) }
-print "should be 5: "..bar(2 3)
-print "should be 9: "..bar(4 5)
+print "should be 5: ${bar(2, 3)}"
+print "should be 9: ${bar(4, 5)}"
 
 // ========================================================
 // new vector type class
@@ -178,8 +176,8 @@ var vec3 = {
 	__mul = {|b| vec3(@x * b.x, @y * b.y, @z * b.z)}
 }
 
-var v1 = vec3(10 20 30)
-var v2 = vec3(1 2 3)
+var v1 = vec3(10, 20, 30)
+var v2 = vec3(1, 2, 3)
 var v3 = v1 + v2 * v2
 print "should be {x:11,y:24,z:39} " .. v3
 
@@ -249,7 +247,7 @@ print "should be {x:11,y:24,z:39} " .. v3
 
 
 print "Test function inline call"
-print "should be 7: " .. {|a b c| a + b * c }(1 2 3)
+print "should be 7: " .. {|a, b, c| a + b * c }(1, 2, 3)
 
 ;{
 	print "Test local vars scope"
@@ -276,7 +274,7 @@ print _E
 
 print "Math functions"
 var a = [math.random() math.random() math.random() math.random() math.random() math.random()]
-print("random" a)
+print("random", a)
 
 // remove debug print from Array.__iter
 delete Array.__iter // delete our iterator, use default one
@@ -294,26 +292,26 @@ function Array.map(func){
 }
 
 a = a.map {|a| a*100}
-print("mult 100" a)
-print("math.ceil" a.map(math.ceil))
-print("math.floor" a.map(math.floor))
-print("math.round(-1)" a.map{|a| math.round(a, -1)})
-print("math.round(2)" a.map{|a| math.round(a, 2)})
-print("math.sin" a.map(math.sin))
-print("math.cos" a.map(math.cos))
-print("math.tan" a.map(math.tan))
+print("mult 100", a)
+print("math.ceil", a.map(math.ceil))
+print("math.floor", a.map(math.floor))
+print("math.round(-1)", a.map{|a| math.round(a, -1)})
+print("math.round(2)", a.map{|a| math.round(a, 2)})
+print("math.sin", a.map(math.sin))
+print("math.cos", a.map(math.cos))
+print("math.tan", a.map(math.tan))
 
 _E = math
 print "Extend local environment to be able to use math module without namespace"
-print("round(3)" a.map{|a| round(a, 3)})
-print("PI" PI)
+print("round(3)", a.map{|a| round(a, 3)})
+print("PI", PI)
 
 var core = require("core")
-print("core.eval(math.round(13.5))" core.eval("math.round(13.5)"))
-print("eval(math.round(13.5))" eval("math.round(13.5)"))
+print("core.eval(math.round(13.5))", core.eval("math.round(13.5)"))
+print("eval(math.round(13.5))", eval("math.round(13.5)"))
 print("==============")
-print("Next: math namespace is not used\nbut eval executes code in global environment by default\nso eval(round(13.5))" eval("round(13.5)"))
-print("run eval in space of the current environment (round(13.5))" eval("round(13.5)", _E))
+print("Next: math namespace is not used\nbut eval executes code in global environment by default\nso eval(round(13.5))", eval("round(13.5)"))
+print("run eval in space of the current environment (round(13.5))", eval("round(13.5)", _E))
 
 var __planet = "Mars"
 function get planet(){ return __planet }
@@ -349,7 +347,7 @@ function Object.do(func){
 
 print "User sorted array by keys"
 print([0 1 2 3 4 5 6 7 8 9].do {||
-	var keys = this.keys.sort{|a b| (a % 3) <=> (b % 3)}
+	var keys = this.keys.sort{|a, b| (a % 3) <=> (b % 3)}
 	var values = this.clone()
 	for(var k, v in keys){
 		this[v] = values[v]
@@ -357,28 +355,28 @@ print([0 1 2 3 4 5 6 7 8 9].do {||
 })
 
 print "Sorted array (reverse)"
-print([9 4 0 276 15 39 3].sort{|a b| b <=> a})
+print([9 4 0 276 15 39 3].sort{|a, b| b <=> a})
 
 print "User sorted array"
-print([9 4 0 276 15 39 3].sort{|a b| (a % 10) <=> (b % 10)})
+print([9 4 0 276 15 39 3].sort{|a, b| (a % 10) <=> (b % 10)})
 
 print "Sorted object by values"
 print({b=9 4 d=0 c=276 15 a=39 3}.sort())
 
 print "Sorted object by values (reverse)"
-print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b| b <=> a})
+print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a, b| b <=> a})
 
 print "Sorted object by keys"
-print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b ka kb| compareValues(ka kb) })
+print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a, b, ka, kb| compareValues(ka, kb) })
 
 print "Sorted object by keys (reverse)"
-print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a b ka kb| compareValues(kb ka) })
+print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a, b, ka, kb| compareValues(kb, ka) })
 
 function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
 		printf("#%d %s%s: %s, args: %s\n", i, t.file,
-			t.line > 0 ? "("..t.line..","..t.pos..")" : ""
-			t.object === _G ? t.name : t.object ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
+			t.line > 0 ? "(${t.line},${t.pos})" : "",
+			t.object !== _G && t.object ? "{obj-${t.object.id}}.${t.name}" : t.name, t.arguments)
 	}
 }
 
@@ -387,17 +385,17 @@ try{
 	var a, b = 2, 0
 	var c = a / b
 }catch(e){
-	print "exception: "..e.message
+	print "exception: ${e.message}"
 	for(var i, t in e.trace){
 		printf("#%d %s%s: %s, args: %s\n", i, t.file,
-			t.line > 0 ? "("..t.line..","..t.pos..")" : ""
-			t.object === _G ? t.name : t.object ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
+			t.line > 0 ? "(${t.line},${t.pos})" : "",
+			t.object !== _G && t.object ? "{obj-${t.object.id}}.${t.name}" : t.name, t.arguments)
 	}
 	// throw e
 }
 
 var function testFunc(arg1, arg2){
-	var testFunc2 = {|arg1 arg2 arg3|
+	var testFunc2 = {|arg1, arg2, arg3|
 		var testFunc3 = {|arg1|
 			printBackTrace()
 			var i = 0 // add some code at the end of function to prevent tail call
@@ -424,7 +422,7 @@ function Object.each(func){
 	}
 }
 
-[10 20 30 40].each {|i a|
+[10 20 30 40].each {|i, a|
 	print a
 }
 
@@ -526,7 +524,7 @@ if("Curl" in _G){
 	print "Test insert sql"
 	conn.execute("insert into session_log (user_id, time, ip, user_agent, referrer) values(:user_id, :time, :ip, :user_agent, :referrer)", {
 		user_id = 10 
-		time = "2013-04-01 10:00",
+		time = "2013-04-01 10:00"
 		ip = "127.0.01"
 		user_agent = "Test user agent: ${math.round(math.random() * 100)}"
 		referrer = "http://ya.ru"
@@ -574,7 +572,7 @@ if("Curl" in _G){
 	print "Test multi line string with vars inside"
 	var abc = {xyz = 123}
 	var var2 = "test"
-	var s = <<<END
+	var s = <<<END"
 
 This is multi
 line ${var2} string
@@ -584,13 +582,18 @@ END
 	print s
 	
 	print "Test multi line text"
-	var s = <<<'END
+	var s = <<<END'
 This is multi
 line ${var2} text
 
 ${abc.xyz + 7}
 END
 	print s
+	
+	print <<<@==" ${abc} 
+		string finished@==
+	print <<<~~' ${abc} 
+		string finished~~
 }
 
 terminate()
