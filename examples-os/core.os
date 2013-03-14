@@ -6,17 +6,19 @@ objectof = objectOf
 userdataof = userdataOf
 
 function __get(name){
-	echo("global property \""name"\" is not declared\n")
-	echo "back trace\n"
+	print "global property \"${name}\" is not declared"
+	print "back trace"
 	printBackTrace(1)
-	echo "\n"
+	print ""
 }
 
 function Object.__get(name){
-	echo("object property \""name"\" is not declared\n")
-	echo "back trace\n"
+	print "object property \"${name}\" is not declared"
+	print "back trace"
 	printBackTrace(1) // skip current function
-	echo("=======\ntarget "this"\n\n")
+	print "======="
+	print "target: ${this}"
+	print ""
 }
 
 function assert(a, message){
@@ -24,23 +26,23 @@ function assert(a, message){
 }
 
 function unhandledException(e){
-	if("trace" in e){
-		printf("Unhandled exception: '%s'\n", e.message);
-		for(var i, t in e.trace){
-			printf("#%d %s%s: %s, args: %s\n", i, t.file,
-				t.line > 0 ? "("..t.line..","..t.pos..")" : ""
-				t.object === _G ? t.name : t.object ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
-		}
+	if(e is CompilerException){
+		echo "\nUnhandled exception: '${e.message}' in ${e.file}(${e.line},${e.pos}), token: ${e.token}\n${e.lineString.trim()}\n\n"
 	}else{
-		printf("Unhandled exception: '%s' in %s(%d,%d)\n", e.message, e.file, e.line, e.pos);
+		echo "\nUnhandled exception: '${e.message}'\n\n"
+	}
+	for(var i, t in e.trace){
+		printf("#${i} ${t.file}%s: %s, args: ${t.arguments}\n",
+			t.line > 0 ? "(${t.line},${t.pos})" : "",
+			t.object && t.object !== _G ? "<${typeOf(t.object)}#${t.object.id}>.${t.name}" : t.name)
 	}
 }
 
 function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
-		printf("#%d %s%s: %s, args: %s\n", i, t.file,
-			t.line > 0 ? "("..t.line..","..t.pos..")" : ""
-			t.object === _G ? t.name : t.object ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
+		printf("#${i} ${t.file}%s: %s, args: ${t.arguments}\n",
+			t.line > 0 ? "(${t.line},${t.pos})" : "",
+			t.object && t.object !== _G ? "<${typeOf(t.object)}#${t.object.id}>.${t.name}" : t.name)
 	}
 }
 
@@ -56,7 +58,7 @@ function addEventListener(eventName, func, zOrder){
 		events[eventName] = {}
 	}
 	events[eventName][func] = zOrder || 0
-	events[eventName].sort {|a b| b <=> a}
+	events[eventName].sort {|a, b| b <=> a}
 	return [eventName func]
 }
 
@@ -82,7 +84,7 @@ var timers = {}
 
 function isCallable(f){ 
 	var type = typeOf(f)
-	return type === "function" || type === "object" || type === "userdata"
+	return type == "function" || type == "object" || type == "userdata"
 }
 
 function setTimeout(func, delay, count, priority){
@@ -95,7 +97,7 @@ function setTimeout(func, delay, count, priority){
 		count = count
 		priority = priority || 0
 	}
-	timers.sort {|a b| b.priority <=> a.priority }
+	timers.sort {|a, b| b.priority <=> a.priority }
 	// timers.rsort "priority"
 	return func
 }

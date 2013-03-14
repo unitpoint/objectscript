@@ -61,6 +61,7 @@ public:
 			pcre_free(re);
 			if (extra) pcre_free(extra);
 #if HAVE_SETLOCALE
+			need to be implemented?
 			if ((void*)pce->tables) pefree((void*)pce->tables, 1);
 			pefree(pce->locale, 1);
 #endif
@@ -248,6 +249,7 @@ public:
 			int					 count = 0;
 			unsigned const char *tables = NULL;
 #if HAVE_SETLOCALE
+			need to be implemented?
 			char				*locale = setlocale(LC_CTYPE, NULL);
 #endif
 
@@ -276,6 +278,7 @@ public:
 					os->pop();
 				} else {
 #if HAVE_SETLOCALE
+					need to be implemented?
 					if (!strcmp(cache->locale, locale)) {
 #endif
 					// touch item
@@ -289,6 +292,7 @@ public:
 					os->pop();
 					return cache;
 #if HAVE_SETLOCALE
+					need to be implemented?
 					}
 #endif
 				}
@@ -404,6 +408,7 @@ public:
 			}
 
 #if HAVE_SETLOCALE
+			need to be implemented?
 			if (strcmp(locale, "C"))
 				tables = pcre_maketables();
 #endif
@@ -457,6 +462,7 @@ public:
 			cache->regexp_options = regexp_options;
 			cache->compile_options = compile_options;
 #if HAVE_SETLOCALE
+			need to be implemented?
 			new_entry.locale = pestrdup(locale, 1);
 			new_entry.tables = tables;
 #endif

@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.5-dev")
+#define OS_VERSION OS_TEXT("1.5.1-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
 #define OS_EXT_TEMPLATE OS_TEXT(".osh")
@@ -3040,6 +3040,7 @@ namespace ObjectScript
 		void setProperty(const Core::String&, bool setter_enabled = true);
 		void setProperty(int offs, const OS_CHAR*, bool setter_enabled = true);
 		void setProperty(int offs, const Core::String&, bool setter_enabled = true);
+		
 		void addProperty(bool setter_enabled = true);
 
 		void setSmartProperty(const OS_CHAR*, bool setter_enabled = true);
@@ -3122,6 +3123,9 @@ namespace ObjectScript
 		bool isPrototypeOf(int value_offs = -2, int prototype_offs = -1);
 		bool is(int value_offs = -2, int prototype_offs = -1);
 
+		void * toUserdata(int crc, int offs = -1, int prototype_crc = 0);
+		void clearUserdata(int crc, int offs = -1, int prototype_crc = 0);
+
 		bool		toBool(int offs = -1);
 		OS_NUMBER	toNumber(int offs = -1, bool valueof_enabled = true);
 		float		toFloat(int offs = -1, bool valueof_enabled = true);
@@ -3129,15 +3133,13 @@ namespace ObjectScript
 		int			toInt(int offs = -1, bool valueof_enabled = true);
 		String		toString(int offs = -1, bool valueof_enabled = true);
 		
-		void * toUserdata(int crc, int offs = -1, int prototype_crc = 0);
-		void clearUserdata(int crc, int offs = -1, int prototype_crc = 0);
-
 		bool		toBool(int offs, bool def);
 		OS_NUMBER	toNumber(int offs, OS_NUMBER def, bool valueof_enabled = true);
 		float		toFloat(int offs, float def, bool valueof_enabled = true);
 		double		toDouble(int offs, double def, bool valueof_enabled = true);
 		int			toInt(int offs, int def, bool valueof_enabled = true);
 		String		toString(int offs, const String& def, bool valueof_enabled = true);
+		String		toString(int offs, const OS_CHAR * def, bool valueof_enabled = true);
 
 		bool		popBool();
 		OS_NUMBER	popNumber(bool valueof_enabled = true);
@@ -3152,6 +3154,7 @@ namespace ObjectScript
 		double		popDouble(double def, bool valueof_enabled = true);
 		int			popInt(int def, bool valueof_enabled = true);
 		String		popString(const String& def, bool valueof_enabled = true);
+		String		popString(const OS_CHAR * def, bool valueof_enabled = true);
 
 		int getSetting(OS_ESettings);
 		int setSetting(OS_ESettings, int);

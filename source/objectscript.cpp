@@ -3651,7 +3651,7 @@ bool OS::Core::Compiler::compile()
 		return true;
 	}else{
 		Buffer dump(allocator);
-		dump += OS_TEXT("Error");
+		dump += OS_TEXT("error");
 		switch(error){
 		default:
 			dump += OS_TEXT(" unknown");
@@ -3727,24 +3727,51 @@ bool OS::Core::Compiler::compile()
 			dump += OS_TEXT(" FINISH_UNARY_OP");
 			break;
 		}
-		dump += OS_TEXT("\n");
+		allocator->getGlobal(OS_TEXT("CompilerException"));
+		allocator->pushGlobals();
+		allocator->pushString(dump);
+		allocator->pushNumber(error);
+		allocator->call(2, 1);
 		if(error_token){
 			if(error_token->text_data->filename.getDataSize() > 0){
-				dump += OS::Core::String::format(allocator, "filename %s\n", error_token->text_data->filename.toChar());
+				allocator->pushString(error_token->text_data->filename);
+			}else{
+				allocator->pushString(OS_TEXT("{{eval}}"));
 			}
-			dump += OS::Core::String::format(allocator, "[%d] %s\n", error_token->line+1, error_token->text_data->lines[error_token->line].toChar());
-			dump += OS::Core::String::format(allocator, "pos %d, token: %s\n", error_token->pos+1, error_token->str.toChar());
+			allocator->setProperty(-2, OS_TEXT("file"), false);
+			
+			allocator->pushNumber(error_token->line+1);
+			allocator->setProperty(-2, OS_TEXT("line"), false);
+
+			allocator->pushNumber(error_token->pos+1);
+			allocator->setProperty(-2, OS_TEXT("pos"), false);
+
+			allocator->pushString(error_token->str);
+			allocator->setProperty(-2, OS_TEXT("token"), false);
+
+			allocator->pushString(error_token->text_data->lines[error_token->line]);
+			allocator->setProperty(-2, OS_TEXT("lineString"), false);
 		}else if(tokenizer->isError()){
 			if(tokenizer->getFilename().getDataSize() > 0){
-				dump += OS::Core::String::format(allocator, "filename %s\n", tokenizer->getFilename().toChar());
+				allocator->pushString(tokenizer->getFilename());
+			}else{
+				allocator->pushString(OS_TEXT("{{eval}}"));
 			}
-			dump += OS::Core::String::format(allocator, "[%d] %s\n", tokenizer->getErrorLine()+1, tokenizer->getLineString(tokenizer->getErrorLine()).toChar());
-			dump += OS::Core::String::format(allocator, "pos %d\n", tokenizer->getErrorPos()+1);
-		}
-		// TODO: set exception
-		allocator->echo(dump.toString());
-		// FileStreamWriter(allocator, "test-data/debug-exp-dump.txt").writeBytes(dump.toChar(), dump.getDataSize());
+			allocator->setProperty(-2, OS_TEXT("file"), false);
+			
+			allocator->pushNumber(tokenizer->getErrorLine()+1);
+			allocator->setProperty(-2, OS_TEXT("line"), false);
 
+			allocator->pushNumber(tokenizer->getErrorPos()+1);
+			allocator->setProperty(-2, OS_TEXT("pos"), false);
+
+			allocator->pushNull();
+			allocator->setProperty(-2, OS_TEXT("token"), false);
+
+			allocator->pushString(tokenizer->getLineString(tokenizer->getErrorLine()));
+			allocator->setProperty(-2, OS_TEXT("lineString"), false);
+		}
+		allocator->setException();
 		allocator->pushNull();
 	}
 	return false;
@@ -12643,32 +12670,21 @@ void OS::Core::setExceptionValue(Value val)
 	if(!val.isNull()){
 		allocator->getGlobal(OS_TEXT("Exception"));
 		if(isValueInstanceOf(val, stack_values.lastElement())){
-			pop();
-			pushValue(val);
+			stack_values.lastElement() = val;
 		}else{
 			allocator->pushGlobals();
 			allocator->pushString(valueToString(val, true));
-			call(1, 1); // _G.Exception(message)
+			call(1, 1); // _G.Exception(toString(val))
 		}
-		allocator->pushString(OS_TEXT("file"));
-		allocator->pushStackValue(-2);
-		allocator->runOp(OP_IN);
-		if(!allocator->popBool()){
-			DebugInfo debug_info = getDebugInfo();
-			if(debug_info.isValid()){
-				allocator->pushString(debug_info.prog->filename);
-				allocator->setProperty(-2, OS_TEXT("file"));
+		allocator->getProperty(-1, OS_TEXT("trace"));
+		bool is_array = allocator->isArray();
+		allocator->pop();
 		
-				allocator->pushNumber(debug_info.pos->line);
-				allocator->setProperty(-2, OS_TEXT("line"));
-		
-				allocator->pushNumber(debug_info.pos->pos);
-				allocator->setProperty(-2, OS_TEXT("pos"));
-		
-				pushBackTrace(0, 10);
-				allocator->setProperty(-2, OS_TEXT("trace"));
-			}
-		}		
+		if(!is_array){
+			pushBackTrace(0, 10);
+			allocator->setProperty(-2, OS_TEXT("trace"));
+		}
+
 		terminated_exception = stack_values.buf[--stack_values.count];
 		if(!terminated_exception.isNull()){
 			terminated = true;
@@ -12678,6 +12694,7 @@ void OS::Core::setExceptionValue(Value val)
 	}
 	terminated = false;
 	terminated_code = 0;
+	terminated_exception = Value();
 }
 
 void OS::setException()
@@ -15723,6 +15740,12 @@ OS::String OS::toString(int offs, const String& def, bool valueof_enabled)
 	return value.isNull() ? def : core->valueToStringOS(value, valueof_enabled);
 }
 
+OS::String OS::toString(int offs, const OS_CHAR * def, bool valueof_enabled)
+{
+	Core::Value value = core->getStackValue(offs);
+	return value.isNull() ? String(this, def) : core->valueToStringOS(value, valueof_enabled);
+}
+
 bool OS::isString(int offs, String * out)
 {
 	return core->isValueStringOS(core->getStackValue(offs), out);
@@ -15795,6 +15818,12 @@ OS::String OS::popString(bool valueof_enabled)
 }
 
 OS::String OS::popString(const String& def, bool valueof_enabled)
+{
+	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
+	return toString(-1, def, valueof_enabled);
+}
+
+OS::String OS::popString(const OS_CHAR * def, bool valueof_enabled)
 {
 	struct Pop { OS * os; ~Pop(){ os->pop(); } } pop = {this}; (void)pop;
 	return toString(-1, def, valueof_enabled);
@@ -19623,7 +19652,11 @@ dump_object:
 
 		static int merge(OS * os, int params, int, int, void*)
 		{
-			if(params < 1) return 0;
+			if(params < 1){
+				OS_ASSERT(params == 0);
+				// return this
+				return 1;
+			}
 			int offs = os->getAbsoluteOffs(-params);
 			bool is_array = os->isArray(offs-1);
 			if(is_array || os->isObject(offs-1)){
@@ -21488,15 +21521,15 @@ void OS::initPreScript()
 		require.paths = []
 
 		function unhandledException(e){
-			if("trace" in e){
-				printf("Unhandled exception: '%s'\n", e.message);
-				for(var i, t in e.trace){
-					printf("#%d %s%s: %s, args: %s\n", i, t.file, 
-						t.line > 0 ? "("..t.line..","..t.pos..")" : "", 
-						t.object && t.object !== _G ? "{obj-"..t.object.id.."}."..t.name : t.name, t.arguments);
-				}
+			if(e is CompilerException){
+				echo "\nUnhandled exception: '${e.message}' in ${e.file}(${e.line},${e.pos}), token: ${e.token}\n${e.lineString.trim()}\n\n"
 			}else{
-				printf("Unhandled exception: '%s' in %s%s\n", e.message, e.file, t.line > 0 ? "("..t.line..","..t.pos..")" : "");
+				echo "\nUnhandled exception: '${e.message}'\n\n"
+			}
+			for(var i, t in e.trace){
+				printf("#${i} ${t.file}%s: %s, args: ${t.arguments}\n",
+					t.line > 0 ? "(${t.line},${t.pos})" : "",
+					t.object && t.object !== _G ? "<${typeOf(t.object)}#${t.object.id}>.${t.name}" : t.name)
 			}
 		}
 	));
@@ -21514,6 +21547,8 @@ void OS::initPostScript()
 		function Buffer.printf(){
 			@append(sprintf.apply(_E, arguments))
 		}
+
+		CompilerException = extends Exception {}
 	));
 }
 
@@ -21616,7 +21651,7 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 {
 	GCArrayValue * arr = pushArrayValue();
 
-	String function_str(allocator, OS_TEXT("function"));
+	String function_str(allocator, OS_TEXT("func"));
 	String name_str(allocator, OS_TEXT("name"));
 	String file_str(allocator, OS_TEXT("file"));
 	String line_str(allocator, OS_TEXT("line"));
