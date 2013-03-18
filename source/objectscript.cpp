@@ -1916,7 +1916,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 							case OS_TEXT('n'): c = OS_TEXT('\n'); str++; break;
 							case OS_TEXT('t'): c = OS_TEXT('\t'); str++; break;
 							case OS_TEXT('\"'): c = OS_TEXT('\"'); str++; break;
-							case OS_TEXT('\''): c = OS_TEXT('\''); str++; break;
+							// case OS_TEXT('\''): c = OS_TEXT('\''); str++; break;
 							case OS_TEXT('\\'): c = OS_TEXT('\\'); str++; break;
 							case OS_TEXT('$'): c = OS_TEXT('$'); str++; break;
 								//case OS_TEXT('x'): 
@@ -1925,7 +1925,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 									OS_INT val;
 									int max_val = sizeof(OS_CHAR) == 2 ? 0xFFFF : 0xFF;
 
-									if(*str == OS_TEXT('x') || *str == OS_TEXT('X')){ // parse hex
+									if(*str == OS_TEXT('x')){ // || *str == OS_TEXT('X')){ // parse hex
 										str++;
 										if(!parseSimpleHex(str, val)){
 											cur_pos = (int)(str - line_start);
@@ -6161,11 +6161,18 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectOrFunctionExpre
 		if(!recent_token){
 			return lib.error(Tokenizer::END_CODE_BLOCK, recent_token);
 		}
+#ifdef OS_PARAMS_WITHOUT_SEPARATOR
 		switch(recent_token->type){
 		case Tokenizer::PARAM_SEPARATOR:
 		case Tokenizer::CODE_SEPARATOR:
 			readToken();
 		}
+#else
+		if(recent_token->type != Tokenizer::PARAM_SEPARATOR && recent_token->type != Tokenizer::CODE_SEPARATOR){
+			return lib.error(Tokenizer::PARAM_SEPARATOR, recent_token);
+		}
+		readToken();
+#endif
 	}
 	return NULL; // shut up compiler
 }
@@ -6181,7 +6188,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 		return finishValueExpression(scope, params, next_p);
 	}
 	Params p = Params().setAllowBinaryOperator(true);
-	for(;;){
+	for(int auto_index = 0;;){
 		Expression * exp = expectSingleExpression(scope, p);
 		if(!exp){
 			if(isError()){
@@ -6197,7 +6204,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 			return finishValueExpression(scope, params, next_p);
 		}
 		exp = expectExpressionValues(exp, 1);
-		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX, exp->token, exp OS_DBG_FILEPOS);
+
+		TokenData * index_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), exp->token->str, 
+			Tokenizer::NUMBER, exp->token->line, exp->token->pos);
+		index_token->setFloat(auto_index++);
+		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_OBJECT_SET_BY_INDEX, index_token, exp OS_DBG_FILEPOS);
+		index_token->release();
 		params->list.add(exp OS_DBG_FILEPOS);
 		if(recent_token && recent_token->type == Tokenizer::END_ARRAY_BLOCK){
 			readToken();
@@ -6208,11 +6220,20 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 			allocator->deleteObj(params);
 			return NULL;
 		}
+#ifdef OS_PARAMS_WITHOUT_SEPARATOR
 		switch(recent_token->type){
 		case Tokenizer::PARAM_SEPARATOR:
 		case Tokenizer::CODE_SEPARATOR:
 			readToken();
 		}
+#else
+		if(recent_token->type != Tokenizer::PARAM_SEPARATOR && recent_token->type != Tokenizer::CODE_SEPARATOR){
+			setError(Tokenizer::PARAM_SEPARATOR, recent_token);
+			allocator->deleteObj(params);
+			return NULL;
+		}
+		readToken();
+#endif
 	}
 	return NULL; // shut up compiler
 }
@@ -12676,7 +12697,7 @@ void OS::Core::setExceptionValue(Value val)
 			allocator->pushString(valueToString(val, true));
 			call(1, 1); // _G.Exception(toString(val))
 		}
-		allocator->getProperty(-1, OS_TEXT("trace"));
+		allocator->getProperty(-1, OS_TEXT("trace"), false);
 		bool is_array = allocator->isArray();
 		allocator->pop();
 		
@@ -21526,6 +21547,7 @@ void OS::initPreScript()
 			}else{
 				echo "\nUnhandled exception: '${e.message}'\n\n"
 			}
+			if('trace' in e)
 			for(var i, t in e.trace){
 				printf("#${i} ${t.file}%s: %s, args: ${t.arguments}\n",
 					t.line > 0 ? "(${t.line},${t.pos})" : "",

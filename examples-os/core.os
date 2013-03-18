@@ -31,6 +31,7 @@ function unhandledException(e){
 	}else{
 		echo "\nUnhandled exception: '${e.message}'\n\n"
 	}
+	if('trace' in e)
 	for(var i, t in e.trace){
 		printf("#${i} ${t.file}%s: %s, args: ${t.arguments}\n",
 			t.line > 0 ? "(${t.line},${t.pos})" : "",
@@ -59,7 +60,7 @@ function addEventListener(eventName, func, zOrder){
 	}
 	events[eventName][func] = zOrder || 0
 	events[eventName].sort {|a, b| b <=> a}
-	return [eventName func]
+	return [eventName, func]
 }
 
 function removeEventListener(eventName, func){
@@ -91,11 +92,11 @@ function setTimeout(func, delay, count, priority){
 	count = count || 1
 	count > 0 && functionOf(func) || return;
 	timers[func] = {
-		nextTime = app.timeSec + delay
-		delay = delay
-		func = func
-		count = count
-		priority = priority || 0
+		nextTime = app.timeSec + delay,
+		delay = delay,
+		func = func,
+		count = count,
+		priority = priority || 0,
 	}
 	timers.sort {|a, b| b.priority <=> a.priority }
 	// timers.rsort "priority"

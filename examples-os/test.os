@@ -1,8 +1,8 @@
 ﻿print { 
-	dirname = path.dirname(__FILE__)
-	basename = path.basename(__FILE__)
-	extname = path.extname(__FILE__)
-	resolve = path.resolve("test.db")
+	dirname = path.dirname(__FILE__),
+	basename = path.basename(__FILE__),
+	extname = path.extname(__FILE__),
+	resolve = path.resolve("test.db"),
 }
 
 ;{
@@ -24,27 +24,27 @@ print(5, " differences")
 }
 
 // auto call function with single argument, brackets are not used
-print {firstname="Ivan" lastname="Petrov"}
+print {firstname="Ivan", lastname="Petrov"}
 
 ;{
 	// extended object constructor syntax
-	var a = {x=1, y=3; "zero" "one", "two" last:7,}
+	var a = {x=1, y=3; "zero", "one", "two"; last:7,}
 	print a[1]
 	print a
 	
 	// extended object constructor syntax
-	a = {[2+3]="five" y=3}
+	a = {[2+3]="five", y=3}
 	print a[5]
 	print a
 	
-	a = {x=1 y=2}
+	a = {x=1, y=2}
 	// any type could be used as index
-	var b = {[a]="powerful" 7="greate"}
+	var b = {[a]="powerful", 7="greate"}
 	print b[a]	
 	
 	print([10, 20, 30, 40])
 	// extended array constructor syntax without comma
-	print([10 20 30 40])
+	print([10, 20, 30, 40])
 	
 	// multiple assignment
 	var i, j, k = 0, 1, 3
@@ -66,7 +66,7 @@ print {firstname="Ivan" lastname="Petrov"}
 
 ;{
 	print "Object iterator test"
-	var obj = { null awesome=true 12 "excellent" }
+	var obj = { null, awesome=true, 12, "excellent" }
 	for(var k, v in obj){
 		print "${k} --> ${v}"
 	}
@@ -86,11 +86,11 @@ print {firstname="Ivan" lastname="Petrov"}
 			}
 		}
 	}	
-	for(k, v in [10 20 30 40 50]){
+	for(k, v in [10, 20, 30, 40, 50]){
 		print "${k} --> ${v}"
 	}
 	
-	print("Test array prototype:", [1 2 3].prototype === Array)
+	print("Test array prototype:", [1, 2, 3].prototype === Array)
 	
 	print "Test range iterator"
 	var range = function(a, b){
@@ -112,8 +112,8 @@ print "7 || 9 = "..(7 || 9)
 // ========================================================
 
 ;{
-	var v1 = {x=1 y=2}
-	var a = {[v1]="vv1" v2="vv2"}
+	var v1 = {x=1, y=2}
+	var a = {[v1]="vv1", v2="vv2"}
 	print(a[v1], a.v2)
 }
 // ========================================================
@@ -123,13 +123,13 @@ var Person = {
     __construct = function(firstname, lastname){
         @firstname = firstname // equal to this.firstname = firstname
         @lastname = lastname // equal to this.lastname = lastname
-    }
+    },
     walk = function(){
         print "${@fullname} is walking!"
-    }
+    },
     __get@fullname = function(){
         return "${@firstname} ${@lastname}"
-    }
+    },
 }
 // create new instance of Person class
 var p = Person("James", "Bond")
@@ -141,11 +141,11 @@ print "p is Person = " .. (p is Person)
 var IvanPerson = extends Person {
     __construct = function(){
         super("Ivan", "Petrov")
-    }
+    },
 	walk = function(){
 		echo "Someone named "
 		super()
-	}
+	},
 }
 
 // create new instance of IvanPerson class
@@ -170,10 +170,10 @@ var vec3 = {
 		this.x = x
 		this.y = y
 		this.z = z
-	}
-	__add = {|b| vec3(@x + b.x, @y + b.y, @z + b.z)}
+	},
+	__add = {|b| vec3(@x + b.x, @y + b.y, @z + b.z)},
 	// it's equal to __add = function(b){ return vec3(this.x + b.x, this.y + b.y, this.z + b.z)}
-	__mul = {|b| vec3(@x * b.x, @y * b.y, @z * b.z)}
+	__mul = {|b| vec3(@x * b.x, @y * b.y, @z * b.z)},
 }
 
 var v1 = vec3(10, 20, 30)
@@ -185,9 +185,9 @@ print "should be {x:11,y:24,z:39} " .. v3
 	print "Test properties"
 
 	var a = {
-		_color = "red"
-		__get@color = {|| @_color }
-		__set@color = {|v| @_color = v }
+		_color = "red",
+		__get@color = {|| @_color },
+		__set@color = {|v| @_color = v },
 	}
 	
 	// get property
@@ -197,19 +197,19 @@ print "should be {x:11,y:24,z:39} " .. v3
 	print "should be blue: " .. a.color
 
 	a = {
-		_color = "white"
+		_color = "white",
 		__get = function(name){ 
 			if(name == "color")
 				return this._color 
-		}
+		},
 		__set = function(name, v){
 			if(name == "color")
 				this._color = v
-		}
+		},
 		__del = function(name){
 			if(name == "color")
 				delete this._color
-		}
+		},
 	}
 	
 	// get property
@@ -225,16 +225,16 @@ print "should be {x:11,y:24,z:39} " .. v3
 	print "Test multi dimensional properties"
 	
 	a = {
-		_matrix = {}
+		_matrix = {},
 		__getdim = function(x, y){
 			return this._matrix[y*4 + x]
-		}
+		},
 		__setdim = function(value, x, y){
 			this._matrix[y*4 + x] = value
-		}
+		},
 		__deldim = function(x, y){
 			delete this._matrix[y*4 + x]
-		}
+		},
 	}
 	// set property
 	a[1, 2] = 5		// a.__setdim(5, 1, 2)
@@ -273,7 +273,7 @@ print "Script environment"
 print _E
 
 print "Math functions"
-var a = [math.random() math.random() math.random() math.random() math.random() math.random()]
+var a = [math.random(), math.random(), math.random(), math.random(), math.random(), math.random()]
 print("random", a)
 
 // remove debug print from Array.__iter
@@ -338,7 +338,7 @@ function String.__get(i){
 }
 
 print "Sorted array"
-print([9 4 0 276 15 39 3].sort())
+print([9, 4, 0, 276, 15, 39, 3].sort())
 
 function Object.do(func){
 	func.call(this)
@@ -346,7 +346,7 @@ function Object.do(func){
 }
 
 print "User sorted array by keys"
-print([0 1 2 3 4 5 6 7 8 9].do {||
+print([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].do {||
 	var keys = this.keys.sort{|a, b| (a % 3) <=> (b % 3)}
 	var values = this.clone()
 	for(var k, v in keys){
@@ -355,22 +355,22 @@ print([0 1 2 3 4 5 6 7 8 9].do {||
 })
 
 print "Sorted array (reverse)"
-print([9 4 0 276 15 39 3].sort{|a, b| b <=> a})
+print([9, 4, 0, 276, 15, 39, 3].sort{|a, b| b <=> a})
 
 print "User sorted array"
-print([9 4 0 276 15 39 3].sort{|a, b| (a % 10) <=> (b % 10)})
+print([9, 4, 0, 276, 15, 39, 3].sort{|a, b| (a % 10) <=> (b % 10)})
 
 print "Sorted object by values"
-print({b=9 4 d=0 c=276 15 a=39 3}.sort())
+print({b=9, 4, d=0, c=276, 15, a=39, 3}.sort())
 
 print "Sorted object by values (reverse)"
-print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a, b| b <=> a})
+print({b=9, 4, d=0, c=276, 15, a=39, 3}.sort{|a, b| b <=> a})
 
 print "Sorted object by keys"
-print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a, b, ka, kb| compareValues(ka, kb) })
+print({b=9, 4, d=0, c=276, 15, a=39, 3}.sort{|a, b, ka, kb| compareValues(ka, kb) })
 
 print "Sorted object by keys (reverse)"
-print({b=9 4 d=0 c=276 15 a=39 3}.sort{|a, b, ka, kb| compareValues(kb, ka) })
+print({b=9, 4, d=0, c=276, 15, a=39, 3}.sort{|a, b, ka, kb| compareValues(kb, ka) })
 
 function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
@@ -411,7 +411,7 @@ testFunc(1, 2)
 // terminate()
 
 print "Test 5 < 10 ? 7 : 3 --> "..(5 < 10 ? 7 : 3)
-print "Test in operator (should be true) "..("name" in {x = 0 y = 0 name = 0 index = 0})
+print "Test in operator (should be true) "..("name" in {x = 0, y = 0, name = 0, index = 0})
 
 print "Test _F and recursion"
 print "factorial(20) = " .. {|a| a <= 1 ? 1 : a*_F(a-1)}(20)
@@ -422,7 +422,7 @@ function Object.each(func){
 	}
 }
 
-[10 20 30 40].each {|i, a|
+[10, 20, 30, 40].each {|i, a|
 	print a
 }
 
@@ -479,13 +479,13 @@ Range = {
 		}else{
 			@a, @b = 0, a - 1
 		}
-	}
+	},
 	__iter = function(){
 		var a, b = @a, @b
 		return a <= b 
 			? {|| a <= b && return true, a++ } 
 			: {|| a >= b && return true, a-- }
-	}
+	},
 }
 
 print "Test for in Range(5)"
@@ -523,11 +523,11 @@ if("Curl" in _G){
 	
 	print "Test insert sql"
 	conn.execute("insert into session_log (user_id, time, ip, user_agent, referrer) values(:user_id, :time, :ip, :user_agent, :referrer)", {
-		user_id = 10 
-		time = "2013-04-01 10:00"
-		ip = "127.0.01"
-		user_agent = "Test user agent: ${math.round(math.random() * 100)}"
-		referrer = "http://ya.ru"
+		user_id = 10,
+		time = "2013-04-01 10:00",
+		ip = "127.0.01",
+		user_agent = "Test user agent: ${math.round(math.random() * 100)}",
+		referrer = "http://ya.ru",
 	})
 	print "lastInsertId: ${conn.lastInsertId}"
 	

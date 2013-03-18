@@ -4,10 +4,10 @@ var header_file = File("header.txt", "wb")
 var content_file = File("content.txt", "wb")
 
 curl.options {
-    url         = "http://objectscript.org"
-    file        = content_file
-    header_file = header_file
-    // httpheader  = ["Content-Type: text/html; charset=utf-8", "Transfer-Encoding: chunked"]
+    url         = "http://objectscript.org",
+    file        = content_file,
+    header_file = header_file,
+    // httpheader  = ["Content-Type: text/html; charset=utf-8", "Transfer-Encoding: chunked"],
 }
 
 curl.perform(true) // keep open
@@ -21,8 +21,8 @@ var saveHeader = function(data) {
 }
 
 curl.options {
-    file = null //set default value
-    headerfunction = saveHeader
+    file = null, //set default value
+    headerfunction = saveHeader,
 }
 
 content = curl.perform()

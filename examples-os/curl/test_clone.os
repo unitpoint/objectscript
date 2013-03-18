@@ -5,16 +5,16 @@ var func = function(buf) {
 }
 
 c.options {
-    url:"www.ya.ru"
-	timeout: 5
-    // httpheader: ["Content-Type: text/html; charset=utf-8", "Transfer-Encoding: chunked"]
-    writefunction: func
+    url:"www.ya.ru",
+	timeout: 5,
+    // httpheader: ["Content-Type: text/html; charset=utf-8", "Transfer-Encoding: chunked"],
+    writefunction: func,
 }
 
 c1 = c.clone()
 
 c1.options {
-    url:"www.objectscript.org"
+    url:"www.objectscript.org",
 }
 
 try{ 

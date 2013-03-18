@@ -16,9 +16,9 @@ var header = function(buf) {
 
 var curl = Curl()
 curl.options {
-    url            = "http://www.python.org/"
-    writefunction  = body
-    headerfunction = header
+    url            = "http://www.python.org/",
+    writefunction  = body,
+    headerfunction = header,
 }
 curl.perform()
 
@@ -29,14 +29,14 @@ curl.perform()
 // When downloading a document, the arguments related to uploads are zero, and vice versa.
 
 Curl {
-    url              = "http://slashdot.org/"
-    noprogress       = false
+    url              = "http://slashdot.org/",
+    noprogress       = false,
     progressfunction = function(dltotal, dlnow, ultotal, ulnow) {
 		print ("Total to download", dltotal)
 		print ("Total downloaded", dlnow)
 		print ("Total to upload", ultotal)
 		print ("Total uploaded", ulnow)
-	}
+	},
 }.perform()
 
 
@@ -51,8 +51,8 @@ var function test(debug_type, debug_msg) {
 }
 
 Curl {
-    url           = "http://curl.haxx.se/"
-    verbose       = true
-    debugfunction = test
+    url           = "http://curl.haxx.se/",
+    verbose       = true,
+    debugfunction = test,
 }.perform()
 
