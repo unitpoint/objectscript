@@ -485,6 +485,11 @@ static bool parseSimpleFloat(const OS_CHAR *& p_str, T& p_val)
 	return str > start;
 }
 
+static bool isValidCharAfterNumber(const OS_CHAR * str)
+{
+	return !*str || OS_IS_SPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str);
+}
+
 bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 {
 	const OS_CHAR * start_str = str;
@@ -501,10 +506,10 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 	if(str[0] == OS_TEXT('0') && str[1] != OS_TEXT('.')){
 		bool is_valid, is_octal = false;
 		OS_INT int_val;
-		if(str[1] == OS_TEXT('x') || str[1] == OS_TEXT('X')){ // parse hex
+		if(str[1] == OS_TEXT('x')){ // || str[1] == OS_TEXT('X')){ // parse hex
 			str += 2;
 			is_valid = parseSimpleHex(str, int_val);
-		}else if(str[1] == OS_TEXT('b') || str[1] == OS_TEXT('B')){ // parse hex
+		}else if(str[1] == OS_TEXT('b')){ // || str[1] == OS_TEXT('B')){ // parse hex
 			str += 2;
 			is_valid = parseSimpleBin(str, int_val);
 		}else{ // parse octal
@@ -535,20 +540,20 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 			const OS_CHAR * spec[] = {OS_TEXT("INF"), OS_TEXT("IND"), OS_TEXT("QNAN"), NULL};
 			int i = 0;
 			for(; spec[i]; i++){
-				if(OS_STRCMP(str, spec[i]) != 0)
+				int spec_len = (int)OS_STRLEN(spec[i]);
+				if(OS_MEMCMP(str+2, spec[i], spec_len) != 0)
 					continue;
 
-				size_t specLen = OS_STRLEN(spec[i]);
-				str += specLen;
-				if(!*str || OS_IS_SPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str)){
+				str += spec_len + 2;
+				if(isValidCharAfterNumber(str)){
 					OS_INT32 spec_val;
 					switch(i){
 					case 0:
-						spec_val = 0x7f800000;
+						spec_val = 0x7f800000; // INF
 						break;
 
 					case 1:
-						spec_val = 0xffc00000;
+						spec_val = 0xffc00000; // IND
 						break;
 
 					default:
@@ -556,7 +561,7 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 						// no break
 
 					case 2:
-						spec_val = 0x7fc00000;
+						spec_val = 0x7fc00000; // NAN
 						break;
 					}
 					result = (OS_FLOAT)fromLittleEndianByteOrder(*(float*)&spec_val);
@@ -600,7 +605,7 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 				float_val *= m;
 			}
 		}
-		if(*str == OS_TEXT('f')){
+		if(*str == OS_TEXT('f') && isValidCharAfterNumber(str+1)){
 			str++;
 		}
 		result = sign > 0 ? float_val : -float_val;
@@ -1663,11 +1668,6 @@ OS::Core::Tokenizer::TokenData * OS::Core::Tokenizer::addToken(const String& str
 	TokenData * token = new (allocator->malloc(sizeof(TokenData) OS_DBG_FILEPOS_PARAM)) TokenData(text_data, str, type, line, pos);
 	allocator->vectorAddItem(tokens, token OS_DBG_FILEPOS);
 	return token;
-}
-
-static bool isValidCharAfterNumber(const OS_CHAR * str)
-{
-	return !*str || OS_IS_SPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str);
 }
 
 bool OS::Core::Tokenizer::parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces)
@@ -16570,7 +16570,7 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 	return false;
 }
 
-#define OS_GETTER_VALUE_PTR(_result_value, _table_value, _index, _getter_enabled, _prototype_enabled) \
+#define OS_GETTER_VALUE_PTR(_result_value, _this, _table_value, _index, _getter_enabled, _prototype_enabled) \
 	do { \
 		Value& local3_result = (_result_value); \
 		GCValue * local3_table_value = (_table_value); \
@@ -16596,7 +16596,7 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 						break; \
 					} \
 					pushValue(local3_result); \
-					pushValue(local3_table_value); \
+					pushValue(_this); \
 					call(0, 1); \
 					local3_result = stack_values.buf[--stack_values.count]; \
 					break; \
@@ -16611,7 +16611,7 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 				} \
 				if(pushGetRecursion(local3_table_value, local3_index)){ \
 					pushValue(local3_result); \
-					pushValue(local3_table_value); \
+					pushValue(_this); \
 					pushValue(local3_index); \
 					call(1, 1); \
 					local3_result = stack_values.buf[--stack_values.count]; \
@@ -16628,7 +16628,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 {
 #if 1 // performance optimization
 	Value value;
-	OS_GETTER_VALUE_PTR(value, table_value, _index, getter_enabled, prototype_enabled);
+	OS_GETTER_VALUE_PTR(value, table_value, table_value, _index, getter_enabled, prototype_enabled);
 	pushValue(value);
 #else
 	Value value;
@@ -16701,7 +16701,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 			\
 		case OS_VALUE_TYPE_BOOL: \
 			if(local5_prototype_enabled){ \
-				OS_GETTER_VALUE_PTR(local5_result, prototypes[PROTOTYPE_BOOL], \
+				OS_GETTER_VALUE_PTR(local5_result, local5_table_value, prototypes[PROTOTYPE_BOOL], \
 					local5_index, local5_getter_enabled, local5_prototype_enabled); \
 			}else{ \
 				OS_SET_VALUE_NULL(local5_result); \
@@ -16710,7 +16710,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 			\
 		case OS_VALUE_TYPE_NUMBER: \
 			if(local5_prototype_enabled){ \
-				OS_GETTER_VALUE_PTR(local5_result, prototypes[PROTOTYPE_NUMBER], \
+				OS_GETTER_VALUE_PTR(local5_result, local5_table_value, prototypes[PROTOTYPE_NUMBER], \
 					local5_index, local5_getter_enabled, local5_prototype_enabled); \
 			}else{ \
 				OS_SET_VALUE_NULL(local5_result); \
@@ -16719,7 +16719,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 			\
 		case OS_VALUE_TYPE_STRING: \
 			if(local5_prototype_enabled){ \
-				OS_GETTER_VALUE_PTR(local5_result, prototypes[PROTOTYPE_STRING], \
+				OS_GETTER_VALUE_PTR(local5_result, local5_table_value, prototypes[PROTOTYPE_STRING], \
 					local5_index, local5_getter_enabled, local5_prototype_enabled); \
 			}else{ \
 				OS_SET_VALUE_NULL(local5_result); \
@@ -16732,7 +16732,7 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 		case OS_VALUE_TYPE_USERPTR: \
 		case OS_VALUE_TYPE_FUNCTION: \
 		case OS_VALUE_TYPE_CFUNCTION: \
-			OS_GETTER_VALUE_PTR(local5_result, OS_VALUE_VARIANT(local5_table_value).value, \
+			OS_GETTER_VALUE_PTR(local5_result, local5_table_value, OS_VALUE_VARIANT(local5_table_value).value, \
 				local5_index, local5_getter_enabled, local5_prototype_enabled); \
 			break; \
 		} \
