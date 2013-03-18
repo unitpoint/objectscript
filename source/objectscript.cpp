@@ -2553,6 +2553,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 
 	case EXP_TYPE_SCOPE:
 	case EXP_TYPE_LOOP_SCOPE:
+	case EXP_TYPE_FOR_LOOP_SCOPE:
 		{
 			Scope * scope = dynamic_cast<Scope*>(this);
 			OS_ASSERT(scope);
@@ -3088,16 +3089,28 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 
 	case EXP_TYPE_SCOPE:
 	case EXP_TYPE_LOOP_SCOPE:
+	case EXP_TYPE_FOR_LOOP_SCOPE:
 		{
 			Scope * scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
-			int start_code_pos = getOpcodePos();
-			if(!writeOpcodes(scope, exp->list, true)){
+			int start_code_pos = getOpcodePos(), start_for_post = 0;
+			if(exp->type == EXP_TYPE_FOR_LOOP_SCOPE){
+				for(int i = 0; i < exp->list.count; i++){
+					if(i == exp->list.count-1){
+						start_for_post = getOpcodePos();
+					}
+					if(!writeOpcodes(scope, exp->list[i])){
+						return false;
+					}
+				}
+			}else if(!writeOpcodes(scope, exp->list, true)){
 				return false;
 			}
-			if(exp->type == EXP_TYPE_LOOP_SCOPE){
+			if(exp->type != EXP_TYPE_SCOPE){
 				writeJumpOpcode(start_code_pos - getOpcodePos() - 2);
-				scope->fixLoopBreaks(this, start_code_pos, getOpcodePos());
+				scope->fixLoopBreaks(this, 
+					start_for_post ? start_for_post : start_code_pos, 
+					getOpcodePos());
 			}else{
 				OS_ASSERT(scope->loop_breaks.count == 0);
 			}
@@ -3410,7 +3423,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 
 OS::Core::Compiler::Scope::Scope(Scope * p_parent, ExpressionType type, TokenData * token): Expression(type, token)
 {
-	OS_ASSERT(type == EXP_TYPE_FUNCTION || type == EXP_TYPE_SCOPE || type == EXP_TYPE_LOOP_SCOPE);
+	OS_ASSERT(type == EXP_TYPE_FUNCTION || type == EXP_TYPE_SCOPE || type == EXP_TYPE_LOOP_SCOPE || type == EXP_TYPE_FOR_LOOP_SCOPE);
 	parent = p_parent;
 	function = type == EXP_TYPE_FUNCTION ? this : parent->function;
 	num_params = 0;
@@ -3449,7 +3462,7 @@ bool OS::Core::Compiler::Scope::addLoopBreak(int pos, ELoopBreakType type)
 {
 	Scope * scope = this;
 	for(; scope; scope = scope->parent){
-		if(scope->type == EXP_TYPE_LOOP_SCOPE){
+		if(scope->type == EXP_TYPE_LOOP_SCOPE || scope->type == EXP_TYPE_FOR_LOOP_SCOPE){
 			break;
 		}
 	}
@@ -4363,6 +4376,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 
 	case EXP_TYPE_SCOPE:
 	case EXP_TYPE_LOOP_SCOPE:
+	case EXP_TYPE_FOR_LOOP_SCOPE:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
@@ -4850,6 +4864,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 
 	case EXP_TYPE_SCOPE:
 	case EXP_TYPE_LOOP_SCOPE:
+	case EXP_TYPE_FOR_LOOP_SCOPE:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
@@ -5054,6 +5069,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 	case EXP_TYPE_SCOPE:
 	case EXP_TYPE_LOOP_SCOPE:
+	case EXP_TYPE_FOR_LOOP_SCOPE:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
@@ -7119,7 +7135,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 	}
 	readToken();
 
-	Scope * loop_scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(scope, EXP_TYPE_LOOP_SCOPE, recent_token);
+	Scope * loop_scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(scope, EXP_TYPE_FOR_LOOP_SCOPE, recent_token);
 	Expression * body_exp = expectSingleExpression(loop_scope, true, true);
 	if(!body_exp){
 		allocator->deleteObj(scope);
@@ -8679,6 +8695,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type)
 
 	case EXP_TYPE_LOOP_SCOPE:
 		return OS_TEXT("loop");
+
+	case EXP_TYPE_FOR_LOOP_SCOPE:
+		return OS_TEXT("for loop");
 
 	case EXP_TYPE_GET_THIS:
 		return OS_TEXT("push this");

@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.5.2-dev")
+#define OS_VERSION OS_TEXT("1.5.3-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
 #define OS_EXT_TEMPLATE OS_TEXT(".osh")
@@ -1694,6 +1694,7 @@ namespace ObjectScript
 					EXP_TYPE_NEW_LOCAL_VAR,
 					EXP_TYPE_SCOPE,
 					EXP_TYPE_LOOP_SCOPE,
+					EXP_TYPE_FOR_LOOP_SCOPE,
 					EXP_TYPE_CODE_LIST,
 					EXP_TYPE_NAME, // temp
 					EXP_TYPE_POP_VALUE,
