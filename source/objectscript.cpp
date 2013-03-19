@@ -5235,8 +5235,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		exp->slots.c = exp1->slots.a;
 		scope->popTempVar(2);
-		// TODO: is it really needed to check exp1->slots.a
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check exp1->slots.b
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST exp1->slots.b ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5261,8 +5261,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		exp->slots.c = exp1->slots.a;
 		scope->popTempVar(2);
-		// TODO: is it really needed to check exp1->slots.a
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check exp1->slots.b
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST exp1->slots.b ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5278,13 +5278,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = exp1->slots.a;
 		exp->slots.c = exp2->slots.a;
 		scope->popTempVar(2);
-		// TODO: is it really needed to check exp1->slots.a
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check exp1->slots.b
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		// TODO: is it really needed exp2->slots.a >= 
-		if(exp2->type == EXP_TYPE_MOVE && exp2->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check exp1->slots.b
+		if(exp2->type == EXP_TYPE_MOVE){ // CONST exp2->slots.b ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -5570,8 +5570,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.a = stack_pos;
 		exp->slots.b = stack_pos;
 		exp1 = exp->list[0];
-		// TODO: is it really needed to check exp1->slots.a
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check exp1->slots.b
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST exp1->slots.b ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}		
@@ -5615,13 +5615,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = stack_pos;
 		exp->slots.c = stack_pos+1;
 		scope->popTempVar();
-		// TODO: is it really needed to check exp1->slots.a
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check exp1->slots.b
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST exp1->slots.b ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		// TODO: is it really needed to check exp1->slots.a
-		if(exp2->type == EXP_TYPE_MOVE && exp2->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check exp1->slots.b
+		if(exp2->type == EXP_TYPE_MOVE){ // CONST exp2->slots.b ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -5799,13 +5799,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = stack_pos; // exp1->slots.a;
 		exp->slots.c = stack_pos + 1; // exp2->slots.a;
 		scope->popTempVar();
-		// TODO: is it really needed to check exp1->slots.a
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check exp1->slots.b
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		// TODO: is it really needed to check exp1->slots.a
-		if(exp2->type == EXP_TYPE_MOVE && exp2->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check exp1->slots.b
+		if(exp2->type == EXP_TYPE_MOVE){ // CONST exp2->slots.b ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -16700,7 +16700,9 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 			break; \
 			\
 		case OS_VALUE_TYPE_BOOL: \
-			if(local5_prototype_enabled){ \
+			if(OS_VALUE_TYPE(local5_index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(local5_index).string){ \
+				local5_result = prototypes[PROTOTYPE_BOOL]; \
+			}else if(local5_prototype_enabled){ \
 				OS_GETTER_VALUE_PTR(local5_result, local5_table_value, prototypes[PROTOTYPE_BOOL], \
 					local5_index, local5_getter_enabled, local5_prototype_enabled); \
 			}else{ \
@@ -16709,7 +16711,9 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 			break; \
 			\
 		case OS_VALUE_TYPE_NUMBER: \
-			if(local5_prototype_enabled){ \
+			if(OS_VALUE_TYPE(local5_index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(local5_index).string){ \
+				local5_result = prototypes[PROTOTYPE_NUMBER]; \
+			}else if(local5_prototype_enabled){ \
 				OS_GETTER_VALUE_PTR(local5_result, local5_table_value, prototypes[PROTOTYPE_NUMBER], \
 					local5_index, local5_getter_enabled, local5_prototype_enabled); \
 			}else{ \
@@ -16718,7 +16722,9 @@ void OS::Core::pushPropertyValue(GCValue * table_value, const Value& _index, boo
 			break; \
 			\
 		case OS_VALUE_TYPE_STRING: \
-			if(local5_prototype_enabled){ \
+			if(OS_VALUE_TYPE(local5_index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(local5_index).string){ \
+				local5_result = prototypes[PROTOTYPE_STRING]; \
+			}else if(local5_prototype_enabled){ \
 				OS_GETTER_VALUE_PTR(local5_result, local5_table_value, prototypes[PROTOTYPE_STRING], \
 					local5_index, local5_getter_enabled, local5_prototype_enabled); \
 			}else{ \
