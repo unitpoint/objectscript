@@ -6,4 +6,6 @@
 *.osd
 *.osc
 *.o
+/bin/os.exp
+/bin/os.lib
 /unit-tests-os/

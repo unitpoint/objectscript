@@ -7334,11 +7334,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 	if(recent_token && recent_token->type == Tokenizer::NAME){
 		Expression * else_exp = NULL;
 		if(recent_token->str == allocator->core->strings->syntax_elseif){
-			if(!expectToken()){
-				allocator->deleteObj(if_exp);
-				allocator->deleteObj(then_exp);
-				return NULL;
-			}
 			else_exp = expectIfExpression(scope);
 		}else if(recent_token->str == allocator->core->strings->syntax_else){
 			if(!expectToken()){
@@ -19957,6 +19952,7 @@ dump_object:
 		{OS_TEXT("getName"), Object::getValueName},
 		{core->strings->__len, Object::length},
 		{core->strings->__iter, Object::iterator},
+		{OS_TEXT("dumpIter"), Object::iterator},
 		{OS_TEXT("reverseIter"), Object::reverseIterator},
 		{core->strings->func_valueOf, Object::valueOf},
 		{core->strings->func_clone, Object::clone},
@@ -20296,6 +20292,20 @@ void OS::initStringClass()
 						if(params >= 2) os->pushStackValue(offs+1);
 						if(params >= 3) os->pushStackValue(offs+2);
 						os->call(params >= 3 ? 3 : params, 1);
+						return 1;
+					}
+					if(os->isObject(-params)){
+						os->pushStackValue(-params);
+						while(os->nextIteratorStep()){
+							os->pushCFunction(replace);
+							os->pushString(subject);
+							os->pushStackValue(-4);
+							os->pushStackValue(-4);
+							os->call(2, 1);
+							subject = os->toString();
+							os->pop(3);
+						}
+						os->pushString(subject);
 						return 1;
 					}
 				}

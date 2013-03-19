@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.5.6-dev")
+#define OS_VERSION OS_TEXT("1.5.8-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
 #define OS_EXT_TEMPLATE OS_TEXT(".osh")
@@ -164,8 +164,6 @@ inline void operator delete(void *, void *){}
 #define OS_EXT_TEXT_OPCODES OS_TEXT(".txt")
 
 #define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
-
-#define OS_DEBUGGER_SAVE_NUM_LINES 11
 
 #ifdef OS_DEBUG
 
