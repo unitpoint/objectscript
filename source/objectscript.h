@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.5.5-dev")
+#define OS_VERSION OS_TEXT("1.5.6-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
 #define OS_EXT_TEMPLATE OS_TEXT(".osh")
@@ -2183,7 +2183,7 @@ namespace ObjectScript
 				Expression * finishQuestionOperator(Scope*, TokenData * token, Expression * left_exp, Expression * right_exp);
 				Expression * newBinaryExpression(Scope * scope, ExpressionType, TokenData*, Expression * left_exp, Expression * right_exp);
 
-				bool findLocalVar(LocalVarDesc&, Scope * scope, const String& name, int active_locals, bool all_scopes);
+				bool findLocalVar(LocalVarDesc&, Scope * scope, const String& name, int active_locals, bool all_scopes, bool decl = false);
 
 				void debugPrintSourceLine(Buffer& out, TokenData*);
 				static const OS_CHAR * getExpName(ExpressionType);

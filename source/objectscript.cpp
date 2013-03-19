@@ -6695,6 +6695,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			return NULL;
 		}
 		TokenData * name_token;
+		// TODO: is "function get" deprecated?
 		if(recent_token->str == allocator->core->strings->syntax_get || recent_token->str == allocator->core->strings->syntax_set){
 			bool is_getter = recent_token->str == allocator->core->strings->syntax_get;
 			if(!expectToken(Tokenizer::NAME)){
@@ -6788,8 +6789,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 					exp = params->list[i];
 					OS_ASSERT(exp->type == EXP_TYPE_NAME);
 					if(exp->type == EXP_TYPE_NAME){
-						if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false)){
-						}else{
+						if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false, true)){
 							scope->addLocalVar(exp->token->str, exp->local_var);
 						}
 						OS_ASSERT(exp->local_var.up_count == 0);
@@ -6805,8 +6805,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			for(;;){
 				if(exp->local_var.up_scope_count == 0){
 				}else{
-					OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false));
-					scope->addLocalVar(exp->token->str, exp->local_var);
+					if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false, true)){
+						scope->addLocalVar(exp->token->str, exp->local_var);
+					}
 				}
 				OS_ASSERT(exp->list.count == 1);
 				exp = exp->list[0];
@@ -6824,8 +6825,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 
 		case EXP_TYPE_SET_ENV_VAR:
 			for(;;){
-				OS_ASSERT(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false));
-				scope->addLocalVar(exp->token->str, exp->local_var);
+				if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false, true)){
+					scope->addLocalVar(exp->token->str, exp->local_var);
+				}
 				exp->type = EXP_TYPE_SET_LOCAL_VAR;
 				OS_ASSERT(exp->list.count == 1);
 				exp = exp->list[0];
@@ -6842,8 +6844,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			break;
 
 		case EXP_TYPE_NAME:
-			if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false)){
-			}else{
+			if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false, true)){
 				scope->addLocalVar(exp->token->str, exp->local_var);
 			}
 			OS_ASSERT(exp->local_var.up_count == 0);
@@ -7566,13 +7567,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 	return exp;
 }
 
-bool OS::Core::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const String& name, int active_locals, bool all_scopes)
+bool OS::Core::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const String& name, int active_locals, bool all_scopes, bool decl)
 {
 	OS_ASSERT(scope);
 	for(int up_count = 0, up_scope_count = 0;;){
 		for(int i = scope->locals.count-1; i >= 0; i--){
 			const Scope::LocalVar& local_var = scope->locals[i];
-			if((up_count || local_var.index < active_locals) && local_var.name == name){
+			if((up_count || (decl && !up_scope_count) || local_var.index < active_locals) && local_var.name == name){
 				desc.index = local_var.index;
 				desc.up_count = up_count;
 				desc.up_scope_count = up_scope_count;
@@ -21906,7 +21907,7 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 				&& stack_values.buf[start_pos].isFunction())
 			{
 				stack_values.buf[start_pos + 1] = object;
-				call(start_pos, call_params, ret_values);
+				call(start_pos, call_params, 0);
 			}
 			OS_ASSERT(start_pos + ret_values <= stack_values.count);
 			if(ret_values > 0){
