@@ -48,7 +48,7 @@ var n = numberOf(arg && arg[1]) || 5
 var start_time = getTimeSec()
 var sum, flips = fannkuch(n)
 echo(
-	sum"\n" 
-	"Pfannkuchen("n") = "flips"\n"
+	"${sum}\n", 
+	"Pfannkuchen(${n}) = ${flips}\n"
 )
 printf("time: %.3f\n", getTimeSec() - start_time)

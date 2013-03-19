@@ -1,7 +1,7 @@
 print "getcwd: "..getcwd()
 
 // TestStruct
-var data = {a=10 b=20}
+var data = {a=10, b=20}
 printTestStruct(data)
 data = changeTestStruct(data)
 printTestStruct(data)

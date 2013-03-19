@@ -396,7 +396,11 @@ template <class F> struct FunctionData: public FunctionDataChain
 		FunctionData<F> f(_f);
 		FunctionDataChain * found = f.find();
 		if(found){
-			return dynamic_cast<FunctionData<F>*>(found);
+			FunctionData<F> * r = dynamic_cast<FunctionData<F>*>(found);
+			// fix compiler bug!?
+			if(r){
+				return r;
+			}
 		}
 		FunctionData<F> * ret = new FunctionData<F>(f);
 		ret->registerFunctionData();

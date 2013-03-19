@@ -5279,7 +5279,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = exp2->slots.a;
 		scope->popTempVar(2);
 		// TODO: is it really needed to check exp1->slots.b
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= scope->function->num_locals){
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST is NOT ALLOWED HERE!!! scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5800,7 +5800,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = stack_pos + 1; // exp2->slots.a;
 		scope->popTempVar();
 		// TODO: is it really needed to check exp1->slots.b
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= scope->function->num_locals){
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST is NOT ALLOWED HERE!!! scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
