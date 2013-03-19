@@ -20089,6 +20089,14 @@ void OS::initBufferClass()
 			return 1;
 		}
 
+		static int clear(OS * os, int params, int, int, void * user_param)
+		{
+			OS_GET_SELF(Core::Buffer*);
+			self->clear();
+			CtypeValue<Core::Buffer*>::push(os, self);
+			return 1;
+		}
+
 		static int valueOf(OS * os, int params, int, int, void * user_param)
 		{
 			if(os->isUserdata(CtypeId<Core::Buffer>::getId(), -params-1)){
@@ -20116,6 +20124,7 @@ void OS::initBufferClass()
 	OS::FuncDef funcs[] = {
 		{OS_TEXT("__construct"), Lib::__construct},
 		{OS_TEXT("append"), Lib::append},
+		{OS_TEXT("clear"), Lib::clear},
 		{core->strings->func_valueOf, Lib::valueOf},
 		{core->strings->__len, Lib::len},
 		// {OS_TEXT("printf"), Lib::printf},

@@ -36,7 +36,12 @@ and must NOT have multiple-inclusion protection.
 
 var MAX_ARGS = 11
 
-var content = header .. <<<===END==='
+function Buffer.__lshift(b){
+	this.append(b)
+	return this
+}
+
+var content = Buffer(header) << <<<===END==='
 #if OS_BIND_FUNC_NUM_ARGS == 0
 
 #define OS_BIND_FUNC_PARMS_COMMA
@@ -100,16 +105,16 @@ function get_get_args(i)
 }
 
 for(var i = 1; i <= MAX_ARGS; i++){
-	content = content
-		.. "#elif OS_BIND_FUNC_NUM_ARGS == ${i}\n\n"
-		.. "#define OS_BIND_FUNC_PARMS_COMMA ,\n"
-		.. "#define OS_BIND_FUNC_TEMPLATE_PARMS ${get_template_parms(i)}\n"
-		.. "#define OS_BIND_FUNC_PARMS ${get_parms(i)}\n"
-		.. "#define OS_BIND_FUNC_ARGS ${get_args(i)}\n"
-		.. "#define OS_BIND_FUNC_GET_ARGS ${get_get_args(i)}\n\n"
+	content 
+		<< "#elif OS_BIND_FUNC_NUM_ARGS == ${i}\n\n"
+		<< "#define OS_BIND_FUNC_PARMS_COMMA ,\n"
+		<< "#define OS_BIND_FUNC_TEMPLATE_PARMS ${get_template_parms(i)}\n"
+		<< "#define OS_BIND_FUNC_PARMS ${get_parms(i)}\n"
+		<< "#define OS_BIND_FUNC_ARGS ${get_args(i)}\n"
+		<< "#define OS_BIND_FUNC_GET_ARGS ${get_get_args(i)}\n\n"
 }
 
-content = content .. "#endif\n\n"
+content << "#endif\n\n"
 
 var cc_types = ["cdecl", "stdcall", "fastcall", "thiscall"]
 
@@ -120,48 +125,49 @@ for(var _, class_name in [
 ]){
 
     for(var i, cc in cc_types){
-
-        content = content 
-			.. (i > 0 ? "#elif defined " : "#ifdef ")
-			.. "OS_BIND_FUNC_${cc.upper()}\n\n"
-			.. "#ifdef __GNUC__\n"
-			.. "#define OS_BIND_FUNC_CC\n"
-			.. "#define OS_BIND_FUNC_CC_GNUC __attribute__((${cc}))\n"
-			.. "#else\n"
-			.. "#define OS_BIND_FUNC_CC __${cc}\n"
-			.. "#define OS_BIND_FUNC_CC_GNUC\n"
-			.. "#endif\n\n"
+        content
+			<< (i > 0 ? "#elif defined " : "#ifdef ")
+			<< "OS_BIND_FUNC_${cc.upper()}\n\n"
+			<< "#ifdef __GNUC__\n"
+			<< "#define OS_BIND_FUNC_CC\n"
+			<< "#define OS_BIND_FUNC_CC_GNUC __attribute__((${cc}))\n"
+			<< "#else\n"
+			<< "#define OS_BIND_FUNC_CC __${cc}\n"
+			<< "#define OS_BIND_FUNC_CC_GNUC\n"
+			<< "#endif\n\n"
 
         for(var j = 0; j <= MAX_ARGS; j++){
-			content = content 
-				.. (j > 0 ? "#elif " : "#if ").."OS_BIND_FUNC_NUM_ARGS == ${j}\n"
-				.. "#define OS_BIND_FUNC_CLASS_NAME ${class_name}${j} ## _${cc}\n"
-				.. "#define OS_BIND_FUNC_RUN_CLASS_NAME ${class_name}${j}_run ## _${cc}\n"
+			content
+				<< (j > 0 ? "#elif " : "#if ") << "OS_BIND_FUNC_NUM_ARGS == ${j}\n"
+				<< "#define OS_BIND_FUNC_CLASS_NAME ${class_name}${j} ## _${cc}\n"
+				<< "#define OS_BIND_FUNC_RUN_CLASS_NAME ${class_name}${j}_run ## _${cc}\n"
         }
-        content = content .. "#endif\n\n"
+        content << "#endif\n\n"
     }
     if(true){
-        content = content 
-			.. "#else\n\n"
-			.. "#define OS_BIND_FUNC_CC\n"
-			.. "#define OS_BIND_FUNC_CC_GNUC\n\n"
+        content
+			<< "#else\n\n"
+			<< "#define OS_BIND_FUNC_CC\n"
+			<< "#define OS_BIND_FUNC_CC_GNUC\n\n"
 
         for(var j = 0; j <= MAX_ARGS; j++){
-			content = content 
-				.. (j > 0 ? "#elif " : "#if ").."OS_BIND_FUNC_NUM_ARGS == ${j}\n"
-				.. "#define OS_BIND_FUNC_CLASS_NAME ${class_name}${j}\n"
-				.. "#define OS_BIND_FUNC_RUN_CLASS_NAME ${class_name}${j}_run\n"
+			content
+				<< (j > 0 ? "#elif " : "#if ") << "OS_BIND_FUNC_NUM_ARGS == ${j}\n"
+				<< "#define OS_BIND_FUNC_CLASS_NAME ${class_name}${j}\n"
+				<< "#define OS_BIND_FUNC_RUN_CLASS_NAME ${class_name}${j}_run\n"
         }
-        content = content .. "#endif\n\n"
+        content << "#endif\n\n"
     }
-    content = content .. "#endif\n\n"
+    content << "#endif\n\n"
 
     if(class_name == "OS_FunctionClassImpConst"){
-        impl = file_get_contents("os-binder-FunctionClassImp.tpl").trim()
-        impl = impl.replace("{const}", "const")
+        impl = file_get_contents("os-binder-FunctionClassImp.tpl")
+					.trim()
+					.replace("{const}", "const")
     }else if(class_name == "OS_FunctionClassImp"){
-        impl = file_get_contents("os-binder-FunctionClassImp.tpl").trim()
-        impl = impl.replace("{const}", "")
+        impl = file_get_contents("os-binder-FunctionClassImp.tpl")
+					.trim()
+					.replace("{const}", "")
     }else{
         impl = "#if OS_BIND_FUNC_NUM_ARGS > 0\n\n"
 			.. file_get_contents("os-binder-FunctionImp.tpl").trim()
@@ -169,41 +175,41 @@ for(var _, class_name in [
 			.. file_get_contents("os-binder-FunctionImpVoid.tpl").trim()
 			.. "\n\n#endif\n\n"
     }
-    content = content 
-		.. "${impl}\n\n"
-		.. "#undef OS_BIND_FUNC_CLASS_NAME\n"
-		.. "#undef OS_BIND_FUNC_RUN_CLASS_NAME\n"
-		.. "#undef OS_BIND_FUNC_CC\n\n"
-		.. "#undef OS_BIND_FUNC_CC_GNUC\n\n"
+    content
+		<< "${impl}\n\n"
+		<< "#undef OS_BIND_FUNC_CLASS_NAME\n"
+		<< "#undef OS_BIND_FUNC_RUN_CLASS_NAME\n"
+		<< "#undef OS_BIND_FUNC_CC\n\n"
+		<< "#undef OS_BIND_FUNC_CC_GNUC\n\n"
 }
 
-content = content 
-	.. "#undef OS_BIND_FUNC_PARMS_COMMA\n"
-	.. "#undef OS_BIND_FUNC_TEMPLATE_PARMS\n"
-	.. "#undef OS_BIND_FUNC_PARMS\n"
-	.. "#undef OS_BIND_FUNC_ARGS\n"
-	.. "#undef OS_BIND_FUNC_GET_ARGS\n"
+content
+	<< "#undef OS_BIND_FUNC_PARMS_COMMA\n"
+	<< "#undef OS_BIND_FUNC_TEMPLATE_PARMS\n"
+	<< "#undef OS_BIND_FUNC_PARMS\n"
+	<< "#undef OS_BIND_FUNC_ARGS\n"
+	<< "#undef OS_BIND_FUNC_GET_ARGS\n"
 
 file_put_contents("os-binder-function.h", content)
 
-content = header
-	.. "#if defined __GNUC__ || !(defined(__i386__) || defined(__i386) || defined(__X86__))\n"
-	.. "#include \"os-binder-function.h\"\n"
-	.. "#else\n\n"
+content.clear()	<< header
+	<< "#if defined __GNUC__ || !(defined(__i386__) || defined(__i386) || defined(__X86__))\n"
+	<< "#include \"os-binder-function.h\"\n"
+	<< "#else\n\n"
 for(var _, cc in cc_types){
-    content = content 
-		.. "#define OS_BIND_FUNC_${cc.upper()}\n"
-		.. "#include \"os-binder-function.h\"\n"
-		.. "#undef OS_BIND_FUNC_${cc.upper()}\n\n"
+    content
+		<< "#define OS_BIND_FUNC_${cc.upper()}\n"
+		<< "#include \"os-binder-function.h\"\n"
+		<< "#undef OS_BIND_FUNC_${cc.upper()}\n\n"
 }
-content = content .. "#endif\n"
+content << "#endif\n"
 file_put_contents("os-binder-cc-functions.h", content)
 
-content = header
+content.clear()	<< header
 for(var i = 0; i <= MAX_ARGS; i++){
-    content = content 
-		.. "#define OS_BIND_FUNC_NUM_ARGS ${i}\n"
-		.. "#include \"os-binder-cc-functions.h\"\n"
-		.. "#undef OS_BIND_FUNC_NUM_ARGS\n\n"
+    content
+		<< "#define OS_BIND_FUNC_NUM_ARGS ${i}\n"
+		<< "#include \"os-binder-cc-functions.h\"\n"
+		<< "#undef OS_BIND_FUNC_NUM_ARGS\n\n"
 }
 file_put_contents("os-binder-arg-cc-functions.h", content)
