@@ -5133,7 +5133,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		if(exp->slots.b == 1){
 			OS_ASSERT(exp->list.count == 1);
 			exp1 = exp->list[0];
-			if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // && exp1->slots.a >= scope->function->num_locals){
+			if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // scope->function->num_locals){
 				exp->slots.a = exp1->slots.b;
 				exp1->type = EXP_TYPE_NOP;
 			}
@@ -5235,8 +5235,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		exp->slots.c = exp1->slots.a;
 		scope->popTempVar(2);
-		// TODO: is it really needed to check exp1->slots.b
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST exp1->slots.b ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5261,8 +5261,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		exp->slots.c = exp1->slots.a;
 		scope->popTempVar(2);
-		// TODO: is it really needed to check exp1->slots.b
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST exp1->slots.b ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5278,13 +5278,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = exp1->slots.a;
 		exp->slots.c = exp2->slots.a;
 		scope->popTempVar(2);
-		// TODO: is it really needed to check exp1->slots.b
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST is NOT ALLOWED HERE!!! scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST IS NOT ALLOWED HERE!!! scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		// TODO: is it really needed to check exp1->slots.b
-		if(exp2->type == EXP_TYPE_MOVE){ // CONST exp2->slots.b ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp2->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -5570,8 +5570,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.a = stack_pos;
 		exp->slots.b = stack_pos;
 		exp1 = exp->list[0];
-		// TODO: is it really needed to check exp1->slots.b
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST exp1->slots.b ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}		
@@ -5615,13 +5615,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = stack_pos;
 		exp->slots.c = stack_pos+1;
 		scope->popTempVar();
-		// TODO: is it really needed to check exp1->slots.b
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST exp1->slots.b ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		// TODO: is it really needed to check exp1->slots.b
-		if(exp2->type == EXP_TYPE_MOVE){ // CONST exp2->slots.b ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp2->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -5686,11 +5686,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			OS_ASSERT(exp1->list.count > 0);
 			exp1 = exp1->list.lastElement();
 		}
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // stack_cur_size is already decremented
+		// TODO: is it really needed to check slot here?
+		/* if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){ // stack_cur_size is already decremented
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
-			return exp;
-		}
+			// return exp;
+		} */
 		if(exp->type == EXP_TYPE_MOVE 
 			&& Lib::allowOverrideOpcodeResult(exp1)
 			&& exp1->slots.a >= scope->function->num_locals
@@ -5715,17 +5716,20 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = stack_pos;
 		scope->function->stack_cur_size = stack_pos;
 		exp1 = exp->list[0];
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
 		exp1 = exp->list[1];
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST IS NOT ALLOWED HERE!!! scope->function->num_locals){
 			exp->slots.a = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
 		exp1 = exp->list[2];
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5799,13 +5803,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = stack_pos; // exp1->slots.a;
 		exp->slots.c = stack_pos + 1; // exp2->slots.a;
 		scope->popTempVar();
-		// TODO: is it really needed to check exp1->slots.b
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST is NOT ALLOWED HERE!!! scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST IS NOT ALLOWED HERE!!! scope->function->num_locals){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
-		// TODO: is it really needed to check exp1->slots.b
-		if(exp2->type == EXP_TYPE_MOVE){ // CONST exp2->slots.b ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
+		// TODO: is it really needed to check slot here?
+		if(exp2->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -17629,7 +17633,7 @@ corrupted:
 		OS_CASE_OPCODE(OP_GET_UPVALUE):
 			a = OS_GETARG_A(instruction);
 			OS_ASSERT(a >= 0 && a < stack_func->func->func_decl->stack_size);
-			b = OS_GETARG_B(instruction); // local
+			b = OS_GETARG_B(instruction); // src scope local
 			c = OS_GETARG_C(instruction);
 			OS_ASSERT(c <= stack_func->func->func_decl->max_up_count);
 			scope = stack_func->locals;
@@ -17640,7 +17644,7 @@ corrupted:
 			break;
 
 		OS_CASE_OPCODE(OP_SET_UPVALUE):
-			a = OS_GETARG_A(instruction); // local
+			a = OS_GETARG_A(instruction); // dest scope local
 			b = OS_GETARG_B(instruction);
 			OS_ASSERT(b >= 0 && b < stack_func->func->func_decl->stack_size);
 			c = OS_GETARG_C(instruction);
@@ -17649,7 +17653,7 @@ corrupted:
 			OS_ASSERT(c <= scope->num_parents);
 			scope = scope->getParent(c-1);
 			OS_ASSERT(a >= 0 && a < scope->func_decl->num_locals);
-			scope->values[a] = stack_func_locals[b];
+			scope->values[a] = stack_func_locals[b]; // OS_GETARG_B_VALUE();
 			break;
 
 		OS_CASE_OPCODE_ALL(OP_GET_PROPERTY):
