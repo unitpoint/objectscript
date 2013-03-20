@@ -1,3 +1,5 @@
+require "std"
+
 typeof = typeOf
 numberof = numberOf
 stringof = stringOf
@@ -21,10 +23,6 @@ function Object.__get(name){
 	print ""
 }
 
-function assert(a, message){
-	a || throw(message || "assert failed")
-}
-
 function unhandledException(e){
 	if(e is CompilerException){
 		echo "\nUnhandled exception: '${e.message}' in ${e.file}(${e.line},${e.pos}), token: ${e.token}\n${e.lineString.trim()}\n\n"
@@ -45,10 +43,6 @@ function printBackTrace(skipNumFuncs){
 			t.line > 0 ? "(${t.line},${t.pos})" : "",
 			t.object && t.object !== _G ? "<${typeOf(t.object)}#${t.object.id}>.${t.name}" : t.name)
 	}
-}
-
-function eval(str, env){
-	return compileText(str).applyEnv(env || _G, null, ...)
 }
 
 var events = {}
@@ -129,38 +123,6 @@ addEventListener("enterFrame", {||
 		}
 	}
 }, HIGH_PRIORITY+1)
-
-function toArray(a){
-	arrayOf(a) && return arr;
-	var type = typeOf(a)
-	if(type == "object"){
-		var arr = []
-		for(var i, v in a){
-			arr.push(v)
-		}
-		return arr
-	}
-	if(type == "null"){
-		return null
-	}
-	return [a]
-}
-
-function toObject(a){
-	objectOf(a) && return object;
-	var type = typeOf(a)
-	if(type == "array"){
-		var object = {}
-		for(var i, v in a){
-			object.push(v)
-		}
-		return object
-	}
-	if(type == "null"){
-		return null
-	}
-	return {a}
-}
 
 function Object.deepClone(){
 	var t = @clone()

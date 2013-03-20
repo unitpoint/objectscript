@@ -230,13 +230,13 @@ int OS_SNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
 	return ret;
 }
 
-#ifndef OS_NUMBER_NAN_TRICK
+// #ifndef OS_NUMBER_NAN_TRICK
 static bool OS_ISNAN(OS_FLOAT a)
 {
 	volatile OS_FLOAT b = a;
 	return b != b;
 }
-#endif
+// #endif
 
 #include <float.h>
 #include <limits.h>
@@ -5926,7 +5926,7 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 
 	case EXP_TYPE_FUNCTION:
 		if(!ret_eval_value){
-			OS_ASSERT(scope->num_locals == 0);
+			// OS_ASSERT(scope->num_locals == 0);
 			allocator->deleteObj(scope);
 			scope = dynamic_cast<Scope*>(exp);
 			OS_ASSERT(scope);
@@ -11228,10 +11228,10 @@ bool OS::Core::valueToBool(const Value& val)
 	case OS_VALUE_TYPE_BOOL:
 		return OS_VALUE_VARIANT(val).boolean ? true : false;
 
-#ifndef OS_NUMBER_NAN_TRICK
+// #ifndef OS_NUMBER_NAN_TRICK
 	case OS_VALUE_TYPE_NUMBER:
 		return !OS_ISNAN((OS_FLOAT)OS_VALUE_NUMBER(val));
-#endif
+// #endif
 	}
 	// OS_EValueType type = (OS_EValueType)OS_VALUE_TYPE(val);
 	return true;
@@ -19031,7 +19031,7 @@ void OS::initCoreFunctions()
 		static int toBool(OS * os, int params, int, int, void*)
 		{
 			if(params < 1) return 0;
-			os->toBool(-params);
+			os->pushBool(os->toBool(-params));
 			return 1;
 		}
 
@@ -21574,18 +21574,18 @@ void OS::initPreScript()
 			return this
 		}
 
-		modules_loaded = {};
+		modulesLoaded = {}
 		function require(filename, required, source_code_type, check_utf8_bom){
 			required === null && required = true
-			var resolved_filename = require.resolve(filename)
-			if(!resolved_filename){
-				required && throw "required "..filename.." is not found"
+			var resolvedFilename = require.resolve(filename)
+			if(!resolvedFilename){
+				required && throw "required ${filename} is not found"
 				return
 			}
-			filename = resolved_filename
-			return (modules_loaded.getProperty(filename) || {||
-				modules_loaded[filename] = {} // block recursive require
-				return modules_loaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
+			filename = resolvedFilename
+			return (modulesLoaded.getProperty(filename) || {||
+				modulesLoaded[filename] = {} // block recursive require
+				return modulesLoaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
 			}())
 		}
 		require.paths = []
