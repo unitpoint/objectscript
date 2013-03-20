@@ -6,6 +6,7 @@ ObjectScript is a new programing language that mixes benefits of JavaScript, Lua
 ## Resources
 
 * [Programming in ObjectScript](https://github.com/unitpoint/objectscript/wiki/Programming-in-ObjectScript)
+* [ObjectScript Reference](https://github.com/unitpoint/objectscript/wiki/ObjectScript-Reference)
 * [ObjectScript fastcgi daemon](https://github.com/unitpoint/os-fcgi)
 * [objectscript.org](https://github.com/unitpoint/objectscript.org) is a demo of usage the ObjectScript language fastcgi daemon
 * [cocos2d-os](https://github.com/unitpoint/cocos2d-os) is a game framework made with ObjectScript
