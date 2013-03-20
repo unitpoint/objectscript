@@ -43,8 +43,6 @@ print {firstname="Ivan", lastname="Petrov"}
 	print b[a]	
 	
 	print([10, 20, 30, 40])
-	// extended array constructor syntax without comma
-	print([10, 20, 30, 40])
 	
 	// multiple assignment
 	var i, j, k = 0, 1, 3
@@ -166,14 +164,15 @@ print "should be 9: ${bar(4, 5)}"
 // ========================================================
 // new vector type class
 var vec3 = {
-	__construct = function(x, y, z){
-		this.x = x
-		this.y = y
-		this.z = z
+    __construct = function(x, y, z){ 
+		@z, @y, @x = z, y, x 
 	},
-	__add = {|b| vec3(@x + b.x, @y + b.y, @z + b.z)},
-	// it's equal to __add = function(b){ return vec3(this.x + b.x, this.y + b.y, this.z + b.z)}
-	__mul = {|b| vec3(@x * b.x, @y * b.y, @z * b.z)},
+    __add = function(b){ 
+		vec3(@x + b.x, @y + b.y, @z + b.z) 
+	},
+    __mul = function(b){ 
+		vec3(@x * b.x, @y * b.y, @z * b.z) 
+	},
 }
 
 var v1 = vec3(10, 20, 30)
@@ -517,7 +516,7 @@ if("Curl" in _G){
 	print "Curl library is not enabled"
 }
 
-;{
+if("SqliteConnection" in _G){
 	print "Test sqlite database"
 	var conn = SqliteConnection(path.resolve("test.db"))
 	
@@ -537,9 +536,11 @@ if("Curl" in _G){
 	for(var i, row in stmt){
 		print row
 	}
+}else{
+	print "Sqlite3 library is not enabled"
 }
 
-;{
+if("Regexp" in _G){
 	print "Test Regexp"
 	
 	print Regexp.escape("/(\d+)-(\d+)/", "/")
@@ -558,6 +559,8 @@ if("Curl" in _G){
 
 	print Regexp("#/(?P<year>\d{4})/(?P<month>\d{2})/((?P<id>\d{1,})|(?P<permalink>.{1,}))[/]{0,1}$#")
 			.exec("/2011/10/Lorem-ipsum-dolor-it-amet-consectetur-adipisicing")
+}else{
+	print "Regexp library is not enabled"
 }
 
 ;{
