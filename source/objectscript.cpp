@@ -5111,6 +5111,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			while(stack_pos + exp->ret_values > scope->function->stack_cur_size){
 				scope->allocTempVar();
 			}
+			if(exp->ret_values > 0){
+				OS_ASSERT(exp->list.count > 0);
+				exp->slots.a = exp->list.lastElement()->slots.a;
+			}
 			return exp;
 		}
 
@@ -6227,7 +6231,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectArrayExpression(Scope
 
 		TokenData * index_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), exp->token->str, 
 			Tokenizer::NUMBER, exp->token->line, exp->token->pos);
-		index_token->setFloat(auto_index++);
+		index_token->setFloat((OS_FLOAT)(auto_index++));
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_OBJECT_SET_BY_INDEX, index_token, exp OS_DBG_FILEPOS);
 		index_token->release();
 		params->list.add(exp OS_DBG_FILEPOS);

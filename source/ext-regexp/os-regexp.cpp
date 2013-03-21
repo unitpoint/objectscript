@@ -361,7 +361,7 @@ public:
 			}
 
 			/* Make a copy of the actual pattern. */
-			Core::String pattern(os, p, pp-p);
+			Core::String pattern(os, p, (int)(pp-p));
 
 			/* Move on to the options */
 			pp++;
@@ -899,7 +899,7 @@ public:
 					const char * match = subject + offsets[0];
 
 					/* copy the part of the string before the match */
-					result.append(piece, match-piece);
+					result.append(piece, (int)(match-piece));
 
 					/* If evaluating or using custom function, copy result to the buffer
 					* and clean up. */
@@ -1128,10 +1128,10 @@ public:
 
 						if (offset_capture) {
 							/* Add (match, offset) pair to the return value */
-							addOffsetPair(last_match, &subject[offsets[0]]-last_match, next_offset, NULL);
+							addOffsetPair(last_match, (int)(&subject[offsets[0]]-last_match), next_offset, NULL);
 						} else {
 							/* Add the piece to the return value */
-							addNextString(last_match, &subject[offsets[0]]-last_match);
+							addNextString(last_match, (int)(&subject[offsets[0]]-last_match));
 						}
 
 						/* One less left to do */
@@ -1211,7 +1211,7 @@ public:
 			}
 
 
-			start_offset = last_match - subject; /* the offset might have been incremented, but without further successful matches */
+			start_offset = (int)(last_match - subject); /* the offset might have been incremented, but without further successful matches */
 
 			if (!no_empty || start_offset < subject_len)
 			{
@@ -1220,7 +1220,7 @@ public:
 					addOffsetPair(&subject[start_offset], subject_len - start_offset, start_offset, NULL);
 				} else {
 					/* Add the last piece to the return value */
-					addNextString(last_match, subject + subject_len - last_match);
+					addNextString(last_match, (int)(subject + subject_len - last_match));
 				}
 			}
 
