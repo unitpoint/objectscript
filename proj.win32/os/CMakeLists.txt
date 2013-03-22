@@ -16,7 +16,20 @@ else()
 	add_definitions( -DOS_CURL_DISABLED )
 endif()
 
-add_definitions( -DOS_SQLITE3_DISABLED )
+# begin sqlite3
+list(APPEND SOURCES ./../../source/ext-sqlite3/sqlite3.c)
+list(APPEND HEADERS ./../../source/ext-sqlite3/sqlite3.h)
+list(APPEND SOURCES ./../../source/ext-sqlite3/os-sqlite3.cpp)
+list(APPEND HEADERS ./../../source/ext-sqlite3/os-sqlite3.h)
+
+SET(GCC_COVERAGE_COMPILE_FLAGS "${GCC_COVERAGE_COMPILE_FLAGS} ")
+SET(GCC_COVERAGE_LINK_FLAGS    "${GCC_COVERAGE_LINK_FLAGS} -lpthread -ldl")
+# end sqlite3
+
+SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
+SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}" )
+
+# add_definitions( -DOS_SQLITE3_DISABLED )
 add_definitions( -DOS_REGEXP_DISABLED )
 
 if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
@@ -24,5 +37,5 @@ if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 endif()
 
 add_executable(${target} ${SOURCES} ${HEADERS})
-target_link_libraries(${target} ${CURL_LIBRARIES})
+target_link_libraries(${target} ${CURL_LIBRARIES} ${PCRE_LIBRARIES})
 install(TARGETS ${target} RUNTIME DESTINATION bin)
