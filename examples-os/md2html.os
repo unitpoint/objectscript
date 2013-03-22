@@ -23,16 +23,18 @@ function File.writeContents(filename, content)
 	f.close()
 }
 
-function Buffer.__lshift(b){
-	this.append(b)
-	return this
+/*
+function Buffer.__lshift(b){	// declare << operator
+	return @append(b)
 }
+*/
+Buffer.__lshift = Buffer.append	// make alias << operator to appent method
 
-function String.__get(i){
+function String.__get(i){		// declare [] read operator with one single argument
 	return @sub(i, 1)
 }
 
-function String.__mul(i){
+function String.__mul(i){		// declare * operator
 	var buf = Buffer()
 	for(; i >= 1; i--){
 		buf << this
@@ -71,7 +73,7 @@ content = content.replace(Regexp("/\n{3,}/"), "\n\n")
 
 // File.writeContents(html_filename, content) terminate()
 
-function convertParagraph(p){
+var function convertParagraph(p){
 	p = p.replace {
 		"<" = "&lt;",
 		">" = "&gt;",
@@ -118,7 +120,7 @@ function convertParagraph(p){
 
 var pp = content.split(Regexp("/\n\n/"))
 content = Buffer()
-for(var i, p in pp){
+for(var _, p in pp){
 	if(!Regexp("/^(\t|\s\s)/").test(p)){
 		content << "<p>" << convertParagraph(p) << "</p>\n"
 		continue
