@@ -16060,6 +16060,33 @@ bool OS::is(int value_offs, int prototype_offs)
 	return core->isValueInstanceOf(core->getStackValue(value_offs), core->getStackValue(prototype_offs));
 }
 
+bool OS::Core::isValueInValue(const Value& _name, const Value& _obj)
+{
+	Core::GCValue * self = _obj.getGCValue();
+	if(self){
+		if(self->type == OS_VALUE_TYPE_ARRAY){
+			Value name = _name;
+			OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self));
+			Core::GCArrayValue * arr = (Core::GCArrayValue*)self;
+			int count = arr->values.count;
+			for(int i = 0; i < count; i++){
+				pushOpResultValue(OP_COMPARE, name, arr->values[i]);
+				if(allocator->popNumber() == 0){
+					return true;
+				}
+			}
+			return false;
+		}
+		return hasProperty(self, _name, true, true);
+	}
+	return false;
+}
+
+bool OS::in(int name_offs, int obj_offs)
+{
+	return core->isValueInValue(core->getStackValue(name_offs), core->getStackValue(obj_offs));
+}
+
 void OS::setProperty(bool setter_enabled)
 {
 	if(core->stack_values.count >= 3){
@@ -18788,6 +18815,11 @@ void OS::initCoreFunctions()
 				}
 				os->pushString(OS_TEXT("\n"));
 				os->call(os->getStackSize() - count);
+			}else{
+				os->getGlobal(os->core->strings->func_echo);
+				os->pushGlobals();
+				os->pushString(OS_TEXT("\n"));
+				os->call(1);
 			}
 			return 0;
 		}
@@ -18942,30 +18974,7 @@ void OS::initCoreFunctions()
 		static int in(OS * os, int params, int, int, void*)
 		{
 			if(params != 2) return 0;
-			Core::Value obj = os->core->getStackValue(-params+1);
-			Core::GCValue * self = obj.getGCValue();
-			if(self){
-				if(self->type == OS_VALUE_TYPE_ARRAY){
-					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(self));
-					Core::GCArrayValue * arr = (Core::GCArrayValue*)self;
-					int count = arr->values.count;
-					for(int i = 0; i < count; i++){
-						os->pushStackValue(-params);
-						os->core->pushValue(arr->values[i]);
-						os->runOp(OP_COMPARE);
-						if(os->popNumber() == 0){
-							os->pushBool(true);
-							return 1;
-						}
-					}
-					os->pushBool(false);
-					return 1;
-				}
-				bool has_property = os->core->hasProperty(self, os->core->getStackValue(-params), true, true);
-				os->pushBool(has_property);
-				return 1;
-			}
-			os->pushBool(false);
+			os->pushBool(os->in());
 			return 1;
 		}
 

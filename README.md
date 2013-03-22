@@ -10,6 +10,8 @@ ObjectScript is a new programing language that mixes benefits of JavaScript, Lua
 * [ObjectScript fastcgi daemon](https://github.com/unitpoint/os-fcgi)
 * [objectscript.org](https://github.com/unitpoint/objectscript.org) is a demo of usage the ObjectScript language fastcgi daemon
 * [cocos2d-os](https://github.com/unitpoint/cocos2d-os) is a game framework made with ObjectScript
+* [ObjectScript C++ binder generator](https://github.com/unitpoint/objectscript/blob/master/source/os-binder-generator.os)
+* [ObjectScript Markdown to Html converter](https://github.com/unitpoint/objectscript/blob/master/examples-os/md2html.os)
 
 Compile and Install using Linux
 ===================

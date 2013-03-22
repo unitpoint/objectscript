@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.5.10-dev")
+#define OS_VERSION OS_TEXT("1.5.11-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
 #define OS_EXT_TEMPLATE OS_TEXT(".osh")
@@ -2841,6 +2841,7 @@ namespace ObjectScript
 			bool isValuePrototypeOf(GCValue * val, GCValue * prototype_val);
 			bool isValuePrototypeOfUserdata(GCValue * val, int prototype_crc);
 			bool isValuePrototypeOf(const Value& val, const Value& prototype_val);
+			bool isValueInValue(const Value& val, const Value& prototype_val);
 
 			Table * newTable(OS_DBG_FILEPOS_START_DECL);
 			void clearTable(Table*);
@@ -3121,6 +3122,7 @@ namespace ObjectScript
 		bool isUserdata(int crc, int offs, int prototype_crc = 0);
 		bool isPrototypeOf(int value_offs = -2, int prototype_offs = -1);
 		bool is(int value_offs = -2, int prototype_offs = -1);
+		bool in(int name_offs = -2, int obj_offs = -1);
 
 		void * toUserdata(int crc, int offs = -1, int prototype_crc = 0);
 		void clearUserdata(int crc, int offs = -1, int prototype_crc = 0);
