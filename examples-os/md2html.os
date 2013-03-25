@@ -89,7 +89,11 @@ var function convertParagraph(p){
 	
 	var e = Regexp.escape("\\")
 	p = p.replace(Regexp("/`(.*?)`/"), inject)
-	p = p.replace(Regexp("/${e}{2}(__.+?__)/m"), inject)
+	p = p.replace(Regexp("/${e}{1}(__.+?__)/m"), {|m|
+		var mark = code_mark..#code_list
+		code_list[mark] = m[1]
+		return mark
+	})
 
 	p = p.replace(Regexp("/${e}{2}/"), {|m|
 		var mark = code_mark..#code_list
@@ -97,6 +101,7 @@ var function convertParagraph(p){
 		return mark
 	})
 
+	p = p.replace(Regexp("/__(\*\*)__/m"), inject)
 	p = p.replace(Regexp("/\*\*(.+?)\*\*/m"), inject)
 	p = p.replace(Regexp("/__(.+?)__/m"), inject)
 	
@@ -118,9 +123,10 @@ var function convertParagraph(p){
 	return p.trim()
 }
 
-var pp = content.split(Regexp("/\n\n/"))
+var pp = content.split(Regexp("/\n\s*?\n/"))
 content = Buffer()
 for(var _, p in pp){
+	// print "${_}\n${p}"
 	if(!Regexp("/^(\t|\s\s)/").test(p)){
 		content << "<p>" << convertParagraph(p) << "</p>\n"
 		continue
