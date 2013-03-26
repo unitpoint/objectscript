@@ -67,8 +67,8 @@ using namespace ObjectScript;
 #define OS_FROM_OPCODE_TYPE(i)	((i)<<0)
 #define OS_TO_OPCODE_TYPE(i)	((i)>>0)
 
-#define getarg(i,pos,size)		(((i)>>pos) & OS_MASK1(size, 0))
-#define setarg(i,v,pos,size)	((i) = (((i)&OS_MASK0(size,pos)) | (((Instruction)(v))<<pos) & OS_MASK1(size, pos)))
+#define getarg(i,pos,size)		(int)(((i)>>pos) & OS_MASK1(size, 0))
+#define setarg(i,v,pos,size)	((i) = (int)(((i)&OS_MASK0(size,pos)) | (((Instruction)(v))<<pos) & OS_MASK1(size, pos)))
 
 #define OS_GETARG_A(i)		getarg(i, OS_POS_A, OS_SIZE_A)
 #define OS_SETARG_A(i,v)	setarg(i, v, OS_POS_A, OS_SIZE_A)
@@ -365,7 +365,7 @@ static inline long double toLittleEndianByteOrder(long double val)
 		return val;
 	}
 	long double r;
-	for(int i = 0; i < sizeof(long double); i++){
+	for(int i = 0; i < (int)sizeof(long double); i++){
 		((OS_BYTE*)&r)[i] = ((OS_BYTE*)&val)[sizeof(long double)-1-i];
 	}
 	return r;
@@ -1841,7 +1841,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 							string_type = NOT_STRING;
 							bool start = str == line_start;
 							str += multi_string_id_len;
-							if(start && buf.buffer.count >= sizeof(OS_CHAR)){
+							if(start && buf.buffer.count >= (int)sizeof(OS_CHAR)){
 								OS_CHAR * end = (OS_CHAR*)buf.buffer.buf + (buf.buffer.count/sizeof(OS_CHAR));
 								if(end[-1] == OS_TEXT('\n')){
 									buf.buffer.count -= sizeof(OS_CHAR);
@@ -6162,10 +6162,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectOrFunctionExpre
 				break;
 
 			case Tokenizer::NUMBER:
-				if(name_token->getFloat() != (OS_FLOAT)(OS_INT)name_token->getFloat()){
+				/* if(name_token->getFloat() != (OS_FLOAT)(OS_INT)name_token->getFloat()){
 					// use it as EXP_TYPE_OBJECT_SET_BY_NAME
 					break;
-				}
+				} */
 				exp_type = EXP_TYPE_OBJECT_SET_BY_INDEX;
 				break;
 
