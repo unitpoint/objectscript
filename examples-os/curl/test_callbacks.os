@@ -51,7 +51,7 @@ var function test(debug_type, debug_msg) {
 }
 
 Curl {
-    url           = "http://curl.haxx.se/",
+    url           = "http://ya.ru/",
     verbose       = true,
     debugfunction = test,
 }.perform()

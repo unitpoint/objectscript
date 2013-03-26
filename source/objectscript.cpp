@@ -5240,7 +5240,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = exp1->slots.a;
 		scope->popTempVar(2);
 		// TODO: is it really needed to check slot here?
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // && (exp1->slots.b < 0 || exp1->slots.b >= scope->function->num_locals)){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5266,7 +5267,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = exp1->slots.a;
 		scope->popTempVar(2);
 		// TODO: is it really needed to check slot here?
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // && (exp1->slots.b < 0 || exp1->slots.b >= scope->function->num_locals)){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5283,12 +5285,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = exp2->slots.a;
 		scope->popTempVar(2);
 		// TODO: is it really needed to check slot here?
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST IS NOT ALLOWED HERE!!! scope->function->num_locals){
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals && exp1->slots.b >= 0){ // CONST IS NOT ALLOWED HERE!!!
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
 		// TODO: is it really needed to check slot here?
-		if(exp2->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp2->type == EXP_TYPE_MOVE && exp2->slots.a >= scope->function->num_locals){ // && (exp2->slots.b < 0 || exp2->slots.b >= scope->function->num_locals)){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -5575,7 +5578,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = stack_pos;
 		exp1 = exp->list[0];
 		// TODO: is it really needed to check slot here?
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // && (exp1->slots.b < 0 || exp1->slots.b >= scope->function->num_locals)){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}		
@@ -5620,12 +5624,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = stack_pos+1;
 		scope->popTempVar();
 		// TODO: is it really needed to check slot here?
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // && (exp1->slots.b < 0 || exp1->slots.b >= scope->function->num_locals)){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
 		// TODO: is it really needed to check slot here?
-		if(exp2->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp2->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // && (exp2->slots.b < 0 || exp2->slots.b >= scope->function->num_locals)){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
@@ -5691,6 +5697,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp1 = exp1->list.lastElement();
 		}
 		// TODO: is it really needed to check slot here?
+		// don't optimize assignment of local var
+		// if(exp1->type == EXP_TYPE_MOVE && (exp1->slots.b < 0 || exp1->slots.b >= scope->function->num_locals)){
 		/* if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){ // stack_cur_size is already decremented
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
@@ -5721,19 +5729,22 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		scope->function->stack_cur_size = stack_pos;
 		exp1 = exp->list[0];
 		// TODO: is it really needed to check slot here?
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp1->slots.b >= scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // && (exp1->slots.b < 0 || exp1->slots.b >= scope->function->num_locals)){
 			exp->slots.c = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
 		exp1 = exp->list[1];
 		// TODO: is it really needed to check slot here?
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST IS NOT ALLOWED HERE!!! scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // && (exp1->slots.b < 0 || exp1->slots.b >= scope->function->num_locals)){
 			exp->slots.a = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
 		exp1 = exp->list[2];
 		// TODO: is it really needed to check slot here?
-		if(exp1->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!!  && exp1->slots.b >= scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals){ // && (exp1->slots.b < 0 || exp1->slots.b >= scope->function->num_locals)){
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
@@ -5808,12 +5819,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = stack_pos + 1; // exp2->slots.a;
 		scope->popTempVar();
 		// TODO: is it really needed to check slot here?
-		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){ // CONST IS NOT ALLOWED HERE!!! scope->function->num_locals){
+		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.a >= scope->function->num_locals && exp1->slots.b >= 0){ // CONST IS NOT ALLOWED HERE!!!
 			exp->slots.b = exp1->slots.b;
 			exp1->type = EXP_TYPE_NOP;
 		}
 		// TODO: is it really needed to check slot here?
-		if(exp2->type == EXP_TYPE_MOVE){ // CONST IS ALLOWED HERE!!! && exp2->slots.b >= scope->function->num_locals){
+		// don't optimize assignment of local var
+		if(exp2->type == EXP_TYPE_MOVE && exp2->slots.a >= scope->function->num_locals){ // && (exp2->slots.b < 0 || exp2->slots.b >= scope->function->num_locals)){
 			exp->slots.c = exp2->slots.b;
 			exp2->type = EXP_TYPE_NOP;
 		}
