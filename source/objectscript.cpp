@@ -8234,6 +8234,38 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return NULL;
 		}
 		OS_ASSERT(exp->ret_values == 1);
+		switch(exp->type){
+		case EXP_TYPE_CONST_NUMBER:
+		case EXP_TYPE_CONST_NULL:
+		case EXP_TYPE_CONST_TRUE:
+		case EXP_TYPE_CONST_FALSE:
+			switch(token_type){
+			case Tokenizer::OPERATOR_ADD:
+				exp->type = EXP_TYPE_CONST_NUMBER;
+				exp->token->setFloat(exp->toNumber());
+				return finishValueExpressionNoAutoCall(scope, exp, p);
+
+			case Tokenizer::OPERATOR_SUB:
+				exp->type = EXP_TYPE_CONST_NUMBER;
+				exp->token->setFloat(-exp->toNumber());
+				return finishValueExpressionNoAutoCall(scope, exp, p);
+
+			// case Tokenizer::OPERATOR_LENGTH:
+			case Tokenizer::OPERATOR_BIT_NOT:
+				exp->type = EXP_TYPE_CONST_NUMBER;
+				exp->token->setFloat((OS_FLOAT)~exp->toInt());
+				return finishValueExpressionNoAutoCall(scope, exp, p);
+
+			case Tokenizer::OPERATOR_LOGIC_NOT:
+				{
+					bool b = !exp->toInt();
+					exp->type = b ? EXP_TYPE_CONST_TRUE : EXP_TYPE_CONST_FALSE;
+					exp->token->setFloat((OS_FLOAT)b);
+					return finishValueExpressionNoAutoCall(scope, exp, p);
+				}
+			}
+			break;
+		}
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(getUnaryExpressionType(token_type), exp->token, exp OS_DBG_FILEPOS);
 		exp->ret_values = 1;
 		return finishValueExpressionNoAutoCall(scope, exp, p);
