@@ -3664,7 +3664,7 @@ bool OS::Core::Compiler::compile()
 		return true;
 	}else{
 		Buffer dump(allocator);
-		dump += OS_TEXT("error");
+		dump += OS_TEXT("compiler error");
 		switch(error){
 		default:
 			dump += OS_TEXT(" unknown");
@@ -3680,10 +3680,6 @@ bool OS::Core::Compiler::compile()
 
 		case ERROR_LOCAL_VAL_NOT_DECLARED:
 			dump += OS_TEXT(" LOCAL_VAL_NOT_DECLARED");
-			break;
-
-		case ERROR_VAR_ALREADY_EXIST:
-			dump += OS_TEXT(" VAR_ALREADY_EXIST");
 			break;
 
 		case ERROR_VAR_NAME:
@@ -6395,6 +6391,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExtendsExpression(Sco
 		exp->ret_values = 1;
 		return exp;
 	}
+#if 1
+	setError(ERROR_SYNTAX, exp->token);
+	allocator->deleteObj(exp);
+	return NULL;
+#else // TODO: delete it???
 	Expression * exp2 = expectSingleExpression(scope, p);
 	if(!exp2){
 		allocator->deleteObj(exp);
@@ -6405,6 +6406,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExtendsExpression(Sco
 	exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_EXTENDS, save_token, exp, exp2 OS_DBG_FILEPOS);
 	exp->ret_values = 1;
 	return exp;
+#endif
 }
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::finishQuestionOperator(Scope * scope, TokenData * token, Expression * exp, Expression * exp2)
