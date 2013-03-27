@@ -1,7 +1,9 @@
 ObjectScript
 ============
 
-ObjectScript is a new programing language that mixes benefits of JavaScript, Lua, Ruby, Python and PHP.
+The ObjectScript is a new embedded programing language that mixes benefits of JavaScript, Lua, Ruby, Python and PHP. The ObjectScript has syntax from JavaScript, multiple results from Lua, sugar syntax from Ruby, magic methods from Python and much more.
+
+The ObjectScript is universal scripting language, there are no compromises any more.
 
 ## Resources
 
