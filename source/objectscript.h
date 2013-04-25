@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.6.3-dev")
+#define OS_VERSION OS_TEXT("1.6.4-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
 #define OS_EXT_TEMPLATE OS_TEXT(".osh")
@@ -488,7 +488,7 @@ namespace ObjectScript
 		
 		struct FileHandle {};
 
-	protected:
+	// protected:
 
 		template<class T>
 		struct Vector
@@ -667,6 +667,8 @@ namespace ObjectScript
 				obj = NULL;
 			}
 		}
+
+	protected:
 
 		class Core
 		{
@@ -2806,6 +2808,7 @@ namespace ObjectScript
 			GCObjectValue * pushObjectValue(GCValue * prototype);
 			GCArrayValue * pushArrayValue(int initial_capacity = 0);
 
+			String getTypeStr(const Value& val);
 			void pushTypeOf(const Value& val);
 			bool pushNumberOf(const Value& val);
 			bool pushStringOf(const Value& val);

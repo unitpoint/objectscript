@@ -16178,6 +16178,12 @@ OS_EValueType OS::getTypeById(int id)
 	return val ? val->type : OS_VALUE_TYPE_NULL;
 }
 
+OS::Core::String OS::Core::getTypeStr(const Value& val)
+{
+	pushTypeOf(val);
+	return allocator->popString();
+}
+
 OS::String OS::getTypeStr(int offs)
 {
 	core->pushTypeOf(core->getStackValue(offs));
@@ -18649,6 +18655,7 @@ void OS::setFunc(const FuncDef& def, bool setter_enabled, int closure_values, vo
 
 void OS::setFuncs(const FuncDef * list, bool setter_enabled, int closure_values, void * user_param)
 {
+	if(list)
 	for(; list->func; list++){
 		pushStackValue(-1);
 		pushString(list->name);
@@ -18669,6 +18676,7 @@ void OS::setNumber(const NumberDef& def, bool setter_enabled)
 
 void OS::setNumbers(const NumberDef * list, bool setter_enabled)
 {
+	if(list)
 	for(; list->name; list++){
 		pushStackValue(-1);
 		pushString(list->name);
@@ -18685,6 +18693,7 @@ void OS::setString(const StringDef& def, bool setter_enabled)
 
 void OS::setStrings(const StringDef * list, bool setter_enabled)
 {
+	if(list)
 	for(; list->name; list++){
 		pushStackValue(-1);
 		pushString(list->name);
@@ -18701,6 +18710,7 @@ void OS::setNull(const NullDef& def, bool setter_enabled)
 
 void OS::setNulls(const NullDef * list, bool setter_enabled)
 {
+	if(list)
 	for(; list->name; list++){
 		pushStackValue(-1);
 		pushString(list->name);
@@ -22701,7 +22711,7 @@ void OS::initProcessModule()
 		
 		static int exitFunc(OS * os, int params, int, int, void*)
 		{
-#if 0		// TODO: script should be exit using terminate function
+#if 1		// TODO: script should use 'terminate' function instead of exit if possible
 			::exit(params >= 1 ? os->toInt(-params) : 0);
 #else
 			os->setException(OS_TEXT("this function is disabled due to security reason"));
@@ -23384,6 +23394,13 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 			}
 			break;
 		}
+
+	case OS_VALUE_TYPE_NULL:
+		break;
+
+	default:
+		allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
+		break;
 	}
 	reserveStackValues(start_pos + ret_values);
 	OS_SET_NULL_VALUES(stack_values.buf + start_pos, ret_values);

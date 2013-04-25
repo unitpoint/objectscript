@@ -5,6 +5,7 @@
 *.vcxproj.user
 *.osd
 *.osc
+*.ost
 *.o
 /bin/os.exp
 /bin/os.lib

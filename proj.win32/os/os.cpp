@@ -18,6 +18,11 @@
 #include "../../source/ext-regexp/os-regexp.h"
 #endif
 
+#ifndef OS_OPENGL_DISABLED
+#include "../../source/ext-opengl/os-opengl.h"
+#include <glut.h>
+#endif
+
 using namespace ObjectScript;
 
 static double inv_frequency = 0.0;
@@ -44,21 +49,6 @@ struct __init_time__
 } __init_time__;
 #endif
 
-#if defined(_WIN32)
-OS::String getString(OS * os, const _TCHAR * str)
-#else
-OS::String getString(OS * os, const char * str)
-#endif
-{
-	OS_CHAR buf[1024*10];
-	int i = 0;
-	for(; str[i]; i++){
-		buf[i] = (OS_CHAR)str[i];
-	}
-	buf[i] = 0;
-	return OS::String(os, buf);
-}
-
 double getTimeSec()
 {
 #if defined(_WIN32)
@@ -72,11 +62,30 @@ double getTimeSec()
 }
 
 #if defined(_WIN32)
-int _tmain(int argc, _TCHAR* argv[])
+int _tmain(int argc, _TCHAR* _argv[])
+{
+	char ** argv = new char*[argc];
+	{ for(int i = 0; i < argc; i++){
+		int len = 0; for(; _argv[i][len]; len++);
+		argv[i] = new char[len+1];
+		for(int j = 0; j <= len; j++){
+			argv[i][j] = (char)_argv[i][j];
+		}
+	} }
+	struct FreeArgv {
+		int argc;
+		char ** argv;
+		~FreeArgv(){
+			for(int i = 0; i < argc; i++){
+				delete [] argv[i];
+			}
+			delete [] argv;
+		}
+	} __free_argvc__ = {argc, argv};
 #else
 int main(int argc, char *argv[])
-#endif
 {
+#endif
 	if(argc < 2){
 		printf("ObjctScript " OS_VERSION " Copyright (C) 2012-2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)\n");
 		printf("Latest version and source code: https://github.com/unitpoint/objectscript\n");
@@ -115,6 +124,11 @@ int main(int argc, char *argv[])
 	initRegexpLibrary(os);
 #endif
 
+#ifndef OS_OPENGL_DISABLED
+	glutInit(&argc, argv);
+	initOpenglLibrary(os);
+#endif
+
 	// save allocated memory at start point
 	int start_mem_usage = os->getAllocatedBytes();
 	// set needed settings
@@ -126,7 +140,7 @@ int main(int argc, char *argv[])
 	for(int i = 0; i < argc; i++){
 		os->pushStackValue(-1);
 		os->pushNumber(i-1);
-		os->pushString(getString(os, argv[i]));
+		os->pushString(argv[i]);
 		os->setProperty();
 	}
 	// we can use the program arguments as global arg variable inside of our script
@@ -138,7 +152,7 @@ int main(int argc, char *argv[])
 	// os->require("c:\\Sources\\OS\\unit-tests-os\\operators.os"); // getString(os, argv[1]));
 	// os->require(getString(os, argv[1]));
 #if 1
-	os->require(getString(os, argv[1]), true, 0, OS_SOURCECODE_AUTO);
+	os->require(argv[1], true, 0, OS_SOURCECODE_AUTO);
 #else
 	os->compileFile(getString(os, argv[1]));
 	os->pushNull();

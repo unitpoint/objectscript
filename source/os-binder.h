@@ -336,7 +336,7 @@ void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * 
 	os->pushString(CtypeName<T>::getName());
 	os->pushUserdata(CtypeId<T>::getId(), 0);
 	os->setFuncs(list);
-	if(numbers) os->setNumbers(numbers);
+	os->setNumbers(numbers);
 	os->setProperty();
 }
 
@@ -347,7 +347,7 @@ void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * 
 	os->pushString(CtypeName<T>::getName());
 	os->pushUserdata(CtypeId<T>::getId(), 0);
 	os->setFuncs(list);
-	if(numbers) os->setNumbers(numbers);
+	os->setNumbers(numbers);
 	os->pushStackValue();
 	os->getGlobal(CtypeName<Prototype>::getName());
 	os->setPrototype(CtypeId<T>::getId());

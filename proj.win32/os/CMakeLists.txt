@@ -42,6 +42,7 @@ SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAG
 
 # add_definitions( -DOS_SQLITE3_DISABLED )
 # add_definitions( -DOS_REGEXP_DISABLED )
+add_definitions( -DOS_OPENGL_DISABLED )
 
 if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
   add_custom_target(strip_${target} ALL COMMAND ${CMAKE_STRIP} ${CMAKE_CURRENT_BINARY_DIR}/${target})
