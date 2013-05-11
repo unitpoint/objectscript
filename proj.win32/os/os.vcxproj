@@ -179,6 +179,52 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\ext-curl\os-curl.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noiseutils\noiseutils.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\basictypes.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\exception.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\interp.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\latlon.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\mathconsts.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\misc.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\model\cylinder.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\model\line.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\model\model.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\model\plane.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\model\sphere.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\abs.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\add.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\billow.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\blend.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\cache.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\checkerboard.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\clamp.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\const.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\curve.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\cylinders.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\displace.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\exponent.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\invert.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\max.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\min.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\module.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\modulebase.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\multiply.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\perlin.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\power.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\ridgedmulti.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\rotatepoint.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\scalebias.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\scalepoint.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\select.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\spheres.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\terrace.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\translatepoint.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\turbulence.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\module\voronoi.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\noise.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\noisegen.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\noise\vectortable.h" />
+    <ClInclude Include="..\..\source\ext-libnoise\os-libnoise.h" />
     <ClInclude Include="..\..\source\ext-opengl\os-opengl.h" />
     <ClInclude Include="..\..\source\ext-regexp\os-regexp.h" />
     <ClInclude Include="..\..\source\ext-sqlite3\os-sqlite3.h" />
@@ -193,6 +239,43 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\ext-curl\os-curl.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noiseutils\noiseutils.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\latlon.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\model\cylinder.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\model\line.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\model\plane.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\model\sphere.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\abs.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\add.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\billow.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\blend.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\cache.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\checkerboard.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\clamp.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\const.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\curve.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\cylinders.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\displace.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\exponent.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\invert.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\max.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\min.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\modulebase.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\multiply.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\perlin.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\power.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\ridgedmulti.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\rotatepoint.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\scalebias.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\scalepoint.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\select.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\spheres.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\terrace.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\translatepoint.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\turbulence.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\module\voronoi.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\noise\noisegen.cpp" />
+    <ClCompile Include="..\..\source\ext-libnoise\os-libnoise.cpp" />
     <ClCompile Include="..\..\source\ext-opengl\os-opengl.cpp" />
     <ClCompile Include="..\..\source\ext-regexp\os-regexp.cpp" />
     <ClCompile Include="..\..\source\ext-sqlite3\os-sqlite3.cpp" />
@@ -200,6 +283,7 @@
     <ClCompile Include="..\..\source\objectscript.cpp">
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NoListing</AssemblerOutput>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NoListing</AssemblerOutput>
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NoListing</AssemblerOutput>
     </ClCompile>
     <ClCompile Include="os.cpp" />
     <ClCompile Include="pcrelib\pcreposix.c" />

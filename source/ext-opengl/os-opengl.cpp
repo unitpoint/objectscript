@@ -295,10 +295,8 @@ struct OpenglCache
 				glutBitmapCharacter((void*)std_font, os->toInt(-params + 1));
 				return 0;
 			}
-			OS::String str(os);
-			if(os->isString(-params + 0, &str)){
-				glutBitmapCharacter((void*)str.toChar(), os->toInt(-params + 1));
-			}
+			OS::String str = os->toString(-params + 0);
+			glutBitmapCharacter((void*)str.toChar(), os->toInt(-params + 1));
 		}
 		return 0;
 	}
@@ -306,8 +304,7 @@ struct OpenglCache
 	void saveFunc(int& saved_func_id, int id)
 	{
 		os->releaseValueById(saved_func_id);
-		os->retainValueById(id);
-		saved_func_id = id;
+		os->retainValueById(saved_func_id = id);
 	}
 
 #define OS_GLUT_DECL_FUNC(name) \

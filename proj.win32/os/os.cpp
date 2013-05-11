@@ -23,6 +23,10 @@
 #include <glut.h>
 #endif
 
+#ifndef OS_LIBNOISE_DISABLED
+#include "../../source/ext-libnoise/os-libnoise.h"
+#endif
+
 using namespace ObjectScript;
 
 static double inv_frequency = 0.0;
@@ -127,6 +131,10 @@ int main(int argc, char *argv[])
 #ifndef OS_OPENGL_DISABLED
 	glutInit(&argc, argv);
 	initOpenglLibrary(os);
+#endif
+
+#ifndef OS_LIBNOISE_DISABLED
+	initLibNoiseLibrary(os);
 #endif
 
 	// save allocated memory at start point
