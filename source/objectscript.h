@@ -154,7 +154,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.6.4-dev")
+#define OS_VERSION OS_TEXT("1.6.5-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
 #define OS_EXT_TEMPLATE OS_TEXT(".osh")
@@ -2768,6 +2768,7 @@ namespace ObjectScript
 			GCCFunctionValue * newCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
 			GCUserdataValue * newUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param);
 			GCUserdataValue * newUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param);
+			GCUserdataValue * findUserPointerValue(void * data);
 			GCObjectValue * newObjectValue();
 			GCObjectValue * newObjectValue(GCValue * prototype);
 			GCArrayValue * newArrayValue(int initial_capacity = 0);
@@ -3122,6 +3123,7 @@ namespace ObjectScript
 		void * pushUserdata(int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
 		void * pushUserPointer(int crc, void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
 		void * pushUserPointer(void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
+		int findUserPointerValueId(void * data);
 		void newObject();
 		void newArray(int initial_capacity = 0);
 

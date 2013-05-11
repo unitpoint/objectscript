@@ -6396,6 +6396,30 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectOrFunctionExpre
 			}
 			exp = expectExpressionValues(exp, 1);
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp_type, name_token, exp OS_DBG_FILEPOS);
+		}else if(name_token->type == Tokenizer::OPERATOR_SUB || name_token->type == Tokenizer::OPERATOR_ADD){
+			if(!expectToken(Tokenizer::NUMBER)){
+				return lib.error();
+			}
+			if(name_token->type == Tokenizer::OPERATOR_SUB){
+				name_token = recent_token;
+				name_token->setFloat(-name_token->getFloat());
+			}else{
+				name_token = recent_token;
+			}
+			ExpressionType exp_type = EXP_TYPE_OBJECT_SET_BY_INDEX;
+			if(isNextToken(Tokenizer::OPERATOR_COLON) || isNextToken(Tokenizer::OPERATOR_ASSIGN)){
+				readToken(); // skip OPERATOR_COLON
+				TokenData * save_token = readToken();
+				exp = expectSingleExpression(scope, p);
+				if(!exp){
+					return isError() ? lib.error() : lib.error(ERROR_EXPECT_EXPRESSION, save_token);
+				}
+				exp = expectExpressionValues(exp, 1);
+				exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp_type, name_token, exp OS_DBG_FILEPOS);
+			}else{
+				expectToken(Tokenizer::OPERATOR_ASSIGN);
+				return lib.error();
+			}
 		}else{
 			exp = expectSingleExpression(scope, p);
 			if(!exp){
@@ -9422,7 +9446,7 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader)
 	num_functions = reader->readUVariable();
 	int opcodes_size = reader->readUVariable();
 	int num_debug_infos = reader->readUVariable();
-	OS_ASSERT(!num_debug_infos || num_debug_infos == opcodes_size || num_debug_infos + 1 == opcodes_size);
+	// OS_ASSERT(!num_debug_infos || num_debug_infos == opcodes_size || num_debug_infos + 1 == opcodes_size);
 	int prog_filename_string_index = reader->readUVariable();
 	OS_ASSERT(prog_filename_string_index >= 0 && prog_filename_string_index < num_strings);
 
@@ -14971,6 +14995,43 @@ OS::Core::GCUserdataValue * OS::Core::newUserdataValue(int crc, int data_size, O
 	res->type = OS_VALUE_TYPE_USERDATA;
 	registerValue(res);
 	return res;
+}
+
+int OS::findUserPointerValueId(void * data)
+{
+	Core::GCUserdataValue * value = core->findUserPointerValue(data);
+	return value ? value->value_id : 0;
+}
+
+OS::Core::GCUserdataValue * OS::Core::findUserPointerValue(void * ptr)
+{
+	int hash = OS_PTR_HASH(ptr);
+	if(ptr && userptr_refs.count > 0){
+		OS_ASSERT(userptr_refs.heads && userptr_refs.head_mask > 0);
+		int slot = hash & userptr_refs.head_mask;
+		UserptrRef * userptr_ref = userptr_refs.heads[slot];
+		for(UserptrRef * prev = NULL, * next; userptr_ref; userptr_ref = next){
+			next = userptr_ref->hash_next;
+			GCUserdataValue * userptr_value = (GCUserdataValue*)values.get(userptr_ref->userptr_value_id);
+			if(!userptr_value){
+				if(!prev){
+					userptr_refs.heads[slot] = next;
+				}else{
+					prev->hash_next = next;					
+				}
+				free(userptr_ref);
+				userptr_refs.count--;
+				continue;
+			}
+			OS_ASSERT(userptr_value->type == OS_VALUE_TYPE_USERPTR);
+			OS_ASSERT(dynamic_cast<GCUserdataValue*>(userptr_value));
+			if(userptr_value->ptr == ptr){ // && userptr_value->crc == crc){
+				return userptr_value;
+			}
+			prev = userptr_ref;
+		}
+	}
+	return NULL;
 }
 
 OS::Core::GCUserdataValue * OS::Core::newUserPointerValue(int crc, void * ptr, OS_UserdataDtor dtor, void * user_param)
@@ -23323,7 +23384,13 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 				OS_MEMCPY(stack_values.buf + start_pos + call_params, closure_values, sizeof(Value)*cfunc_value->num_closure_values);
 			}
 			stack_values.count = start_pos + call_params + cfunc_value->num_closure_values;
-			int cur_ret_values = cfunc_value->func(allocator, call_params - 2, cfunc_value->num_closure_values, ret_values, cfunc_value->user_param);
+			int cur_ret_values;
+			try{
+				cur_ret_values = cfunc_value->func(allocator, call_params - 2, cfunc_value->num_closure_values, ret_values, cfunc_value->user_param);
+			}catch(...){
+				cur_ret_values = 0;
+				allocator->setException(OS_TEXT("internal error"));
+			}
 #if 0		// does store closure values back?
 			if(cfunc_value->num_closure_values > 0){
 				Value * closure_values = (Value*)(cfunc_value + 1);
