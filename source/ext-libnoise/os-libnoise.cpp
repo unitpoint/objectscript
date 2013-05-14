@@ -587,7 +587,7 @@ static void initNoiseSelect(OS * os)
 		def(OS_TEXT("__get@edgeFalloff"), &module::Select::GetEdgeFalloff),
 		def(OS_TEXT("__set@edgeFalloff"), &module::Select::SetEdgeFalloff),
 		def(OS_TEXT("__get@lowerBound"), &module::Select::GetLowerBound),
-		def(OS_TEXT("__set@upperBound"), &module::Select::GetUpperBound),
+		def(OS_TEXT("__get@upperBound"), &module::Select::GetUpperBound),
 		def(OS_TEXT("setBounds"), &module::Select::SetBounds),
 		{}
 	};
@@ -603,7 +603,7 @@ static void initNoiseClamp(OS * os)
 	OS::FuncDef funcs[] = {
 		{OS_TEXT("__construct"), &__constructNoiseClamp},
 		def(OS_TEXT("__get@lowerBound"), &module::Clamp::GetLowerBound),
-		def(OS_TEXT("__set@upperBound"), &module::Clamp::GetUpperBound),
+		def(OS_TEXT("__get@upperBound"), &module::Clamp::GetUpperBound),
 		def(OS_TEXT("setBounds"), &module::Clamp::SetBounds),
 		{}
 	};
@@ -968,7 +968,7 @@ static void initNoiseMap(OS * os)
 		{
 			OS_GET_SELF(NoiseMap*);
 			if(params < 1){
-				os->setException("NoiseImage.writeTER requires string argument");
+				os->setException("NoiseMap.writeTER requires string argument");
 				return 0;
 			}
 			OS::String filename = os->toString(-params+0);
@@ -983,10 +983,235 @@ static void initNoiseMap(OS * os)
 			textureWriter.WriteDestFile();
 			return 0;
 		}
+
+		static void initMap(int * map, int size, bool is_little_endian)
+		{
+			if(is_little_endian){
+				for(int i = 0; i < size; i++){
+					map[i] = i;
+				}
+			}else{
+				for(int i = 0; i < size; i++){
+					map[i] = size-1-i;
+				}
+			}
+		}
+
+		static void packLong(long val, int size, int *map, char *output)
+		{
+			char *v = (char*)&val;
+			for (int i = 0; i < size; i++) {
+				*output++ = v[map[i]];
+			}
+		}
+
+		static void writeRAW(OS * os, NoiseMap * self, const OS_CHAR * filename, const OS_CHAR * fmt, const OS_CHAR * mode = "wb")
+		{
+			int x, y, size;
+			int map[sizeof(int)];
+			
+			bool is_little_endian = (*(OS_INT32*)"\x01\x02\x03\x04") == 0x04030201;
+			int height = self->GetHeight();
+			int width = self->GetWidth();
+
+			char * buf = NULL;
+			int buf_size = 0;
+
+			OS::FileHandle * file = os->openFile(filename, mode);
+			if(!file){
+				os->setException(OS::String::format(os, "NoiseMap.writeRAW: error open file '%s'", filename));
+				return;
+			}
+
+			switch(*fmt){
+			/*
+			case 'h': 
+			case 'H': 
+				// TODO: 4 bit per arg
+				// no break
+			*/
+
+			default:
+				os->setException(OS::String::format(os, "NoiseMap.writeRAW: unsupported format '%c'", *fmt));
+				break;
+
+			/*
+			case 'a': 
+			case 'A':
+			case 'c': 
+			case 'C':
+			// case 'x':
+				// TODO: 8 bit per arg
+				size = 1;
+				break;
+			*/
+
+			case 's': 
+			case 'S': 
+			case 'n': 
+			case 'v':
+				// TODO: 16 bit per arg
+				size = 2;
+				if(*fmt == 'n'){
+					initMap(map, size, false);
+				}else if(*fmt == 'v'){
+					initMap(map, size, true);
+				}else{
+					initMap(map, size, is_little_endian);
+				}
+				buf_size = size * width;
+				buf = (char*)os->malloc(buf_size OS_DBG_FILEPOS);
+				OS_ASSERT(buf);
+				for(y = 0; y < height; y++){
+					char * dest = buf;
+					float * cur = self->GetSlabPtr(y);
+					for(x = 0; x < width; x++){
+						packLong((long)*cur, size, map, dest);
+						dest += size;
+					}
+					os->writeFile(buf, buf_size, file);
+				}
+				break;
+
+			case 'i': 
+			case 'I':
+				size = sizeof(int);
+				initMap(map, size, is_little_endian);
+				buf_size = size * width;
+				buf = (char*)os->malloc(buf_size OS_DBG_FILEPOS);
+				OS_ASSERT(buf);
+				for(y = 0; y < height; y++){
+					char * dest = buf;
+					float * cur = self->GetSlabPtr(y);
+					for(x = 0; x < width; x++){
+						packLong((long)*cur, size, map, dest);
+						dest += size;
+					}
+					os->writeFile(buf, buf_size, file);
+				}
+				break;
+
+			case 'l': 
+			case 'L': 
+			case 'N': 
+			case 'V':
+				// TODO: 32 bit per arg
+				size = 4;
+				if(*fmt == 'N'){
+					initMap(map, size, false);
+				}else if(*fmt == 'V'){
+					initMap(map, size, true);
+				}else{
+					initMap(map, size, is_little_endian);
+				}
+				buf_size = size * width;
+				buf = (char*)os->malloc(buf_size OS_DBG_FILEPOS);
+				OS_ASSERT(buf);
+				for(y = 0; y < height; y++){
+					char * dest = buf;
+					float * cur = self->GetSlabPtr(y);
+					for(x = 0; x < width; x++){
+						packLong((long)*cur, size, map, dest);
+						dest += size;
+					}
+					os->writeFile(buf, buf_size, file);
+				}
+				break;
+
+			case 'f':
+				size = sizeof(float);
+				buf_size = size * width;
+				// buf = (char*)os->malloc(buf_size OS_DBG_FILEPOS);
+				// OS_ASSERT(buf);
+				for(int y = 0; y < height; y++){
+					float * cur = self->GetSlabPtr(y);
+#if 1
+					os->writeFile(cur, buf_size, file);
+#else
+					float * dest = (float*)buf;
+					for(int x = 0; x < width; x++){
+						*dest++ = *cur++;
+					}
+					os->writeFile(buf, buf_size, file);
+#endif
+				}
+				break;
+
+			case 'd':
+				size = sizeof(double);
+				buf_size = size * width;
+				buf = (char*)os->malloc(buf_size OS_DBG_FILEPOS);
+				OS_ASSERT(buf);
+				for(int y = 0; y < height; y++){
+					float * cur = self->GetSlabPtr(y);
+					double * dest = (double*)buf;
+					for(int x = 0; x < width; x++){
+						*dest++ = *cur++;
+					}
+					os->writeFile(buf, buf_size, file);
+				}
+				break;
+			}
+			os->closeFile(file);
+			os->free(buf);
+		}
+
+		static int writeRAW(OS * os, int params, int, int, void*)
+		{
+			OS_GET_SELF(NoiseMap*);
+			if(params < 1){
+				os->setException("NoiseMap.writeTER requires string argument");
+				return 0;
+			}
+			OS::String filename = os->toString(-params+0);
+			writeRAW(os, self, filename,
+				params > 1 ? os->toString(-params+1) : "f",
+				params > 2 ? os->toString(-params+2) : "wb");
+			return 0;
+		}
+
+		static int adjustLowerBound(OS * os, int params, int, int, void*)
+		{
+			OS_GET_SELF(NoiseMap*);
+			float value = os->toFloat(-params + 0);
+			int height = self->GetHeight();
+			int width = self->GetWidth();
+			for (int y = 0; y < height; y++) {
+				float* pCur = self->GetSlabPtr (y);
+				for (int x = 0; x < width; x++) {
+				  if (*pCur < value) {
+					*pCur = value;
+				  }
+				  ++pCur;
+				}
+			}
+			return 0;
+		}
+
+		static int adjustUpperBound(OS * os, int params, int, int, void*)
+		{
+			OS_GET_SELF(NoiseMap*);
+			float value = os->toFloat(-params + 0);
+			int height = self->GetHeight();
+			int width = self->GetWidth();
+			for (int y = 0; y < height; y++) {
+				float* pCur = self->GetSlabPtr (y);
+				for (int x = 0; x < width; x++) {
+				  if (*pCur > value) {
+					*pCur = value;
+				  }
+				  ++pCur;
+				}
+			}
+			return 0;
+		}
 	};
 	OS::FuncDef funcs[] = {
 		{OS_TEXT("__construct"), &Lib::__constructNoiseMap},
 		{OS_TEXT("writeTER"), &Lib::writeTER},
+		{OS_TEXT("writeRAW"), &Lib::writeRAW},
+		{OS_TEXT("adjustLowerBound"), &Lib::adjustLowerBound},
+		{OS_TEXT("adjustUpperBound"), &Lib::adjustUpperBound},
 		def(OS_TEXT("clear"), &NoiseMap::Clear),
 		def(OS_TEXT("__get@borderValue"), &NoiseMap::GetBorderValue),
 		def(OS_TEXT("__set@borderValue"), &NoiseMap::SetBorderValue),
@@ -1375,6 +1600,7 @@ void initLibNoiseLibrary(OS* os)
 			for(var k, v in attrs){
 				this[k] = v
 			}
+			return this
 		}
 		function NoiseAbstractModule.__get@sourceModule(){ return @getSourceModule(0) }
 		function NoiseAbstractModule.__set@sourceModule(s){ @setSourceModule(0, s) }
@@ -1390,6 +1616,7 @@ void initLibNoiseLibrary(OS* os)
 			for(var k, v in gradient){
 				@addGradientPoint(k, v)
 			}
+			return this
 		}
 
 		NoiseSelect.__get@controlModule = NoiseSelect.__get@sourceModule2

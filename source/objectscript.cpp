@@ -2409,7 +2409,9 @@ OS::Core::String OS::Core::Compiler::Expression::getSlotStr(OS::Core::Compiler *
 		}
 		slot_num -= CONST_STD_VALUES;
 		if(slot_num < compiler->prog_numbers.count){
-			return String::format(allocator, OS_TEXT("const number %g"), compiler->prog_numbers[slot_num]);
+			OS_CHAR temp[128];
+			OS::Utils::numToStr(temp, compiler->prog_numbers[slot_num]); 
+			return String::format(allocator, OS_TEXT("const number %s"), temp); // compiler->prog_numbers[slot_num]);
 		}
 		slot_num -= compiler->prog_numbers.count;
 		return String::format(allocator, OS_TEXT("const string \"%s\""), Lib::getInfoStr(compiler, compiler->prog_strings[slot_num]).toChar());

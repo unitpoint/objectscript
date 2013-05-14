@@ -1,6 +1,6 @@
 require "lib"
 
-var test = NoisePerlin { // Perlin noise to use for the wood grain.
+var test = NoisePerlin {
 	// seed = 0,
 	frequency = 2,
 	// persistence = 0.5,
@@ -55,7 +55,7 @@ function createPlanar(noiseModule, seamless, height, filename){
 	renderTexture(noiseMap, filename, seamless)
 }
 
-createPlanar(test, false, TEXTURE_HEIGHT, "example-01-plane.bmp")
-createPlanar(test, true, TEXTURE_HEIGHT, "example-01-seamless.bmp")
+createPlanar(test, false, TEXTURE_HEIGHT, "example-02-plane.bmp")
+createPlanar(test, true, TEXTURE_HEIGHT, "example-02-seamless.bmp")
 
-renderTexture(createSphericalMap(test, TEXTURE_HEIGHT), "example-01-sphere.bmp")
+renderTexture(createSphericalMap(test, TEXTURE_HEIGHT), "example-02-sphere.bmp")

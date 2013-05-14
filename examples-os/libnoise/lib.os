@@ -29,8 +29,9 @@ function createPlanarMap(noiseModule, seamless, height){
 	plane.seamless = seamless
 	
 	plane.callback = function(row){
+		if(row % 16 != 0) return;
 		++row;
-		printf("plane build: %d, %.1f%%\n", row, row * 100 / height)
+		printf("sphere build: %d%%, row %d\n", row * 100 / height, row)
 	}
 
 	print "NoiseMapBuilderPlane.build"
@@ -51,8 +52,9 @@ function createSphericalMap(noiseModule, height){
 	sphere.destNoiseMap = noiseMap
 
 	sphere.callback = function(row){
+		if(row % 16 != 0) return;
 		++row;
-		printf("sphere build: %d, %.1f%%\n", row, row * 100 / height)
+		printf("sphere build: %d%%, row %d\n", row * 100 / height, row)
 	}
 
 	print "NoiseMapBuilderSphere.build"
