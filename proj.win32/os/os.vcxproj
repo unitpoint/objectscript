@@ -179,7 +179,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\ext-curl\os-curl.h" />
-    <ClInclude Include="..\..\source\ext-dbal\os-dbal.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noiseutils\noiseutils.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noise\basictypes.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noise\exception.h" />
@@ -226,6 +225,7 @@
     <ClInclude Include="..\..\source\ext-libnoise\noise\noisegen.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noise\vectortable.h" />
     <ClInclude Include="..\..\source\ext-libnoise\os-libnoise.h" />
+    <ClInclude Include="..\..\source\ext-odbo\os-odbo.h" />
     <ClInclude Include="..\..\source\ext-opengl\os-opengl.h" />
     <ClInclude Include="..\..\source\ext-regexp\os-regexp.h" />
     <ClInclude Include="..\..\source\ext-sqlite3\os-sqlite3.h" />
@@ -240,7 +240,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\ext-curl\os-curl.cpp" />
-    <ClCompile Include="..\..\source\ext-dbal\os-dbal.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noiseutils\noiseutils.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noise\latlon.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noise\model\cylinder.cpp" />
@@ -278,6 +277,7 @@
     <ClCompile Include="..\..\source\ext-libnoise\noise\module\voronoi.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noise\noisegen.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\os-libnoise.cpp" />
+    <ClCompile Include="..\..\source\ext-odbo\os-odbo.cpp" />
     <ClCompile Include="..\..\source\ext-opengl\os-opengl.cpp" />
     <ClCompile Include="..\..\source\ext-regexp\os-regexp.cpp" />
     <ClCompile Include="..\..\source\ext-sqlite3\os-sqlite3.cpp" />

@@ -27,8 +27,8 @@
 #include "../../source/ext-libnoise/os-libnoise.h"
 #endif
 
-#ifndef OS_DBAL_DISABLED
-#include "../../source/ext-dbal/os-dbal.h"
+#ifndef OS_ODBO_DISABLED
+#include "../../source/ext-odbo/os-odbo.h"
 #endif
 
 using namespace ObjectScript;
@@ -141,8 +141,8 @@ int main(int argc, char *argv[])
 	initLibNoiseLibrary(os);
 #endif
 
-#ifndef OS_DBAL_DISABLED
-	initDBALLibrary(os);
+#ifndef OS_ODBO_DISABLED
+	initODBOLibrary(os);
 #endif
 
 	// save allocated memory at start point

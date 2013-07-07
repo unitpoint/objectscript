@@ -2,7 +2,7 @@
 	dirname = path.dirname(__FILE__),
 	basename = path.basename(__FILE__),
 	extname = path.extname(__FILE__),
-	resolve = path.resolve("test.db"),
+	resolve = path.resolve("test-sqlite.db"),
 }
 
 ;{
@@ -506,7 +506,7 @@ for(var i in 5.to(7))
 print "Test 7.to(2).each"
 7.to(2).each{|i| print i}
 
-if("Curl" in _G){
+if(false && "Curl" in _G){
 	print "Test CURL callbacks"
 	require "curl/test_callbacks.os"
 
@@ -518,7 +518,7 @@ if("Curl" in _G){
 
 if("SqliteConnection" in _G){
 	print "Test sqlite database"
-	var conn = SqliteConnection(path.resolve("test.db"))
+	var conn = SqliteConnection(path.resolve("test-sqlite.db"))
 	
 	print "Test insert sql"
 	conn.execute("insert into session_log (user_id, time, ip, user_agent, referrer) values(:user_id, :time, :ip, :user_agent, :referrer)", {
@@ -540,13 +540,15 @@ if("SqliteConnection" in _G){
 	print "Sqlite3 library is not enabled"
 }
 
-if("DBAL" in _G){
-	print "Test DBAL extension"
-	var conn = DBAL("mysql", {
-		user = "root"
+if("ODBO" in _G){
+	print "Test ODBO extension"
+	var conn = ODBO("mysql", {
+		user = "root",
+		// password = "",
+		dbname = "test"
 	})
 }else{
-	print "DBAL library is not enabled"
+	print "ODBO extension is not enabled"
 }
 
 if("Regexp" in _G){
