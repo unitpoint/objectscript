@@ -6218,6 +6218,9 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 		if(exp){
 			list.add(exp OS_DBG_FILEPOS);
 		}
+		if(!recent_token){
+			break;
+		}
 		TokenType token_type = recent_token->type;
 		if(token_type == Tokenizer::CODE_SEPARATOR){
 			if(!readToken()){
@@ -14688,6 +14691,7 @@ void OS::Core::setPropertyValue(const Value& table_value, const Value& index, co
 void OS::Core::pushPrototype(const Value& val)
 {
 	switch(OS_VALUE_TYPE(val)){
+	default:
 	case OS_VALUE_TYPE_NULL:
 		pushNull();
 		return;
@@ -15747,6 +15751,7 @@ int OS::Core::getStackOffs(int offs)
 
 OS::Core::Value OS::Core::getStackValue(int offs)
 {
+	StackValues& stack_values = this->stack_values;
 	offs = offs <= 0 ? stack_values.count + offs : offs - 1;
 	if(offs >= 0 && offs < stack_values.count){
 		return stack_values.buf[offs];
@@ -15804,6 +15809,7 @@ void OS::Core::removeStackValues(int offs, int count)
 		OS_ASSERT(count == 0);
 		return;
 	}
+	StackValues& stack_values = this->stack_values;
 	int start = offs <= 0 ? stack_values.count + offs : offs - 1;
 	if(start < 0 || start >= stack_values.count){
 		OS_ASSERT(false);
@@ -15836,6 +15842,7 @@ void OS::Core::removeAllStackValues()
 
 void OS::Core::pop(int count)
 {
+	StackValues& stack_values = this->stack_values;
 	if(count >= stack_values.count){
 		OS_ASSERT(count == stack_values.count);
 		stack_values.count = 0;
@@ -15850,6 +15857,7 @@ void OS::Core::moveStackValues(int offs, int count, int new_offs)
 		OS_ASSERT(count == 0);
 		return;
 	}
+	StackValues& stack_values = this->stack_values;
 	offs = offs <= 0 ? stack_values.count + offs : offs - 1;
 	if(offs < 0 || offs >= stack_values.count){
 		OS_ASSERT(false);
@@ -15882,6 +15890,7 @@ void OS::Core::moveStackValues(int offs, int count, int new_offs)
 
 void OS::Core::moveStackValue(int offs, int new_offs)
 {
+	StackValues& stack_values = this->stack_values;
 	offs = offs <= 0 ? stack_values.count + offs : offs - 1;
 	if(offs < 0 || offs >= stack_values.count){
 		OS_ASSERT(false);

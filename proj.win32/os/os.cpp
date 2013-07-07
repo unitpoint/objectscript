@@ -27,6 +27,10 @@
 #include "../../source/ext-libnoise/os-libnoise.h"
 #endif
 
+#ifndef OS_DBAL_DISABLED
+#include "../../source/ext-dbal/os-dbal.h"
+#endif
+
 using namespace ObjectScript;
 
 static double inv_frequency = 0.0;
@@ -135,6 +139,10 @@ int main(int argc, char *argv[])
 
 #ifndef OS_LIBNOISE_DISABLED
 	initLibNoiseLibrary(os);
+#endif
+
+#ifndef OS_DBAL_DISABLED
+	initDBALLibrary(os);
 #endif
 
 	// save allocated memory at start point

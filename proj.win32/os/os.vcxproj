@@ -65,8 +65,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
-    <IncludePath>glut;libcurl-7.19.3-win32-ssl-msvc\include;pcrelib;$(IncludePath)</IncludePath>
-    <LibraryPath>glut;libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
+    <IncludePath>glut;libcurl-7.19.3-win32-ssl-msvc\include;pcrelib;../../source/ext-qt;../../source/ext-qt/QtCore;../../source/ext-qt/QtCore/private;../../source/ext-qt/mkspecs/win32-msvc2005;soci/include;mysql/include;soci/include/mysql;$(IncludePath)</IncludePath>
+    <LibraryPath>glut;libcurl-7.19.3-win32-ssl-msvc;mysql\lib;soci\lib\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -94,12 +94,12 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;SUPPORT_UTF;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;SUPPORT_UTF;_ITERATOR_DEBUG_LEVEL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>glut32.lib;libcurl_imp.lib;ws2_32.lib;libeay32.lib;ssleay32.lib;openldap.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glut32.lib;libcurl_imp.lib;ws2_32.lib;libeay32.lib;ssleay32.lib;openldap.lib;libmysql.lib;mysqlclient.lib;libsoci_core_3_2.lib;libsoci_mysql_3_2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copydll.cmd $(OutDir)</Command>
@@ -179,6 +179,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\ext-curl\os-curl.h" />
+    <ClInclude Include="..\..\source\ext-dbal\os-dbal.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noiseutils\noiseutils.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noise\basictypes.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noise\exception.h" />
@@ -239,6 +240,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\ext-curl\os-curl.cpp" />
+    <ClCompile Include="..\..\source\ext-dbal\os-dbal.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noiseutils\noiseutils.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noise\latlon.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noise\model\cylinder.cpp" />

@@ -540,6 +540,15 @@ if("SqliteConnection" in _G){
 	print "Sqlite3 library is not enabled"
 }
 
+if("DBAL" in _G){
+	print "Test DBAL extension"
+	var conn = DBAL("mysql", {
+		user = "root"
+	})
+}else{
+	print "DBAL library is not enabled"
+}
+
 if("Regexp" in _G){
 	print "Test Regexp"
 	

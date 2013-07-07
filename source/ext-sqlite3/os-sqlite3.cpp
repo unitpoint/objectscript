@@ -12,7 +12,7 @@ public:
 	static void triggerError(OS * os, int code)
 	{
 		OS_ASSERT(code != SQLITE_OK);
-		os->getGlobal(OS_TEXT("SqlException"));
+		os->getGlobal(OS_TEXT("SqliteException"));
 		os->pushGlobals();
 		os->pushString(sqlite3_errstr(code));
 		os->pushNumber(code);
@@ -22,7 +22,7 @@ public:
 
 	static void triggerError(OS * os, const OS_CHAR * msg)
 	{
-		os->getGlobal(OS_TEXT("SqlException"));
+		os->getGlobal(OS_TEXT("SqliteException"));
 		os->pushGlobals();
 		os->pushString(msg);
 		os->call(1, 1);
@@ -71,27 +71,21 @@ public:
 
 		static void initScript(OS * os)
 		{
-			os->getGlobal(OS_TEXT("SqlException"), false);
-			bool is_null = os->isNull();
-			os->pop();
-
-			if(is_null){
 #define OS_AUTO_TEXT(exp) OS_TEXT(#exp)
-				os->eval(OS_AUTO_TEXT(
-					SqlException = extends Exception {
-						__construct = function(msg, code){
-							super(msg)
-							@code = code
-						}
+			os->eval(OS_AUTO_TEXT(
+				SqliteException = extends Exception {
+					__construct = function(msg, code){
+						super(msg)
+						@code = code
 					}
-					function SqliteConnection.execute(sql, params){
-						return @query(sql, params).execute()
-					}
-					function SqliteConnection.fetch(sql, params){
-						return @query(sql, params).fetch()
-					}
-				));
-			}
+				}
+				function SqliteConnection.execute(sql, params){
+					return @query(sql, params).execute()
+				}
+				function SqliteConnection.fetch(sql, params){
+					return @query(sql, params).fetch()
+				}
+			));
 		}
 
 		bool checkError(int err_code)
@@ -105,6 +99,7 @@ public:
 		{
 			if(db){
 				sqlite3_close(db);
+				db = NULL;
 			}
 		}
 
