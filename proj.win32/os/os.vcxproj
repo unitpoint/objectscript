@@ -78,8 +78,8 @@
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\bin\</OutDir>
     <TargetName>$(ProjectName)</TargetName>
-    <IncludePath>glut;libcurl-7.19.3-win32-ssl-msvc\include;pcrelib;$(IncludePath)</IncludePath>
-    <LibraryPath>glut;libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
+    <IncludePath>glut;libcurl-7.19.3-win32-ssl-msvc\include;pcrelib;soci/include;mysql/include;soci/include/mysql;$(IncludePath)</IncludePath>
+    <LibraryPath>glut;libcurl-7.19.3-win32-ssl-msvc;mysql\lib;soci\lib\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -142,7 +142,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <OutputFile>../../bin/$(TargetName)$(TargetExt)</OutputFile>
-      <AdditionalDependencies>glut32.lib;libcurl_imp.lib;ws2_32.lib;libeay32.lib;ssleay32.lib;openldap.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glut32.lib;libcurl_imp.lib;ws2_32.lib;libeay32.lib;ssleay32.lib;openldap.lib;libmysql.lib;mysqlclient.lib;libsoci_core_3_2.lib;libsoci_mysql_3_2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copydll.cmd $(OutDir)</Command>

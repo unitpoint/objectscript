@@ -506,7 +506,7 @@ for(var i in 5.to(7))
 print "Test 7.to(2).each"
 7.to(2).each{|i| print i}
 
-if(false && "Curl" in _G){
+if("Curl" in _G){
 	print "Test CURL callbacks"
 	require "curl/test_callbacks.os"
 
@@ -541,12 +541,32 @@ if("SqliteConnection" in _G){
 }
 
 if("ODBO" in _G){
+	// print ODBODateTime(2013, 10, 20, 10, 15, 45)
+	
 	print "Test ODBO extension"
 	var conn = ODBO("mysql", {
 		user = "root",
 		// password = "",
 		dbname = "test"
 	})
+	
+	var stmt = conn.query("select * from tbl_user where id > :id", {
+		id = 2
+	})
+	for(var i, row in stmt){
+		print row
+	}
+	
+	print "Test insert sql"
+	conn.begin()
+	conn.execute("insert into tbl_user (username, password, reg_date) values(:username, :password, :reg_date)", {
+		// id = 10,
+		reg_date = ODBODateTime(2013, 04, 01, 10, 00),
+		username = "user",
+		password = "passs",
+	})
+	print "lastInsertId: ${conn.lastInsertId}"
+	conn.commit()
 }else{
 	print "ODBO extension is not enabled"
 }
