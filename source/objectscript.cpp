@@ -12946,6 +12946,7 @@ OS::OS()
 	int mark = 0;
 	native_stack_start_mark = (int)&mark;
 	native_stack_max_usage = 0;
+	native_stack_in_process = false;
 #endif
 }
 
@@ -12958,14 +12959,19 @@ OS::~OS()
 #ifdef OS_DEBUG
 void OS::checkNativeStackUsage(const OS_CHAR * func_name)
 {
+	if(native_stack_in_process){
+		return;
+	}
 	int mark = 0;
 	int cur_native_stack_usage = (int)&mark - native_stack_start_mark;
 	if(cur_native_stack_usage < 0){
 		cur_native_stack_usage = -cur_native_stack_usage;
 	}
 	if(native_stack_max_usage < cur_native_stack_usage){
-		if(cur_native_stack_usage > 1024*10 && cur_native_stack_usage > native_stack_max_usage * 5 / 4){
+		if(cur_native_stack_usage > 1024*100 && cur_native_stack_usage > native_stack_max_usage * 5 / 4){
+			native_stack_in_process = true;
 			printf(OS_TEXT("native stack usage: %.1f Kb (%s)\n"), (float)cur_native_stack_usage/1024.0f, func_name);
+			native_stack_in_process = false;
 		}
 		native_stack_max_usage = cur_native_stack_usage;
 	}
@@ -13486,9 +13492,13 @@ OS::String OS::resolvePath(const String& filename, const String& cur_path)
 	}
 	String ext = getFilenameExt(resolved_path);
 	if(ext.isEmpty()){ // || ext == OS_EXT_COMPILED){
-		resolved_path = resolved_path + OS_EXT_SOURCECODE; // changeFilenameExt(resolved_path, OS_EXT_SOURCECODE);
-		if(isFileExist(resolved_path)){
-			return resolved_path;
+		String filename = resolved_path + OS_EXT_SOURCECODE; // changeFilenameExt(resolved_path, OS_EXT_SOURCECODE);
+		if(isFileExist(filename)){
+			return filename;
+		}
+		filename = resolved_path + OS_EXT_TEMPLATE; // changeFilenameExt(resolved_path, OS_EXT_SOURCECODE);
+		if(isFileExist(filename)){
+			return filename;
 		}
 		/* resolved_path = getCompiledFilename(resolved_path);
 		if(isFileExist(resolved_path)){
@@ -15632,6 +15642,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 						return pushNumber((OS_NUMBER)0.0);
 					}
+					// no break
 				}
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
@@ -15652,6 +15663,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 						return pushBool(true);
 					}
+					// no break
 				}
 			}
 			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
@@ -15671,6 +15683,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 						return pushBool(true);
 					}
+					// no break
 				}
 			}
 			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
@@ -15690,6 +15703,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 						return pushBool(false);
 					}
+					// no break
 				}
 			}
 			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
@@ -16644,6 +16658,30 @@ OS::String OS::getValueName(int offs)
 	case OS_VALUE_TYPE_CFUNCTION:
 		if(OS_VALUE_VARIANT(val).value->name){
 			return OS::String(this, OS_VALUE_VARIANT(val).value->name);
+		}
+	}
+	return OS::String(this);
+}
+
+OS::String OS::getValueClassname(int offs)
+{
+	Core::Value val = core->getStackValue(offs);
+	switch(OS_VALUE_TYPE(val)){
+	case OS_VALUE_TYPE_STRING:
+	case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+		{
+			Core::GCValue * value = OS_VALUE_VARIANT(val).value;
+			while(value && value->is_object_instance){
+				value = value->prototype;
+			}
+			if(value && value->name){
+				return OS::String(this, value->name);
+			}
 		}
 	}
 	return OS::String(this);
@@ -19901,6 +19939,12 @@ void OS::initObjectClass()
 			return 1;
 		}
 
+		static int getValueClassname(OS * os, int params, int, int, void*)
+		{
+			os->pushString(os->getValueClassname(-params-1));
+			return 1;
+		}
+
 		static int iteratorStep(OS * os, int params, int closure_values, int, void*)
 		{
 			OS_ASSERT(closure_values == 2);
@@ -20629,6 +20673,8 @@ dump_object:
 		{OS_TEXT("getId"), Object::getValueId},
 		{OS_TEXT("__get@name"), Object::getValueName},
 		{OS_TEXT("getName"), Object::getValueName},
+		{OS_TEXT("__get@classname"), Object::getValueClassname},
+		{OS_TEXT("getClassname"), Object::getValueClassname},
 		{core->strings->__len, Object::length},
 		{core->strings->__iter, Object::iterator},
 		{OS_TEXT("dumpIter"), Object::iterator},
@@ -22253,14 +22299,37 @@ void OS::initFunctionClass()
 			}
 			os->pushStackValue(offs); // first param - new this
 
-			Core::Value array_var = os->core->getStackValue(offs+1);
-			if(OS_VALUE_TYPE(array_var) == OS_VALUE_TYPE_ARRAY){
-				int count = OS_VALUE_VARIANT(array_var).arr->values.count;
+			Core::Value params_var = os->core->getStackValue(offs+1);
+			if(OS_VALUE_TYPE(params_var) == OS_VALUE_TYPE_ARRAY){
+				int count = OS_VALUE_VARIANT(params_var).arr->values.count;
 				for(int i = 0; i < count; i++){
-					os->core->pushValue(OS_VALUE_VARIANT(array_var).arr->values[i]);
+					os->core->pushValue(OS_VALUE_VARIANT(params_var).arr->values[i]);
 				}
 				os->call(count, need_ret_values);
 				return need_ret_values;
+			}
+			if(OS_VALUE_TYPE(params_var) == OS_VALUE_TYPE_OBJECT){ // && OS_VALUE_VARIANT(params_var).object->table){
+				int func_type = os->getType(offs-1);
+				Core::GCFunctionValue * func = NULL;
+				switch(func_type){
+				case OS_VALUE_TYPE_FUNCTION:
+					OS_ASSERT(dynamic_cast<Core::GCFunctionValue*>(OS_VALUE_VARIANT(os->core->getStackValue(offs-1)).func));
+					func = OS_VALUE_VARIANT(os->core->getStackValue(offs-1)).func;
+					break;
+
+				// case OS_VALUE_TYPE_OBJECT:
+				}
+				if(func){
+					Core::FunctionDecl * func_decl = func->func_decl;
+					int num_params = func_decl->num_params;
+					Core::Value value;
+					Core::GCValue * table_value = OS_VALUE_VARIANT(params_var).value;
+					for(int i = Core::PRE_VARS; i < num_params; i++){ // skip func & this
+						os->core->getPropertyValue(value, table_value, func_decl->locals[i].name, true);
+						os->core->pushValue(value);
+					}
+					os->call(num_params - Core::PRE_VARS, need_ret_values);
+				}
 			}
 			os->call(0, need_ret_values);
 			return need_ret_values;
@@ -23068,7 +23137,8 @@ void OS::initLangTokenizerModule()
 	pop();
 }
 
-#define OS_AUTO_TEXT(exp) OS_TEXT(#exp)
+// #define OS_AUTO_TEXT(exp) OS_TEXT(#exp)
+#define OS_AUTO_TEXT(...) OS_TEXT(#__VA_ARGS__)
 
 void OS::initPreScript()
 {
@@ -23085,6 +23155,7 @@ void OS::initPreScript()
 		modulesLoaded = {}
 		function require(filename, required, source_code_type, check_utf8_bom){
 			required === null && required = true
+			check_utf8_bom === null && check_utf8_bom = true
 			var resolvedFilename = require.resolve(filename)
 			if(!resolvedFilename){
 				required && throw "required ${filename} is not found"

@@ -129,7 +129,7 @@ public:
 		static bool isValidOption(const char * s, int len)
 		{
 			for(int i = 0; i < len; i++){
-				if(!s[i] || s[i] <= ' '){
+				if(!s[i] || s[i] <= ' ' || s[i] == '='){
 					return false;
 				}
 			}
@@ -280,7 +280,7 @@ public:
 			os->setProperty(-2, name.c_str(), false);
 		}
 
-		void addColumn(const std::string& name, std::tm date)
+		void addColumn(const std::string& name, const std::tm& date)
 		{
 			OS_ASSERT(owner);
 			OS * os = owner->os;
@@ -616,7 +616,7 @@ void ODBO_OS::ODBOStatement::bindParams()
 					os->getProperty(-1, "second");	tm.tm_sec = os->popInt();
 					tm.tm_wday = 0;
 					tm.tm_yday = 0;
-					tm.tm_isdst = 0;
+					tm.tm_isdst = -1;
 					// std::mktime(&tm);
 					value = new (owner->os->malloc(sizeof(*value) OS_DBG_FILEPOS)) BindValue(owner->os);
 					value->tm = tm;
