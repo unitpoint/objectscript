@@ -5,6 +5,7 @@ project(${target})
 
 list(APPEND SOURCES os.cpp)
 list(APPEND SOURCES ./../../source/objectscript.cpp)
+list(APPEND SOURCES ./../../source/os-heap.cpp)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
 find_package(PCRE QUIET)
@@ -26,6 +27,11 @@ else()
     message(STATUS "[ WARNING ]: Could not find cURL")
 	add_definitions( -DOS_CURL_DISABLED )
 endif()
+
+# begin datetime
+list(APPEND SOURCES ./../../source/ext-datetime/os-datetime.cpp)
+list(APPEND HEADERS ./../../source/ext-datetime/os-datetime.h)
+# end datetime
 
 # begin sqlite3
 list(APPEND SOURCES ./../../source/ext-sqlite3/sqlite3.c)

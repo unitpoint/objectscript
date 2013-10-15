@@ -275,13 +275,16 @@ public:
 				if (pcre_fullinfo(cache->re, NULL, PCRE_INFO_CAPTURECOUNT, &count) == PCRE_ERROR_BADMAGIC) {
 					os->pushValueById(cache_id);
 					os->deleteProperty(regex, false);
-					os->pop();
+					// os->pop();
 				} else {
 #if HAVE_SETLOCALE
 					need to be implemented?
 					if (!strcmp(cache->locale, locale)) {
 #endif
 					// touch item
+					int regex_id = os->getValueId();
+					os->retainValueById(regex_id);
+
 					os->pushValueById(cache_id);
 					os->deleteProperty(regex, false);
 					
@@ -289,6 +292,7 @@ public:
 					os->pushStackValue(-2); // pushCtypeValue(os, cache);
 					os->setProperty(regex, false);
 
+					os->releaseValueById(regex_id);
 					os->pop();
 					return cache;
 #if HAVE_SETLOCALE
@@ -454,6 +458,7 @@ public:
 				os->deleteProperty(false);
 				os->pop(2);
 			}
+			os->pop();
 
 			/* Store the compiled pattern and extra info in the cache. */
 			cache = new (os->malloc(sizeof(*cache) OS_DBG_FILEPOS)) RegexpCache(os); 
@@ -636,6 +641,10 @@ public:
 							if (subpats_id && subpats_order == REGEXP_PATTERN_ORDER) {
 								/* For each subpattern, insert it into the appropriate array. */
 								for (i = 0; i < count; i++) {
+									/* static int jj = 0; ++jj;
+									if(jj == 2597){
+										int k = 0;
+									} */
 									os->pushValueById(match_sets.sets[i]);
 									if (offset_capture) {
 										addOffsetPair((char *)stringlist[i],

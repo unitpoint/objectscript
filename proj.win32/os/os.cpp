@@ -27,6 +27,10 @@
 #include "../../source/ext-libnoise/os-libnoise.h"
 #endif
 
+#ifndef OS_DATETIME_DISABLED
+#include "../../source/ext-datetime/os-datetime.h"
+#endif
+
 #ifndef OS_ODBO_DISABLED
 #include "../../source/ext-odbo/os-odbo.h"
 #endif
@@ -139,6 +143,10 @@ int main(int argc, char *argv[])
 
 #ifndef OS_LIBNOISE_DISABLED
 	initLibNoiseLibrary(os);
+#endif
+
+#ifndef OS_DATETIME_DISABLED
+	initDateTimeLibrary(os);
 #endif
 
 #ifndef OS_ODBO_DISABLED

@@ -179,6 +179,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\ext-curl\os-curl.h" />
+    <ClInclude Include="..\..\source\ext-datetime\os-datetime.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noiseutils\noiseutils.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noise\basictypes.h" />
     <ClInclude Include="..\..\source\ext-libnoise\noise\exception.h" />
@@ -230,6 +231,7 @@
     <ClInclude Include="..\..\source\ext-regexp\os-regexp.h" />
     <ClInclude Include="..\..\source\ext-sqlite3\os-sqlite3.h" />
     <ClInclude Include="..\..\source\ext-sqlite3\sqlite3.h" />
+    <ClInclude Include="..\..\source\os-heap.h" />
     <ClInclude Include="pcrelib\config.h" />
     <ClInclude Include="pcrelib\pcre.h" />
     <ClInclude Include="pcrelib\pcreposix.h" />
@@ -240,6 +242,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\source\ext-curl\os-curl.cpp" />
+    <ClCompile Include="..\..\source\ext-datetime\os-datetime.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noiseutils\noiseutils.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noise\latlon.cpp" />
     <ClCompile Include="..\..\source\ext-libnoise\noise\model\cylinder.cpp" />
@@ -287,6 +290,7 @@
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NoListing</AssemblerOutput>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NoListing</AssemblerOutput>
     </ClCompile>
+    <ClCompile Include="..\..\source\os-heap.cpp" />
     <ClCompile Include="os.cpp" />
     <ClCompile Include="pcrelib\pcreposix.c" />
     <ClCompile Include="pcrelib\pcre_chartables.c" />

@@ -49,6 +49,15 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
+#define OS_VERSION_MAJOR	OS_TEXT("1")
+#define OS_VERSION_MINOR	OS_TEXT("8")
+#define OS_VERSION_RELEASE	OS_TEXT("-dev")
+
+#define OS_VERSION		OS_TEXT("OS ") OS_VERSION_MAJOR OS_TEXT(".") OS_VERSION_MINOR
+#define OS_VERSION_EX	OS_VERSION OS_TEXT(".") OS_VERSION_RELEASE
+#define OS_COPYRIGHT	OS_VERSION_EX OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
+#define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
+
 #if defined _DEBUG && !defined OS_RELEASE && !defined OS_DEBUG
 #define OS_DEBUG
 #endif
@@ -67,11 +76,6 @@ inline void operator delete(void *, void *){}
 
 #define OS_CHAR char
 #define OS_TEXT(s) s
-
-// does disable _G due to security reason ???
-#if !defined OS_GLOBAL_VAR_ENABLED && !defined OS_GLOBAL_VAR_DISABLED
-#define OS_GLOBAL_VAR_ENABLED
-#endif
 
 #define OS_FUNC_VAR_NAME OS_TEXT("_F")
 #define OS_THIS_VAR_NAME OS_TEXT("this")
@@ -154,7 +158,6 @@ inline void operator delete(void *, void *){}
 
 #define OS_CALL_STACK_MAX_SIZE 200
 
-#define OS_VERSION OS_TEXT("1.7.1-dev")
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
 #define OS_EXT_TEMPLATE OS_TEXT(".osh")
@@ -234,20 +237,17 @@ namespace ObjectScript
 
 	enum OS_EValueType
 	{
+		OS_VALUE_TYPE_UNKNOWN,
 		OS_VALUE_TYPE_NULL,
 		OS_VALUE_TYPE_BOOL,
 		OS_VALUE_TYPE_NUMBER,
-		OS_VALUE_TYPE_STRING,
+		OS_VALUE_TYPE_STRING,	// min GC type, don't change order of value types
 		OS_VALUE_TYPE_ARRAY,
 		OS_VALUE_TYPE_OBJECT,
 		OS_VALUE_TYPE_USERDATA,
 		OS_VALUE_TYPE_USERPTR,
 		OS_VALUE_TYPE_FUNCTION,
-		OS_VALUE_TYPE_CFUNCTION,
-
-		// internal
-		OS_VALUE_TYPE_WEAKREF,
-		OS_VALUE_TYPE_UNKNOWN
+		OS_VALUE_TYPE_CFUNCTION		
 	};
 
 	enum OS_ESourceCodeType
@@ -348,121 +348,8 @@ namespace ObjectScript
 
 			virtual int getAllocatedBytes() = 0;
 			virtual int getMaxAllocatedBytes() = 0;
+			virtual int getUsedBytes() = 0;
 			virtual int getCachedBytes() = 0;
-		};
-
-		class SmartMemoryManager: public MemoryManager
-		{
-		protected:
-
-			int allocated_bytes;
-			int max_allocated_bytes;
-			int cached_bytes;
-
-			struct PageDesc
-			{
-				int block_size;
-				int num_blocks;
-
-				int allocated_bytes;
-			};
-
-			struct Page
-			{
-				int index;
-				int num_cached_blocks;
-				Page * next_page;
-			};
-
-			struct CachedBlock
-			{
-#ifdef OS_DEBUG
-				int mark;
-#endif
-				Page * page;
-				CachedBlock * next;
-			};
-
-			struct MemBlock
-			{
-				Page * page;
-#ifdef OS_DEBUG
-				const OS_CHAR * dbg_filename;
-				int dbg_line;
-				int dbg_id;
-				MemBlock * dbg_mem_prev;
-				MemBlock * dbg_mem_next;
-#endif
-				int block_size;
-#ifdef OS_DEBUG
-				int mark;
-#endif
-			};
-
-			struct StdMemBlock
-			{
-#ifdef OS_DEBUG
-				const OS_CHAR * dbg_filename;
-				int dbg_line;
-				int dbg_id;
-				StdMemBlock * dbg_mem_prev;
-				StdMemBlock * dbg_mem_next;
-#endif
-				int block_size;
-#ifdef OS_DEBUG
-				int mark;
-#endif
-			};
-
-			enum {
-				MAX_PAGE_TYPE_COUNT = 17
-			};
-
-			PageDesc page_desc[MAX_PAGE_TYPE_COUNT];
-			int num_page_desc;
-
-			int * page_map;
-			int page_map_size;
-
-			Page * pages[MAX_PAGE_TYPE_COUNT];
-
-			CachedBlock * cached_blocks[MAX_PAGE_TYPE_COUNT];
-
-#ifdef OS_DEBUG
-			MemBlock * dbg_mem_list;
-			StdMemBlock * dbg_std_mem_list;
-			int dbg_breakpoint_id;
-#endif
-
-			int stat_malloc_count;
-			int stat_free_count;
-
-			void registerPageDesc(int block_size, int num_blocks);
-			
-			static int comparePageDesc(const void * pa, const void * pb);
-			void sortPageDesc();
-
-			void * allocFromCachedBlock(int i OS_DBG_FILEPOS_DECL);
-			void * allocFromPageType(int i OS_DBG_FILEPOS_DECL);
-			void freeMemBlock(MemBlock*);
-
-			void freeCachedMemory(int new_cached_bytes);
-
-			void * stdAlloc(int size OS_DBG_FILEPOS_DECL);
-			void stdFree(void * p);
-
-		public:
-
-			SmartMemoryManager();
-			~SmartMemoryManager();
-			
-			void * malloc(int size OS_DBG_FILEPOS_DECL);
-			void free(void * p);
-			void setBreakpointId(int id);
-
-			int getAllocatedBytes();
-			int getMaxAllocatedBytes();
-			int getCachedBytes();
 		};
 
 		struct Utils
@@ -670,8 +557,12 @@ namespace ObjectScript
 
 	protected:
 
+		friend class OSMemoryManagerOld;
+
 		class Core
 		{
+			friend class OSMemoryManagerOld;
+
 		public:
 
 			class StreamReader;
@@ -881,15 +772,17 @@ namespace ObjectScript
 				const OS_CHAR * str;
 #endif
 				GCStringValue * string;
+				OS * allocator;
 
 				String(OS*);
-				String(GCStringValue*);
+				String(OS * os, GCStringValue*);
 				String(const String&);
 				String(OS*, const String&, const String&);
 				String(OS*, const OS_CHAR*);
 				String(OS*, const OS_CHAR*, int len);
 				String(OS*, const OS_CHAR*, int len, const OS_CHAR*, int len2);
 				String(OS*, const OS_CHAR*, int len, bool trim_left, bool trim_right);
+				String(OS*, const String&, bool trim_left, bool trim_right);
 				String(OS*, const void*, int size);
 				String(OS*, const void * buf1, int len1, const void * buf2, int len2);
 				String(OS*, const void * buf1, int len1, const void * buf2, int len2, const void * buf3, int len3);
@@ -951,7 +844,8 @@ namespace ObjectScript
 			{
 			protected:
 
-				Core::GCStringValue * cacheStr;
+				Core::GCStringValue * cache_str;
+				OS * allocator;
 
 			public:
 
@@ -1282,82 +1176,29 @@ namespace ObjectScript
 				void removeIterator(IteratorState*);
 			};
 
-			enum EGCColor
-			{
-				GC_WHITE,
-				GC_GREY,
-				GC_BLACK
-			};
-
 			struct GCValue
 			{
 				int value_id;
+				int ref_count;
 				int external_ref_count;
 				GCValue * prototype;
 				GCValue * hash_next;
 
+				GCValue * hash_next_free_candidate;
+				// int mark_created_values;
+				
 				Table * table;
 				GCStringValue * name;
-
-				GCValue * gc_grey_next;
-#ifdef OS_DEBUG
-				int gc_time;
-#endif
 
 				OS_EValueType type;
 				bool is_object_instance;
 				bool is_destructor_called;
+				OS_BYTE gc_step_type;
 
-				EGCColor gc_color;
+				// EGCColor gc_color;
 
 				GCValue();
 				virtual ~GCValue();
-			};
-
-			template <class T>
-			struct GCValueRetained
-			{
-				T * value;
-
-				GCValueRetained(T * v)
-				{
-					value = v;
-					if(value){
-						value->external_ref_count++;
-					}
-				}
-				GCValueRetained(const GCValueRetained& b)
-				{
-					value = b.value;
-					if(value){
-						value->external_ref_count++;
-					}
-				}
-				~GCValueRetained()
-				{
-					if(value){
-						OS_ASSERT(value->external_ref_count > 0);
-						value->external_ref_count--;
-					}
-				}
-
-				T * operator->(){ return value; }
-				operator T* (){ return value; }
-
-				GCValueRetained& operator=(const GCValueRetained& b)
-				{
-					if(value != b.value){
-						if(value){
-							OS_ASSERT(value->external_ref_count > 0);
-							value->external_ref_count--;
-						}
-						value = b.value;
-						if(value){
-							value->external_ref_count++;
-						}
-					}
-					return *this;
-				}
 			};
 
 			struct GCObjectValue: public GCValue
@@ -1374,8 +1215,10 @@ namespace ObjectScript
 				int data_size;
 				int hash;
 
+				GCStringValue * hash_next_ref;
+
 				GCStringValue(int p_data_size);
-				// ~GCStringValue();
+				~GCStringValue();
 
 				int getDataSize() const { return data_size; }
 				int getLen() const { return data_size/sizeof(OS_CHAR); }
@@ -1383,9 +1226,9 @@ namespace ObjectScript
 				OS_BYTE * toBytes() const { return (OS_BYTE*)(this + 1); }
 				void * toMemory() const { return (void*)(this + 1); }
 
-				static GCStringValue * alloc(OS*, const void *, int data_size OS_DBG_FILEPOS_DECL);
-				static GCStringValue * alloc(OS*, const void * buf1, int len1, const void * buf2, int len2 OS_DBG_FILEPOS_DECL);
-				static GCStringValue * alloc(OS*, GCStringValue * a, GCStringValue * b OS_DBG_FILEPOS_DECL);
+				static GCStringValue * allocAndPush(OS*, int hash, const void *, int data_size OS_DBG_FILEPOS_DECL);
+				static GCStringValue * allocAndPush(OS*, int hash, const void * buf1, int len1, const void * buf2, int len2 OS_DBG_FILEPOS_DECL);
+				static GCStringValue * allocAndPush(OS*, GCStringValue * a, GCStringValue * b OS_DBG_FILEPOS_DECL);
 
 				bool isNumber(OS_NUMBER*) const;
 				OS_NUMBER toNumber() const;
@@ -1406,6 +1249,8 @@ namespace ObjectScript
 				void * ptr;
 				OS_UserdataDtor dtor;
 				void * user_param;
+				GCUserdataValue * hash_next_ref;
+				// ~GCUserdataValue();
 			};
 
 			struct GCCFunctionValue: public GCValue
@@ -1413,17 +1258,21 @@ namespace ObjectScript
 				OS_CFunction func;
 				void * user_param;
 				int num_closure_values;
+				int cfunc_hash;
+				GCCFunctionValue * hash_next_ref;
 			};
 
 			struct GCFunctionValue;
-
-			struct WeakRef { WeakRef(){} };
 
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(OS_NUMBER_TO_INT_ASM_DISABLED)
 #define OS_NUMBER_TO_INT(i, _n) do { OS_FLOAT n = (OS_FLOAT)(_n); __asm { __asm fld n __asm fistp i } }while(false)
 #else
 #define OS_NUMBER_TO_INT(i, n) i = (int)(n)
 #endif
+
+// #define OS_VALUE_MARK_PLAIN		(0<<7)
+#define OS_VALUE_MARK_GC_TYPE	(1<<7)
+#define OS_VALUE_MIN_GC_TYPE	ObjectScript::OS_VALUE_TYPE_STRING
 
 /* Microsoft compiler on a Pentium (32 bit) ? */
 #if defined(_MSC_VER) && defined(_M_IX86)
@@ -1458,7 +1307,7 @@ namespace ObjectScript
 			union ValueUnion
 			{
 				int boolean;
-				int value_id;
+				// int value_id;
 				GCValue * value;
 				GCObjectValue * object;
 				GCArrayValue * arr;
@@ -1482,13 +1331,15 @@ namespace ObjectScript
 #define OS_VALUE_VARIANT(a)	(a).u.v
 #define OS_VALUE_NUMBER(a)	(a).u.v.number
 #define OS_VALUE_TAGGED_TYPE(a)	(a).u.type
-#define OS_VALUE_TYPE(a)	OS_VALUE_TAGGED_TYPE(a)
+#define OS_VALUE_TYPE(a)	(OS_VALUE_TAGGED_TYPE(a) & ~OS_VALUE_MARK_GC_TYPE)
 
+#define OS_IS_VALUE_GC(a) (OS_VALUE_TAGGED_TYPE(a) & OS_VALUE_MARK_GC_TYPE)
 #define OS_IS_VALUE_NUMBER(a)	(OS_VALUE_TYPE(a) == OS_VALUE_TYPE_NUMBER)
-#define OS_MAKE_VALUE_TAGGED_TYPE(t)	(t)
+#define OS_MAKE_VALUE_TAGGED_TYPE(t)	((t) < OS_VALUE_MIN_GC_TYPE ? (t) : (t) | OS_VALUE_MARK_GC_TYPE)
 
 #define OS_SET_VALUE_NUMBER(a, n)	((OS_VALUE_NUMBER(a) = (OS_NUMBER)(n)), OS_SET_VALUE_TYPE(a, OS_VALUE_TYPE_NUMBER))
 #define OS_SET_VALUE_TYPE(a, t)		(OS_VALUE_TAGGED_TYPE(a) = OS_MAKE_VALUE_TAGGED_TYPE(t))
+#define OS_SET_VALUE_TYPE_GC(a, t)	do{ OS_ASSERT((t) >= OS_VALUE_MIN_GC_TYPE); (OS_VALUE_TAGGED_TYPE(a) = (t) | OS_VALUE_MARK_GC_TYPE); }while(false)
 #define OS_SET_VALUE_NULL(a) (OS_VALUE_VARIANT(a).value = NULL, OS_SET_VALUE_TYPE((a), OS_VALUE_TYPE_NULL))
 #define OS_SET_NULL_VALUES(a, c) do{ Value * v = a; for(int count = c; count > 0; --count, ++v) OS_SET_VALUE_NULL(*v); }while(false)
 
@@ -1502,16 +1353,18 @@ namespace ObjectScript
 #define OS_VALUE_VARIANT(a)	(a).u.i.v
 #define OS_VALUE_NUMBER(a)	(a).u.number
 #define OS_VALUE_TAGGED_TYPE(a)	(a).u.i.type
-#define OS_VALUE_TYPE(a)	(OS_IS_VALUE_NUMBER(a) ? OS_VALUE_TYPE_NUMBER : OS_VALUE_TAGGED_TYPE(a) & 0xff)
+#define OS_VALUE_TYPE(a)	(OS_IS_VALUE_NUMBER(a) ? OS_VALUE_TYPE_NUMBER : OS_VALUE_TAGGED_TYPE(a) & (0xff & ~OS_VALUE_MARK_GC_TYPE))
 
+#define OS_IS_VALUE_GC(a) (OS_IS_VALUE_NUMBER(a) ? false : OS_VALUE_TAGGED_TYPE(a) & OS_VALUE_MARK_GC_TYPE)
 #define OS_IS_VALUE_NUMBER(a)	((OS_VALUE_TAGGED_TYPE(a) & OS_NUMBER_NAN_MASK) != OS_NUMBER_NAN_MARK)
-#define OS_MAKE_VALUE_TAGGED_TYPE(t)	((t) | OS_NUMBER_NAN_MARK)
+#define OS_MAKE_VALUE_TAGGED_TYPE(t)	((t) < OS_VALUE_MIN_GC_TYPE ? (t) | OS_NUMBER_NAN_MARK : (t) | OS_NUMBER_NAN_MARK | OS_VALUE_MARK_GC_TYPE)
 
 #define OS_SET_VALUE_NUMBER(a, n)	(OS_VALUE_NUMBER(a) = (OS_NUMBER)(n))
 // #define OS_SET_VALUE_OBJECT(a, v)	(OS_VALUE_VARIANT(a) = (v))
 #define OS_SET_VALUE_TYPE(a, t)		(OS_VALUE_TAGGED_TYPE(a) = OS_MAKE_VALUE_TAGGED_TYPE(t))
+#define OS_SET_VALUE_TYPE_GC(a, t)	do{ OS_ASSERT((t) >= OS_VALUE_MIN_GC_TYPE); (OS_VALUE_TAGGED_TYPE(a) = (t) | OS_NUMBER_NAN_MARK | OS_VALUE_MARK_GC_TYPE); OS_ASSERT(OS_VALUE_TYPE(a) == (t)); }while(false)
 #define OS_SET_VALUE_NULL(a) (OS_VALUE_VARIANT(a).value = NULL, OS_SET_VALUE_TYPE((a), OS_VALUE_TYPE_NULL))
-#define OS_SET_NULL_VALUES(a, c) do{ Value * v = a; for(int count = c; count > 0; --count, ++v) OS_SET_VALUE_NULL(*v); }while(false)
+#define OS_SET_NULL_VALUES(a, c) do{ Value * v = (a); for(int count = c; count > 0; --count, ++v) OS_SET_VALUE_NULL(*v); }while(false)
 
 #if OS_NUMBER_IEEEENDIAN == 0
 				union {
@@ -1535,7 +1388,6 @@ namespace ObjectScript
 				Value(long double);
 				Value(GCValue*);
 				Value(const String&);
-				Value(int, const WeakRef&);
 
 				Value& operator=(GCValue*);
 				Value& operator=(bool);
@@ -1556,27 +1408,6 @@ namespace ObjectScript
 				bool isNull() const;
 				bool isFunction() const;
 				bool isUserdata() const;
-			};
-
-			struct ValueRetained: public Value
-			{
-				typedef Value super;
-
-				ValueRetained();
-				ValueRetained(bool);
-				ValueRetained(OS_FLOAT);
-				ValueRetained(int);
-				ValueRetained(int, const WeakRef&);
-				ValueRetained(GCValue*);
-				ValueRetained(Value);
-				~ValueRetained();
-
-				ValueRetained& operator=(Value);
-				
-				void clear();
-
-				void retain();
-				void release();
 			};
 
 			struct GCArrayValue: public GCValue
@@ -1610,10 +1441,7 @@ namespace ObjectScript
 				Property * hash_next;
 				Property * prev, * next;
 
-				Property(const Value& index);
 				Property(const Value& index, const Value& value);
-				Property(GCStringValue * index);
-				Property(const String& index);
 				~Property();
 			};
 
@@ -1968,6 +1796,7 @@ namespace ObjectScript
 						String name;
 						int index;
 						ECompiledValueType type;
+						bool upvalue;
 
 						LocalVar(const String& name, int index, ECompiledValueType type = CVT_UNKNOWN);
 					};
@@ -1977,6 +1806,7 @@ namespace ObjectScript
 						int cached_name_index;
 						int start_code_pos;
 						int end_code_pos;
+						bool upvalue;
 
 						LocalVarCompiled();
 					};
@@ -2189,6 +2019,7 @@ namespace ObjectScript
 				Expression * postCompileFixValueType(Scope * scope, Expression * exp);
 				Expression * postCompilePass3(Scope * scope, Expression * exp);
 				Expression * postCompileNewVM(Scope * scope, Expression * exp);
+				void registerUpvalue(Scope * scope, Expression * exp);
 
 				bool isVarNameValid(const String& name);
 
@@ -2266,6 +2097,7 @@ namespace ObjectScript
 					String name;
 					int start_code_pos;
 					int end_code_pos;
+					bool upvalue;
 
 					LocalVar(const String&);
 					~LocalVar();
@@ -2352,9 +2184,7 @@ namespace ObjectScript
 
 			enum {
 				POST_VAR_ENV,
-#ifdef OS_GLOBAL_VAR_ENABLED
 				POST_VAR_GLOBALS,
-#endif
 			};
 
 			enum {
@@ -2368,7 +2198,7 @@ namespace ObjectScript
 			struct Locals
 			{
 				int ref_count;
-				int gc_time;
+				int gc_step_type;
 
 				Program * prog; // retained
 				FunctionDecl * func_decl;
@@ -2403,16 +2233,17 @@ namespace ObjectScript
 				OS_U32 * opcodes;
 			};
 
-			struct StringRef
+			/* struct StringRef
 			{
 				int string_hash;
 				int string_value_id;
 				StringRef * hash_next;
-			};
+			}; */
 
 			struct StringRefs
 			{
-				StringRef ** heads;
+				// StringRef ** heads;
+				GCStringValue ** heads;
 				int head_mask;
 				int count;
 
@@ -2420,16 +2251,16 @@ namespace ObjectScript
 				~StringRefs();
 			};
 
-			struct UserptrRef
+			/* struct UserptrRef
 			{
 				int userptr_hash;
 				int userptr_value_id;
 				UserptrRef * hash_next;
-			};
+			}; */
 
 			struct UserptrRefs
 			{
-				UserptrRef ** heads;
+				GCUserdataValue ** heads;
 				int head_mask;
 				int count;
 
@@ -2437,16 +2268,16 @@ namespace ObjectScript
 				~UserptrRefs();
 			};
 
-			struct CFuncRef
+			/* struct CFuncRef
 			{
 				int cfunc_hash;
 				int cfunc_value_id;
 				CFuncRef * hash_next;
-			};
+			}; */
 
 			struct CFuncRefs
 			{
-				CFuncRef ** heads;
+				GCCFunctionValue ** heads;
 				int head_mask;
 				int count;
 
@@ -2578,15 +2409,13 @@ namespace ObjectScript
 				String syntax_line;
 				String syntax_file;
 
-#ifdef OS_GLOBAL_VAR_ENABLED
 				String var_globals;
-#endif
 				String var_func;
 				String var_this;
 				String var_env;
 				String var_temp_prefix;
 
-				int __dummy__;
+				String empty;
 
 				Strings(OS * allocator);
 			} * strings;
@@ -2599,10 +2428,12 @@ namespace ObjectScript
 			UserptrRefs userptr_refs;
 			CFuncRefs cfunc_refs;
 
-			GCObjectValue * check_recursion;
+			// GCObjectValue * check_recursion;
 			Value global_vars;
 			Value user_pool;
+			Value retain_pool;
 			Value check_get_recursion;
+			Value check_valueof_recursion;
 			
 			enum {
 				PROTOTYPE_BOOL,
@@ -2647,6 +2478,36 @@ namespace ObjectScript
 			int stack_func_env_index;
 			Value * stack_func_prog_values;
 
+			struct FreeCandidateValues
+			{
+				GCValue ** heads;
+				int head_mask;
+				int count;
+
+				FreeCandidateValues();
+				~FreeCandidateValues();
+
+				GCValue * get(int value_id);
+			};
+
+			FreeCandidateValues gc_candidate_values;
+			
+			int gc_start_allocated_bytes;
+			int gc_next_allocated_bytes;
+			OS_BYTE gc_step_type;
+			bool gc_fix_in_progress;
+
+			void registerFreeCandidateValue(GCValue * value);
+			void unregisterFreeCandidateValue(GCValue * value);
+			void deleteFreeCandidateValues();
+			void gcFreeCandidateValues(bool full = false);
+			void gcFull();
+
+			void dumpValues(Buffer& out);
+			void dumpValuesToFile(const OS_CHAR * filename);
+			void appendQuotedString(Buffer& buf, const String& string);
+
+			/*
 			GCValue * gc_grey_list_first;
 			bool gc_grey_root_initialized;
 			int gc_values_head_index;
@@ -2657,7 +2518,6 @@ namespace ObjectScript
 			bool gc_continuous;
 			int gc_time;
 			bool gc_in_process;
-			int gc_grey_added_count;
 			
 			float gc_start_values_mult;
 			float gc_step_size_mult;
@@ -2665,6 +2525,7 @@ namespace ObjectScript
 			int gc_start_next_values;
 			int gc_start_used_bytes;
 			int gc_step_size;
+			*/
 
 			struct {
 				bool create_text_opcodes;
@@ -2707,34 +2568,72 @@ namespace ObjectScript
 
 			void errorDivisionByZero();
 
-			void gcInitGreyList();
-			void gcResetGreyList();
-			void gcAddToGreyList(GCValue*);
-			void gcAddToGreyList(const Value&);
-			void gcRemoveFromGreyList(GCValue*);
-			void gcMarkProgram(Program * prog);
-			void gcMarkTable(Table * table);
-			void gcMarkLocals(Locals*);
-			void gcMarkStackFunction(StackFunction*);
-			void gcMarkList(int step_size);
-			void gcMarkValue(GCValue * value);
-			
-			// return next gc phase
-			int gcStep();
-			void gcStepIfNeeded();
-			void gcFinishSweepPhase();
-			void gcFinishMarkPhase();
-			void gcFull();
-
 			void triggerValueDestructor(GCValue*);
 			void clearValue(GCValue*);
 			void deleteValue(GCValue*);
+			void saveFreeCandidateValue(GCValue*);
 
+			void retainValue(const Value&);
+			void retainValue(GCValue*);
+			void retainValues(const Value*, int count);
+			void releaseValue(const Value&);
+			void releaseValueAndClear(Value&);
+			template <class T> void releaseValueAndClear(T*& out)
+			{
+				if(out){
+					if(gc_fix_in_progress && out->gc_step_type != gc_step_type){
+						out = NULL;
+						return;
+					}
+					OS_ASSERT(out->ref_count > 0);
+					/* if(out->value_id >= 15622 && out->value_id <= 15622){
+						int i = 0;
+					} */
+					if(!--out->ref_count){
+						saveFreeCandidateValue(out);
+					}
+					out = NULL;
+				}
+			}
+			void releaseValues(const Value*, int count);
+			void releaseValuesAndClear(Value*, int count);
+			void clearStackValues(Value*, int count);
+			void setValue(Value& out, const Value& b);			
+			template <class T, class T2> void setValue(T*& out, T2 * b)
+			{
+				if(out == b){
+					return;
+				}
+				if(out){
+					if(gc_fix_in_progress && out->gc_step_type != gc_step_type){
+						int i = 0;
+					}else{
+						// release
+						OS_ASSERT(out->ref_count > 0);
+						/* if(out->value_id >= 15622 && out->value_id <= 15622){
+							int i = 0;
+						} */
+						if(!--out->ref_count){
+							saveFreeCandidateValue(out);
+						}
+					}
+				}
+				out = b;
+				if(b){
+					// retain
+					/* if(b->value_id >= 15622 && b->value_id <= 15622){
+						int i = 0;
+					} */
+					++b->ref_count;
+				}
+			}
+			
 #ifdef OS_DEBUG
 			bool isValueUsed(GCValue*);
+			bool isValueExist(GCValue*);
 #endif
 
-			GCFunctionValue * newFunctionValue(StackFunction*, Program*, FunctionDecl*, Value env);
+			GCFunctionValue * pushFunctionValue(StackFunction*, Program*, FunctionDecl*, Value env);
 			void clearFunctionValue(GCFunctionValue*);
 
 			void releaseLocals(Locals*);
@@ -2747,31 +2646,35 @@ namespace ObjectScript
 			bool pushGetRecursion(const Value& obj, const Value& name);
 			void popGetRecursion(const Value& obj, const Value& name);
 
-			GCStringValue * newStringValue(const String&);
-			GCStringValue * newStringValue(const String&, const String&);
-			GCStringValue * newStringValue(const String&, bool trim_left, bool trim_right);
-			GCStringValue * newStringValue(const OS_CHAR*);
-			GCStringValue * newStringValue(const OS_CHAR*, int len);
-			GCStringValue * newStringValue(const OS_CHAR*, int len, const OS_CHAR*, int len2);
-			GCStringValue * newStringValue(const OS_CHAR*, int len, bool trim_left, bool trim_right);
-			GCStringValue * newStringValue(const void * buf, int size);
-			GCStringValue * newStringValue(const void * buf1, int size1, const void * buf2, int size2);
-			GCStringValue * newStringValue(const void * buf1, int size1, const void * buf2, int size2, const void * buf3, int size3);
-			GCStringValue * newStringValue(GCStringValue*, GCStringValue*);
-			GCStringValue * newStringValue(OS_INT);
-			GCStringValue * newStringValue(OS_FLOAT);
-			GCStringValue * newStringValue(OS_FLOAT, int);
-			GCStringValue * newStringValue(int temp_buf_len, const OS_CHAR * fmt, ...);
-			GCStringValue * newStringValueVa(int temp_buf_len, const OS_CHAR * fmt, va_list va);
+			bool pushValueOfRecursion(Value obj);
+			void popValueOfRecursion(Value obj);
 
-			GCCFunctionValue * newCFunctionValue(OS_CFunction func, void * user_param);
-			GCCFunctionValue * newCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
-			GCUserdataValue * newUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param);
-			GCUserdataValue * newUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param);
+			GCStringValue * pushStringValue(const String&);
+			GCStringValue * pushStringValue(const String&, const String&);
+			GCStringValue * pushStringValue(const String&, bool trim_left, bool trim_right);
+			GCStringValue * pushStringValue(const OS_CHAR*);
+			GCStringValue * pushStringValue(const OS_CHAR*, int len);
+			GCStringValue * pushStringValue(const OS_CHAR*, int len, const OS_CHAR*, int len2);
+			GCStringValue * pushStringValue(const OS_CHAR*, int len, bool trim_left, bool trim_right);
+			GCStringValue * pushStringValue(const void * buf, int size);
+			GCStringValue * pushStringValue(const void * buf1, int size1, const void * buf2, int size2);
+			GCStringValue * pushStringValue(const void * buf1, int size1, const void * buf2, int size2, const void * buf3, int size3);
+			GCStringValue * pushStringValue(GCStringValue*);
+			GCStringValue * pushStringValue(GCStringValue*, GCStringValue*);
+			GCStringValue * pushStringValue(OS_INT);
+			GCStringValue * pushStringValue(OS_FLOAT);
+			GCStringValue * pushStringValue(OS_FLOAT, int);
+			GCStringValue * pushStringValue(int temp_buf_len, const OS_CHAR * fmt, ...);
+			GCStringValue * pushStringValueVa(int temp_buf_len, const OS_CHAR * fmt, va_list va);
+
+			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
+			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
+			GCUserdataValue * pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param, bool is_object_instance);
+			GCUserdataValue * pushUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param, bool is_object_instance);
 			GCUserdataValue * findUserPointerValue(void * data);
-			GCObjectValue * newObjectValue();
-			GCObjectValue * newObjectValue(GCValue * prototype);
-			GCArrayValue * newArrayValue(int initial_capacity = 0);
+			GCObjectValue * pushObjectValue();
+			GCObjectValue * pushObjectValue(GCValue * prototype);
+			GCArrayValue * pushArrayValue(int initial_capacity = 0);
 
 			GCObjectValue * initObjectInstance(GCObjectValue*);
 
@@ -2797,17 +2700,19 @@ namespace ObjectScript
 			#endif
 			}
 			
+			/*
 			GCStringValue * pushStringValue(const String&);
 			GCStringValue * pushStringValue(const OS_CHAR*);
 			GCStringValue * pushStringValue(const OS_CHAR*, int len);
 			GCStringValue * pushStringValue(const void*, int size);
 			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
 			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
-			GCUserdataValue * pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param);
-			GCUserdataValue * pushUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param);
+			GCUserdataValue * pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param, bool is_object_instance);
+			GCUserdataValue * pushUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param, bool is_object_instance);
 			GCObjectValue * pushObjectValue();
 			GCObjectValue * pushObjectValue(GCValue * prototype);
 			GCArrayValue * pushArrayValue(int initial_capacity = 0);
+			*/
 
 			String getTypeStr(const Value& val);
 			void pushTypeOf(const Value& val);
@@ -2846,24 +2751,27 @@ namespace ObjectScript
 
 			int syncRetValues(int need_ret_values, int cur_ret_values);
 
-			void registerStringRef(StringRef*);
-			void unregisterStringRef(StringRef*);
+			void registerStringRef(GCStringValue*);
+			void unregisterStringRef(GCStringValue*);
 			void deleteStringRefs();
 
-			void registerUserptrRef(UserptrRef*);
-			void unregisterUserptrRef(UserptrRef*);
+			void registerUserptrRef(GCUserdataValue*);
+			void unregisterUserptrRef(GCUserdataValue*);
 			void unregisterUserptrRef(void*, int);
 			void deleteUserptrRefs();
 
-			void registerCFuncRef(CFuncRef*);
-			void unregisterCFuncRef(CFuncRef*);
+			void registerCFuncRef(GCCFunctionValue*);
+			void unregisterCFuncRef(GCCFunctionValue*);
 			void unregisterCFuncRef(OS_CFunction, void*, int);
 			void deleteCFuncRefs();
 
-			void registerValue(GCValue * val);
+			void registerValueAndPush(GCValue * val);
 			GCValue * unregisterValue(int value_id);
-			void deleteValues(bool del_ref_counted_also);
+			// void deleteValues(bool del_ref_counted_also);
 			static int compareGCValues(const void * a, const void * b);
+
+			String getValueClassname(const Value& val);
+			String getValueClassname(GCValue * val);
 
 			bool valueToBool(const Value& val);
 			OS_INT valueToInt(const Value& val, bool valueof_enabled = false);
@@ -2884,13 +2792,12 @@ namespace ObjectScript
 			Table * newTable(OS_DBG_FILEPOS_START_DECL);
 			void clearTable(Table*);
 			void deleteTable(Table*);
-			void addTableProperty(Table * table, Property * prop);
-			
+			Property * addTableProperty(Table * table, const Value& index, const Value& value);
+
 #ifdef OS_DEBUG
 			static int checkSavedType(int type, const Value& value);
 #endif
 
-			Property * removeTableProperty(Table * table, const Value& index);
 			void changePropertyIndex(Table * table, Property * prop, const Value& new_index);
 			bool deleteTableProperty(Table * table, const Value& index);
 			void deleteValueProperty(GCValue * table_value, Value index, bool del_enabled, bool prototype_enabled);
@@ -3005,18 +2912,20 @@ namespace ObjectScript
 
 		protected:
 
-			OS * allocator;
+			// OS * allocator;
 			String(OS*, Core::GCStringValue*);
 
 		public:
 
 			String(OS*);
 			String(const String&);
-			String(OS*, const Core::String&);
+			String(const Core::String&);
+			String(const Core::String&, const Core::String&);
 			String(OS*, const OS_CHAR*);
 			String(OS*, const OS_CHAR*, int len);
 			String(OS*, const OS_CHAR*, int len, const OS_CHAR*, int len2);
 			String(OS*, const OS_CHAR*, int len, bool trim_left, bool trim_right);
+			String(const Core::String&, bool trim_left, bool trim_right);
 			String(OS*, const void*, int size);
 			String(OS*, const void * buf1, int len1, const void * buf2, int len2);
 			String(OS*, OS_INT value);
@@ -3025,13 +2934,16 @@ namespace ObjectScript
 			~String();
 
 			String& operator=(const Core::String&);
-			String& operator=(const String&);
-			String& operator+=(const String&);
+			// String& operator=(const String&);
+			String& operator+=(const Core::String&);
 			String& operator+=(const OS_CHAR*);
-			String operator+(const String&) const;
+			String operator+(const Core::String&) const;
 			String operator+(const OS_CHAR*) const;
 
 			String trim(bool trim_left = true, bool trim_right = true) const;
+
+			static String format(OS*, const OS_CHAR * fmt, ...);
+			static String formatVa(OS*, const OS_CHAR * fmt, va_list va);
 		};
 
 		static OS * create(MemoryManager* = NULL);
@@ -3056,6 +2968,7 @@ namespace ObjectScript
 
 		int getAllocatedBytes();
 		int getMaxAllocatedBytes();
+		int getUsedBytes();
 		int getCachedBytes();
 
 		void setMemBreakpointId(int id);
@@ -3121,10 +3034,10 @@ namespace ObjectScript
 		void pushString(const Core::String&);
 		void pushCFunction(OS_CFunction func, void * user_param = NULL);
 		void pushCFunction(OS_CFunction func, int closure_values, void * user_param = NULL);
-		void * pushUserdata(int crc, int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
-		void * pushUserdata(int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
-		void * pushUserPointer(int crc, void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
-		void * pushUserPointer(void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserdata(int crc, int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL, bool is_object_instance = true);
+		void * pushUserdata(int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL, bool is_object_instance = true);
+		void * pushUserPointer(int crc, void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL, bool is_object_instance = true);
+		void * pushUserPointer(void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL, bool is_object_instance = true);
 		int findUserPointerValueId(void * data);
 		void newObject();
 		void newArray(int initial_capacity = 0);
@@ -3211,16 +3124,16 @@ namespace ObjectScript
 		bool compile(OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
 		void call(int params = 0, int ret_values = 0);
-		void eval(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
-		void eval(const String& str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		void eval(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
+		void eval(const String& str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 
-		void evalProtected(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		void evalProtected(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 
-		void require(const OS_CHAR * filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
-		virtual void require(const String& filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
+		void require(const OS_CHAR * filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
+		virtual void require(const String& filename, bool required = false, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 
 		// return next gc phase
-		int gcStep();
+		// int gcStep();
 		void gcFull();
 
 		struct FuncDef {
@@ -3243,6 +3156,12 @@ namespace ObjectScript
 			const OS_CHAR * name;
 		};
 		
+		struct Pop {
+			OS * os; 
+			Pop(OS * p_os): os(p_os){}
+			~Pop(){ os->pop(); }
+		};
+
 		void setFuncs(const FuncDef * list, bool setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
 		void setFunc(const FuncDef& def, bool setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
 		void setNumbers(const NumberDef * list, bool setter_enabled = true);

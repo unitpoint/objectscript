@@ -161,6 +161,11 @@ namespace ObjectScript {
 		{CURLOPT_NOSIGNAL, OS_TEXT("nosignal"), OPT_BOOL},
 		{CURLOPT_SHARE, OS_TEXT("share")},
 		{CURLOPT_PROXYTYPE, OS_TEXT("proxytype")},
+#if (LIBCURL_VERSION_NUM < 0x072106)
+		{CURLOPT_ENCODING, OS_TEXT("accept_encoding"), OPT_STRING},
+#else
+		{CURLOPT_ACCEPT_ENCODING, OS_TEXT("accept_encoding"), OPT_STRING},
+#endif
 		//{CURLOPT_PRIVATE, OS_TEXT("private")},
 		{CURLOPT_HTTP200ALIASES, OS_TEXT("http200aliases"), OPT_ARRAY},
 		{CURLOPT_UNRESTRICTED_AUTH, OS_TEXT("unrestricted_auth"), OPT_BOOL},
@@ -919,9 +924,13 @@ namespace ObjectScript {
 				data[i]->func_id = 0;
 			}
 			if(data[i]->buf){
+#if 1
+				os->deleteObj(data[i]->buf);
+#else
 				data[i]->buf->~Buffer();
 				os->free(data[i]->buf);
 				data[i]->buf = NULL;
+#endif
 			}
 		}
 
@@ -1020,7 +1029,7 @@ namespace ObjectScript {
 	}
 
 	bool CurlOS::Curl::setOption()
-	{
+	{ 
 		CURLcode code = CURLE_OK;
 		OS::String name = os->toString(-2);
 		for(int i = 0; i < curl_option_count; i++){
