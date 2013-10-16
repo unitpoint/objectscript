@@ -1180,7 +1180,9 @@ namespace ObjectScript
 			{
 				int value_id;
 				int ref_count;
-				int external_ref_count;
+				int external_ref_count; // used to detect external strings, 
+					// they are not conected to values root tree but should not be freed, 
+					// ref_count could not be used to detect this situation
 				GCValue * prototype;
 				GCValue * hash_next;
 

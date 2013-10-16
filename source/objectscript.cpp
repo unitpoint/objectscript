@@ -12353,8 +12353,9 @@ void OS::Core::deleteFreeCandidateValues()
 				while(gc_candidate_values.heads[i]){
 					GCValue * candidate = gc_candidate_values.heads[i];
 					gc_candidate_values.heads[i] = candidate->hash_next_free_candidate;
+					candidate->hash_next_free_candidate = NULL;
 					gc_candidate_values.count--;
-					free(candidate);
+					// free(candidate);
 				}
 			}
 			if(!gc_candidate_values.count){

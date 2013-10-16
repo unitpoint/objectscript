@@ -254,7 +254,7 @@ protected:
 #ifdef OS_DEBUG
 		int pad0; // for DUMMY_MEDIUM_FREE_ID_PRE
 #endif
-		FreeBlock * prevFree, * next_free;
+		FreeBlock * prev_free, * next_free;
 
 		void resetFreeLink();
 		void removeFreeLink();

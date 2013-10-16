@@ -310,28 +310,28 @@ void OSHeapManager::Block::insertBefore(Block * block)
 #ifndef OS_USE_HEAP_SAVING_MODE
 void OSHeapManager::FreeBlock::resetFreeLink()
 {
-	prevFree = next_free = this;
+	prev_free = next_free = this;
 }
 
 void OSHeapManager::FreeBlock::removeFreeLink()
 {
-	prevFree->next_free = next_free;
-	next_free->prevFree = prevFree;
+	prev_free->next_free = next_free;
+	next_free->prev_free = prev_free;
 }
 
 void OSHeapManager::FreeBlock::insertAfterFreeLink(FreeBlock * block)
 {
 	next_free = block->next_free;
-	next_free->prevFree = this;
+	next_free->prev_free = this;
 	block->next_free = this;
-	prevFree = block;
+	prev_free = block;
 }
 
 void OSHeapManager::FreeBlock::insertBeforeFreeLink(FreeBlock * block)
 {
-	prevFree = block->prevFree;
-	prevFree->next_free = this;
-	block->prevFree = this;
+	prev_free = block->prev_free;
+	prev_free->next_free = this;
+	block->prev_free = this;
 	next_free = block;
 }
 
@@ -938,7 +938,7 @@ OS_U32 OSHeapManager::getSize(void * p)
 
 OS_U32 OSHeapManager::getPageSize() const { return page_size; }
 
-static const char MemBlockTypeNames[3][7] = {"small", "medium", "large"};
+static const char mem_block_type_names[3][7] = {"small", "medium", "large"};
 
 void OSHeapManager::checkMemory()
 {
@@ -1021,8 +1021,8 @@ void OSHeapManager::checkMemory()
 	{
 		OS_ASSERT("Heap corrupted!" && block->is_free == 1);
 		OS_ASSERT("Heap corrupted!" && block->page < next_page);
-		OS_ASSERT("Heap corrupted!" && block->next_free->prevFree == block);
-		OS_ASSERT("Heap corrupted!" && block->prevFree->next_free == block);
+		OS_ASSERT("Heap corrupted!" && block->next_free->prev_free == block);
+		OS_ASSERT("Heap corrupted!" && block->prev_free->next_free == block);
 	}
 #endif // OS_USE_HEAP_SAVING_MODE
 
@@ -1087,23 +1087,23 @@ void OSHeapManager::writeStats(OS * os, OS::FileHandle * f)
 		OS_U32 cur_avg_data_size = cur_count ? stats[i].data_size / cur_count : 0;
 #ifndef OS_USE_HEAP_SAVING_MODE
 #ifdef OS_DEBUG
-		OS_SNPRINTF(buf, sizeof(buf)-1, "%s\t\t%d\t%d\t%d\t%d\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", MemBlockTypeNames[i], 
+		OS_SNPRINTF(buf, sizeof(buf)-1, "%s\t\t%d\t%d\t%d\t%d\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", mem_block_type_names[i], 
 			stats[i].alloc_count, stats[i].free_count, stats[i].hit_count, cur_count, cur_avg_data_size,
 			stats[i].alloc_size, stats[i].used_size, stats[i].data_size, stats[i].max_used_size, stats[i].max_data_size,
 			stats[i].min_block_data_size, stats[i].max_block_data_size);
 #else
-		OS_SNPRINTF(buf, sizeof(buf)-1, "%s\t\t%d\t%d\t%d\t%d\t\t%d\t%d\t%d\t%d\n", MemBlockTypeNames[i], 
+		OS_SNPRINTF(buf, sizeof(buf)-1, "%s\t\t%d\t%d\t%d\t%d\t\t%d\t%d\t%d\t%d\n", mem_block_type_names[i], 
 			stats[i].alloc_count, stats[i].free_count, stats[i].hit_count, cur_count, cur_avg_data_size,
 			stats[i].alloc_size, stats[i].used_size, stats[i].data_size);
 #endif
 #else // OS_USE_HEAP_SAVING_MODE
 #ifdef OS_DEBUG
-		OS_SNPRINTF(buf, sizeof(buf)-1, "%s\t\t%d\t%d\t%d\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", MemBlockTypeNames[i], 
+		OS_SNPRINTF(buf, sizeof(buf)-1, "%s\t\t%d\t%d\t%d\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", mem_block_type_names[i], 
 			stats[i].alloc_count, stats[i].free_count, cur_count, cur_avg_data_size,
 			stats[i].alloc_size, stats[i].used_size, stats[i].data_size, stats[i].max_used_size, stats[i].max_data_size,
 			stats[i].min_block_data_size, stats[i].max_block_data_size);
 #else
-		OS_SNPRINTF(buf, sizeof(buf)-1, "%s\t\t%d\t%d\t%d\t\t%d\t%d\t%d\t%d\n", MemBlockTypeNames[i], 
+		OS_SNPRINTF(buf, sizeof(buf)-1, "%s\t\t%d\t%d\t%d\t\t%d\t%d\t%d\t%d\n", mem_block_type_names[i], 
 			stats[i].alloc_count, stats[i].free_count, cur_count, cur_avg_data_size,
 			stats[i].alloc_size, stats[i].used_size, stats[i].data_size);
 #endif
@@ -1146,7 +1146,7 @@ void OSHeapManager::writeStats(OS * os, OS::FileHandle * f)
 void OSHeapManager::writeSmallBlockHeader(OS * os, OS::FileHandle * f)
 {
 	char buf[256];
-	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tLINE\tFILENAME\n", MemBlockTypeNames[0]);
+	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tLINE\tFILENAME\n", mem_block_type_names[0]);
 	writeFile(os, f, buf);
 }
 
@@ -1173,9 +1173,9 @@ void OSHeapManager::writeBlockHeader(OS * os, OS::FileHandle * f, int type)
 {
 	char buf[256];
 #ifdef OS_DEBUG
-	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tPAGE\tLINE\tFILENAME\n", MemBlockTypeNames[type]);
+	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tPAGE\tLINE\tFILENAME\n", mem_block_type_names[type]);
 #else
-	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tPAGE\n", MemBlockTypeNames[type]);
+	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tPAGE\n", mem_block_type_names[type]);
 #endif
 	writeFile(os, f, buf);
 }
