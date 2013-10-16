@@ -17006,7 +17006,7 @@ void OS::releaseValueById(int id)
 		if(!core->getPropertyValue(val, core->retain_pool, value, false)){
 			OS_ASSERT(false);
 		}else{
-			int ref_count = core->valueToInt(val) - 1;
+			int ref_count = (int)core->valueToNumber(val) - 1;
 			if(ref_count > 0){
 				core->setPropertyValue(core->retain_pool, value, ref_count, false);
 			}else{
@@ -17490,7 +17490,7 @@ void OS::addProperty(bool setter_enabled)
 		pop(2);
 		return;
 	}
-	int i;
+	OS_INT i;
 	Core::Value object = core->stack_values[core->stack_values.count - 2]; // core->getStackValue(-2);
 	switch(OS_VALUE_TYPE(object)){
 	case OS_VALUE_TYPE_ARRAY:
@@ -19995,7 +19995,7 @@ void OS::initCoreFunctions()
 			return s.getLen() > 0 ? s.toChar()[0] : OS_TEXT(' ');
 		}
 
-		static void number(OS::Core::Buffer& buf, long num, int base, int size, int precision, int type)
+		static void number(OS::Core::Buffer& buf, OS_INT num, int base, int size, int precision, int type)
 		{
 			OS_CHAR c, sign, tmp[128];
 			const OS_CHAR *dig = DIGITS;
@@ -20006,7 +20006,7 @@ void OS::initCoreFunctions()
 				for(int i = -precision-1; i > 0; i--){
 					p *= 10.0;
 				}
-				num = (long)(::floor(num / p + 0.5) * p);
+				num = (OS_INT)(::floor(num / p + 0.5) * p);
 				// precision = 0;
 				// type &= ~PRECISION;
 			}
@@ -20045,8 +20045,8 @@ void OS::initCoreFunctions()
 				tmp[i++] = '0';
 			} else {
 				while (num != 0) {
-					tmp[i++] = dig[((unsigned long) num) % (unsigned) base];
-					num = ((unsigned long) num) / (unsigned) base;
+					tmp[i++] = dig[num % base];
+					num /= base;
 				}
 			}
 
@@ -20488,12 +20488,12 @@ void OS::initCoreFunctions()
 				// Integer number formats - set up the flags and "break"
 				case OS_TEXT('o'):
 					base = 8;
-					number(buf, arg_num < params ? os->toInt(-params + arg_num++) : 0, base, field_width, precision, flags);
+					number(buf, arg_num < params ? (OS_INT)os->toNumber(-params + arg_num++) : 0, base, field_width, precision, flags);
 					break;
 
 				case OS_TEXT('b'):
 					base = 2;
-					number(buf, arg_num < params ? os->toInt(-params + arg_num++) : 0, base, field_width, precision, flags);
+					number(buf, arg_num < params ? (OS_INT)os->toNumber(-params + arg_num++) : 0, base, field_width, precision, flags);
 					break;
 
 				case OS_TEXT('X'):
@@ -20501,7 +20501,7 @@ void OS::initCoreFunctions()
 
 				case OS_TEXT('x'):
 					base = 16;
-					number(buf, arg_num < params ? os->toInt(-params + arg_num++) : 0, base, field_width, precision, flags);
+					number(buf, arg_num < params ? (OS_INT)os->toNumber(-params + arg_num++) : 0, base, field_width, precision, flags);
 					break;
 
 				case OS_TEXT('d'):
@@ -20509,7 +20509,7 @@ void OS::initCoreFunctions()
 					// flags |= SIGN;
 
 				// case 'u':
-					number(buf, arg_num < params ? os->toInt(-params + arg_num++) : 0, base, field_width, precision, flags);
+					number(buf, arg_num < params ? (OS_INT)os->toNumber(-params + arg_num++) : 0, base, field_width, precision, flags);
 					break;
 
 				case OS_TEXT('n'):
