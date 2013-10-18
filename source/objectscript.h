@@ -51,7 +51,7 @@ inline void operator delete(void *, void *){}
 
 #define OS_VERSION_MAJOR	OS_TEXT("1")
 #define OS_VERSION_MINOR	OS_TEXT("8")
-#define OS_VERSION_RELEASE	OS_TEXT("1-dev")
+#define OS_VERSION_RELEASE	OS_TEXT("2-dev")
 
 #define OS_VERSION		OS_VERSION_MAJOR OS_TEXT(".") OS_VERSION_MINOR
 #define OS_VERSION_EX	OS_VERSION OS_TEXT(".") OS_VERSION_RELEASE
@@ -90,7 +90,6 @@ inline void operator delete(void *, void *){}
 #if defined __GNUC__ 
 #include <inttypes.h>
 
-#define OS_INT int64_t	// dependence on OS_NUMBER
 #define OS_INT32 int32_t
 #define OS_INT64 int64_t
 #define OS_U32 uint32_t
@@ -98,7 +97,6 @@ inline void operator delete(void *, void *){}
 
 #elif defined IW_SDK
 
-#define OS_INT int64	// dependence on OS_NUMBER
 #define OS_INT32 int32
 #define OS_INT64 int64
 #define OS_U32 uint32
@@ -106,13 +104,15 @@ inline void operator delete(void *, void *){}
 
 #else
 
-#define OS_INT __int64	// dependence on OS_NUMBER
 #define OS_INT32 __int32
 #define OS_INT64 __int64
 #define OS_U32 unsigned __int32
 #define OS_U64 unsigned __int64
 
 #endif
+
+#define OS_INT	OS_INT64	// dependence on OS_NUMBER
+#define OS_UINT	OS_U64		// dependence on OS_NUMBER
 
 #define OS_MEMCMP ::memcmp
 #define OS_MEMMOVE ::memmove
@@ -2322,9 +2322,10 @@ namespace ObjectScript
 				String __getdim;
 				String __setdim;
 				String __deldim;
-				String __cmp;
 				String __iter;
 				// String __concat;
+
+				String __cmp;
 				String __bitand;
 				String __bitor;
 				String __bitxor;
@@ -2340,7 +2341,24 @@ namespace ObjectScript
 				String __lshift;
 				String __rshift;
 				String __pow;
-				
+
+				String __rcmp;
+				String __rbitand;
+				String __rbitor;
+				String __rbitxor;
+				String __rbitnot;
+				String __rplus;
+				String __rneg;
+				String __rlen;
+				String __radd;
+				String __rsub;
+				String __rmul;
+				String __rdiv;
+				String __rmod;
+				String __rlshift;
+				String __rrshift;
+				String __rpow;
+
 				String func_unhandledException;
 				String func_getFilename;
 				String func_extends;
@@ -2494,8 +2512,8 @@ namespace ObjectScript
 
 			FreeCandidateValues gc_candidate_values;
 			
-			int gc_start_allocated_bytes;
-			int gc_next_allocated_bytes;
+			int gc_start_used_bytes;
+			int gc_next_used_bytes;
 			OS_BYTE gc_step_type;
 			bool gc_fix_in_progress;
 
@@ -2513,7 +2531,7 @@ namespace ObjectScript
 			GCValue * gc_grey_list_first;
 			bool gc_grey_root_initialized;
 			int gc_values_head_index;
-			int gc_start_allocated_bytes;
+			int gc_start_used_bytes;
 			int gc_max_allocated_bytes;
 			int gc_keep_heap_count;
 			int gc_continuous_count;
@@ -3137,6 +3155,8 @@ namespace ObjectScript
 		// return next gc phase
 		// int gcStep();
 		void gcFull();
+		void setGCStartUsedBytes(int);
+		int getGCStartUsedBytes();
 
 		struct FuncDef {
 			const OS_CHAR * name;

@@ -535,7 +535,7 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 
 	if(str[0] == OS_TEXT('0') && str[1] != OS_TEXT('.')){
 		bool is_valid, is_octal = false;
-		OS_INT int_val;
+		OS_UINT int_val;
 		if(str[1] == OS_TEXT('x')){ // || str[1] == OS_TEXT('X')){ // parse hex
 			str += 2;
 			is_valid = parseSimpleHex(str, int_val);
@@ -550,11 +550,11 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 			result = 0;
 			return false;
 		}
-		if((OS_INT)(OS_FLOAT)int_val != int_val){
+		result = (OS_FLOAT)int_val;
+		if((OS_UINT)result != int_val){
 			result = 0;
 			return false;
 		}
-		result = (OS_FLOAT)int_val;
 		return true;
 	}
 
@@ -2007,7 +2007,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 								//case OS_TEXT('x'): 
 							default:
 								{
-									OS_INT val;
+									int val;
 									int max_val = sizeof(OS_CHAR) == 2 ? 0xFFFF : 0xFF;
 
 									if(*str == OS_TEXT('x')){ // || *str == OS_TEXT('X')){ // parse hex
@@ -11445,7 +11445,7 @@ OS::Core::GCStringValue * OS::Core::GCStringValue::allocAndPush(OS * allocator, 
 	int alloc_size = data_size + sizeof(GCStringValue) + sizeof(wchar_t) + sizeof(wchar_t)/2;
 	GCStringValue * string = new (allocator->malloc(alloc_size OS_DBG_FILEPOS_PARAM)) GCStringValue(data_size);
 	string->type = OS_VALUE_TYPE_STRING;
-	allocator->core->setValue(string->prototype, allocator->core->prototypes[PROTOTYPE_STRING]);
+	allocator->core->retainValue(string->prototype = allocator->core->prototypes[PROTOTYPE_STRING]);
 	// string->prototype->ref_count++;
 	OS_BYTE * data_buf = string->toBytes();
 	OS_MEMCPY(data_buf, buf, data_size);
@@ -11470,7 +11470,7 @@ OS::Core::GCStringValue * OS::Core::GCStringValue::allocAndPush(OS * allocator, 
 	int alloc_size = len1 + len2 + sizeof(GCStringValue) + sizeof(wchar_t) + sizeof(wchar_t)/2;
 	GCStringValue * string = new (allocator->malloc(alloc_size OS_DBG_FILEPOS_PARAM)) GCStringValue(len1 + len2);
 	string->type = OS_VALUE_TYPE_STRING;
-	allocator->core->setValue(string->prototype, allocator->core->prototypes[PROTOTYPE_STRING]);
+	allocator->core->retainValue(string->prototype = allocator->core->prototypes[PROTOTYPE_STRING]);
 	// string->prototype->ref_count++;
 	OS_BYTE * data_buf = string->toBytes();
 	OS_MEMCPY(data_buf, buf1, len1); data_buf += len1;
@@ -12387,6 +12387,10 @@ OS::Core::GCValue * OS::Core::FreeCandidateValues::get(int value_id)
 
 void OS::Core::gcFreeCandidateValues(bool full)
 {
+	if(!full && ((num_created_values+1) & 255)){
+		return;
+	}
+
 	struct Lib 
 	{
 		OS * allocator;
@@ -12581,10 +12585,6 @@ void OS::Core::gcFreeCandidateValues(bool full)
 
 	} lib(allocator);
 
-	if(!full && ((num_created_values+1) & 255)){
-		return;
-	}
-
 	int i;
 	lib.gc_step_type = ++gc_step_type;
 	GCValue * candidate, * next, * prev;
@@ -12648,7 +12648,7 @@ void OS::Core::gcFreeCandidateValues(bool full)
 	}
 
 	int used_bytes = allocator->getUsedBytes();
-	if(full || used_bytes >= gc_next_allocated_bytes){		
+	if(full || used_bytes >= gc_next_used_bytes){		
 		lib.gc_step_type = ++gc_step_type;
 
 		lib.mark(global_vars);
@@ -12719,11 +12719,11 @@ void OS::Core::gcFreeCandidateValues(bool full)
 		gc_fix_in_progress = false;
 		// lib.destroyValues(false);
 		used_bytes = allocator->getUsedBytes();
-		if(used_bytes >= gc_next_allocated_bytes){
-			gc_next_allocated_bytes *= 2;
+		if(used_bytes >= gc_next_used_bytes){
+			gc_next_used_bytes *= 2;
 		}else if(1){
-			while(used_bytes < gc_next_allocated_bytes/2 && gc_next_allocated_bytes/2 >= gc_start_allocated_bytes){
-				gc_next_allocated_bytes /= 2;
+			while(used_bytes < gc_next_used_bytes/2 && gc_next_used_bytes/2 >= gc_start_used_bytes){
+				gc_next_used_bytes /= 2;
 			}
 		}
 #if 0
@@ -13165,8 +13165,9 @@ OS::Core::Strings::Strings(OS * allocator)
 	__getdim(allocator, OS_TEXT("__getdim")),
 	__setdim(allocator, OS_TEXT("__setdim")),
 	__deldim(allocator, OS_TEXT("__deldim")),
-	__cmp(allocator, OS_TEXT("__cmp")),
 	__iter(allocator, OS_TEXT("__iter")),
+	
+	__cmp(allocator, OS_TEXT("__cmp")),
 	__bitand(allocator, OS_TEXT("__bitand")),
 	__bitor(allocator, OS_TEXT("__bitor")),
 	__bitxor(allocator, OS_TEXT("__bitxor")),
@@ -13182,6 +13183,23 @@ OS::Core::Strings::Strings(OS * allocator)
 	__lshift(allocator, OS_TEXT("__lshift")),
 	__rshift(allocator, OS_TEXT("__rshift")),
 	__pow(allocator, OS_TEXT("__pow")),
+	
+	__rcmp(allocator, OS_TEXT("__rcmp")),
+	__rbitand(allocator, OS_TEXT("__rbitand")),
+	__rbitor(allocator, OS_TEXT("__rbitor")),
+	__rbitxor(allocator, OS_TEXT("__rbitxor")),
+	__rbitnot(allocator, OS_TEXT("__rbitnot")),
+	__rplus(allocator, OS_TEXT("__rplus")),
+	__rneg(allocator, OS_TEXT("__rneg")),
+	__rlen(allocator, OS_TEXT("__rlen")),
+	__radd(allocator, OS_TEXT("__radd")),
+	__rsub(allocator, OS_TEXT("__rsub")),
+	__rmul(allocator, OS_TEXT("__rmul")),
+	__rdiv(allocator, OS_TEXT("__rdiv")),
+	__rmod(allocator, OS_TEXT("__rmod")),
+	__rlshift(allocator, OS_TEXT("__rlshift")),
+	__rrshift(allocator, OS_TEXT("__rrshift")),
+	__rpow(allocator, OS_TEXT("__rpow")),
 	
 	func_unhandledException(allocator, OS_TEXT("unhandledException")),
 	func_getFilename(allocator, OS_TEXT("__getfilename")),
@@ -13607,8 +13625,8 @@ OS::Core::Core(OS * p_allocator)
 	settings.primary_compiled_file = false;
 
 	// gcInitGreyList();
-	gc_start_allocated_bytes = 2*1024*1024;
-	gc_next_allocated_bytes = 2*1024*1024;
+	gc_start_used_bytes = 2*1024*1024;
+	gc_next_used_bytes = 2*1024*1024;
 	gc_step_type = 0;
 	gc_fix_in_progress = false;
 
@@ -14131,7 +14149,7 @@ void OS::Core::gcInitGreyList()
 {
 	gc_grey_list_first = NULL;
 	gc_grey_root_initialized = false;
-	gc_start_allocated_bytes = 0;
+	gc_start_used_bytes = 0;
 	gc_max_allocated_bytes = 0;
 	gc_keep_heap_count = 0;
 	gc_continuous_count = 0;
@@ -14574,7 +14592,7 @@ int OS::Core::gcStep()
 
 		int end_allocated_bytes = allocator->getAllocatedBytes();
 		gc_continuous_count++;
-		if(gc_start_allocated_bytes == end_allocated_bytes){
+		if(gc_start_used_bytes == end_allocated_bytes){
 			gc_step_size_auto_mult *= 0.5f;
 			if(gc_step_size_auto_mult < 1){
 				gc_step_size_auto_mult = 1.0f;
@@ -14583,7 +14601,7 @@ int OS::Core::gcStep()
 				gc_continuous = false;
 			}
 		}else{
-			gc_start_allocated_bytes = end_allocated_bytes;
+			gc_start_used_bytes = end_allocated_bytes;
 			gc_keep_heap_count = 0;
 		}
 
@@ -15802,7 +15820,7 @@ OS::Core::GCStringValue * OS::Core::pushStringValue(const String& p_str, bool tr
 OS::Core::GCStringValue * OS::Core::pushStringValue(const String& str)
 {
 	OS_ASSERT((OS_U32)(intptr_t)str.string != 0xdededede);
-	pushValue(str.string);
+	pushValue(Value(str));
 	return str.string;
 }
 
@@ -16497,7 +16515,9 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 {
 	struct Lib
 	{
-		static void pushObjectMethodOpcodeValue(Core * core, const String& method_name, const Value& left_value, const Value& right_value)
+		static void pushObjectMethodOpcodeValue(Core * core, 
+			const String& method_name, const String& reverse_method_name, 
+			const Value& left_value, const Value& right_value)
 		{
 			Value func;
 			bool prototype_enabled = true;
@@ -16505,6 +16525,13 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				core->pushValue(func);
 				core->pushValue(left_value);
 				core->pushValue(right_value);
+				core->call(1, 1);
+				return;
+			}
+			if(core->getPropertyValue(func, right_value, reverse_method_name, prototype_enabled) && func.isFunction()){
+				core->pushValue(func);
+				core->pushValue(right_value);
+				core->pushValue(left_value);
 				core->call(1, 1);
 				return;
 			}
@@ -16593,21 +16620,13 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		switch(opcode){
 		case OP_COMPARE:
 			if(is_gc_left_value){
-				switch(OS_VALUE_TYPE(right_value)){
-				case OS_VALUE_TYPE_STRING:
-				case OS_VALUE_TYPE_ARRAY:
-				case OS_VALUE_TYPE_OBJECT:
-				case OS_VALUE_TYPE_USERDATA:
-				case OS_VALUE_TYPE_USERPTR:
-				case OS_VALUE_TYPE_FUNCTION:
-				case OS_VALUE_TYPE_CFUNCTION:
+				if(OS_IS_VALUE_GC(right_value)){
 					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
 						return pushNumber((OS_NUMBER)0.0);
 					}
-					// no break
 				}
 			}
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
 
 		case OP_LOGIC_PTR_EQ:
 			return pushBool(isEqualExactly(left_value, right_value));
@@ -16621,7 +16640,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					// no break
 				}
 			}
-			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
+			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) == (OS_NUMBER)0.0;
 			return;
 
@@ -16634,7 +16653,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					// no break
 				}
 			}
-			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
+			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) >= (OS_NUMBER)0.0;
 			return;
 
@@ -16647,42 +16666,42 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 					// no break
 				}
 			}
-			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, left_value, right_value);
+			Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
 			stack_values.lastElement() = valueToNumber(stack_values.lastElement()) > (OS_NUMBER)0.0;
 			return;
 
 		case OP_BIT_AND:
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, strings->__rbitand, left_value, right_value);
 
 		case OP_BIT_OR:
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, strings->__rbitor, left_value, right_value);
 
 		case OP_BIT_XOR:
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, strings->__rbitxor, left_value, right_value);
 
 		case OP_ADD: // +
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__add, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__add, strings->__radd, left_value, right_value);
 
 		case OP_SUB: // -
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, strings->__rsub, left_value, right_value);
 
 		case OP_MUL: // *
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, strings->__rmul, left_value, right_value);
 
 		case OP_DIV: // /
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__div, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__div, strings->__rdiv, left_value, right_value);
 
 		case OP_MOD: // %
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, strings->__rmod, left_value, right_value);
 
 		case OP_LSHIFT: // <<
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, strings->__rlshift, left_value, right_value);
 
 		case OP_RSHIFT: // >>
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, strings->__rrshift, left_value, right_value);
 
 		case OP_POW: // **
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, left_value, right_value);
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, strings->__rpow, left_value, right_value);
 		}
 	}
 	OS_ASSERT(false);
@@ -21661,6 +21680,7 @@ dump_object:
 			return 1;
 		}
 
+		/*
 		static int cmp(OS * os, int params, int, int, void*)
 		{
 			if(params < 1) return 0;
@@ -21692,9 +21712,10 @@ dump_object:
 			os->setException(String::format(os, OS_TEXT("attempt to compare '%s' with '%s'"), os->getTypeStr(-params - 1).toChar(), os->getTypeStr(-params + 0).toChar()));
 			return 0;
 		}
+		*/
 	};
 	FuncDef list[] = {
-		{core->strings->__cmp, Object::cmp},
+		// {core->strings->__cmp, Object::cmp},
 		{OS_TEXT("getProperty"), Object::getProperty},
 		{OS_TEXT("setProperty"), Object::setProperty},
 		{OS_TEXT("setSmartProperty"), Object::setSmartProperty},
@@ -24025,6 +24046,18 @@ void OS::initGCModule()
 			os->pushNumber(os->core->num_destroyed_values);
 			return 1;
 		}
+		static int getStartUsedBytes(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(os->getGCStartUsedBytes());
+			return 1;
+		}
+		static int setStartUsedBytes(OS * os, int params, int, int, void*)
+		{
+			if(params > 0){
+				os->setGCStartUsedBytes(os->toInt(-params+0));
+			}
+			return 0;
+		}
 		static int full(OS * os, int params, int, int, void*)
 		{
 			os->gcFull();
@@ -24039,6 +24072,8 @@ void OS::initGCModule()
 		{OS_TEXT("__get@numObjects"), GC::getNumObjects},
 		{OS_TEXT("__get@numCreatedObjects"), GC::getNumCreatedObjects},
 		{OS_TEXT("__get@numDestroyedObjects"), GC::getNumDestroyedObjects},
+		{OS_TEXT("__get@gcStartUsedBytes"), GC::getStartUsedBytes},
+		{OS_TEXT("__set@gcStartUsedBytes"), GC::setStartUsedBytes},
 		{OS_TEXT("full"), GC::full},
 		{}
 	};
@@ -24830,6 +24865,17 @@ int OS::setSetting(OS_ESettings setting, int value)
 void OS::gcFull()
 {
 	core->gcFull();
+}
+
+void OS::setGCStartUsedBytes(int bytes)
+{
+	core->gc_start_used_bytes = bytes > 128*1024 ? bytes : 128*1024;
+	core->gc_next_used_bytes = core->gc_start_used_bytes;
+}
+
+int OS::getGCStartUsedBytes()
+{
+	return core->gc_start_used_bytes;
 }
 
 // =====================================================================
