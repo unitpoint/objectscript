@@ -13,17 +13,19 @@ using namespace ObjectScript;
 #define FREE_FREEPAGES
 #define FIND_BEST_FREE_BLOCK
 
-#define DUMMY_SMALL_USED_ID_PRE  0xedededed
-#define DUMMY_SMALL_USED_ID_POST 0xdededede
+#define DEAD_BYTE	0xde
 
-#define DUMMY_SMALL_FREE_ID_PRE  0xed5ded5d
-#define DUMMY_SMALL_FREE_ID_POST 0xded5ded5
+#define DUMMY_SMALL_USED_ID_PRE		0xedededed
+#define DUMMY_SMALL_USED_ID_POST	0xdededede
 
-#define DUMMY_MEDIUM_USED_ID_PRE  0xedcdedcd
-#define DUMMY_MEDIUM_USED_ID_POST 0xdedcdedc
+#define DUMMY_SMALL_FREE_ID_PRE		0xed5ded5d
+#define DUMMY_SMALL_FREE_ID_POST	0xded5ded5
 
-#define DUMMY_MEDIUM_FREE_ID_PRE  0xed5cec5d
-#define DUMMY_MEDIUM_FREE_ID_POST 0xded5cec5
+#define DUMMY_MEDIUM_USED_ID_PRE	0xedcdedcd
+#define DUMMY_MEDIUM_USED_ID_POST	0xdedcdedc
+
+#define DUMMY_MEDIUM_FREE_ID_PRE	0xed5cec5d
+#define DUMMY_MEDIUM_FREE_ID_POST	0xded5cec5
 
 #define DUMMY_LARGE_USED_ID_PRE  0xedadedad
 #define DUMMY_LARGE_USED_ID_POST 0xdedadeda
@@ -241,6 +243,7 @@ void OSHeapManager::freeSmall(void * p)
 		int * check_p = (int*)((OS_BYTE*)p + small_block->getDataSize() + sizeof(int));
 		OS_ASSERT("Heap corrupted!" && *check_p == DUMMY_SMALL_USED_ID_POST);
 		*check_p = DUMMY_SMALL_FREE_ID_POST;
+		// OS_MEMSET((int*)p+1, DEAD_BYTE, small_block->getDataSize());
 
 		small_block->removeLink();
 	}
@@ -258,7 +261,7 @@ void OSHeapManager::freeSmall(void * p)
 
 OS_U32 OSHeapManager::getSizeSmall(void * p)
 {
-	OS_ASSERT("Trying to free NULL pointer" && p);
+	OS_ASSERT("Trying to size NULL pointer" && p);
 
 #ifdef OS_DEBUG
 	p = (OS_BYTE*)p - sizeof(int);
@@ -476,6 +479,7 @@ void OSHeapManager::freeMedium(void * p)
 #ifdef OS_DEBUG
 	*(int*)(block+1) = DUMMY_MEDIUM_FREE_ID_PRE;
 	*(int*)((OS_BYTE*)(block+1) + block->getDataSize() + sizeof(int)) = DUMMY_MEDIUM_FREE_ID_POST;
+	// OS_MEMSET((int*)p+1, DEAD_BYTE, block->getDataSize());
 #endif
 
 	insertFreeBlock((FreeBlock*)block);
@@ -487,7 +491,7 @@ void OSHeapManager::freeMedium(void * p)
 
 OS_U32 OSHeapManager::getSizeMedium(void * p)
 {
-	OS_ASSERT("Trying to free NULL pointer" && p);
+	OS_ASSERT("Trying to size NULL pointer" && p);
 
 #ifdef OS_DEBUG
 	p = (OS_BYTE*)p - sizeof(int);
@@ -601,6 +605,7 @@ void OSHeapManager::freeLarge(void * p)
 		int * check_p = (int*)((OS_BYTE*)p + block->getDataSize() + sizeof(int));
 		OS_ASSERT("Heap corrupted!" && *check_p == DUMMY_LARGE_USED_ID_POST);
 		*check_p = DUMMY_LARGE_FREE_ID_POST;
+		// OS_MEMSET((int*)p+1, DEAD_BYTE, block->getDataSize());
 	}
 #endif
 
@@ -616,7 +621,7 @@ void OSHeapManager::freeLarge(void * p)
 
 OS_U32 OSHeapManager::getSizeLarge(void * p)
 {
-	OS_ASSERT("Trying to free NULL pointer" && p);
+	OS_ASSERT("Trying to size NULL pointer" && p);
 
 #ifdef OS_DEBUG
 	p = (OS_BYTE*)p - sizeof(int);
@@ -773,7 +778,7 @@ OSHeapManager::~OSHeapManager()
 
 void * OSHeapManager::malloc(int size OS_DBG_FILEPOS_DECL)
 {
-	if(!size){
+	if(size <= 0){
 		return NULL;
 	}
 
@@ -804,6 +809,10 @@ void OSHeapManager::free(void * p)
 	if(!p){
 		return;
 	}
+
+#ifdef OS_DEBUG
+	OS_MEMSET(p, DEAD_BYTE, getSize(p));
+#endif
 
 #ifndef USE_STD_MALLOC
 #ifndef OS_USE_HEAP_SAVING_MODE

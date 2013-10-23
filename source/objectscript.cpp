@@ -2460,6 +2460,7 @@ OS::Core::String OS::Core::Compiler::Expression::getSlotStr(OS::Core::Compiler *
 	// OS_ASSERT(slot_num);
 	OS * allocator = compiler->allocator;
 	for(; up_count > 0; up_count--){
+		OS_ASSERT(scope->function && scope->function->parent);
 		scope = scope->function->parent;
 	}
 	if(slot_num < 0){
@@ -2619,10 +2620,11 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 					if(scope->locals[i].name == allocator->core->strings->var_temp_prefix){
 						continue;
 					}
-					out += String::format(allocator, OS_TEXT("%s    %d %s%s\n"), spaces, 
+					out += String::format(allocator, OS_TEXT("%s    %d %s%s%s\n"), spaces, 
 						scope->locals[i].index,
 						scope->locals[i].name.toChar(),
-						i < scope->num_params ? OS_TEXT(" (param)") : OS_TEXT("")
+						i < scope->num_params ? OS_TEXT(" (param)") : OS_TEXT(""),
+						scope->locals[i].upvalue ? OS_TEXT(" (upvalue)") : OS_TEXT("")
 						);
 				}
 				out += String::format(allocator, OS_TEXT("%s  end locals\n"), spaces);
@@ -2653,10 +2655,11 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 					if(scope->locals[i].name == allocator->core->strings->var_temp_prefix){
 						continue;
 					}
-					out += String::format(allocator, OS_TEXT("%s    %d %s%s\n"), spaces, 
+					out += String::format(allocator, OS_TEXT("%s    %d %s%s%s\n"), spaces, 
 						scope->locals[i].index,
 						scope->locals[i].name.toChar(),
-						i < scope->num_params ? OS_TEXT(" (param)") : OS_TEXT("")
+						i < scope->num_params ? OS_TEXT(" (param)") : OS_TEXT(""),
+						scope->locals[i].upvalue ? OS_TEXT(" (upvalue)") : OS_TEXT("")
 						);
 				}
 				out += String::format(allocator, OS_TEXT("%s  end locals\n"), spaces);
@@ -3209,6 +3212,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 				var_scope.cached_name_index = cacheString(var.name);
 				var_scope.start_code_pos = start_code_pos;
 				var_scope.end_code_pos = getOpcodePos();
+				var_scope.upvalue = var.upvalue;
 			}
 			break;
 		}
@@ -7956,6 +7960,34 @@ bool OS::Core::Compiler::findLocalVar(LocalVarDesc& desc, Scope * scope, const S
 
 void OS::Core::Compiler::registerUpvalue(Scope * scope, Expression * exp)
 {
+#if 1
+	OS_ASSERT(scope && exp && exp->local_var.up_count > 0);
+	for(int up_count = exp->local_var.up_count; up_count > 0; up_count--){
+		OS_ASSERT(scope->function && scope->function->parent);
+		scope = scope->function->parent;
+	}
+	for(;;){
+		for(int i = scope->locals.count-1; i >= 0; i--){
+			Scope::LocalVar& local_var = scope->locals[i];
+			if(local_var.index == exp->local_var.index){
+				local_var.upvalue = true;
+				return;
+			}
+		}
+		if(scope == scope->function){
+			OS_ASSERT(false);
+			break;
+		}
+		scope = scope->parent;
+	}
+#else
+#if 1
+	OS_ASSERT(scope && exp && exp->local_var.up_scope_count > 0);
+	for(int up_count = exp->local_var.up_scope_count; up_count > 0; up_count--){
+		OS_ASSERT(scope->parent);
+		scope = scope->parent;
+	}
+#else
 	OS_ASSERT(scope && exp && exp->local_var.up_count > 0);
 	for(int up_count = exp->local_var.up_count; up_count > 0;){
 		OS_ASSERT(scope->parent);
@@ -7964,6 +7996,9 @@ void OS::Core::Compiler::registerUpvalue(Scope * scope, Expression * exp)
 		}
 		scope = scope->parent;
 	}
+	// OS_ASSERT(scope->function);
+	// scope = scope->function;
+#endif
 	for(int i = scope->locals.count-1; i >= 0; i--){
 		Scope::LocalVar& local_var = scope->locals[i];
 		if(local_var.index == exp->local_var.index){
@@ -7971,6 +8006,7 @@ void OS::Core::Compiler::registerUpvalue(Scope * scope, Expression * exp)
 			return;
 		}
 	}
+#endif
 	OS_ASSERT(false);
 }
 
@@ -9404,9 +9440,9 @@ bool OS::Core::Compiler::saveToStream(StreamWriter * writer)
 {
 	writer->writeBytes(OS_COMPILED_HEADER, (int)OS_STRLEN(OS_COMPILED_HEADER));
 
-	int i, len = (int)OS_STRLEN(OS_VERSION)+1;
+	int i, len = (int)OS_STRLEN(OS_VERSION_STR)+1;
 	writer->writeByte(len);
-	writer->writeBytes(OS_VERSION, len);
+	writer->writeBytes(OS_VERSION_STR, len);
 
 	MemStreamWriter int_stream(allocator);
 	MemStreamWriter float_stream(allocator);
@@ -9521,9 +9557,9 @@ bool OS::Core::Program::loadFromStream(StreamReader * reader)
 		return false;
 	}
 
-	len = (int)OS_STRLEN(OS_VERSION)+1;
+	len = (int)OS_STRLEN(OS_VERSION_STR)+1;
 	reader->movePos(1);
-	if(!reader->checkBytes(OS_VERSION, len)){
+	if(!reader->checkBytes(OS_VERSION_STR, len)){
 		return false;
 	}
 
@@ -12265,6 +12301,7 @@ OS::Core::FreeCandidateValues::~FreeCandidateValues()
 
 void OS::Core::registerFreeCandidateValue(GCValue * value)
 {
+	OS_ASSERT(value->value_id);
 	if(gc_candidate_values.get(value->value_id)){
 		return;
 	}
@@ -12391,6 +12428,10 @@ void OS::Core::gcFreeCandidateValues(bool full)
 		return;
 	}
 
+	if(gc_in_progress){
+		return;
+	}
+
 	struct Lib 
 	{
 		OS * allocator;
@@ -12406,11 +12447,13 @@ void OS::Core::gcFreeCandidateValues(bool full)
 		{
 			allocator = p_allocator;
 			gc_step_type = allocator->core->gc_step_type;
+			allocator->core->gc_in_progress = true;
 			// destroy_list = NULL;
 			// destroy_list_size = 0;;
 		}
 		~Lib()
 		{
+			allocator->core->gc_in_progress = false;
 			// allocator->vectorClear(collected_values);
 		}
 
@@ -12488,19 +12531,14 @@ void OS::Core::gcFreeCandidateValues(bool full)
 			mark(stack_func->locals);
 		}
 
-		Property * last;
 		void mark(Table * table)
 		{
 			OS_ASSERT(table);
 			OS_ASSERT((OS_U32)(intptr_t)table != 0xdededede);
 			Property * prop = table->first;
 			for(; prop; prop = prop->next){
-				if(allocator->core->global_vars.getGCValue()->table == table){
-					Property * cur = prop;
-				}
 				mark(prop->index);
 				mark(prop->value);
-				last = prop;
 			}
 		}
 
@@ -12583,6 +12621,38 @@ void OS::Core::gcFreeCandidateValues(bool full)
 			}
 		}
 
+#if defined OS_DEBUG && 00
+		bool checkValid(const Value& val)
+		{
+			if(OS_IS_VALUE_GC(val)){
+				GCValue * value = dynamic_cast<GCValue*>(OS_VALUE_VARIANT(val).value);
+				return value->value_id > 0;
+			}
+			return true;
+		}
+
+		bool findParent(GCValue * v)
+		{
+			int head_mask = allocator->core->values.head_mask;
+			for(int i = 0; i <= head_mask; i++){
+				GCValue * value = allocator->core->values.heads[i];
+				for(; value; value = value->hash_next){
+					if(value->table && value->gc_step_type == gc_step_type){
+						Property * prop = value->table->first;
+						for(; prop; prop = prop->next){
+							if(prop->index.getGCValue() == v){
+								return true;
+							}
+							if(prop->value.getGCValue() == v){
+								return true;
+							}
+						}
+					}
+				}
+			}
+			return false;
+		}
+#endif
 	} lib(allocator);
 
 	int i;
@@ -12602,6 +12672,7 @@ void OS::Core::gcFreeCandidateValues(bool full)
 	int head_mask = gc_candidate_values.head_mask;
 	for(i = 0; i <= head_mask; i++){
 		for(candidate = gc_candidate_values.heads[i], prev = NULL; candidate; candidate = next){
+			OS_ASSERT(candidate->value_id);
 			next = candidate->hash_next_free_candidate;
 			if(candidate->ref_count | candidate->external_ref_count){
 				OS_ASSERT(candidate->ref_count > 0 || candidate->external_ref_count > 0);
@@ -12637,6 +12708,7 @@ void OS::Core::gcFreeCandidateValues(bool full)
 				
 			clearValue(candidate);
 			unregisterValue(candidate->value_id);
+			// OS_ASSERT(!lib.findParent(candidate));
 			deleteValue(candidate);
 
 			if(head_mask != gc_candidate_values.head_mask){
@@ -12674,10 +12746,20 @@ void OS::Core::gcFreeCandidateValues(bool full)
 			lib.mark(&call_stack_funcs[i]);
 		}
 
+#if 1
+		head_mask = gc_candidate_values.head_mask;
+		for(i = 0; i <= head_mask; i++){
+			for(candidate = gc_candidate_values.heads[i]; candidate; candidate = candidate->hash_next_free_candidate){
+				OS_ASSERT(candidate->value_id);
+				lib.mark(candidate);
+			}
+		}
+#endif
+
 		gc_fix_in_progress = true;
 		GCValue * destroy_list = NULL;
 		int save_next_id = values.next_id;
-		int head_mask = values.head_mask;
+		head_mask = values.head_mask;
 		for(i = 0; i <= values.head_mask; i++){
 			GCValue * value = values.heads[i], * prev = NULL, * next;
 			for(; value; value = next){
@@ -12694,6 +12776,7 @@ void OS::Core::gcFreeCandidateValues(bool full)
 				// OS_ASSERT(!gc_candidate_values.get(value->value_id));
 				// unregisterFreeCandidateValue(value->value_id);
 				OS_ASSERT(value->ref_count >= 0);
+				// OS_ASSERT(!lib.findParent(value));
 				clearValue(value);
 				if(prev){
 					prev->hash_next = next;
@@ -12709,13 +12792,52 @@ void OS::Core::gcFreeCandidateValues(bool full)
 			}
 		}
 		OS_ASSERT(save_next_id == values.next_id);
+#if defined OS_DEBUG && 00
+		head_mask = values.head_mask;
+		for(i = 0; i <= values.head_mask; i++){
+			GCValue * value = values.heads[i];
+			for(; value; value = value->hash_next){
+				if(value->table){
+					Property * prop = value->table->first;
+					for(; prop; prop = prop->next){
+						OS_ASSERT(lib.checkValid(prop->index));
+						OS_ASSERT(lib.checkValid(prop->value));
+					}
+				}				
+				switch(value->type){
+				case OS_VALUE_TYPE_OBJECT:
+					break;
+				}
+			}
+		}
+#endif
 		while(destroy_list){
 			GCValue * value = destroy_list;
 			destroy_list = value->hash_next;
 			value->hash_next = NULL;
+			// OS_ASSERT(!lib.findParent(value));
 			unregisterFreeCandidateValue(value);
 			deleteValue(value);
 		}
+#if defined OS_DEBUG && 00
+		head_mask = values.head_mask;
+		for(i = 0; i <= values.head_mask; i++){
+			GCValue * value = values.heads[i];
+			for(; value; value = value->hash_next){
+				if(value->table){
+					Property * prop = value->table->first;
+					for(; prop; prop = prop->next){
+						OS_ASSERT(lib.checkValid(prop->index));
+						OS_ASSERT(lib.checkValid(prop->value));
+					}
+				}				
+				switch(value->type){
+				case OS_VALUE_TYPE_OBJECT:
+					break;
+				}
+			}
+		}
+#endif
 		gc_fix_in_progress = false;
 		// lib.destroyValues(false);
 		used_bytes = allocator->getUsedBytes();
@@ -13628,6 +13750,7 @@ OS::Core::Core(OS * p_allocator)
 	gc_start_used_bytes = 2*1024*1024;
 	gc_next_used_bytes = 2*1024*1024;
 	gc_step_type = 0;
+	gc_in_progress = false;
 	gc_fix_in_progress = false;
 
 	OS_MEMSET(rand_state, 0, sizeof(rand_state));
@@ -13805,21 +13928,23 @@ void OS::Core::shutdown()
 	gc_step_type++;
 	gc_fix_in_progress = true;
 	GCValue * destroy_list = NULL;
-	for(i = 0; i <= values.head_mask; i++){
-		GCValue * value = values.heads[i], * prev = NULL, * next;
-		for(; value; value = next){
-			next = value->hash_next;
-			// unregisterFreeCandidateValue(value->value_id);
-			clearValue(value);
-			if(prev){
-				prev->hash_next = next;
-			}else{
-				values.heads[i] = next;
-			}
-			values.count--;
+	for(int j = 0; j < 10 && values.count > 0; j++){
+		for(i = 0; i <= values.head_mask; i++){
+			GCValue * value = values.heads[i], * prev = NULL, * next;
+			for(; value; value = next){
+				next = value->hash_next;
+				// unregisterFreeCandidateValue(value->value_id);
+				clearValue(value);
+				if(prev){
+					prev->hash_next = next;
+				}else{
+					values.heads[i] = next;
+				}
+				values.count--;
 						
-			value->hash_next = destroy_list;
-			destroy_list = value;
+				value->hash_next = destroy_list;
+				destroy_list = value;
+			}
 		}
 	}
 	allocator->deleteObj(strings);
@@ -14808,6 +14933,8 @@ void OS::Core::clearValue(GCValue * val)
 			if(func_value->num_closure_values > 0){
 				const Value * closure_values = (Value*)(func_value + 1);
 				releaseValues(closure_values, func_value->num_closure_values);
+			}else{
+				unregisterCFuncRef(func_value);
 			}
 			func_value->func = NULL;
 			func_value->user_param = NULL;
@@ -15215,6 +15342,7 @@ void OS::Core::deleteValue(GCValue * val)
 {
 	OS_ASSERT(val);
 	OS_ASSERT(!gc_candidate_values.get(val->value_id));
+	OS_ASSERT(val->type == OS_VALUE_TYPE_UNKNOWN);
 	// OS_ASSERT(val->value_id);
 	// clearValue(val);
 	// OS_ASSERT(!val->hash_next);
@@ -15237,7 +15365,7 @@ void OS::Core::retainValue(const Value& val)
 {
 	if(OS_IS_VALUE_GC(val)){
 		GCValue * value = OS_VALUE_VARIANT(val).value;
-		OS_ASSERT(value);
+		OS_ASSERT(value && value->value_id);
 		/* if(value->value_id >= 15622 && value->value_id <= 15622){
 			int i = 0;
 		} */
@@ -15273,6 +15401,7 @@ void OS::Core::releaseValue(const Value& val)
 			return;
 		}
 		// release
+		OS_ASSERT(value->value_id);
 		OS_ASSERT(value->ref_count > 0);
 		if(!--value->ref_count){
 			saveFreeCandidateValue(value);
@@ -19390,11 +19519,12 @@ corrupted:
 			OS_ASSERT(OS_GETARG_A(instruction) >= 0 && OS_GETARG_A(instruction) < stack_func->func->func_decl->stack_size);
 			// b = OS_GETARG_B(instruction); // src scope local
 			c = OS_GETARG_C(instruction);
-			OS_ASSERT(c <= stack_func->func->func_decl->max_up_count);
+			OS_ASSERT(c > 0 && c <= stack_func->func->func_decl->max_up_count);
 			scope = stack_func->locals;
 			OS_ASSERT(c <= scope->num_parents);
 			scope = scope->getParent(c-1);
 			OS_ASSERT(OS_GETARG_B(instruction) >= 0 && OS_GETARG_B(instruction) < scope->func_decl->num_locals);
+			OS_ASSERT(scope->func_decl->locals && scope->func_decl->locals[OS_GETARG_B(instruction)].upvalue);
 			stack_func_locals[OS_GETARG_A(instruction)] = scope->values[OS_GETARG_B(instruction)];
 			break;
 
@@ -19403,12 +19533,12 @@ corrupted:
 			// b = OS_GETARG_B(instruction);
 			OS_ASSERT(OS_GETARG_B(instruction) >= 0 && OS_GETARG_B(instruction) < stack_func->func->func_decl->stack_size);
 			c = OS_GETARG_C(instruction);
-			OS_ASSERT(c <= stack_func->func->func_decl->max_up_count);
+			OS_ASSERT(c > 0 && c <= stack_func->func->func_decl->max_up_count);
 			scope = stack_func->locals;
 			OS_ASSERT(c <= scope->num_parents);
 			scope = scope->getParent(c-1);
 			OS_ASSERT(OS_GETARG_A(instruction) >= 0 && OS_GETARG_A(instruction) < scope->func_decl->num_locals);
-			OS_ASSERT(scope->func_decl->locals[OS_GETARG_A(instruction)].upvalue);
+			OS_ASSERT(scope->func_decl->locals && scope->func_decl->locals[OS_GETARG_A(instruction)].upvalue);
 			if(scope->is_stack_locals){
 				scope->values[OS_GETARG_A(instruction)] = stack_func_locals[OS_GETARG_B(instruction)];
 			}else{
@@ -20837,7 +20967,7 @@ void OS::initCoreFunctions()
 
 		static int getVersion(OS * os, int params, int, int, void*)
 		{
-			os->pushString(OS_VERSION);
+			os->pushString(OS_VERSION_STR);
 			return 1;
 		}
 

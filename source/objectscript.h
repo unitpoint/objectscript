@@ -51,11 +51,10 @@ inline void operator delete(void *, void *){}
 
 #define OS_VERSION_MAJOR	OS_TEXT("1")
 #define OS_VERSION_MINOR	OS_TEXT("8")
-#define OS_VERSION_RELEASE	OS_TEXT("2-dev")
+#define OS_VERSION_RELEASE	OS_TEXT("3-dev")
 
-#define OS_VERSION		OS_VERSION_MAJOR OS_TEXT(".") OS_VERSION_MINOR
-#define OS_VERSION_EX	OS_VERSION OS_TEXT(".") OS_VERSION_RELEASE
-#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION_EX OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
+#define OS_VERSION_STR		OS_VERSION_MAJOR OS_TEXT(".") OS_VERSION_MINOR OS_TEXT(".") OS_VERSION_RELEASE
+#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION_STR OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
 #if defined _DEBUG && !defined OS_RELEASE && !defined OS_DEBUG
@@ -1192,10 +1191,11 @@ namespace ObjectScript
 				Table * table;
 				GCStringValue * name;
 
+				int gc_step_type;
+
 				OS_EValueType type;
 				bool is_object_instance;
 				bool is_destructor_called;
-				OS_BYTE gc_step_type;
 
 				// EGCColor gc_color;
 
@@ -2514,7 +2514,8 @@ namespace ObjectScript
 			
 			int gc_start_used_bytes;
 			int gc_next_used_bytes;
-			OS_BYTE gc_step_type;
+			int gc_step_type;
+			bool gc_in_progress;
 			bool gc_fix_in_progress;
 
 			void registerFreeCandidateValue(GCValue * value);

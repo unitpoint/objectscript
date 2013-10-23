@@ -99,9 +99,8 @@ int main(int argc, char *argv[])
 {
 #endif
 	if(argc < 2){
-		printf("ObjctScript " OS_VERSION " Copyright (C) 2012-2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)\n");
-		printf("Latest version and source code: https://github.com/unitpoint/objectscript\n");
-		printf("\n");
+		printf(OS_COPYRIGHT "\n");
+		printf(OS_OPENSOURCE "\n");
 		printf("Usage: %s script.os [args]\n", argv[0]);
 		exit(1);
 	}
