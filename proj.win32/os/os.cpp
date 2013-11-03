@@ -6,6 +6,11 @@
 #include "../../source/objectscript.h"
 #include "../../source/os-binder.h"
 
+#include "../../source/ext-hashlib/os-hashlib.h"
+#include "../../source/ext-url/os-url.h"
+#include "../../source/ext-base64/os-base64.h"
+#include "../../source/ext-datetime/os-datetime.h"
+
 #ifndef OS_CURL_DISABLED
 #include "../../source/ext-curl/os-curl.h"
 #endif
@@ -25,10 +30,6 @@
 
 #ifndef OS_LIBNOISE_DISABLED
 #include "../../source/ext-libnoise/os-libnoise.h"
-#endif
-
-#ifndef OS_DATETIME_DISABLED
-#include "../../source/ext-datetime/os-datetime.h"
 #endif
 
 #ifndef OS_ODBO_DISABLED
@@ -123,6 +124,11 @@ int main(int argc, char *argv[])
 	OS * os = OS::create();
 #endif
 	
+	initHashLibrary(os);
+	initUrlLibrary(os);
+	initBase64Library(os);
+	initDateTimeLibrary(os);
+
 #ifndef OS_CURL_DISABLED
 	initCurlLibrary(os);
 #endif
@@ -142,10 +148,6 @@ int main(int argc, char *argv[])
 
 #ifndef OS_LIBNOISE_DISABLED
 	initLibNoiseLibrary(os);
-#endif
-
-#ifndef OS_DATETIME_DISABLED
-	initDateTimeLibrary(os);
 #endif
 
 #ifndef OS_ODBO_DISABLED

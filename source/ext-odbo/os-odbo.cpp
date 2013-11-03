@@ -840,6 +840,7 @@ void ODBO_OS::initLibrary(OS* os)
 			def(OS_TEXT("begin"), &ODBO::begin),
 			def(OS_TEXT("commit"), &ODBO::commit),
 			def(OS_TEXT("rollback"), &ODBO::rollback),
+			def(OS_TEXT("close"), &ODBO::close),
 			{}
 		};
 		registerUserClass<ODBO>(os, funcs);

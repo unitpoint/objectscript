@@ -37,6 +37,33 @@ static int days_in_month[2][12] = {
 	{ 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 };
 
+                                /*     jan  feb  mar  apr  may  jun  jul  aug  sep  oct  nov  dec */
+static int d_table_common[13]  = {  0,   0,  31,  59,  90, 120, 151, 181, 212, 243, 273, 304, 334 };
+static int d_table_leap[13]    = {  0,   0,  31,  60,  91, 121, 152, 182, 213, 244, 274, 305, 335 };
+static int ml_table_common[13] = {  0,  31,  28,  31,  30,  31,  30,  31,  31,  30,  31,  30,  31 };
+static int ml_table_leap[13]   = {  0,  31,  29,  31,  30,  31,  30,  31,  31,  30,  31,  30,  31 }; 
+
+static int m_table_common[13] = { -1, 0, 3, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5 }; /* 1 = jan */
+static int m_table_leap[13] =   { -1, 6, 2, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5 }; /* 1 = jan */ 
+
+static const char *mon_full_names[] = {
+	"January", "February", "March", "April",
+	"May", "June", "July", "August",
+	"September", "October", "November", "December"
+};
+
+static const char *mon_short_names[] = {
+	"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
+static const char *day_full_names[] = {
+	"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+};
+
+static const char *day_short_names[] = {
+	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+};
+
 static int mktime_works = 0;
 
 /* Flag telling us whether the module was initialized or not. */
@@ -60,6 +87,133 @@ day. */
 /* Flags for the calendar ID: */
 #define CALENDAR_GREGORIAN	0
 #define CALENDAR_JULIAN	1
+
+#if defined __GNUC__ || defined IW_SDK
+
+static int OS_VSNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, va_list va)
+{
+	return vsnprintf(str, size, format, va);
+}
+
+#else
+
+static int OS_VSNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, va_list va)
+{
+	return vsnprintf_s(str, size, size/sizeof(OS_CHAR), format, va);
+}
+
+#endif
+
+static int OS_SNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
+{
+	va_list va;
+	va_start(va, format);
+	int ret = OS_VSNPRINTF(str, size, format, va);
+	va_end(va);
+	return ret;
+}
+
+#define timelib_sll OS_INT64
+
+static timelib_sll century_value(timelib_sll j)
+{
+	timelib_sll i = j - 17;
+	timelib_sll c = (4 - i * 2 + (i + 1) / 4) % 7;
+
+	return c < 0 ? c + 7 : c;
+}
+
+static bool timelib_is_leap(timelib_sll y);
+
+static timelib_sll timelib_days_in_month(timelib_sll y, timelib_sll m)
+{
+	return timelib_is_leap(y) ? ml_table_leap[m] : ml_table_common[m];
+} 
+
+static timelib_sll timelib_day_of_week_ex(timelib_sll y, timelib_sll m, timelib_sll d, int iso)
+{
+	timelib_sll c1, y1, m1, dow;
+
+	/* Only valid for Gregorian calendar, commented out as we don't handle
+	 * julian calendar. We just return the 'wrong' day of week to be
+	 * consistent.
+	if (y < 1753) {
+		return -1;
+	} */
+	c1 = century_value(y / 100);
+	y1 = (y % 100);
+	m1 = timelib_is_leap(y) ? m_table_leap[m] : m_table_common[m];
+	dow = (c1 + y1 + m1 + (y1 / 4) + d) % 7;
+	if (iso) {
+		if (dow == 0) {
+			dow = 7;
+		}
+	}
+	return dow;
+}
+
+static timelib_sll timelib_day_of_week(timelib_sll y, timelib_sll m, timelib_sll d)
+{
+	return timelib_day_of_week_ex(y, m, d, 0);
+} 
+
+static timelib_sll timelib_iso_day_of_week(timelib_sll y, timelib_sll m, timelib_sll d)
+{
+	return timelib_day_of_week_ex(y, m, d, 1);
+} 
+
+static timelib_sll timelib_day_of_year(timelib_sll y, timelib_sll m, timelib_sll d)
+{
+	return (timelib_is_leap(y) ? d_table_leap[m] : d_table_common[m]) + d - 1;
+} 
+
+static void timelib_isoweek_from_date(timelib_sll y, timelib_sll m, timelib_sll d, timelib_sll *iw, timelib_sll *iy)
+{
+	int y_leap, prev_y_leap, doy, jan1weekday, weekday;
+
+	y_leap = timelib_is_leap(y);
+	prev_y_leap = timelib_is_leap(y-1);
+	doy = (int)timelib_day_of_year(y, m, d) + 1;
+	if (y_leap && m > 2) {
+		doy++;
+	}
+	jan1weekday = (int)timelib_day_of_week(y, 1, 1);
+	weekday = (int)timelib_day_of_week(y, m, d);
+	if (weekday == 0) weekday = 7;
+	if (jan1weekday == 0) jan1weekday = 7;
+	/* Find if Y M D falls in YearNumber Y-1, WeekNumber 52 or 53 */
+	if (doy <= (8 - jan1weekday) && jan1weekday > 4) {
+		*iy = y - 1;
+		if (jan1weekday == 5 || (jan1weekday == 6 && prev_y_leap)) {
+			*iw = 53;
+		} else {
+			*iw = 52;
+		}
+	} else {
+		*iy = y;
+	}
+	/* 8. Find if Y M D falls in YearNumber Y+1, WeekNumber 1 */
+	if (*iy == y) {
+		int i;
+
+		i = y_leap ? 366 : 365;
+		if ((i - (doy - y_leap)) < (4 - weekday)) {
+			*iy = y + 1;
+			*iw = 1;
+			return;
+		}
+	}
+	/* 9. Find if Y M D falls in YearNumber Y, WeekNumber 1 through 53 */
+	if (*iy == y) {
+		int j;
+
+		j = doy + (7 - weekday) + (jan1weekday - 1);
+		*iw = j / 7;
+		if (jan1weekday > 4) {
+			*iw -= 1;
+		}
+	}
+}
 
 class DateTimeOS: public OS
 {
@@ -1290,6 +1444,183 @@ public:
 			return tm.tm_isdst;
 		}
 
+		const OS_CHAR * getEnglishSuffix()
+		{
+			if(day >= 10 && day <= 19){
+				return "th";
+			}else{
+				switch(day % 10){
+				case 1: return "st";
+				case 2: return "nd";
+				case 3: return "rd";
+				}
+			}
+			return "th";
+		}
+
+		OS::String format(const OS::String& fmt_str)
+		{
+			struct Lib {
+				DateTime * dt;
+				int offset;
+
+				int getGMTOffset()
+				{
+					if(dt){
+						offset = (int)dt->getGMTOffset();
+						dt = NULL;
+					}
+					return offset;
+				}
+
+			} lib = {this};
+
+			Core::Buffer buf(os);
+			OS_CHAR buffer[128];
+			
+			timelib_sll isoweek, isoyear;
+			int length, rfc_colon, offset, week_year_set = 0;
+
+			const OS_CHAR * fmt = fmt_str.toChar();
+			int fmt_len = fmt_str.getLen();
+			for(int i = 0; i < fmt_len; i++){
+				rfc_colon = 0;
+				switch (fmt[i]) {
+					/* day */
+				case 'd': length = OS_SNPRINTF(buffer, 32, "%02d", (int)day); break;
+				case 'D': length = OS_SNPRINTF(buffer, 32, "%s", day_short_names[day_of_week]); break;
+				case 'j': length = OS_SNPRINTF(buffer, 32, "%d", (int)day); break;
+				case 'l': length = OS_SNPRINTF(buffer, 32, "%s", day_full_names[day_of_week]); break;
+				case 'S': length = OS_SNPRINTF(buffer, 32, "%s", getEnglishSuffix()); break;
+				case 'w': length = OS_SNPRINTF(buffer, 32, "%d", (int)day_of_week); break;
+				case 'N': length = OS_SNPRINTF(buffer, 32, "%d", (int)timelib_iso_day_of_week(year, month, day)); break;
+				case 'z': length = OS_SNPRINTF(buffer, 32, "%d", (int)day_of_year); break;
+
+					/* week */
+				case 'W':
+					if(!week_year_set) { timelib_isoweek_from_date(year, month, day, &isoweek, &isoyear); week_year_set = 1; }
+					length = OS_SNPRINTF(buffer, 32, "%02d", (int)isoweek); break; /* iso weeknr */
+				case 'o':
+					if(!week_year_set) { timelib_isoweek_from_date(year, month, day, &isoweek, &isoyear); week_year_set = 1; }
+					length = OS_SNPRINTF(buffer, 32, "%d", (int)isoyear); break; /* iso year */
+
+					/* month */
+				case 'F': length = OS_SNPRINTF(buffer, 32, "%s", mon_full_names[month - 1]); break;
+				case 'm': length = OS_SNPRINTF(buffer, 32, "%02d", (int)month); break;
+				case 'M': length = OS_SNPRINTF(buffer, 32, "%s", mon_short_names[month - 1]); break;
+				case 'n': length = OS_SNPRINTF(buffer, 32, "%d", (int)month); break;
+				case 't': length = OS_SNPRINTF(buffer, 32, "%d", (int)timelib_days_in_month(year, month)); break;
+
+					/* year */
+				case 'L': length = OS_SNPRINTF(buffer, 32, "%d", (int)DateTimeOS::isLeapyear(year, calendar)); break;
+				case 'y': length = OS_SNPRINTF(buffer, 32, "%02d", (int)year % 100); break;
+				case 'Y': length = OS_SNPRINTF(buffer, 32, "%s%04d", year < 0 ? "-" : "", (int)(year < 0 ? -year : year)); break;
+
+					/* time */
+				case 'a': length = OS_SNPRINTF(buffer, 32, "%s", hour >= 12 ? "pm" : "am"); break;
+				case 'A': length = OS_SNPRINTF(buffer, 32, "%s", hour >= 12 ? "PM" : "AM"); break;
+				case 'B': {
+					long sse = (long)getTicks();
+					int retval = (((((long)sse)-(((long)sse) - ((((long)sse) % 86400) + 3600))) * 10) / 864);			
+					while (retval < 0) {
+						retval += 1000;
+					}
+					retval = retval % 1000;
+					length = OS_SNPRINTF(buffer, 32, "%03d", retval);
+					break;
+				}
+				case 'g': length = OS_SNPRINTF(buffer, 32, "%d", (hour % 12) ? (int) hour % 12 : 12); break;
+				case 'G': length = OS_SNPRINTF(buffer, 32, "%d", (int) hour); break;
+				case 'h': length = OS_SNPRINTF(buffer, 32, "%02d", (hour % 12) ? (int) hour % 12 : 12); break;
+				case 'H': length = OS_SNPRINTF(buffer, 32, "%02d", (int) hour); break;
+				case 'i': length = OS_SNPRINTF(buffer, 32, "%02d", (int) minute); break;
+				case 's': length = OS_SNPRINTF(buffer, 32, "%02d", (int) second); break;
+				case 'u': length = OS_SNPRINTF(buffer, 32, "%06d", (int) floor(second * 1000000 + 0.5)); break;
+
+					/* timezone */
+				case 'I': 
+#if 1
+					length = 0;
+#else
+					length = OS_SNPRINTF(buffer, 32, "%d", localtime ? offset->is_dst : 0);
+#endif
+					break;
+
+				case 'P': rfc_colon = 1; /* break intentionally missing */
+				case 'O': 
+					offset = lib.getGMTOffset();
+					length = OS_SNPRINTF(buffer, 32, "%c%02d%s%02d",
+						offset < 0 ? '-' : '+', abs(offset / 3600),
+						rfc_colon ? ":" : "",
+						abs((offset % 3600) / 60)
+						);
+					break;
+				case 'T': 
+					offset = lib.getGMTOffset();
+					length = OS_SNPRINTF(buffer, 32, "GMT%c%02d%02d",
+						offset < 0 ? '-' : '+', abs(offset / 3600), abs((offset % 3600) / 60));
+					break;
+
+				case 'e': 
+#if 1
+					length = 0;
+#else
+					if (!localtime) {
+						length = OS_SNPRINTF(buffer, 32, "%s", "UTC");
+					} else {
+						switch (t->zone_type) {
+						case TIMELIB_ZONETYPE_ID:
+							length = OS_SNPRINTF(buffer, 32, "%s", t->tz_info->name);
+							break;
+						case TIMELIB_ZONETYPE_ABBR:
+							length = OS_SNPRINTF(buffer, 32, "%s", offset->abbr);
+							break;
+						case TIMELIB_ZONETYPE_OFFSET:
+							length = OS_SNPRINTF(buffer, 32, "%c%02d:%02d",
+								((offset->offset < 0) ? '-' : '+'),
+								abs(offset->offset / 3600),
+								abs((offset->offset % 3600) / 60)
+								);
+							break;
+						}
+					}
+#endif
+					break;
+
+				case 'Z': 
+					offset = lib.getGMTOffset();
+					length = OS_SNPRINTF(buffer, 32, "%d", offset);
+					break;
+
+					/* full date/time */
+				case 'c': 
+					offset = lib.getGMTOffset();
+					length = OS_SNPRINTF(buffer, 96, "%04d-%02d-%02dT%02d:%02d:%02d%c%02d:%02d",
+						(int)year, (int)month, (int)day,
+						(int)hour, (int)minute, (int)second,
+						offset < 0 ? '-' : '+', abs(offset / 3600), abs((offset % 3600) / 60)
+						);
+					break;
+				case 'r': 
+					offset = lib.getGMTOffset();
+					length = OS_SNPRINTF(buffer, 96, "%3s, %02d %3s %04d %02d:%02d:%02d %c%02d%02d",
+						day_short_names[day_of_week],
+						(int)day, mon_short_names[month - 1],
+						(int)year, (int)hour, (int)minute, (int)second,
+						offset < 0 ? '-' : '+', abs(offset / 3600), abs((offset % 3600) / 60)
+						);
+					break;
+				case 'U': length = OS_SNPRINTF(buffer, 32, "%lld", (timelib_sll)getTicks()); break;
+
+				case '\\': if (i < fmt_len) i++; /* break intentionally missing */
+
+				default: buffer[0] = fmt[i]; buffer[1] = '\0'; length = 1; break;			
+				}
+				buf.append(buffer, length);
+			}
+			return buf.toStringOS();
+		}
+
 		/* Returns a Python string containing the locale's timezone name for
 		the given DateTime instance (assuming it refers to local time).
 		"???"  is returned in case it cannot be determined.  */
@@ -1416,6 +1747,13 @@ public:
 		int getCalendar()
 		{
 			return calendar;
+		}
+
+		OS::String toJson()
+		{
+			OS::Core::Buffer buf(os);
+			os->appendQuotedString(buf, toString());
+			return buf.toStringOS();
 		}
 
 		/* Writes a string representation to buffer. If the string does not
@@ -1722,6 +2060,8 @@ void DateTimeOS::initLibrary(OS * os)
 			{OS_TEXT("now"), DateTime::now},
 			def(OS_TEXT("clone"), &DateTime::clone),
 			def(OS_TEXT("valueOf"), &DateTime::toString),
+			def(OS_TEXT("toJson"), &DateTime::toJson),
+			def(OS_TEXT("format"), &DateTime::format),
 
 			def(OS_TEXT("__get@absdays"), &DateTime::getAbsDays),
 			def(OS_TEXT("__set@absdays"), &DateTime::setAbsDays),
@@ -1785,6 +2125,11 @@ void DateTimeOS::initLibrary(OS * os)
 void initDateTimeLibrary(OS* os)
 {
 	DateTimeOS::initLibrary(os);
+}
+
+bool timelib_is_leap(timelib_sll year)
+{
+	return DateTimeOS::isLeapyear((long)year, CALENDAR_GREGORIAN);
 }
 
 } // namespace ObjectScript

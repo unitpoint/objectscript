@@ -11,7 +11,7 @@ function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
 		printf("#${i} ${t.file}%s: %s, args: ${t.arguments}\n",
 			t.line > 0 ? "(${t.line},${t.pos})" : "",
-			t.object && t.object !== _G ? "<${typeOf(t.object)}#${t.object.id}>.${t.name}" : t.name)
+			t.object && t.object !== _G ? "<${typeOf(t.object)}#${t.object.__id}>.${t.__name}" : t.__name)
 	}
 }
 

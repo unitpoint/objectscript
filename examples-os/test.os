@@ -1,4 +1,45 @@
-﻿print { 
+﻿/*
+TestObj = {
+	
+	__construct = function(value){
+		@value = value
+	},
+	
+	valueOf = function(){
+		return "to-"..@value
+	},
+	
+	__add = function(b){
+		numberOf(b) && return TestObj(@value + b);
+		b is TestObj && return TestObj(@value + b.value);
+		throw "expect number or TestObj argument"
+	},
+	__radd = function(b){
+		numberOf(b) && return TestObj(b + @value);
+		throw "expect number"
+	},
+
+	__sub = function(b){
+		numberOf(b) && return TestObj(@value - b);
+		b is TestObj && return TestObj(@value - b.value);
+		throw "expect number or TestObj argument"
+	},
+	__rsub = function(b){
+		numberOf(b) && return TestObj(b - @value);
+		throw "expect number"
+	},
+}
+
+var a = TestObj(10)
+var b = TestObj(13)
+var c = TestObj(3)
+var d = a + b - c
+print("${a} + ${b} - ${c} = ${d}")
+
+terminate()
+*/
+
+print { 
 	dirname = path.dirname(__FILE__),
 	basename = path.basename(__FILE__),
 	extname = path.extname(__FILE__),
@@ -375,7 +416,7 @@ function printBackTrace(skipNumFuncs){
 	for(var i, t in debugBackTrace(skipNumFuncs + 1)){ // skip printBackTrace
 		printf("#%d %s%s: %s, args: %s\n", i, t.file,
 			t.line > 0 ? "(${t.line},${t.pos})" : "",
-			t.object !== _G && t.object ? "{obj-${t.object.id}}.${t.name}" : t.name, t.arguments)
+			t.object !== _G && t.object ? "{obj-${t.object.__id}}.${t.__name}" : t.__name, t.arguments)
 	}
 }
 
@@ -388,7 +429,7 @@ try{
 	for(var i, t in e.trace){
 		printf("#%d %s%s: %s, args: %s\n", i, t.file,
 			t.line > 0 ? "(${t.line},${t.pos})" : "",
-			t.object !== _G && t.object ? "{obj-${t.object.id}}.${t.name}" : t.name, t.arguments)
+			t.object !== _G && t.object ? "{obj-${t.object.__id}}.${t.__name}" : t.__name, t.arguments)
 	}
 	// throw e
 }
@@ -459,7 +500,7 @@ printf("%s\n", sprintf("number: %n, float(%%.-2f): %.-2f", 12876.54321, 12876.54
 	print "File usage"
 	var f = File(__FILE__, "rb")
 	str = f.read(100)
-	// f.close()
+	f.close()
 	print str
 }
 

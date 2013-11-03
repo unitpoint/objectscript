@@ -1,5 +1,17 @@
+var modulesLoaded = {}
+function __get(name){
+	if(!(name in modulesLoaded)){
+		modulesLoaded[name] = true
+		require(name, false)
+		if(name in this){
+			return this[name]
+		}
+	}
+	throw "unknown class or global property \"${name}\""
+}
+
 function assert(a, message){
-	a || throw(message || "assert failed")
+	return a || throw(message || "assert failed")
 }
 
 function eval(str){
@@ -59,18 +71,6 @@ function File.writeContents(filename, content)
 
 Buffer.__lshift = Buffer.append	// make alias << operator to appent method
 
-function String.__get(i){		// declare [] read operator with one single argument
-	return @sub(i, 1)
-}
-
-function String.__mul(i){		// declare * operator
-	var buf = Buffer()
-	for(; i >= 1; i--){
-		buf << this
-	}
-	return toString(buf)
-}
-
 function Object.flip(){
 	var r = {}
 	for(var k, v in this){
@@ -93,4 +93,65 @@ function Array.reverse(){
 		r[] = v
 	}
 	return r
+}
+
+function DateTime.__add(b){
+	// b is DateTime && throw "DateTime.__add requires Number"
+	return DateTime {
+		comdate = @comdate + (numberOf(b) || throw "DateTime.__add requires Number")
+	}
+}
+
+function DateTime.__sub(b){
+	b is DateTime && return @comdate - b.comdate;
+	return DateTime {
+		comdate = @comdate - (numberOf(b) || throw "DateTime.__sub requires DateTime or Number")
+	}
+}
+
+var shutdownFunctions = []
+
+function registerShutdownFunction(func){
+	shutdownFunctions.push(functionOf(func) || throw "expect function")
+}
+
+function triggerShutdownFunctions(){
+	var funcs = shutdownFunctions
+	shutdownFunctions = []
+	for(var _, func in funcs.reverseIter()){
+		func()
+	}
+}
+
+function String.__get(i){		// declare [] read operator with one single argument
+	return @sub(i, 1)
+}
+
+function String.__mul(count){
+	count == 1 && return this
+	count <= 0 && return ""
+	var buf = Buffer()
+	for(; count >= 1; count--){
+		buf.append(this)
+	}
+	if(count > 0){
+		buf.append(@sub(0, #this * count))
+	}
+	return toString(buf)
+}
+
+function String.__div(count){
+	return this * (1 / count)
+}
+
+function String.__add(b){
+	return this .. b
+}
+
+function String.__radd(b){
+	return b .. this
+}
+
+function String.flower(){
+	return @sub(0, 1).upper() .. @sub(1)
 }

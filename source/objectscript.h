@@ -49,13 +49,9 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
-#define OS_VERSION_MAJOR	OS_TEXT("1")
-#define OS_VERSION_MINOR	OS_TEXT("8")
-#define OS_VERSION_RELEASE	OS_TEXT("3-dev")
-
-#define OS_VERSION_STR		OS_VERSION_MAJOR OS_TEXT(".") OS_VERSION_MINOR OS_TEXT(".") OS_VERSION_RELEASE
-#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION_STR OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
-#define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
+#define OS_VERSION		OS_TEXT("1.9.2-dev")
+#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
+#define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/os-fcgi")
 
 #if defined _DEBUG && !defined OS_RELEASE && !defined OS_DEBUG
 #define OS_DEBUG
@@ -232,6 +228,7 @@ namespace ObjectScript
 		OS_SETTING_CREATE_DEBUG_INFO,
 		OS_SETTING_CREATE_COMPILED_FILE,
 		OS_SETTING_PRIMARY_COMPILED_FILE,
+		OS_SETTING_SOURCECODE_MUST_EXIST,
 	};
 
 	enum OS_EValueType
@@ -1948,6 +1945,7 @@ namespace ObjectScript
 				Vector<DebugInfoItem> prog_debug_info;
 				int prog_filename_string_index;
 				int prog_max_up_count;
+				int prog_optimize_offs;
 
 				bool isError();
 				void resetError();
@@ -2009,7 +2007,7 @@ namespace ObjectScript
 				};
 
 				Expression * expectSingleExpression(Scope*, const Params& p);
-				Expression * expectSingleExpression(Scope*, bool allow_nop_result = false, bool allow_inline_nested_block = false);
+				Expression * expectSingleExpression(Scope*, bool allow_nop_result = false, bool allow_inline_nested_block = false, bool allow_params = true);
 
 				Expression * expectExpressionValues(Expression * exp, int ret_values, bool auto_no_values = false);
 				Expression * newExpressionFromList(ExpressionList& list, int ret_values, bool auto_no_values = false);
@@ -2208,7 +2206,7 @@ namespace ObjectScript
 				Value * values;
 				bool is_stack_locals;
 				
-				int num_parents;
+				// int num_parents;
 
 				Locals ** getParents();
 				Locals * getParent(int i);
@@ -2554,6 +2552,7 @@ namespace ObjectScript
 				bool create_debug_info;
 				bool create_compiled_file;
 				bool primary_compiled_file;
+				bool sourcecode_must_exist;
 			} settings;
 
 			enum {
@@ -2746,7 +2745,7 @@ namespace ObjectScript
 			bool pushFunctionOf(const Value& val);
 
 			void pushCloneValue(Value val);
-			void pushCloneValueProtected(OS * other, Value val);
+			void pushCloneValueFrom(OS * other, Value other_val);
 
 			// unary operator
 			void pushOpResultValue(OpcodeType opcode, const Value& value);
@@ -2910,6 +2909,7 @@ namespace ObjectScript
 		void initProcessModule();
 		void initPathModule();
 		void initMathModule();
+		void initJsonModule();
 		void initGCModule();
 		void initLangTokenizerModule();
 		virtual void initPreScript();
@@ -3239,6 +3239,8 @@ namespace ObjectScript
 		void echo(const OS_CHAR * str);
 		void echo(const Core::String& str);
 		virtual void printf(const OS_CHAR * fmt, ...);
+
+		void appendQuotedString(Core::Buffer& buf, const Core::String& string);
 	};
 } // namespace ObjectScript
 

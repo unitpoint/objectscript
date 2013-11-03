@@ -452,7 +452,7 @@ public:
 			*/
 			os->pushValueById(cache_id);
 			count = os->getLen();
-			for(; count > 512 && os->nextIteratorStep(); count--){
+			for(; count > 64 && os->nextIteratorStep(); count--){
 				os->pushValueById(cache_id);
 				os->pushStackValue(-3);
 				os->deleteProperty(false);

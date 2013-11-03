@@ -5,6 +5,8 @@ The ObjectScript is a new embedded programing language that mixes benefits of Ja
 
 The ObjectScript is universal scripting language, there are no compromises any more.
 
+Please look at [OS-FCGI repo](https://github.com/unitpoint/os-fcgi) to get latest ObjectScript release files.
+
 ## Resources
 
 * [Programming in ObjectScript](https://github.com/unitpoint/objectscript/wiki/Programming-in-ObjectScript)
