@@ -117,7 +117,7 @@ list(APPEND SOURCES 3rdparty/MPFDParser-1.0/Parser.cpp)
 list(APPEND SOURCES 3rdparty/MPFDParser-1.0/Field.cpp)
 list(APPEND SOURCES 3rdparty/MPFDParser-1.0/Exception.cpp)
 
-include_directories(os)
+include_directories(src)
 include_directories(3rdparty/fcgi-2.4.1)
 include_directories(3rdparty/fcgi-2.4.1/include)
 include_directories(3rdparty/MPFDParser-1.0)
