@@ -49,9 +49,9 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
-#define OS_VERSION		OS_TEXT("1.9.2-dev")
+#define OS_VERSION		OS_TEXT("1.11.2-rc")
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
-#define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/os-fcgi")
+#define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
 #if defined _DEBUG && !defined OS_RELEASE && !defined OS_DEBUG
 #define OS_DEBUG
@@ -306,7 +306,6 @@ namespace ObjectScript
 		OP_CONCAT,	// ..
 		OP_IN,		// in
 		OP_IS,		// is
-		OP_ISPROTOTYPEOF, // isprototypeof
 
 		// unary operators
 
@@ -971,7 +970,6 @@ namespace ObjectScript
 					OPERATOR_COLON,     // :
 
 					OPERATOR_IN,		// in
-					OPERATOR_ISPROTOTYPEOF,		// is
 					OPERATOR_IS,	// is
 					OPERATOR_LENGTH,	// #
 
@@ -1086,16 +1084,18 @@ namespace ObjectScript
 				{
 					TokenType type;
 					const OS_CHAR * name;
+					int len;
 				};
 
 				static const int operator_count;
 				static OperatorDesc operator_desc[];
 				static bool operator_initialized;
 
-				void printLines();
-				void printTokens();
-
-				// private:
+				struct InitOperators
+				{
+					InitOperators();
+				};
+				static InitOperators init_operators;
 
 				static int compareOperatorDesc(const void * a, const void * b) ;
 				static void initOperatorsTable();
@@ -1378,6 +1378,8 @@ namespace ObjectScript
 #endif
 #endif // OS_NUMBER_NAN_TRICK
 
+				struct Valid {};
+
 				Value();
 				Value(bool);
 				Value(OS_INT32);
@@ -1386,6 +1388,7 @@ namespace ObjectScript
 				Value(double);
 				Value(long double);
 				Value(GCValue*);
+				Value(GCValue*, const Valid&);
 				Value(const String&);
 
 				Value& operator=(GCValue*);
@@ -1633,7 +1636,6 @@ namespace ObjectScript
 					EXP_TYPE_NEG,			// -
 					EXP_TYPE_LENGTH,		// #
 					EXP_TYPE_IN,			// in
-					EXP_TYPE_ISPROTOTYPEOF,		// is
 					EXP_TYPE_IS,	// is
 
 					EXP_TYPE_BIN_OPERATOR_BY_LOCALS,
@@ -2036,7 +2038,14 @@ namespace ObjectScript
 				Expression * expectReturnExpression(Scope*);
 				Expression * expectTryExpression(Scope*);
 				Expression * expectThrowExpression(Scope*);
-				Expression * expectFilenameExpression(Scope*);
+				
+				enum EFilenameType {
+					GET_FILENAME,
+					GET_DIRNAME
+				};
+				
+				Expression * expectFilenameExpression(Scope*, EFilenameType);
+				
 				Expression * expectIfExpression(Scope*);
 				Expression * expectForExpression(Scope*);
 				Expression * expectDebugLocalsExpression(Scope*);
@@ -2344,10 +2353,6 @@ namespace ObjectScript
 				String __rbitand;
 				String __rbitor;
 				String __rbitxor;
-				String __rbitnot;
-				String __rplus;
-				String __rneg;
-				String __rlen;
 				String __radd;
 				String __rsub;
 				String __rmul;
@@ -2359,11 +2364,11 @@ namespace ObjectScript
 
 				String func_unhandledException;
 				String func_getFilename;
+				String func_getDirname;
 				String func_extends;
 				String func_delete;
 				String func_in;
 				String func_is;
-				String func_isprototypeof;
 				String func_push;
 				String func_valueOf;
 				String func_clone;
@@ -2386,7 +2391,6 @@ namespace ObjectScript
 				String syntax_set;
 				String syntax_super;
 				String syntax_is;
-				String syntax_isprototypeof;
 				String syntax_extends;
 				String syntax_delete;
 				String syntax_prototype;
@@ -2426,6 +2430,7 @@ namespace ObjectScript
 				String syntax_debuglocals;
 				String syntax_line;
 				String syntax_file;
+				String syntax_dir;
 
 				String var_globals;
 				String var_func;
@@ -2451,6 +2456,7 @@ namespace ObjectScript
 			Value user_pool;
 			Value retain_pool;
 			Value check_get_recursion;
+			Value check_set_recursion;
 			Value check_valueof_recursion;
 			
 			enum {
@@ -2489,6 +2495,7 @@ namespace ObjectScript
 			} stack_values;
 
 			void reserveStackValues(int new_capacity);
+			void growStackValues(int new_capacity);
 
 			Vector<StackFunction> call_stack_funcs;
 			StackFunction * stack_func;
@@ -2516,6 +2523,7 @@ namespace ObjectScript
 			bool gc_in_progress;
 			bool gc_fix_in_progress;
 
+			void addFreeCandidateValue(GCValue * value);
 			void registerFreeCandidateValue(GCValue * value);
 			void unregisterFreeCandidateValue(GCValue * value);
 			void deleteFreeCandidateValues();
@@ -2666,6 +2674,9 @@ namespace ObjectScript
 			bool pushGetRecursion(const Value& obj, const Value& name);
 			void popGetRecursion(const Value& obj, const Value& name);
 
+			bool pushSetRecursion(const Value& obj, const Value& name);
+			void popSetRecursion(const Value& obj, const Value& name);
+
 			bool pushValueOfRecursion(Value obj);
 			void popValueOfRecursion(Value obj);
 
@@ -2736,6 +2747,7 @@ namespace ObjectScript
 
 			String getTypeStr(const Value& val);
 			void pushTypeOf(const Value& val);
+			bool pushBoolOf(const Value& val);
 			bool pushNumberOf(const Value& val);
 			bool pushStringOf(const Value& val);
 			bool pushValueOf(Value val);
@@ -2751,7 +2763,7 @@ namespace ObjectScript
 			void pushOpResultValue(OpcodeType opcode, const Value& value);
 
 			// binary operator
-			void pushOpResultValue(OpcodeType opcode, const Value& left_value, const Value& right_value);
+			bool pushOpResultValue(OpcodeType opcode, const Value& left_value, const Value& right_value);
 			static bool isEqualExactly(const Value& left_value, const Value& right_value);
 
 			void setGlobalValue(const String& name, Value value, bool setter_enabled);
@@ -2804,9 +2816,9 @@ namespace ObjectScript
 			bool isValueStringOS(const Value& val, OS::String * out = NULL);
 			bool isValueInstanceOf(GCValue * val, GCValue * prototype_val);
 			bool isValueInstanceOf(const Value& val, const Value& prototype_val);
-			bool isValuePrototypeOf(GCValue * val, GCValue * prototype_val);
-			bool isValuePrototypeOfUserdata(GCValue * val, int prototype_crc);
-			bool isValuePrototypeOf(const Value& val, const Value& prototype_val);
+			bool isValueOf(GCValue * val, GCValue * prototype_val);
+			bool isValueOfUserdata(GCValue * val, int prototype_crc);
+			bool isValueOf(const Value& val, const Value& prototype_val);
 			bool isValueInValue(const Value& val, const Value& prototype_val);
 
 			Table * newTable(OS_DBG_FILEPOS_START_DECL);
@@ -2862,7 +2874,7 @@ namespace ObjectScript
 			void setPrototype(const Value& val, const Value& proto, int userdata_crc);
 			void pushPrototype(const Value& val);
 
-			void pushBackTrace(int skip_funcs, int max_trace_funcs);
+			void pushBackTrace(int skip_funcs, int max_trace_funcs = 20);
 			void pushArguments(StackFunction*);
 			void pushArgumentsWithNames(StackFunction*);
 			void pushRestArguments(StackFunction*);
@@ -3100,7 +3112,6 @@ namespace ObjectScript
 		bool isFunction(int offs = -1);
 		bool isUserdata(int offs = -1);
 		bool isUserdata(int crc, int offs, int prototype_crc = 0);
-		bool isPrototypeOf(int value_offs = -2, int prototype_offs = -1);
 		bool is(int value_offs = -2, int prototype_offs = -1);
 		bool in(int name_offs = -2, int obj_offs = -1);
 

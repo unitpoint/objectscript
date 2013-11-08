@@ -177,7 +177,7 @@ public:
 		return 0;
 	}
 
-	static int sha(OS * os, int params, int, int, void * user_param)
+	static int usha(OS * os, int params, int, int, void * user_param)
 	{
 		if(params > 1){
 			int sha_type = os->toInt(-params+0);
@@ -213,7 +213,7 @@ void initHashLibrary(OS * os)
 		{OS_TEXT("md5"), &HashlibOS::md5},
 		{OS_TEXT("des"), &HashlibOS::des},
 		{OS_TEXT("hmac"), &HashlibOS::hmacFunc},
-		{OS_TEXT("sha"), &HashlibOS::sha},
+		{OS_TEXT("usha"), &HashlibOS::usha},
 		{OS_TEXT("sha1"), &HashlibOS::sha1},
 		{OS_TEXT("sha224"), &HashlibOS::sha224},
 		{OS_TEXT("sha256"), &HashlibOS::sha256},

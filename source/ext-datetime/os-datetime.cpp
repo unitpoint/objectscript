@@ -7,6 +7,10 @@
 #include "../os-binder.h"
 #include <limits.h>
 
+#ifdef _MSC_VER
+#define HAVE_FTIME
+#endif
+
 # if defined(HAVE_SYS_TIME_H) && defined(TIME_WITH_SYS_TIME)
 #  include <sys/time.h>
 #  include <time.h>
