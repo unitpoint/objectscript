@@ -396,7 +396,7 @@ public:
 				if (argv[i][2] == '\0') {  /* no concatenated argument? */
 					i++;  /* try next 'argv' */
 					parseQString(i, argc, argv);
-					if (argv[i] == NULL || argv[i][0] == '-')
+					if (i == argc || argv[i] == NULL || argv[i][0] == '-')
 						return -(i - 1);  /* no next argument or it is another option */
 				}
 				break;
@@ -404,7 +404,7 @@ public:
 				if (argv[i][2] == '\0') {  /* no concatenated argument? */
 					i++;  /* try next 'argv' */
 					parseQString(i, argc, argv);
-					if (argv[i] == NULL || argv[i][0] == '-')
+					if (i == argc || argv[i] == NULL || argv[i][0] == '-')
 						return -(i - 1);  /* no next argument or it is another option */
 				}
 				break;

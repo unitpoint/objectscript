@@ -16630,6 +16630,8 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 	switch(OS_VALUE_TYPE(value)){
 	// case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_NULL:
+		return pushNull();
+
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_BOOL:
 		switch(opcode){
@@ -16702,26 +16704,23 @@ bool OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 
 	OS_NUMBER right;
 	int is_gc_left_value = 0;
-	bool not_null = true;
-	switch(OS_VALUE_TYPE(left_value)){
-	case OS_VALUE_TYPE_NULL:
-		not_null = false;
-		// no break;
+	int left_type = OS_VALUE_TYPE(left_value);
+	int right_type = OS_VALUE_TYPE(right_value);
+	bool exist = left_type != OS_VALUE_TYPE_NULL && right_type != OS_VALUE_TYPE_NULL;
 
+	switch(left_type){
+	case OS_VALUE_TYPE_NULL:
 	case OS_VALUE_TYPE_NUMBER:
 	case OS_VALUE_TYPE_BOOL:
-		switch(OS_VALUE_TYPE(right_value)){
+		switch(right_type){
 		case OS_VALUE_TYPE_NULL:
-			not_null = false;
-			// no break;
-
 		case OS_VALUE_TYPE_NUMBER:
 		case OS_VALUE_TYPE_BOOL:
 			switch(opcode){
 			case OP_COMPARE:
-				if(!not_null){
-					int left_null = OS_VALUE_TYPE(left_value) != OS_VALUE_TYPE_NULL;
-					int right_null = OS_VALUE_TYPE(right_value) != OS_VALUE_TYPE_NULL;
+				if(!exist){
+					int left_null = left_type != OS_VALUE_TYPE_NULL;
+					int right_null = right_type != OS_VALUE_TYPE_NULL;
 					return pushNumber(left_null - right_null), false;
 				}
 				return pushNumber(valueToNumber(left_value) - valueToNumber(right_value)), true;
@@ -16730,68 +16729,112 @@ bool OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 				return pushBool(isEqualExactly(left_value, right_value)), true;
 
 			case OP_LOGIC_EQ:
-				if(!not_null){
+				if(!exist){
 					pushBool(false);
 					return false;
 				}
-				return pushBool(valueToNumber(left_value) == valueToNumber(right_value)), not_null;
+				return pushBool(valueToNumber(left_value) == valueToNumber(right_value)), exist;
 
 			case OP_LOGIC_GE:
-				if(!not_null){
+				if(!exist){
 					pushBool(false);
 					return false;
 				}
-				return pushBool(valueToNumber(left_value) >= valueToNumber(right_value)), not_null;
+				return pushBool(valueToNumber(left_value) >= valueToNumber(right_value)), exist;
 
 			case OP_LOGIC_GREATER:
-				if(!not_null){
+				if(!exist){
 					pushBool(false);
 					return false;
 				}
-				return pushBool(valueToNumber(left_value) > valueToNumber(right_value)), not_null;
+				return pushBool(valueToNumber(left_value) > valueToNumber(right_value)), exist;
 
 			case OP_BIT_AND:
-				return pushNumber(valueToInt(left_value) & valueToInt(right_value)), not_null;
+				if(!exist){
+					pushNull();
+					return false;
+				}
+				return pushNumber(valueToInt(left_value) & valueToInt(right_value)), exist;
 
 			case OP_BIT_OR:
-				return pushNumber(valueToInt(left_value) | valueToInt(right_value)), not_null;
+				if(!exist){
+					pushNull();
+					return false;
+				}
+				return pushNumber(valueToInt(left_value) | valueToInt(right_value)), exist;
 
 			case OP_BIT_XOR:
-				return pushNumber(valueToInt(left_value) ^ valueToInt(right_value)), not_null;
+				if(!exist){
+					pushNull();
+					return false;
+				}
+				return pushNumber(valueToInt(left_value) ^ valueToInt(right_value)), exist;
 
 			case OP_ADD: // +
-				return pushNumber(valueToNumber(left_value) + valueToNumber(right_value)), not_null;
+				if(!exist){
+					pushNull();
+					return false;
+				}
+				return pushNumber(valueToNumber(left_value) + valueToNumber(right_value)), exist;
 
 			case OP_SUB: // -
-				return pushNumber(valueToNumber(left_value) - valueToNumber(right_value)), not_null;
+				if(!exist){
+					pushNull();
+					return false;
+				}
+				return pushNumber(valueToNumber(left_value) - valueToNumber(right_value)), exist;
 
 			case OP_MUL: // *
-				return pushNumber(valueToNumber(left_value) * valueToNumber(right_value)), not_null;
+				if(!exist){
+					pushNull();
+					return false;
+				}
+				return pushNumber(valueToNumber(left_value) * valueToNumber(right_value)), exist;
 
 			case OP_DIV: // /
+				if(!exist){
+					pushNull();
+					return false;
+				}
 				right = valueToNumber(right_value);
 				if(!right){
 					errorDivisionByZero();
 					return pushNull(), false;
 				}
-				return pushNumber(valueToNumber(left_value) / right), not_null;
+				return pushNumber(valueToNumber(left_value) / right), exist;
 
 			case OP_MOD: // %
+				if(!exist){
+					pushNull();
+					return false;
+				}
 				right = valueToNumber(right_value);
 				if(!right){
 					errorDivisionByZero();
 					return pushNull(), false;
 				}
-				return pushNumber(OS_MATH_MOD_OPERATOR(valueToNumber(left_value), right)), not_null;
+				return pushNumber(OS_MATH_MOD_OPERATOR(valueToNumber(left_value), right)), exist;
 
 			case OP_LSHIFT: // <<
-				return pushNumber(valueToInt(left_value) << valueToInt(right_value)), not_null;
+				if(!exist){
+					pushNull();
+					return false;
+				}
+				return pushNumber(valueToInt(left_value) << valueToInt(right_value)), exist;
 
 			case OP_RSHIFT: // >>
-				return pushNumber(valueToInt(left_value) >> valueToInt(right_value)), not_null;
+				if(!exist){
+					pushNull();
+					return false;
+				}
+				return pushNumber(valueToInt(left_value) >> valueToInt(right_value)), exist;
 
 			case OP_POW: // **
-				return pushNumber(OS_MATH_POW_OPERATOR(valueToNumber(left_value), valueToNumber(right_value))), not_null;
+				if(!exist){
+					pushNull();
+					return false;
+				}
+				return pushNumber(OS_MATH_POW_OPERATOR(valueToNumber(left_value), valueToNumber(right_value))), exist;
 			}
 			OS_ASSERT(false);
 			return pushNull(), false;
@@ -16806,14 +16849,14 @@ bool OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			if(is_gc_left_value){
 				if(OS_IS_VALUE_GC(right_value)){
 					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
-						OS_ASSERT(not_null);
+						OS_ASSERT(exist);
 						return pushNumber((OS_NUMBER)0.0), true;
 					}
 				}
 			}
-			if(!not_null){
-				int left_null = OS_VALUE_TYPE(left_value) != OS_VALUE_TYPE_NULL;
-				int right_null = OS_VALUE_TYPE(right_value) != OS_VALUE_TYPE_NULL;
+			if(!exist){
+				int left_null = left_type != OS_VALUE_TYPE_NULL;
+				int right_null = right_type != OS_VALUE_TYPE_NULL;
 				return pushNumber(left_null - right_null), false;
 			}
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value), true;
@@ -16825,88 +16868,143 @@ bool OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			if(is_gc_left_value){
 				if(OS_IS_VALUE_GC(right_value)){
 					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
-						OS_ASSERT(not_null);
+						OS_ASSERT(exist);
 						return pushBool(true), true;
 					}
 					// no break
 				}
 			}
-			if(not_null){
+			if(exist){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
 				stack_values.lastElement() = valueToNumber(stack_values.lastElement()) == (OS_NUMBER)0.0;
 			}else{
 				pushBool(false);
 			}
-			return not_null;
+			return exist;
 
 		case OP_LOGIC_GE:
 			if(is_gc_left_value){
 				if(OS_IS_VALUE_GC(right_value)){
 					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
-						OS_ASSERT(not_null);
+						OS_ASSERT(exist);
 						return pushBool(true), true;
 					}
 					// no break
 				}
 			}
-			if(not_null){
+			if(exist){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
 				stack_values.lastElement() = valueToNumber(stack_values.lastElement()) >= (OS_NUMBER)0.0;
 			}else{
 				pushBool(false);
 			}
-			return not_null;
+			return exist;
 
 		case OP_LOGIC_GREATER:
 			if(is_gc_left_value){
 				if(OS_IS_VALUE_GC(right_value)){
 					if(OS_VALUE_VARIANT(left_value).value == OS_VALUE_VARIANT(right_value).value){
-						OS_ASSERT(not_null);
+						OS_ASSERT(exist);
 						return pushBool(false), true;
 					}
 					// no break
 				}
 			}
-			if(not_null){
+			if(exist){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
 				stack_values.lastElement() = valueToNumber(stack_values.lastElement()) > (OS_NUMBER)0.0;
 			}else{
 				pushBool(false);
 			}
-			return not_null;
+			return exist;
 
 		case OP_BIT_AND:
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, strings->__rbitand, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__bitand, strings->__rbitand, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_BIT_OR:
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, strings->__rbitor, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__bitor, strings->__rbitor, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_BIT_XOR:
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, strings->__rbitxor, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__bitxor, strings->__rbitxor, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_ADD: // +
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__add, strings->__radd, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__add, strings->__radd, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_SUB: // -
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__sub, strings->__rsub, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__sub, strings->__rsub, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_MUL: // *
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__mul, strings->__rmul, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__mul, strings->__rmul, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_DIV: // /
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__div, strings->__rdiv, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__div, strings->__rdiv, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_MOD: // %
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__mod, strings->__rmod, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__mod, strings->__rmod, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_LSHIFT: // <<
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, strings->__rlshift, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__lshift, strings->__rlshift, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_RSHIFT: // >>
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, strings->__rrshift, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__rshift, strings->__rrshift, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 
 		case OP_POW: // **
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__pow, strings->__rpow, left_value, right_value), not_null;
+			if(exist){
+				Lib::pushObjectMethodOpcodeValue(this, strings->__pow, strings->__rpow, left_value, right_value);
+			}else{
+				pushNull();
+			}
+			return exist;
 		}
 	}
 	OS_ASSERT(false);
@@ -23498,13 +23596,41 @@ void OS::initStringClass()
 			return 0;
 		}
 
-		static int cmp(OS * os, int params, int, int, void*)
+		static int compare(OS * os, int left_offs, int right_offs)
 		{
-			if(params < 1) return 0;
+#if 1
+			OS::String left(os);
+			if(!os->isString(left_offs, &left)){
+				os->setException(OS::String::format(os, OS_TEXT("unsupported type %s for string comparizon"), os->getTypeStr(left_offs).toChar()));
+				return 0;
+			}
+			OS::String right(os);
+			if(!os->isString(right_offs, &right)){
+				os->setException(OS::String::format(os, OS_TEXT("unsupported type %s for string comparizon"), os->getTypeStr(right_offs).toChar()));
+				return 0;
+			}
+#else
 			OS::String left = os->toString(-params - 1);
 			OS::String right = os->toString(-params + 0);
+#endif
 			os->pushNumber(left.cmp(right));
 			return 1;
+		}
+
+		static int cmp(OS * os, int params, int, int, void*)
+		{
+			if(params > 0){
+				return compare(os, -params - 1, -params + 0);
+			}
+			return 0;
+		}
+
+		static int rcmp(OS * os, int params, int, int, void*)
+		{
+			if(params > 0){
+				return compare(os, -params + 0, -params - 1);
+			}
+			return 0;
 		}
 
 		static int trim(OS * os, int params, int, int, void*)
@@ -23633,6 +23759,7 @@ void OS::initStringClass()
 
 	FuncDef list[] = {
 		{core->strings->__cmp, String::cmp},
+		{core->strings->__rcmp, String::rcmp},
 		{core->strings->__len, String::length},
 		{OS_TEXT("lenAnsi"), String::length},
 		{OS_TEXT("lenUtf8"), String::lengthUtf8},
