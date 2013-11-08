@@ -84,7 +84,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>../../source;../../3rdparty/soci/include;../../3rdparty/mysql/include;../../3rdparty/soci/include/mysql;../../3rdparty/fcgi-2.4.1/include;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc/include;../../3rdparty/pcrelib;../../3rdparty/libiconv-1.14/lib;../../3rdparty/libiconv-1.14/include;../../3rdparty/libiconv-1.14/libcharset/include;../;$(IncludePath)</IncludePath>
+    <IncludePath>../../src;../../3rdparty/soci/include;../../3rdparty/mysql/include;../../3rdparty/soci/include/mysql;../../3rdparty/fcgi-2.4.1/include;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc/include;../../3rdparty/pcrelib;../../3rdparty/libiconv-1.14/lib;../../3rdparty/libiconv-1.14/include;../../3rdparty/libiconv-1.14/libcharset/include;../;$(IncludePath)</IncludePath>
     <LibraryPath>../../3rdparty/mysql/lib;../../3rdparty/soci/lib/Debug;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(ProjectName)\bin-$(Configuration)\</OutDir>
   </PropertyGroup>
@@ -106,7 +106,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>../../source;../../3rdparty/soci/include;../../3rdparty/mysql/include;../../3rdparty/soci/include/mysql;../../3rdparty/fcgi-2.4.1/include;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc/include;../../3rdparty/pcrelib;../../3rdparty/libiconv-1.14/lib;../../3rdparty/libiconv-1.14/include;../../3rdparty/libiconv-1.14/libcharset/include;$(IncludePath)</IncludePath>
+    <IncludePath>../../src;../../3rdparty/soci/include;../../3rdparty/mysql/include;../../3rdparty/soci/include/mysql;../../3rdparty/fcgi-2.4.1/include;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc/include;../../3rdparty/pcrelib;../../3rdparty/libiconv-1.14/lib;../../3rdparty/libiconv-1.14/include;../../3rdparty/libiconv-1.14/libcharset/include;$(IncludePath)</IncludePath>
     <LibraryPath>../../3rdparty/mysql/lib;../../3rdparty/soci/lib/Release;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(ProjectName)\bin-$(Configuration)\</OutDir>
   </PropertyGroup>
@@ -443,20 +443,20 @@
     <ClInclude Include="..\..\3rdparty\libiconv-1.14\lib\vietcomb.h" />
     <ClInclude Include="..\..\3rdparty\libiconv-1.14\lib\viscii.h" />
     <ClInclude Include="..\..\3rdparty\md5\md5.h" />
-    <ClInclude Include="..\..\source\ext-base64\cdecode.h" />
-    <ClInclude Include="..\..\source\ext-base64\cencode.h" />
-    <ClInclude Include="..\..\source\ext-curl\os-curl.h" />
-    <ClInclude Include="..\..\source\ext-datetime\os-datetime.h" />
-    <ClInclude Include="..\..\source\ext-hashlib\sha\sha-private.h" />
-    <ClInclude Include="..\..\source\ext-hashlib\sha\sha.h" />
-    <ClInclude Include="..\..\source\ext-odbo\os-odbo.h" />
-    <ClInclude Include="..\..\source\ext-regexp\os-regexp.h" />
-    <ClInclude Include="..\..\source\ext-sqlite3\os-sqlite3.h" />
-    <ClInclude Include="..\..\source\ext-sqlite3\sqlite3.h" />
+    <ClInclude Include="..\..\src\ext-base64\cdecode.h" />
+    <ClInclude Include="..\..\src\ext-base64\cencode.h" />
+    <ClInclude Include="..\..\src\ext-curl\os-curl.h" />
+    <ClInclude Include="..\..\src\ext-datetime\os-datetime.h" />
+    <ClInclude Include="..\..\src\ext-hashlib\sha\sha-private.h" />
+    <ClInclude Include="..\..\src\ext-hashlib\sha\sha.h" />
+    <ClInclude Include="..\..\src\ext-odbo\os-odbo.h" />
+    <ClInclude Include="..\..\src\ext-regexp\os-regexp.h" />
+    <ClInclude Include="..\..\src\ext-sqlite3\os-sqlite3.h" />
+    <ClInclude Include="..\..\src\ext-sqlite3\sqlite3.h" />
     <ClInclude Include="..\..\3rdparty\pcrelib\pcre.h" />
-    <ClInclude Include="..\..\source\ext-zlib\os-zlib.h" />
-    <ClInclude Include="..\..\source\os-heap-old.h" />
-    <ClInclude Include="..\..\source\os-heap.h" />
+    <ClInclude Include="..\..\src\ext-zlib\os-zlib.h" />
+    <ClInclude Include="..\..\src\os-heap-old.h" />
+    <ClInclude Include="..\..\src\os-heap.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -464,45 +464,45 @@
     <ClCompile Include="..\..\3rdparty\libiconv-1.14\libcharset\lib\localcharset.c" />
     <ClCompile Include="..\..\3rdparty\libiconv-1.14\lib\iconv.c" />
     <ClCompile Include="..\..\os.cpp" />
-    <ClCompile Include="..\..\source\ext-base64\cdecode.cpp" />
-    <ClCompile Include="..\..\source\ext-base64\cencode.cpp" />
-    <ClCompile Include="..\..\source\ext-base64\os-base64.cpp" />
-    <ClCompile Include="..\..\source\ext-curl\os-curl.cpp" />
-    <ClCompile Include="..\..\source\ext-datetime\os-datetime.cpp">
+    <ClCompile Include="..\..\src\ext-base64\cdecode.cpp" />
+    <ClCompile Include="..\..\src\ext-base64\cencode.cpp" />
+    <ClCompile Include="..\..\src\ext-base64\os-base64.cpp" />
+    <ClCompile Include="..\..\src\ext-curl\os-curl.cpp" />
+    <ClCompile Include="..\..\src\ext-datetime\os-datetime.cpp">
       <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ShowIncludes>
       <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'">true</ShowIncludes>
     </ClCompile>
-    <ClCompile Include="..\..\source\ext-hashlib\des\des.cpp" />
-    <ClCompile Include="..\..\source\ext-hashlib\md5\md5.cpp" />
-    <ClCompile Include="..\..\source\ext-hashlib\os-hashlib.cpp" />
-    <ClCompile Include="..\..\source\ext-hashlib\sha\hmac.cpp" />
-    <ClCompile Include="..\..\source\ext-hashlib\sha\sha1.cpp" />
-    <ClCompile Include="..\..\source\ext-hashlib\sha\sha224-256.cpp" />
-    <ClCompile Include="..\..\source\ext-hashlib\sha\sha384-512.cpp" />
-    <ClCompile Include="..\..\source\ext-hashlib\sha\usha.cpp" />
-    <ClCompile Include="..\..\source\ext-iconv\os-iconv.cpp" />
-    <ClCompile Include="..\..\source\ext-odbo\os-odbo.cpp" />
-    <ClCompile Include="..\..\source\ext-regexp\os-regexp.cpp" />
-    <ClCompile Include="..\..\source\ext-sqlite3\os-sqlite3.cpp" />
-    <ClCompile Include="..\..\source\ext-sqlite3\sqlite3.c" />
-    <ClCompile Include="..\..\source\ext-url\os-url.cpp" />
-    <ClCompile Include="..\..\source\ext-zlib\os-zlib.cpp" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\adler32.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\compress.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\crc32.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\deflate.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\gzclose.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\gzlib.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\gzread.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\gzwrite.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\infback.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\inffast.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\inflate.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\inftrees.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\trees.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\uncompr.c" />
-    <ClCompile Include="..\..\source\ext-zlib\zlib\zutil.c" />
-    <ClCompile Include="..\..\source\objectscript.cpp">
+    <ClCompile Include="..\..\src\ext-hashlib\des\des.cpp" />
+    <ClCompile Include="..\..\src\ext-hashlib\md5\md5.cpp" />
+    <ClCompile Include="..\..\src\ext-hashlib\os-hashlib.cpp" />
+    <ClCompile Include="..\..\src\ext-hashlib\sha\hmac.cpp" />
+    <ClCompile Include="..\..\src\ext-hashlib\sha\sha1.cpp" />
+    <ClCompile Include="..\..\src\ext-hashlib\sha\sha224-256.cpp" />
+    <ClCompile Include="..\..\src\ext-hashlib\sha\sha384-512.cpp" />
+    <ClCompile Include="..\..\src\ext-hashlib\sha\usha.cpp" />
+    <ClCompile Include="..\..\src\ext-iconv\os-iconv.cpp" />
+    <ClCompile Include="..\..\src\ext-odbo\os-odbo.cpp" />
+    <ClCompile Include="..\..\src\ext-regexp\os-regexp.cpp" />
+    <ClCompile Include="..\..\src\ext-sqlite3\os-sqlite3.cpp" />
+    <ClCompile Include="..\..\src\ext-sqlite3\sqlite3.c" />
+    <ClCompile Include="..\..\src\ext-url\os-url.cpp" />
+    <ClCompile Include="..\..\src\ext-zlib\os-zlib.cpp" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\adler32.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\compress.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\crc32.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\deflate.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\gzclose.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\gzlib.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\gzread.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\gzwrite.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\infback.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\inffast.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\inflate.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\inftrees.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\trees.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\uncompr.c" />
+    <ClCompile Include="..\..\src\ext-zlib\zlib\zutil.c" />
+    <ClCompile Include="..\..\src\objectscript.cpp">
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NoListing</AssemblerOutput>
     </ClCompile>
     <ClCompile Include="..\..\3rdparty\pcrelib\pcreposix.c" />
@@ -525,8 +525,8 @@
     <ClCompile Include="..\..\3rdparty\pcrelib\pcre_valid_utf8.c" />
     <ClCompile Include="..\..\3rdparty\pcrelib\pcre_version.c" />
     <ClCompile Include="..\..\3rdparty\pcrelib\pcre_xclass.c" />
-    <ClCompile Include="..\..\source\os-heap-old.cpp" />
-    <ClCompile Include="..\..\source\os-heap.cpp">
+    <ClCompile Include="..\..\src\os-heap-old.cpp" />
+    <ClCompile Include="..\..\src\os-heap.cpp">
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'">NoListing</AssemblerOutput>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">All</AssemblerOutput>
     </ClCompile>
