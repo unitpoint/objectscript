@@ -2871,8 +2871,9 @@ namespace ObjectScript
 			void pushPropertyValue(GCValue * table_value, const Value& index, bool getter_enabled, bool prototype_enabled);
 			void pushPropertyValue(const Value& table_value, const Value& index, bool getter_enabled, bool prototype_enabled);
 
-			void setPrototype(const Value& val, const Value& proto, int userdata_crc);
-			void pushPrototype(const Value& val);
+			void setPrototypeValue(const Value& val, const Value& proto);
+			void setPrototypeValue(const Value& val, const Value& proto, int userdata_crc);
+			void pushPrototypeValue(const Value& val);
 
 			void pushBackTrace(int skip_funcs, int max_trace_funcs = 20);
 			void pushArguments(StackFunction*);

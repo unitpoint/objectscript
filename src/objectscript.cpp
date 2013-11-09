@@ -15028,20 +15028,7 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 		\
 		/* prototype should not be used in set */ \
 		if(index_type == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(local7_index).string){ \
-			switch(local7_table_value->type){ \
-			case OS_VALUE_TYPE_STRING: \
-			case OS_VALUE_TYPE_ARRAY: \
-			case OS_VALUE_TYPE_OBJECT: \
-			case OS_VALUE_TYPE_FUNCTION: \
-				setValue(local7_table_value->prototype, OS_VALUE_VARIANT(local7_value).value); \
-				break; \
-				\
-			case OS_VALUE_TYPE_USERDATA: \
-			case OS_VALUE_TYPE_USERPTR: \
-			case OS_VALUE_TYPE_CFUNCTION: \
-				/* TODO: throw exception? */ \
-				break; \
-			} \
+			setPrototypeValue(Value(local7_table_value, Value::Valid()), local7_value); \
 			break; \
 		} \
 		\
@@ -15286,14 +15273,9 @@ void OS::Core::setPropertyValue(const Value& table_value, const Value& index, co
 #endif
 }
 
-void OS::Core::pushPrototype(const Value& val)
+void OS::Core::pushPrototypeValue(const Value& val)
 {
 	switch(OS_VALUE_TYPE(val)){
-	default:
-	case OS_VALUE_TYPE_NULL:
-		pushNull();
-		return;
-
 	case OS_VALUE_TYPE_BOOL:
 		pushValue(prototypes[PROTOTYPE_BOOL]);
 		return;
@@ -15312,16 +15294,30 @@ void OS::Core::pushPrototype(const Value& val)
 		pushValue(OS_VALUE_VARIANT(val).value->prototype);
 		return;
 	}
+	pushNull();
 }
 
-void OS::Core::setPrototype(const Value& val, const Value& proto, int userdata_crc)
+void OS::Core::setPrototypeValue(const Value& val, const Value& proto)
 {
 	switch(OS_VALUE_TYPE(val)){
-	case OS_VALUE_TYPE_NULL:
-	case OS_VALUE_TYPE_BOOL:
-	case OS_VALUE_TYPE_NUMBER:
+	// case OS_VALUE_TYPE_USERDATA:
+	// case OS_VALUE_TYPE_USERPTR:
+	// case OS_VALUE_TYPE_STRING:
+	case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_OBJECT:
+	// case OS_VALUE_TYPE_FUNCTION:
+	// case OS_VALUE_TYPE_CFUNCTION:
+		// OS_ASSERT(OS_VALUE_VARIANT(val).value->prototype && OS_VALUE_VARIANT(val).value->prototype->ref_count > 0);
+		// OS_VALUE_VARIANT(val).value->prototype->ref_count--;
+		setValue(OS_VALUE_VARIANT(val).value->prototype, proto.getGCValue());
+		// OS_VALUE_VARIANT(val).value->prototype->ref_count++;
 		return;
+	}
+}
 
+void OS::Core::setPrototypeValue(const Value& val, const Value& proto, int userdata_crc)
+{
+	switch(OS_VALUE_TYPE(val)){
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		if(OS_VALUE_VARIANT(val).userdata->crc != userdata_crc){
@@ -15329,11 +15325,11 @@ void OS::Core::setPrototype(const Value& val, const Value& proto, int userdata_c
 		}
 		// no break
 
-	case OS_VALUE_TYPE_STRING:
+	// case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
-	case OS_VALUE_TYPE_FUNCTION:
-	case OS_VALUE_TYPE_CFUNCTION:
+	// case OS_VALUE_TYPE_FUNCTION:
+	// case OS_VALUE_TYPE_CFUNCTION:
 		// OS_ASSERT(OS_VALUE_VARIANT(val).value->prototype && OS_VALUE_VARIANT(val).value->prototype->ref_count > 0);
 		// OS_VALUE_VARIANT(val).value->prototype->ref_count--;
 		setValue(OS_VALUE_VARIANT(val).value->prototype, proto.getGCValue());
@@ -17359,7 +17355,7 @@ void OS::deleteProperty(const Core::String& name, bool del_enabled)
 void OS::getPrototype()
 {
 	if(core->stack_values.count >= 1){
-		core->pushPrototype(core->stack_values.lastElement());
+		core->pushPrototypeValue(core->stack_values.lastElement());
 		remove(-2);
 	}else{
 		pop();
@@ -17377,7 +17373,7 @@ void OS::setPrototype(int userdata_crc)
 	if(core->stack_values.count >= 2){
 		Core::Value value = core->stack_values[core->stack_values.count - 2];
 		Core::Value proto = core->stack_values[core->stack_values.count - 1];
-		core->setPrototype(value, proto, userdata_crc);
+		core->setPrototypeValue(value, proto, userdata_crc);
 	}
 	pop(2);
 }
@@ -22061,7 +22057,7 @@ void OS::initArrayClass()
 		static int construct(OS * os, int params, int, int, void*)
 		{
 			// TODO: correct?
-			os->setException(OS_TEXT("unsupported operation"));
+			os->setException(OS_TEXT("you should not create array using Array() syntax"));
 			return 0;
 		}
 	};
@@ -23429,7 +23425,7 @@ void OS::initStringClass()
 		static int construct(OS * os, int params, int, int, void*)
 		{
 			// TODO: correct?
-			os->setException(OS_TEXT("unsupported operation"));
+			os->setException(OS_TEXT("you should not create string using String() syntax"));
 			return 0;
 		}
 	};
@@ -23474,7 +23470,7 @@ void OS::initNumberClass()
 		static int construct(OS * os, int params, int, int, void*)
 		{
 			// TODO: correct?
-			os->setException(OS_TEXT("unsupported operation"));
+			os->setException(OS_TEXT("you should not create number using Number() syntax"));
 			return 0;
 		}
 	};
@@ -23496,7 +23492,7 @@ void OS::initBooleanClass()
 		static int construct(OS * os, int params, int, int, void*)
 		{
 			// TODO: correct?
-			os->setException(OS_TEXT("unsupported operation"));
+			os->setException(OS_TEXT("you should not create boolean using Boolean() syntax"));
 			return 0;
 		}
 	};
@@ -23810,7 +23806,7 @@ void OS::initFunctionClass()
 		static int construct(OS * os, int params, int, int, void*)
 		{
 			// TODO: correct?
-			os->setException(OS_TEXT("unsupported operation"));
+			os->setException(OS_TEXT("you should not create function using Function() syntax"));
 			return 0;
 		}
 	};
@@ -25060,12 +25056,13 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 
 	case OS_VALUE_TYPE_OBJECT:
 		{
-			GCValue * object = initObjectInstance(pushObjectValue(OS_VALUE_VARIANT(func).value));
+			Value class_value = func; // we should create stack value here because of stack could be resized
+			GCValue * object = initObjectInstance(pushObjectValue(OS_VALUE_VARIANT(class_value).value));
 			object->is_object_instance = true;
 			object->external_ref_count++;
 
 			bool prototype_enabled = true;
-			if(getPropertyValue(stack_values.buf[start_pos], func, strings->__construct, prototype_enabled)
+			if(getPropertyValue(stack_values.buf[start_pos], class_value, strings->__construct, prototype_enabled)
 				&& stack_values.buf[start_pos].isFunction())
 			{
 				stack_values.buf[start_pos + 1] = object;
@@ -25086,12 +25083,13 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 	case OS_VALUE_TYPE_USERPTR:
 		{
 			Value ctor;
+			Value class_value = func; // we should create stack value here because of stack could be resized
 			bool prototype_enabled = true;
-			if(getPropertyValue(ctor, func, strings->__construct, prototype_enabled)
+			if(getPropertyValue(ctor, class_value, strings->__construct, prototype_enabled)
 				&& ctor.isFunction())
 			{
 				stack_values.buf[start_pos + 0] = ctor;
-				stack_values.buf[start_pos + 1] = func;
+				stack_values.buf[start_pos + 1] = class_value;
 				call(start_pos, call_params, ret_values);
 
 				if(ret_values > 0){
