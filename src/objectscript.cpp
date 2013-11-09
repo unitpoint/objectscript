@@ -10941,6 +10941,7 @@ void OS::Core::deleteValueProperty(GCValue * table_value, Value index, bool del_
 	}
 	if(del_enabled /*&& !hasSpecialPrefix(index)*/){
 		Value value;
+		bool prototype_enabled = true;
 		if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING){
 			const void * buf1 = strings->__delAt.toChar();
 			int size1 = strings->__delAt.getDataSize();
@@ -10950,14 +10951,14 @@ void OS::Core::deleteValueProperty(GCValue * table_value, Value index, bool del_
 			if(getPropertyValue(value, table_value, del_name, prototype_enabled)
 				&& value.isFunction())
 			{
-				pop();
+				pop(); // del_name
 				pushValue(value);
 				pushValue(table_value);
 				pushValue(index);
 				call(1, 0);
 				return;
 			}
-			pop();
+			pop(); // del_name
 		}
 		if(getPropertyValue(value, table_value, strings->__del, prototype_enabled)
 			&& value.isFunction())
@@ -17754,23 +17755,23 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 			if(getPropertyValue(value, table_value, isset_name, prototype_enabled)
 				&& value.isFunction())
 			{
-				pop();
+				pop(); // isset_name
 				pushValue(value);
 				pushValue(table_value);
 				call(0, 1);
 				return allocator->popBool();
 			}
-			pop(); // string
+			pop(); // isset_name
 		}
 		{
 			const void * buf1 = strings->__getAt.toChar();
 			int size1 = strings->__getAt.getDataSize();
 			GCStringValue * getter_name = pushStringValue(buf1, size1, buf2, size2);
 			if(getPropertyValue(value, table_value, getter_name, prototype_enabled) && value.isFunction()){
-				pop();
+				pop(); // getter_name
 				return true;
 			}
-			pop();
+			pop(); // getter_name
 		}
 	}
 	if(getPropertyValue(value, table_value, strings->__isset, prototype_enabled)
@@ -19126,7 +19127,31 @@ corrupted:
 							}
 							cur_proto = cur_proto->prototype;
 							if(!cur_proto){
-								value = Value();
+								struct Lib {
+									static int setProperty(OS * os, int params, int, int, void*)
+									{
+										OS_ASSERT(params == 2);
+										bool setter_enabled = false;
+										os->setProperty(setter_enabled);
+										return 0;
+									}										
+									static int deleteProperty(OS * os, int params, int, int, void*)
+									{
+										OS_ASSERT(params == 2);
+										bool del_enabled = false;
+										os->deleteProperty(del_enabled);
+										return 0;
+									}										
+								};
+								if(strings->__set == func_value->name){
+									pushCFunctionValue(&Lib::setProperty, NULL);
+									value = stack_values.buf[--stack_values.count]; // value will not be destroyed here
+								}else if(strings->__del == func_value->name){
+									pushCFunctionValue(&Lib::deleteProperty, NULL);
+									value = stack_values.buf[--stack_values.count]; // value will not be destroyed here
+								}else{								
+									value = Value();
+								}
 								break;
 							}
 						}
@@ -20791,7 +20816,6 @@ void OS::initObjectClass()
 			}
 			return 0;
 		}
-
 
 		static int setSmartProperty(OS * os, int params, int, int, void*)
 		{
@@ -23386,7 +23410,7 @@ void OS::initStringClass()
 					const OS_CHAR * search_str = search.toChar();
 					
 					int max_count = params >= 2 ? os->toInt(offs+2) : INT_MAX;
-					if(max_count > 0){
+					if(max_count > 1){
 						bool found = false;
 						int start = 0;
 						for(int i = 0; i < subject_len-search_len+1;){
@@ -23398,7 +23422,7 @@ void OS::initStringClass()
 								i += search_len;
 								start = i;
 								found = true;
-								if(--max_count == 0){
+								if(count+1 >= max_count){
 									break;
 								}
 							}else{
@@ -24722,7 +24746,7 @@ void OS::initPreScript()
 			for(var i, t in e.trace){
 				printf("#${i} ${t.file}%s: %s, args: ${t.arguments}\n",
 					t.line > 0 ? "(${t.line},${t.pos})" : "",
-					t.object && t.object !== _G ? "<${typeOf(t.object)}#${t.object.__id}>.${t.func.__name}" : t.name)
+					t.object && t.object !== _G ? "{${typeOf(t.object)}#${t.object.__id}}.${t.func.__name}" : t.name)
 			}
 		}
 	));
