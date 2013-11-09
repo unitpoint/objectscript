@@ -13837,6 +13837,8 @@ bool OS::init(MemoryManager * p_manager)
 		initObjectClass();
 		initArrayClass();
 		initStringClass();
+		initNumberClass();
+		initBooleanClass();
 		initBufferClass();
 		initFunctionClass();
 		initExceptionClass();
@@ -17456,23 +17458,7 @@ OS::Core::String OS::Core::getValueClassname(const Value& val)
 
 OS::String OS::getValueClassname(int offs)
 {
-	Core::Value val = core->getStackValue(offs);
-	if(OS_IS_VALUE_GC(val)){
-		Core::GCValue * value = OS_VALUE_VARIANT(val).value;
-#if 1
-		if(value && value->is_object_instance){
-			value = value->prototype;
-		}
-#else
-		while(value && value->is_object_instance){
-			value = value->prototype;
-		}
-#endif
-		if(value && value->name){
-			return OS::String(this, value->name);
-		}
-	}
-	return OS::String(this);
+	return core->getValueClassname(core->getStackValue(offs));
 }
 
 #define OS_GET_PROP_VALUE_PTR(_result_bool, _result_value, _table_value, _index, prototype_enabled) \
@@ -20850,7 +20836,8 @@ void OS::initObjectClass()
 
 		static int getValueClassname(OS * os, int params, int, int, void*)
 		{
-			os->pushString(os->getValueClassname(-params-1));
+			// os->pushString(os->getValueClassname(-params-1));
+			os->pushString(os->core->getValueClassname(os->core->getStackValue(-params-1)));
 			return 1;
 		}
 
@@ -21758,8 +21745,15 @@ void OS::initArrayClass()
 			return 0;
 		}
 
-		static int iterator(OS * os, int params, bool ascending)
+		enum EIterType {
+			ITER_COMMON,
+			ITER_DUMP,
+			ITER_REVERSE
+		};
+
+		static int iterator(OS * os, int params, EIterType iter_type)
 		{
+			bool ascending = iter_type != ITER_REVERSE;
 			Core::Value self_var = os->core->getStackValue(-params-1);
 			if(OS_VALUE_TYPE(self_var) == OS_VALUE_TYPE_ARRAY){
 				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
@@ -21773,18 +21767,43 @@ void OS::initArrayClass()
 				os->pushCFunction(arrayIteratorStep, 2);
 				return 1;
 			}
+			if(self_var.getGCValue() == os->core->prototypes[Core::PROTOTYPE_ARRAY]){
+				os->getGlobal(OS_TEXT("Object"));
+				switch(iter_type){
+				case ITER_COMMON:
+					os->getProperty(os->core->strings->__iter);
+					break;
+
+				case ITER_DUMP:
+					os->getProperty(OS_TEXT("dumpIter"));
+					break;
+
+				case ITER_REVERSE:
+					os->getProperty(OS_TEXT("reverseIter"));
+					break;
+				}
+				OS_ASSERT(os->isFunction());
+				os->core->pushValue(self_var);
+				os->call(0, 1);
+				return 1;
+			}
 			os->setException(OS_TEXT("Array iterator requires array"));
 			return 0;
 		}
 
 		static int iterator(OS * os, int params, int closure_values, int, void*)
 		{
-			return iterator(os, params + closure_values, true);
+			return iterator(os, params + closure_values, ITER_COMMON);
+		}
+
+		static int dumpIterator(OS * os, int params, int closure_values, int, void*)
+		{
+			return iterator(os, params + closure_values, ITER_DUMP);
 		}
 
 		static int reverseIterator(OS * os, int params, int closure_values, int, void*)
 		{
-			return iterator(os, params + closure_values, false);
+			return iterator(os, params + closure_values, ITER_REVERSE);
 		}
 
 		static int length(OS * os, int params, int closure_values, int, void*)
@@ -22038,12 +22057,20 @@ void OS::initArrayClass()
 			}
 			return 0;
 		}
+		
+		static int construct(OS * os, int params, int, int, void*)
+		{
+			// TODO: correct?
+			os->setException(OS_TEXT("unsupported operation"));
+			return 0;
+		}
 	};
 	FuncDef list[] = {
+		{core->strings->__construct, Array::construct},
 		{OS_TEXT("sub"), Array::sub},
 		{core->strings->__len, Array::length},
 		{core->strings->__iter, Array::iterator},
-		{OS_TEXT("dumpIter"), Array::iterator},
+		{OS_TEXT("dumpIter"), Array::dumpIterator},
 		{OS_TEXT("reverseIter"), Array::reverseIterator},
 		{core->strings->func_push, Array::push},
 		{OS_TEXT("pop"), Array::pop},
@@ -23398,11 +23425,19 @@ void OS::initStringClass()
 			os->setProperty();
 			return 1;
 		}
+		
+		static int construct(OS * os, int params, int, int, void*)
+		{
+			// TODO: correct?
+			os->setException(OS_TEXT("unsupported operation"));
+			return 0;
+		}
 	};
 
 	PackLib::init();
 
 	FuncDef list[] = {
+		{core->strings->__construct, String::construct},
 		{core->strings->__cmp, String::cmp},
 		{core->strings->__rcmp, String::rcmp},
 		{core->strings->__len, String::length},
@@ -23428,6 +23463,50 @@ void OS::initStringClass()
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_STRING]);
+	setFuncs(list);
+	pop();
+}
+
+void OS::initNumberClass()
+{
+	struct Number
+	{
+		static int construct(OS * os, int params, int, int, void*)
+		{
+			// TODO: correct?
+			os->setException(OS_TEXT("unsupported operation"));
+			return 0;
+		}
+	};
+
+	FuncDef list[] = {
+		{core->strings->__construct, Number::construct},
+		{}
+	};
+
+	core->pushValue(core->prototypes[Core::PROTOTYPE_NUMBER]);
+	setFuncs(list);
+	pop();
+}
+
+void OS::initBooleanClass()
+{
+	struct Boolean
+	{
+		static int construct(OS * os, int params, int, int, void*)
+		{
+			// TODO: correct?
+			os->setException(OS_TEXT("unsupported operation"));
+			return 0;
+		}
+	};
+
+	FuncDef list[] = {
+		{core->strings->__construct, Boolean::construct},
+		{}
+	};
+
+	core->pushValue(core->prototypes[Core::PROTOTYPE_BOOL]);
 	setFuncs(list);
 	pop();
 }
@@ -23665,7 +23744,13 @@ void OS::initFunctionClass()
 					func = OS_VALUE_VARIANT(os->core->getStackValue(offs-1)).func;
 					break;
 
-				// case OS_VALUE_TYPE_OBJECT:
+				case OS_VALUE_TYPE_CFUNCTION:
+					os->setException(OS_TEXT("apply named arguments is not supported for external function"));
+					return 0;
+
+				default:
+					os->setException(String::format(os, OS_TEXT("apply named arguments is not supported for %s"), os->getTypeStr(offs-1).toChar()));
+					return 0;
 				}
 				if(func){
 					Core::FunctionDecl * func_decl = func->func_decl;
@@ -23677,6 +23762,7 @@ void OS::initFunctionClass()
 						os->core->pushValue(value);
 					}
 					os->call(num_params - Core::PRE_VARS, need_ret_values);
+					return need_ret_values;
 				}
 			}
 			os->call(0, need_ret_values);
@@ -23720,8 +23806,16 @@ void OS::initFunctionClass()
 			}
 			return r;
 		}
+		
+		static int construct(OS * os, int params, int, int, void*)
+		{
+			// TODO: correct?
+			os->setException(OS_TEXT("unsupported operation"));
+			return 0;
+		}
 	};
 	FuncDef list[] = {
+		{core->strings->__construct, Function::construct},
 		{OS_TEXT("apply"), Function::apply},
 		{OS_TEXT("applyEnv"), Function::applyEnv},
 		{OS_TEXT("call"), Function::call},

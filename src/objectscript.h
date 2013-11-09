@@ -49,7 +49,7 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
-#define OS_VERSION		OS_TEXT("1.12.1-rc")
+#define OS_VERSION		OS_TEXT("1.12.2-rc")
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -2915,6 +2915,8 @@ namespace ObjectScript
 		void initArrayClass();
 		void initFunctionClass();
 		void initStringClass();
+		void initNumberClass();
+		void initBooleanClass();
 		void initBufferClass();
 		void initFileClass();
 		void initExceptionClass();
