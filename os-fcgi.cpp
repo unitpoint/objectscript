@@ -63,8 +63,6 @@
 
 using namespace ObjectScript;
 
-
-
 char init_cache_path[128] = 
 #ifdef _MSC_VER
 	"cache-osc"
@@ -195,10 +193,6 @@ public:
 		setGlobal(var_name);
 	}
 
-	void flushBuffer()
-	{
-	}
-
 	void appendBuffer(const void * buf, int size)
 	{
 		FCGX_PutStr((char*)buf, size, request->out);
@@ -297,6 +291,16 @@ public:
 	{
 		resetTerminated();
 		getGlobal("triggerShutdownFunctions");
+		OS_ASSERT(isFunction() || isNull());
+		pushGlobals();
+		call();
+	}
+
+	void triggerCleanupFunctions()
+	{
+		resetTerminated();
+		getGlobal("triggerCleanupFunctions");
+		OS_ASSERT(isFunction() || isNull());
 		pushGlobals();
 		call();
 	}
@@ -331,6 +335,22 @@ public:
 		
 		newObject();
 		setGlobal("_COOKIE");
+
+#ifdef _MSC_VER
+		pushBool(true);
+		setGlobal("_PLATFORM_WINDOWS");
+		
+		pushBool(false);
+		setGlobal("_PLATFORM_UNIX");
+#else
+		pushBool(false);
+		setGlobal("_PLATFORM_WINDOWS");
+		
+		pushBool(true);
+		setGlobal("_PLATFORM_UNIX");
+#endif
+		pushString(*cache_path);
+		setGlobal("OS_CACHE_PATH");
 
 		getGlobal("_SERVER");
 		getProperty("CONTENT_LENGTH");
@@ -552,13 +572,10 @@ public:
 		}while(false);
 
 		triggerShutdownFunctions();
-		flushBuffer();
 		
-#if 1
 		FCGX_Finish_r(request);
-#else
-		FCGX_FFlush(request->out);
-#endif
+
+		triggerCleanupFunctions();
 	}
 
 	const OS_CHAR * getContentType(const OS_CHAR * ext)

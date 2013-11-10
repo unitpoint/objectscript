@@ -281,6 +281,16 @@ public:
 	{
 		resetTerminated();
 		getGlobal("triggerShutdownFunctions");
+		OS_ASSERT(isFunction() || isNull());
+		pushGlobals();
+		call();
+	}
+
+	void triggerCleanupFunctions()
+	{
+		resetTerminated();
+		getGlobal("triggerCleanupFunctions");
+		OS_ASSERT(isFunction() || isNull());
 		pushGlobals();
 		call();
 	}
@@ -635,6 +645,22 @@ public:
 
 		char * server_env[] = {NULL};
 		initEnv("_SERVER", server_env);
+
+#ifdef _MSC_VER
+		pushBool(true);
+		setGlobal("_PLATFORM_WINDOWS");
+		
+		pushBool(false);
+		setGlobal("_PLATFORM_UNIX");
+#else
+		pushBool(false);
+		setGlobal("_PLATFORM_WINDOWS");
+		
+		pushBool(true);
+		setGlobal("_PLATFORM_UNIX");
+#endif
+		pushString(*cache_path);
+		setGlobal("OS_CACHE_PATH");
 
 		if(args[has_v]){
 			printVersion();
