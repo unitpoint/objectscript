@@ -5514,6 +5514,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		
 		exp->list[2] = exp1 = postCompileNewVM(scope, exp->list[2]);
 		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+		exp->slots.a = stack_pos; // exp1->slots.a;
 		return exp;
 
 	case EXP_TYPE_DEBUG_LOCALS:
@@ -6653,6 +6654,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectParamsExpression(Scop
 			readToken();
 			return Lib::calcParamsExpression(this, scope, params);
 		}
+		exp = expectExpressionValues(exp, 1);
 		params->list.add(exp OS_DBG_FILEPOS);
 #ifdef OS_PARAMS_WITHOUT_SEPARATOR
 		if(recent_token && (recent_token->type == Tokenizer::PARAM_SEPARATOR || recent_token->type == Tokenizer::CODE_SEPARATOR)){
@@ -19857,9 +19859,25 @@ void OS::initCoreFunctions()
 			CVTBUFSIZE = 352
 		};
 
-		static OS_CHAR toSingleChar(const String& s)
+		static OS::String toSingleChar(OS * os, const String& s)
 		{
-			return s.getLen() > 0 ? s.toChar()[0] : OS_TEXT(' ');
+			if(s.isEmpty()){
+				return OS::String(os);
+			}
+			os->core->pushValue(os->core->prototypes[Core::PROTOTYPE_STRING]);
+			os->getProperty(OS_TEXT("sub"));
+			os->pushString(s);
+			os->pushNumber(0);
+			os->pushNumber(1);
+			os->call(2, 1);
+			return os->popString();
+		}
+
+		static int getLen(OS * os, const String& s)
+		{
+			os->pushString(s);
+			os->runOp(OP_LENGTH);
+			return os->popInt();
 		}
 
 		static void number(OS::Core::Buffer& buf, OS_INT num, int base, int size, int precision, int type)
@@ -19899,7 +19917,7 @@ void OS::initCoreFunctions()
 			}
 
 			if (type & SPECIAL) {
-				if (base == 16) {
+				if (base == 16 || base == 2) {
 					size -= 2;
 				} else if (base == 8) {
 					size--;
@@ -19928,6 +19946,9 @@ void OS::initCoreFunctions()
 				} else if (base == 16) {
 					buf.append(OS_TEXT('0'));
 					buf.append(DIGITS[33]);
+				} else if (base == 2) {
+					buf.append(OS_TEXT('0'));
+					buf.append(OS_TEXT('b'));
 				}
 			}
 
@@ -20336,15 +20357,22 @@ void OS::initCoreFunctions()
 				}
 				switch(fmt_type){
 				case OS_TEXT('c'):
-					if (!(flags & LEFT)) while (--field_width > 0) buf.append(OS_TEXT(' '));
-					buf.append(arg_num < params ? toSingleChar(os->toString(-params + arg_num++)) : OS_TEXT(' '));
-					while (--field_width > 0) buf.append(OS_TEXT(' '));
-					break;
+					{
+						if (!(flags & LEFT)) while (--field_width > 0) buf.append(OS_TEXT(' '));
+						String s = arg_num < params ? toSingleChar(os, os->toString(-params + arg_num++)) : String(os);
+						if(s.isEmpty()){
+							buf.append(OS_TEXT(' '));
+						}else{
+							buf.append(s);
+						}
+						while (--field_width > 0) buf.append(OS_TEXT(' '));
+						break;
+					}
 
 				case OS_TEXT('s'):
 					{
 						String s = arg_num < params ? os->toString(-params + arg_num++) : String(os);
-						int len = s.getLen();
+						int len = getLen(os, s);
 						if((flags & PRECISION) && precision >= 0 && len > precision) len = precision;
 						if (!(flags & LEFT)) while (len < field_width--) buf.append(OS_TEXT(' '));
 						buf.append(s.toChar(), len);
