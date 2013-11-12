@@ -2351,7 +2351,7 @@ bool OS::Core::Compiler::Expression::isUnaryOperator() const
 	case EXP_TYPE_LOGIC_BOOL:	// !!
 	case EXP_TYPE_LOGIC_NOT:	// !
 	case EXP_TYPE_PLUS:			// +
-	case EXP_TYPE_NEG:			// -
+	case EXP_TYPE_MINUS:			// -
 	case EXP_TYPE_LENGTH:		// #
 	case EXP_TYPE_PRE_INC:		// ++
 	case EXP_TYPE_PRE_DEC:		// --
@@ -2813,7 +2813,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 		break;
 
 	case EXP_TYPE_PLUS:			// +
-	case EXP_TYPE_NEG:			// -
+	case EXP_TYPE_MINUS:			// -
 	case EXP_TYPE_LOGIC_BOOL:	// !!
 	case EXP_TYPE_LOGIC_NOT:	// !
 	case EXP_TYPE_BIT_NOT:		// ~
@@ -3522,7 +3522,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 
 	case EXP_TYPE_BIT_NOT:
 	case EXP_TYPE_PLUS:
-	case EXP_TYPE_NEG:
+	case EXP_TYPE_MINUS:
 
 	case EXP_TYPE_BIT_AND:
 	case EXP_TYPE_BIT_OR:
@@ -4007,7 +4007,7 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::getUnaryExpressionType(To
 	case Tokenizer::OPERATOR_LENGTH: return EXP_TYPE_LENGTH;
 	case Tokenizer::OPERATOR_BIT_NOT: return EXP_TYPE_BIT_NOT;
 	case Tokenizer::OPERATOR_ADD: return EXP_TYPE_PLUS;
-	case Tokenizer::OPERATOR_SUB: return EXP_TYPE_NEG;
+	case Tokenizer::OPERATOR_SUB: return EXP_TYPE_MINUS;
 	case Tokenizer::OPERATOR_LOGIC_NOT: return EXP_TYPE_LOGIC_NOT;
 	}
 	return EXP_TYPE_UNKNOWN;
@@ -4153,7 +4153,7 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::getOpcodeLevel(ExpressionTyp
 	case EXP_TYPE_LOGIC_BOOL:	// !!
 	case EXP_TYPE_LOGIC_NOT:    // !
 	case EXP_TYPE_PLUS:			// +
-	case EXP_TYPE_NEG:			// -
+	case EXP_TYPE_MINUS:			// -
 	case EXP_TYPE_LENGTH:		// #
 	case EXP_TYPE_BIT_NOT:		// ~
 		return OP_LEVEL_15;
@@ -5875,7 +5875,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 	case EXP_TYPE_BIT_NOT:		// ~
 	case EXP_TYPE_PLUS:			// +
-	case EXP_TYPE_NEG:			// -
+	case EXP_TYPE_MINUS:			// -
 		OS_ASSERT(exp->list.count == 1);
 		stack_pos = scope->function->stack_cur_size;
 		exp = Lib::processList(this, scope, exp);
@@ -9245,8 +9245,8 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type, ECompiledVal
 	case EXP_TYPE_PLUS:
 		return val_type == CVT_NUMBER ? OS_TEXT("number op plus") : OS_TEXT("plus");
 
-	case EXP_TYPE_NEG:
-		return val_type == CVT_NUMBER ? OS_TEXT("number op neg") : OS_TEXT("neg");
+	case EXP_TYPE_MINUS:
+		return val_type == CVT_NUMBER ? OS_TEXT("number op minus") : OS_TEXT("minus");
 
 	case EXP_TYPE_LENGTH:
 		return OS_TEXT("length");
@@ -9785,7 +9785,7 @@ OS::Core::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType e
 
 	case Compiler::EXP_TYPE_BIT_NOT: return OP_BIT_NOT;
 	case Compiler::EXP_TYPE_PLUS: return OP_PLUS;
-	case Compiler::EXP_TYPE_NEG: return OP_NEG;
+	case Compiler::EXP_TYPE_MINUS: return OP_MINUS;
 
 	case Compiler::EXP_TYPE_BIT_AND: return Lib::get(value_type, OP_NUMBER_BIT_AND, OP_BIT_AND);
 	case Compiler::EXP_TYPE_BIT_OR: return Lib::get(value_type, OP_NUMBER_BIT_OR, OP_BIT_OR);
@@ -13333,7 +13333,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	__bitxor(allocator, OS_TEXT("__bitxor")),
 	__bitnot(allocator, OS_TEXT("__bitnot")),
 	__plus(allocator, OS_TEXT("__plus")),
-	__neg(allocator, OS_TEXT("__neg")),
+	__minus(allocator, OS_TEXT("__minus")),
 	__len(allocator, OS_TEXT("__len")),
 	__add(allocator, OS_TEXT("__add")),
 	__sub(allocator, OS_TEXT("__sub")),
@@ -16065,7 +16065,7 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 		case OP_PLUS:
 			return pushNumber(valueToNumber(value));
 
-		case OP_NEG:
+		case OP_MINUS:
 			return pushNumber(-valueToNumber(value));
 		}
 		OS_ASSERT(false);
@@ -16079,8 +16079,8 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 		case OP_PLUS:
 			return Lib::pushObjectMethodOpcodeValue(this, strings->__plus, value);
 
-		case OP_NEG:
-			return Lib::pushObjectMethodOpcodeValue(this, strings->__neg, value);
+		case OP_MINUS:
+			return Lib::pushObjectMethodOpcodeValue(this, strings->__minus, value);
 		}
 	}
 	OS_ASSERT(false);
@@ -18548,7 +18548,7 @@ corrupted:
 				break;
 			}
 
-		OS_CASE_OPCODE_ALL(OP_NEG):
+		OS_CASE_OPCODE_ALL(OP_MINUS):
 			{
 				// a = OS_GETARG_A(instruction);
 				OS_ASSERT(OS_GETARG_A(instruction) >= 0 && OS_GETARG_A(instruction) < stack_func->func->func_decl->stack_size);
@@ -19644,8 +19644,8 @@ void OS::runOp(OS_EOpcode opcode)
 	case OP_PLUS: // +
 		return lib.runUnaryOpcode(Core::OP_PLUS);
 
-	case OP_NEG: // -
-		return lib.runUnaryOpcode(Core::OP_NEG);
+	case OP_MINUS: // -
+		return lib.runUnaryOpcode(Core::OP_MINUS);
 
 	case OP_LENGTH: // #
 		getProperty(-1, core->strings->__len);
@@ -21340,6 +21340,7 @@ dump_object:
 		{
 			// there is no unshift method for object
 			// which key should be user for key??
+			os->setException(String::format(os, OS_TEXT("unshift is not supported for %s"), os->getValueClassname(-params-1).toChar()));
 			return 0;
 		}
 
@@ -21668,6 +21669,19 @@ dump_object:
 			return 1;
 		}
 
+		static int unpack(OS * os, int params, int, int need_ret_values, void*)
+		{
+			Core::GCValue * value = os->core->getStackValue(-params-1).getGCValue();
+			if(value && value->table){
+				int i = 0;
+				Core::Property * cur = value->table->first;
+				for(; cur && i < need_ret_values; cur = cur->next, i++){
+					os->core->pushValue(cur->value);
+				}
+				return i;
+			}
+			return 0;
+		}		
 	};
 	FuncDef list[] = {
 		// {core->strings->__cmp, Object::cmp},
@@ -21692,6 +21706,7 @@ dump_object:
 		{OS_TEXT("pop"), Object::pop},
 		{core->strings->__setempty, Object::push},
 		{core->strings->__getempty, Object::pop},
+		{OS_TEXT("unshift"), Object::unshift},
 		{OS_TEXT("shift"), Object::shift},
 		{OS_TEXT("hasOwnProperty"), Object::hasOwnProperty},
 		{OS_TEXT("hasProperty"), Object::hasProperty},
@@ -21703,6 +21718,7 @@ dump_object:
 		{OS_TEXT("getKeys"), Object::getKeys},
 		{OS_TEXT("__get@values"), Object::getValues},
 		{OS_TEXT("getValues"), Object::getValues},
+		{OS_TEXT("unpack"), Object::unpack},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_OBJECT]);
@@ -22105,6 +22121,23 @@ void OS::initArrayClass()
 			}
 			return 0;
 		}
+
+		static int unpack(OS * os, int params, int, int need_ret_values, void*)
+		{
+			Core::Value value = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(value)){
+			case OS_VALUE_TYPE_ARRAY:
+				{
+					Core::GCArrayValue * arr = OS_VALUE_VARIANT(value).arr;
+					int i = 0;
+					for(; i < arr->values.count && i < need_ret_values; i++){
+						os->core->pushValue(arr->values[i]);
+					}
+					return i;
+				}
+			}
+			return 0;
+		}
 		
 		static int construct(OS * os, int params, int, int, void*)
 		{
@@ -22133,6 +22166,7 @@ void OS::initArrayClass()
 		{OS_TEXT("getKeys"), Array::getKeys},
 		{OS_TEXT("__get@values"), Array::getValues},
 		{OS_TEXT("getValues"), Array::getValues},
+		{OS_TEXT("unpack"), Array::unpack},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_ARRAY]);
@@ -23357,7 +23391,8 @@ void OS::initStringClass()
 		{
 			OS::String str = os->toString(-params - 1); // this
 			bool trim_left = params >= 1 ? os->toBool(-params + 0) : true;
-			os->pushString(str.trim(trim_left, params >= 2 ? os->toBool(-params + 1) : trim_left));
+			bool trim_right = params >= 2 ? os->toBool(-params + 1) : true;
+			os->pushString(str.trim(trim_left, trim_right));
 			return 1;
 		}
 		

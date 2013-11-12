@@ -49,7 +49,7 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
-#define OS_VERSION		OS_TEXT("1.12.4-rc")
+#define OS_VERSION		OS_TEXT("1.12.5-rc")
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -311,7 +311,7 @@ namespace ObjectScript
 
 		OP_BIT_NOT,		// ~
 		OP_PLUS,		// +
-		OP_NEG,			// -
+		OP_MINUS,			// -
 		OP_LENGTH,		// #
 	};
 
@@ -1506,7 +1506,7 @@ namespace ObjectScript
 
 				OP_BIT_NOT,
 				OP_PLUS,
-				OP_NEG,
+				OP_MINUS,
 
 				// -----
 
@@ -1633,7 +1633,7 @@ namespace ObjectScript
 					EXP_TYPE_LOGIC_NOT,     // !
 					EXP_TYPE_BIT_NOT,		// ~
 					EXP_TYPE_PLUS,			// +
-					EXP_TYPE_NEG,			// -
+					EXP_TYPE_MINUS,			// -
 					EXP_TYPE_LENGTH,		// #
 					EXP_TYPE_IN,			// in
 					EXP_TYPE_IS,	// is
@@ -2338,7 +2338,7 @@ namespace ObjectScript
 				String __bitxor;
 				String __bitnot;
 				String __plus;
-				String __neg;
+				String __minus;
 				String __len;
 				String __add;
 				String __sub;
