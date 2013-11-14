@@ -49,7 +49,7 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
-#define OS_VERSION		OS_TEXT("1.12.5-rc")
+#define OS_VERSION		OS_TEXT("1.12.6-rc")
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -128,11 +128,13 @@ inline void operator delete(void *, void *){}
 #define OS_CHDIR ::_chdir
 #define OS_MKDIR ::_mkdir
 #define OS_RMDIR ::_rmdir
+#define OS_CHMOD ::_chmod
 #else
 #define OS_GETCWD ::getcwd
 #define OS_CHDIR ::chdir
 #define OS_MKDIR ::mkdir
 #define OS_RMDIR ::rmdir
+#define OS_CHMOD ::chmod
 #endif
 
 

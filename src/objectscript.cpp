@@ -12327,6 +12327,7 @@ void OS::Core::addFreeCandidateValue(GCValue * value)
 		registerFreeCandidateValue(value);
 	}
 }
+
 void OS::Core::registerFreeCandidateValue(GCValue * value)
 {
 	OS_ASSERT(value->value_id);
@@ -14254,7 +14255,18 @@ OS::String OS::resolvePath(const String& filename)
 	if(resolved_path.isEmpty()){
 		getGlobal(core->strings->func_require);
 		getProperty(OS_TEXT("paths"));
-		if(isArray()){
+		while(nextIteratorStep()){
+			cur_path = toString();
+			if(!cur_path.isEmpty()){
+				resolved_path = resolvePath(filename, cur_path);
+				if(!resolved_path.isEmpty()){
+					pop();
+					return resolved_path;
+				}
+			}
+			pop(2);
+		}
+		/* if(isArray()){
 			int count = getLen();
 			for(int i = 0; i < count; i++){
 				pushStackValue();
@@ -14269,7 +14281,7 @@ OS::String OS::resolvePath(const String& filename)
 					}
 				}
 			}
-		}
+		} */
 		pop();
 
 		String ext = getFilenameExt(filename);
@@ -18181,7 +18193,7 @@ void OS::Core::execute()
 					}
 				}
 			}else{
-				// terminated so leave functions
+				// terminated so leave all stack functions
 				for(;;){
 					stack_func = this->stack_func;
 					// leave function
@@ -18253,7 +18265,7 @@ corrupted:
 					stack_func->opcodes++;
 				}else{
 					instruction = stack_func->opcodes[0];
-					int b = OS_GETARG_sBx(instruction);
+					b = OS_GETARG_sBx(instruction);
 					stack_func->opcodes += b + 1;
 				}
 				break;
@@ -19328,7 +19340,6 @@ corrupted:
 					break;
 
 				case OP_MULTI_THROW:
-					a = OS_GETARG_A(instruction);
 					setExceptionValue(stack_func_locals[a]);
 					break;
 
@@ -20732,7 +20743,7 @@ void OS::initCoreFunctions()
 		static int construct(OS * os, int params, int, int, void*)
 		{
 			// TODO: correct?
-			os->setException(OS_TEXT("you should not create new instance of module"));
+			os->setException(String::format(os, OS_TEXT("you can't create instance of module %s"), os->getValueClassname(-params-1).toChar()));
 			return 0;
 		}
 	};
@@ -21681,7 +21692,83 @@ dump_object:
 				return i;
 			}
 			return 0;
-		}		
+		}
+		
+		static int getFirst(OS * os, int params, int, int, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_OBJECT:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+				if(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->count > 0){
+					os->core->pushValue(OS_VALUE_VARIANT(self_var).object->table->first->value);
+					return 1;
+				}
+				break;
+			}
+			return 0;
+		}
+		
+		static int setFirst(OS * os, int params, int, int, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_OBJECT:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+				if(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->count > 0){
+					Core::Value value = os->core->getStackValue(-params+0);
+					os->core->pushValue(value);
+					os->core->setValue(OS_VALUE_VARIANT(self_var).object->table->first->value, value);
+					return 1;
+				}
+				break;
+			}
+			return 0;
+		}
+		
+		static int getLast(OS * os, int params, int, int, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_OBJECT:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+				if(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->count > 0){
+					os->core->pushValue(OS_VALUE_VARIANT(self_var).object->table->last->value);
+					return 1;
+				}
+				break;
+			}
+			return 0;
+		}
+
+		static int setLast(OS * os, int params, int, int, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_OBJECT:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+				if(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->count > 0){
+					Core::Value value = os->core->getStackValue(-params+0);
+					os->core->pushValue(value);
+					os->core->setValue(OS_VALUE_VARIANT(self_var).object->table->last->value, value);
+					return 1;
+				}
+				break;
+			}
+			return 0;
+		}
 	};
 	FuncDef list[] = {
 		// {core->strings->__cmp, Object::cmp},
@@ -21719,6 +21806,14 @@ dump_object:
 		{OS_TEXT("__get@values"), Object::getValues},
 		{OS_TEXT("getValues"), Object::getValues},
 		{OS_TEXT("unpack"), Object::unpack},
+		{OS_TEXT("__get@first"), Object::getFirst},
+		{OS_TEXT("getFirst"), Object::getFirst},
+		{OS_TEXT("__set@first"), Object::setFirst},
+		{OS_TEXT("setFirst"), Object::setFirst},
+		{OS_TEXT("__get@last"), Object::getLast},
+		{OS_TEXT("getLast"), Object::getLast},
+		{OS_TEXT("__set@last"), Object::setLast},
+		{OS_TEXT("setLast"), Object::setLast},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_OBJECT]);
@@ -22138,6 +22233,62 @@ void OS::initArrayClass()
 			}
 			return 0;
 		}
+
+		static int getFirst(OS * os, int params, int, int need_ret_values, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_ARRAY:
+				if(OS_VALUE_VARIANT(self_var).arr->values.count > 0){
+					os->core->pushValue(OS_VALUE_VARIANT(self_var).arr->values[0]);
+					return 1;
+				}
+			}
+			return 0;
+		}
+		
+		static int setFirst(OS * os, int params, int, int need_ret_values, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_ARRAY:
+				if(OS_VALUE_VARIANT(self_var).arr->values.count > 0){
+					Core::Value value = os->core->getStackValue(-params+0);
+					os->core->pushValue(value);
+					os->core->setValue(OS_VALUE_VARIANT(self_var).arr->values[0], value);
+					return 1;
+				}
+			}
+			return 0;
+		}
+		
+		static int getLast(OS * os, int params, int, int need_ret_values, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_ARRAY:
+				if(OS_VALUE_VARIANT(self_var).arr->values.count > 0){
+					os->core->pushValue(OS_VALUE_VARIANT(self_var).arr->values.lastElement());
+					return 1;
+				}
+			}
+			return 0;
+		}
+		
+		static int setLast(OS * os, int params, int, int need_ret_values, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_ARRAY:
+				if(OS_VALUE_VARIANT(self_var).arr->values.count > 0){
+					Core::Value value = os->core->getStackValue(-params+0);
+					os->core->pushValue(value);
+					os->core->setValue(OS_VALUE_VARIANT(self_var).arr->values.lastElement(), value);
+					return 1;
+				}
+			}
+			return 0;
+		}
 		
 		static int construct(OS * os, int params, int, int, void*)
 		{
@@ -22167,6 +22318,14 @@ void OS::initArrayClass()
 		{OS_TEXT("__get@values"), Array::getValues},
 		{OS_TEXT("getValues"), Array::getValues},
 		{OS_TEXT("unpack"), Array::unpack},
+		{OS_TEXT("__get@first"), Array::getFirst},
+		{OS_TEXT("getFirst"), Array::getFirst},
+		{OS_TEXT("__set@first"), Array::setFirst},
+		{OS_TEXT("setFirst"), Array::setFirst},
+		{OS_TEXT("__get@last"), Array::getLast},
+		{OS_TEXT("getLast"), Array::getLast},
+		{OS_TEXT("__set@last"), Array::setLast},
+		{OS_TEXT("setLast"), Array::setLast},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_ARRAY]);
@@ -24436,7 +24595,8 @@ void OS::initProcessModule()
 #ifdef _MSC_VER
 				os->pushBool(OS_MKDIR(os->toString(-params).toChar()) == 0);
 #else
-				os->pushBool(OS_MKDIR(os->toString(-params).toChar(), 0755) == 0);
+				int mode = params >= 2 ? os->toInt(-params+1) : 0755;
+				os->pushBool(OS_MKDIR(os->toString(-params).toChar(), mode) == 0);
 #endif
 				return 1;
 			}
@@ -24458,6 +24618,20 @@ void OS::initProcessModule()
 			os->setException(OS_TEXT("this function is disabled due to security reason"));
 #endif
 			return 0;
+		}
+		
+		static int chmod(OS * os, int params, int, int, void*)
+		{
+#ifndef IW_SDK
+			if(params >= 2){
+				os->pushBool(OS_MKDIR(os->toString(-params).toChar()) == 0);
+				return 1;
+			}
+			return 0;
+#else
+			os->setException(OS_TEXT("this function is disabled for platform"));
+			return 0;
+#endif
 		}
 		
 		static int exitFunc(OS * os, int params, int, int, void*)
