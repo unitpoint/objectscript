@@ -24624,7 +24624,8 @@ void OS::initProcessModule()
 		{
 #ifndef IW_SDK
 			if(params >= 2){
-				os->pushBool(OS_MKDIR(os->toString(-params).toChar()) == 0);
+				int mode = os->toInt(-params+1);
+				os->pushBool(OS_CHMOD(os->toString(-params).toChar(), mode) == 0);
 				return 1;
 			}
 			return 0;

@@ -124,6 +124,7 @@ inline void operator delete(void *, void *){}
 #define OS_OUTPUT(buf, size) fwrite((const char*)buf, size, 1, stdout)
 
 #ifdef _MSC_VER
+#include <io.h>
 #define OS_GETCWD ::_getcwd
 #define OS_CHDIR ::_chdir
 #define OS_MKDIR ::_mkdir
