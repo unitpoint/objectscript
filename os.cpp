@@ -56,6 +56,8 @@
 #include <sys/types.h>
 #endif // _MSC_VER
 
+#include <cstdio>
+
 using namespace ObjectScript;
 
 /* check that argument has no extra characters at the end */
@@ -101,6 +103,8 @@ void initStartTime()
 	OS_MKDIR(touch_filename, 0755);
 #endif
 	strcat(touch_filename, "/os-cache-touch");
+	std::remove(touch_filename);
+
 	FILE * f = fopen(touch_filename, "wb");
 	OS_ASSERT(f);
 	if(f){

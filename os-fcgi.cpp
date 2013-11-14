@@ -10,7 +10,7 @@
 #include "3rdparty/MPFDParser-1.0/Parser.h"
 #include <stdlib.h>
 
-#define OS_FCGI_VERSION_STR	OS_TEXT("1.1")
+#define OS_FCGI_VERSION_STR	OS_TEXT("1.1.1")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -71,6 +71,8 @@ char init_cache_path[128] =
 #endif
 ;
 
+#include <cstdio>
+
 time_t start_time = 0;
 
 void initStartTime()
@@ -83,6 +85,8 @@ void initStartTime()
 	OS_MKDIR(touch_filename, 0755);
 #endif
 	strcat(touch_filename, "/os-cache-touch");
+	std::remove(touch_filename);
+
 	FILE * f = fopen(touch_filename, "wb");
 	OS_ASSERT(f);
 	if(f){
