@@ -81,4 +81,4 @@ Apache config example (for __os-fcgi__)
 * [cocos2d-os](https://github.com/unitpoint/cocos2d-os) is a game framework made with ObjectScript
 * [ObjectScript C++ binder generator](https://github.com/unitpoint/objectscript/blob/master/src/os-binder-generator.os)
 
-P.S. old files of this repo has been moved to https://github.com/unitpoint/objectscript-old
+P.S. old files of this repo have been moved to https://github.com/unitpoint/objectscript-old

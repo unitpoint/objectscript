@@ -49,7 +49,7 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
-#define OS_VERSION		OS_TEXT("1.12.6-rc")
+#define OS_VERSION		OS_TEXT("1.13-rc")
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -1582,6 +1582,7 @@ namespace ObjectScript
 					EXP_TYPE_OBJECT_SET_BY_INDEX,
 					EXP_TYPE_OBJECT_SET_BY_EXP,
 					EXP_TYPE_OBJECT_SET_BY_AUTO_INDEX,
+					EXP_TYPE_OBJECT_CREATE_CONST,
 
 					EXP_TYPE_SUPER,
 
@@ -2380,6 +2381,7 @@ namespace ObjectScript
 				String func_require;
 				String func_core;
 				String func_main;
+				String func_createConstProperty;
 
 				String typeof_null;
 				String typeof_boolean;

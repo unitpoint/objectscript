@@ -5238,6 +5238,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 		exp->slots.b = cacheString(exp->token->str);
 		break;
 
+	case EXP_TYPE_OBJECT_CREATE_CONST:
+		OS_ASSERT(exp->list.count == 1);
+		exp->slots.b = cacheString(exp->token->str);
+		exp->slots.c = cacheString(allocator->core->strings->func_createConstProperty);
+		break;
+
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
 		OS_ASSERT(exp->list.count == 1);
 		exp->slots.b = cacheNumber((OS_NUMBER)exp->token->getFloat());
@@ -5638,6 +5644,65 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.a = stack_pos;
 		exp->slots.b = 3;
 		exp->slots.c = 0;
+		scope->function->stack_cur_size = stack_pos;
+		return exp;
+
+	case EXP_TYPE_OBJECT_CREATE_CONST:
+		OS_ASSERT(exp->list.count == 1 && exp->list[0]->ret_values == 1 && exp->ret_values == 0);
+		stack_pos = scope->function->stack_cur_size;
+
+		scope->allocTempVar();
+		scope->allocTempVar();
+		scope->allocTempVar();
+		scope->allocTempVar();
+
+		exp1 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, exp->token);
+		exp1->list.swap(exp->list);
+		exp1->ret_values = 4;
+
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+		exp2->slots.a = stack_pos + 0;
+		exp2->slots.b = scope->function->num_params + POST_VAR_GLOBALS;
+		exp2->ret_values = 1;
+		exp->list.add(exp2 OS_DBG_FILEPOS);
+		exp->list.add(exp1 OS_DBG_FILEPOS);
+
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+		exp2->slots.a = stack_pos + 3;
+		exp2->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES; // prop name
+		exp2->ret_values = 1;
+		allocator->vectorInsertAtIndex(exp1->list, 0, exp2 OS_DBG_FILEPOS);
+
+		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
+			exp2->type = EXP_TYPE_GET_XCONST;
+		}
+
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+		exp2->slots.a = stack_pos + 2;
+		exp2->slots.b = stack_pos - 1;	// this to the first param
+		exp2->ret_values = 1;
+		allocator->vectorInsertAtIndex(exp1->list, 0, exp2 OS_DBG_FILEPOS);
+
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+		exp2->slots.a = stack_pos + 1;
+		exp2->slots.b = -1 - exp->slots.c - prog_numbers.count - CONST_STD_VALUES; // func name
+		exp2->ret_values = 1;
+		allocator->vectorInsertAtIndex(exp1->list, 0, exp2 OS_DBG_FILEPOS);
+
+		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
+			exp2->type = EXP_TYPE_GET_XCONST;
+		}
+
+		OS_ASSERT(exp1->list.count == 4);
+		exp1 = postCompileNewVM(scope, exp1);
+
+		exp->type = EXP_TYPE_CALL_METHOD;
+		exp->ret_values = 0;
+		OS_ASSERT(scope->function->stack_cur_size - stack_pos == 5);
+		exp->slots.a = stack_pos;
+		exp->slots.b = 5;
+		exp->slots.c = 0;
+
 		scope->function->stack_cur_size = stack_pos;
 		return exp;
 
@@ -6468,6 +6533,22 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectObjectOrFunctionExpre
 			}
 			exp2 = expectExpressionValues(exp2, 1);
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_OBJECT_SET_BY_EXP, name_token, exp, exp2 OS_DBG_FILEPOS);
+		}else if(name_token->type == Tokenizer::NAME && name_token->str == allocator->core->strings->syntax_const){
+			if(!expectToken(Tokenizer::NAME)){
+				return lib.error();
+			}
+			name_token = recent_token;
+			if(!expectToken(Tokenizer::OPERATOR_ASSIGN)){
+				return lib.error();
+			}
+			// readToken(); // skip OPERATOR_COLON
+			TokenData * save_token = readToken();
+			exp = expectSingleExpression(scope, p);
+			if(!exp){
+				return isError() ? lib.error() : lib.error(ERROR_EXPECT_EXPRESSION, save_token);
+			}
+			exp = expectExpressionValues(exp, 1);
+			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_OBJECT_CREATE_CONST, name_token, exp OS_DBG_FILEPOS);
 		}else if(isNextToken(Tokenizer::OPERATOR_COLON) || isNextToken(Tokenizer::OPERATOR_ASSIGN)){
 			ExpressionType exp_type = EXP_TYPE_OBJECT_SET_BY_NAME;
 			switch(name_token->type){
@@ -13374,6 +13455,7 @@ OS::Core::Strings::Strings(OS * allocator)
 
 	func_core(allocator, OS_TEXT("{{CORE}}")),
 	func_main(allocator, OS_TEXT("{{main}}")),
+	func_createConstProperty(allocator, OS_TEXT("createConstProperty")),
 
 	typeof_null(allocator, OS_TEXT("null")),
 	typeof_boolean(allocator, OS_TEXT("boolean")),
@@ -20453,7 +20535,6 @@ void OS::initCoreFunctions()
 				int offs = os->getAbsoluteOffs(-params);
 				os->getGlobal(os->core->strings->func_echo);
 				os->pushGlobals();
-				int count = os->getStackSize();
 				for(int i = 0; i < params; i++){
 					if(i > 0){
 						os->pushString(OS_TEXT("\t"));
@@ -20461,7 +20542,7 @@ void OS::initCoreFunctions()
 					os->pushStackValue(offs + i);
 				}
 				os->pushString(OS_TEXT("\n"));
-				os->call(os->getStackSize() - count);
+				os->call(params * 2);
 			}else{
 				os->getGlobal(os->core->strings->func_echo);
 				os->pushGlobals();
@@ -24951,7 +25032,7 @@ void OS::initPreScript()
 		// it's ObjectScript code here
 		function Object.__get@length(){ return #this }
 		function Function.__iter(){
-			if(this === Function || @hasOwnProperty()){
+			if(this === Function){ // || @hasOwnProperty()){
 				return super()
 			}
 			return this
@@ -24985,6 +25066,19 @@ void OS::initPreScript()
 				printf("#${i} ${t.file}%s: %s, args: ${t.arguments}\n",
 					t.line > 0 ? "(${t.line},${t.pos})" : "",
 					t.object && t.object !== _G ? "{${typeOf(t.object)}#${t.object.__id}}.${t.func.__name}" : t.name)
+			}
+		}
+
+		function createConstProperty(obj, name, value){
+			objectOf(obj) || throw "object required"
+			obj["__get@"..name] = function(){
+				return value
+			}
+			obj["__set@"..name] = function(){
+				throw "${@classname}.${name} is constant property, you should not set the one"
+			}
+			obj["__del@"..name] = function(){
+				throw "${@classname}.${name} is constant property, you should not delete the one"
 			}
 		}
 	));
