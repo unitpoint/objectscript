@@ -312,7 +312,7 @@ public:
 
 	void printUsage(char ** argv, const char *badoption)
 	{
-		char * progname = argv[0] && argv[0][0] ? argv[0] : "unknown progname";
+		const char * progname = argv[0] && argv[0][0] ? argv[0] : "unknown progname";
 		if(badoption){
 			printf("%s: ", progname);
 			if(badoption[1] == 'e' || badoption[1] == 'l')
