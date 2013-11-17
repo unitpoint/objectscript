@@ -1,4 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
+include(ExternalProject)
 
 set(target "os-fcgi")
 project(${target})
@@ -101,6 +102,22 @@ IF (FORCE32)
 				   -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}
 		BUILD_COMMAND make -j8
 	)
+ELSE()
+    OPTION(BUILD_SOCI "Force build soci and install into your system (you must have root privilege)" OFF)
+    IF(BUILD_SOCI)
+	ExternalProject_Add(soci
+		SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/soci-3.2.2
+		CMAKE_ARGS -DWITH_BOOST=OFF 
+			   -DWITH_MYSQL=ON 
+			   -DSOCI_STATIC=OFF 
+			   -DWITH_ODBC=OFF 
+			   -DWITH_FIREBIRD=OFF 
+			   -DWITH_POSTGRESQL=OFF 
+		BUILD_COMMAND make -j8
+                INSTALL_COMMAND make install
+                STEP_TARGETS build install
+	)
+    ENDIF()
 ENDIF()
 
 # begin objectscript
@@ -110,7 +127,6 @@ list(APPEND HEADERS src/objectscript.h)
 list(APPEND HEADERS src/os-heap.h)
 # end objectscript
 
-list(APPEND SOURCES os-fcgi.cpp)
 list(APPEND SOURCES 3rdparty/fcgi-2.4.1/libfcgi/os_unix.c)
 list(APPEND SOURCES 3rdparty/fcgi-2.4.1/libfcgi/fcgiapp.c)
 list(APPEND SOURCES 3rdparty/MPFDParser-1.0/Parser.cpp)
@@ -158,13 +174,25 @@ ELSE()
 ENDIF()
 
 IF (NOT FORCE32)
-    find_package(Soci QUIET)
-    if(SOCI_FOUND)
-        include_directories(${SOCI_INCLUDE_DIR})
-		include_directories(${SOCI_INCLUDE_DIR}/mysql)
-    else()
-        message(FATAL_ERROR "[ERROR]: Couldn't find Soci include files and/or library.")
-    endif()
+    IF (NOT BUILD_SOCI)
+        find_package(Soci QUIET)
+        if(SOCI_FOUND)
+            include_directories(${SOCI_INCLUDE_DIR})
+            include_directories(${SOCI_INCLUDE_DIR}/mysql)
+        else()
+            message(FATAL_ERROR "[ERROR]: Couldn't find Soci include files and/or library.")
+        endif()
+    ELSE()
+        include_directories(/usr/local/include/soci)
+        include_directories(/usr/local/include/soci/mysql)
+        if (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
+            set(SOCI_LIBRARY /usr/local/lib64/libsoci_core.so)
+            set(SOCI_mysql_PLUGIN /usr/local/lib64/libsoci_mysql.so)
+        else()
+            set(SOCI_LIBRARY /usr/local/lib/libsoci_core.so)
+            set(SOCI_mysql_PLUGIN /usr/local/lib/libsoci_mysql.so)
+        endif()
+    ENDIF()
 ELSE()
     include_directories(${INSTALL_DIR}/include/soci)
     include_directories(${INSTALL_DIR}/include/soci/mysql)
@@ -175,7 +203,7 @@ ENDIF()
 IF (NOT FORCE32)
     find_package(CURL QUIET)
     if(CURL_FOUND)
-    	include_directories(${CMAKE_CURRENT_BINARY_DIR}/3rdparty/curl-7.32.0/include)
+		include_directories(${CMAKE_CURRENT_BINARY_DIR}/3rdparty/curl-7.32.0/include)
 		list(APPEND SOURCES src/ext-curl/os-curl.cpp)
 		list(APPEND HEADERS src/ext-curl/os-curl.h)
     else()
@@ -497,8 +525,11 @@ if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 endif()
 
 
-add_executable(${target} ${SOURCES} ${HEADERS})
+add_executable(${target} os-fcgi.cpp ${SOURCES} ${HEADERS})
 target_link_libraries(${target} ${CMAKE_THREAD_LIBS_INIT} ${CURL_LIBRARIES} ${PCRE_LIBRARIES} ${MYSQL_LIBRARIES} ${SOCI_LIBRARY} ${SOCI_mysql_PLUGIN} dl)
+
+add_executable(os os.cpp ${SOURCES} ${HEADERS})
+target_link_libraries(os ${CMAKE_THREAD_LIBS_INIT} ${CURL_LIBRARIES} ${PCRE_LIBRARIES} ${MYSQL_LIBRARIES} ${SOCI_LIBRARY} ${SOCI_mysql_PLUGIN} dl)
 
 IF (FORCE32)
     add_dependencies(mysql ncurses)
@@ -506,7 +537,12 @@ IF (FORCE32)
     add_dependencies(${target} pcre curl soci)
 ENDIF()
 
+IF(NOT FORCE32 AND BUILD_SOCI)
+    add_dependencies(os soci)
+    add_dependencies(${target} soci)
+ENDIF()
 
+install(TARGETS os RUNTIME DESTINATION usr/bin)
 install(TARGETS ${target} RUNTIME DESTINATION usr/sbin)
 install(FILES conf/etc/init.d/${target} DESTINATION etc/init.d
     PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
