@@ -64,6 +64,8 @@ set(SOCI_CORE_DEPENDENCIES)
 
 include(SociDependencies)
 
+#message("${SOCI_CORE_DEPENDENCIES}")
+
 ###############################################################################
 # Installation
 ###############################################################################
@@ -94,10 +96,7 @@ add_custom_target(check COMMAND ctest)
 ###############################################################################
 include(SociBackend)
 
-include_directories(${SOCI_SOURCE_DIR}/include/soci)
+include_directories(${SOCI_SOURCE_DIR}/core)
 
-add_subdirectory(src)
-#TODO: Fix https://github.com/SOCI/soci/issues/199
-#add_subdirectory(tests)
-
-message(STATUS "")
+add_subdirectory(core)
+add_subdirectory(backends)

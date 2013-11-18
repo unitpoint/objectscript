@@ -12,7 +12,7 @@ Compile and Install __os-fcgi__
 Run following commands in a *root* shell
 
 	mkdir build && cd build
-	cmake -DCMAKE_INSTALL_PREFIX=/ ..
+	cmake -DBUILD_SOCI=ON -DCMAKE_INSTALL_PREFIX=/ ..
 	make
 	make install
 	service os-fcgi restart 
