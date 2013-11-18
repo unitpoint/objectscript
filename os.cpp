@@ -334,10 +334,11 @@ public:
 			"  -        stop handling options and execute stdin\n"
 			"examples:\n"
 #ifdef _MSC_VER
-			"%s -e 'print(\\\"2*5 - 1 = \\\", 2*5 - 1)'"
+			"%s -e 'print(\\\"2*5 - 1 = \\\"..(2*5 - 1))'"
 #else
-			"%s -e 'print(\"2*5 - 1 = \", 2*5 - 1)'"
+			"%s -e 'print(\"2*5 - 1 = \"..(2*5 - 1))'"
 #endif
+			"\n"
 			,
 			progname, progname);
 	}

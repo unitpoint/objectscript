@@ -860,11 +860,21 @@ void ODBO_OS::initLibrary(OS* os)
 	os->eval(OS_AUTO_TEXT(
 		ODBOException = extends Exception {
 		}
+		function ODBOStatement.fetchAll(){
+			var r = []
+			for(var row; row = @fetch();){
+				r.push(row)
+			}
+			return r
+		}
 		function ODBO.execute(sql, params){
 			return @query(sql, params).execute()
 		}
 		function ODBO.fetch(sql, params){
 			return @query(sql, params).fetch()
+		}
+		function ODBO.fetchAll(sql, params){
+			return @query(sql, params).fetchAll()
 		}
 	));
 }
