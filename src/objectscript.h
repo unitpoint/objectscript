@@ -2505,8 +2505,8 @@ namespace ObjectScript
 
 			FreeCandidateValues gc_candidate_values;
 			
-			int gc_start_used_bytes;
-			int gc_next_used_bytes;
+			int gc_start_when_used_bytes;
+			int gc_next_when_used_bytes;
 			int gc_step_type;
 			bool gc_in_progress;
 			bool gc_fix_in_progress;
@@ -2521,26 +2521,6 @@ namespace ObjectScript
 			void dumpValues(Buffer& out);
 			void dumpValuesToFile(const OS_CHAR * filename);
 			void appendQuotedString(Buffer& buf, const String& string);
-
-			/*
-			GCValue * gc_grey_list_first;
-			bool gc_grey_root_initialized;
-			int gc_values_head_index;
-			int gc_start_used_bytes;
-			int gc_max_allocated_bytes;
-			int gc_keep_heap_count;
-			int gc_continuous_count;
-			bool gc_continuous;
-			int gc_time;
-			bool gc_in_process;
-			
-			float gc_start_values_mult;
-			float gc_step_size_mult;
-			float gc_step_size_auto_mult;
-			int gc_start_next_values;
-			int gc_start_used_bytes;
-			int gc_step_size;
-			*/
 
 			struct {
 				bool create_text_opcodes;
@@ -3155,8 +3135,9 @@ namespace ObjectScript
 		// return next gc phase
 		// int gcStep();
 		void gcFull();
-		void setGCStartUsedBytes(int);
-		int getGCStartUsedBytes();
+
+		void setGCStartWhenUsedBytes(int);
+		int getGCStartWhenUsedBytes();
 
 		struct FuncDef {
 			const OS_CHAR * name;

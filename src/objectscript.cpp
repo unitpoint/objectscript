@@ -12818,7 +12818,7 @@ void OS::Core::gcFreeCandidateValues(bool full)
 	}
 
 	int used_bytes = allocator->getUsedBytes();
-	if(full || used_bytes >= gc_next_used_bytes){		
+	if(full || used_bytes >= gc_next_when_used_bytes){		
 		lib.gc_step_type = ++gc_step_type;
 
 		lib.mark(global_vars);
@@ -12940,11 +12940,11 @@ void OS::Core::gcFreeCandidateValues(bool full)
 		gc_fix_in_progress = false;
 		// lib.destroyValues(false);
 		used_bytes = allocator->getUsedBytes();
-		if(used_bytes >= gc_next_used_bytes){
-			gc_next_used_bytes *= 2;
+		if(used_bytes >= gc_next_when_used_bytes){
+			gc_next_when_used_bytes *= 2;
 		}else if(1){
-			while(used_bytes < gc_next_used_bytes/2 && gc_next_used_bytes/2 >= gc_start_used_bytes){
-				gc_next_used_bytes /= 2;
+			while(used_bytes < gc_next_when_used_bytes/2 && gc_next_when_used_bytes/2 >= gc_start_when_used_bytes){
+				gc_next_when_used_bytes /= 2;
 			}
 		}
 #if 0
@@ -13856,8 +13856,8 @@ OS::Core::Core(OS * p_allocator)
 	settings.sourcecode_must_exist = false;
 
 	// gcInitGreyList();
-	gc_start_used_bytes = 2*1024*1024;
-	gc_next_used_bytes = 2*1024*1024;
+	gc_start_when_used_bytes = 2*1024*1024;
+	gc_next_when_used_bytes = 2*1024*1024;
 	gc_step_type = 0;
 	gc_in_progress = false;
 	gc_fix_in_progress = false;
@@ -24337,15 +24337,15 @@ void OS::initGCModule()
 			os->pushNumber(os->core->num_destroyed_values);
 			return 1;
 		}
-		static int getStartUsedBytes(OS * os, int params, int, int, void*)
+		static int getStartWhenUsedBytes(OS * os, int params, int, int, void*)
 		{
-			os->pushNumber(os->getGCStartUsedBytes());
+			os->pushNumber(os->getGCStartWhenUsedBytes());
 			return 1;
 		}
-		static int setStartUsedBytes(OS * os, int params, int, int, void*)
+		static int setStartWhenUsedBytes(OS * os, int params, int, int, void*)
 		{
 			if(params > 0){
-				os->setGCStartUsedBytes(os->toInt(-params+0));
+				os->setGCStartWhenUsedBytes(os->toInt(-params+0));
 			}
 			return 0;
 		}
@@ -24363,8 +24363,8 @@ void OS::initGCModule()
 		{OS_TEXT("__get@numObjects"), GC::getNumObjects},
 		{OS_TEXT("__get@numCreatedObjects"), GC::getNumCreatedObjects},
 		{OS_TEXT("__get@numDestroyedObjects"), GC::getNumDestroyedObjects},
-		{OS_TEXT("__get@startUsedBytes"), GC::getStartUsedBytes},
-		{OS_TEXT("__set@startUsedBytes"), GC::setStartUsedBytes},
+		{OS_TEXT("__get@startWhenUsedBytes"), GC::getStartWhenUsedBytes},
+		{OS_TEXT("__set@startWhenUsedBytes"), GC::setStartWhenUsedBytes},
 		{OS_TEXT("full"), GC::full},
 		{}
 	};
@@ -25180,15 +25180,15 @@ void OS::gcFull()
 	core->gcFull();
 }
 
-void OS::setGCStartUsedBytes(int bytes)
+void OS::setGCStartWhenUsedBytes(int bytes)
 {
-	core->gc_start_used_bytes = bytes > 128*1024 ? bytes : 128*1024;
-	core->gc_next_used_bytes = core->gc_start_used_bytes;
+	core->gc_start_when_used_bytes = bytes > 128*1024 ? bytes : 128*1024;
+	core->gc_next_when_used_bytes = core->gc_start_when_used_bytes;
 }
 
-int OS::getGCStartUsedBytes()
+int OS::getGCStartWhenUsedBytes()
 {
-	return core->gc_start_used_bytes;
+	return core->gc_start_when_used_bytes;
 }
 
 // =====================================================================
