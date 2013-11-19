@@ -230,7 +230,7 @@ public:
 		FindClose(h);
 		return 1;
 #else
-		DIR * d = opendir(path);
+		DIR * d = opendir(dirname);
 		if(!d){
 			return 0;
 		}

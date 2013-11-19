@@ -115,7 +115,7 @@ protected:
 	virtual bool init(MemoryManager * mem)
 	{
 		if(OS::init(mem)){
-			setGCStartUsedBytes(32 * 1024 * 1024);
+			setGCStartWhenUsedBytes(32 * 1024 * 1024);
 			cache_path = new (malloc(sizeof(Core::String) OS_DBG_FILEPOS)) Core::String(this, init_cache_path);
 
 			initProcessExtension(this);
