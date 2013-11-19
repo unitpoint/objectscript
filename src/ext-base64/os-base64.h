@@ -1,5 +1,5 @@
-#ifndef __OS_BASE64_H__
-#define __OS_BASE64_H__
+#ifndef __OS_EXT_BASE64_H__
+#define __OS_EXT_BASE64_H__
 
 /******************************************************************************
 * Copyright (C) 2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -33,8 +33,8 @@ namespace ObjectScript {
 	/*
 		ObjectScript Base64 extension
 	*/
-	void initBase64Library(OS* os);
+	void initBase64Extension(OS* os);
 
 };
 
-#endif // __OS_BASE64_H__
+#endif // __OS_EXT_BASE64_H__

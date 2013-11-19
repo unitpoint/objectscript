@@ -1,5 +1,5 @@
-#ifndef __OS_URL_H__
-#define __OS_URL_H__
+#ifndef __OS_EXT_URL_H__
+#define __OS_EXT_URL_H__
 
 /******************************************************************************
 * Copyright (C) 2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -33,8 +33,8 @@ namespace ObjectScript {
 	/*
 		ObjectScript Url extension
 	*/
-	void initUrlLibrary(OS* os);
+	void initUrlExtension(OS* os);
 
 };
 
-#endif // __OS_URL_H__
+#endif // __OS_EXT_URL_H__

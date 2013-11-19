@@ -758,7 +758,7 @@ public:
 
 };
 
-void initIconvLibrary(OS * os)
+void initIconvExtension(OS * os)
 {
 	{
 		OS::FuncDef funcs[] = {

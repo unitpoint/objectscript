@@ -207,7 +207,7 @@ public:
 	}
 };
 
-void initHashLibrary(OS * os)
+void initHashExtension(OS * os)
 {
 	OS::FuncDef funcs[] = {
 		{OS_TEXT("md5"), &HashlibOS::md5},

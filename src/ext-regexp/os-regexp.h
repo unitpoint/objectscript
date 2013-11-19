@@ -1,5 +1,5 @@
-#ifndef __OS_REGEXP_H__
-#define __OS_REGEXP_H__
+#ifndef __OS_EXT_REGEXP_H__
+#define __OS_EXT_REGEXP_H__
 
 /******************************************************************************
 * Copyright (C) 2012-2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -30,8 +30,8 @@
 
 namespace ObjectScript {
 
-	void initRegexpLibrary(OS* os);
+	void initRegexpExtension(OS* os);
 
 };
 
-#endif // __OS_REGEXP_H__
+#endif // __OS_EXT_REGEXP_H__

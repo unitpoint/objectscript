@@ -1550,7 +1550,7 @@ void initNoiseUtils(OS * os)
 	os->pop();
 }
 
-void initLibNoiseLibrary(OS* os)
+void initLibNoiseExtension(OS* os)
 {
 	initNoiseModule(os);
 	initNoisePerlin(os);

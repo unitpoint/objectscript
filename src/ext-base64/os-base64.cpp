@@ -59,7 +59,7 @@ public:
 	}
 };
 
-void initBase64Library(OS * os)
+void initBase64Extension(OS * os)
 {
 	OS::FuncDef funcs[] = {
 		{OS_TEXT("encode"), &Base64OS::encode},

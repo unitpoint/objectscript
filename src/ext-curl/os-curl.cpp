@@ -308,7 +308,7 @@ namespace ObjectScript {
 			Curl(OS *p_os);
 			virtual ~Curl();
 
-			static void initLibrary(OS* os);
+			static void initExtension(OS* os);
 
 			bool init();
 			void close();
@@ -463,7 +463,7 @@ namespace ObjectScript {
 			CurlShare(OS *p_os);
 			virtual ~CurlShare();
 
-			static void initCurlShareLibrary(OS* os);
+			static void initCurlShareExtension(OS* os);
 
 			static void lockCallback(CURL *handle, curl_lock_data data, curl_lock_access access, void *userptr);
 			static void unlockCallback(CURL *handle, curl_lock_data data, void *userptr);
@@ -1645,12 +1645,12 @@ file_option:
 		}
 	};
 
-	void initCurlLibrary(OS *os)
+	void initCurlExtension(OS *os)
 	{
-		CurlOS::Curl::initLibrary(os);
+		CurlOS::Curl::initExtension(os);
 	}
 
-	void CurlOS::Curl::initLibrary(OS *os)
+	void CurlOS::Curl::initExtension(OS *os)
 	{
 		struct Lib
 		{
@@ -2361,7 +2361,7 @@ file_option:
 		}
 	};
 
-	void CurlOS::CurlShare::initCurlShareLibrary(OS *os)
+	void CurlOS::CurlShare::initCurlShareExtension(OS *os)
 	{
 		struct Lib
 		{

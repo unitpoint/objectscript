@@ -1,5 +1,5 @@
-#ifndef __OS_LIBNOISE_H__
-#define __OS_LIBNOISE_H__
+#ifndef __OS_EXT_LIBNOISE_H__
+#define __OS_EXT_LIBNOISE_H__
 
 /******************************************************************************
 * Copyright (C) 2012-2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -30,8 +30,8 @@
 
 namespace ObjectScript {
 
-	void initLibNoiseLibrary(OS* os);
+	void initLibNoiseExtension(OS* os);
 
 };
 
-#endif // __OS_SQLITE3_H__
+#endif // __OS_EXT_LIBNOISE_H__

@@ -241,7 +241,7 @@ public:
 		os->setException();
 	}
 
-	static void initLibrary(OS * os);
+	static void initExtension(OS * os);
 
 	/* Returns the current time in Unix ticks.
 
@@ -2047,7 +2047,7 @@ int DateTimeOS::DateTime::__construct(OS * os, int params, int, int, void * user
 	return 1;
 }
 
-void DateTimeOS::initLibrary(OS * os)
+void DateTimeOS::initExtension(OS * os)
 {
 	if(!is_initialized){
 		is_posix_conform = checkPOSIX();
@@ -2126,9 +2126,9 @@ void DateTimeOS::initLibrary(OS * os)
 	}
 }
 
-void initDateTimeLibrary(OS* os)
+void initDateTimeExtension(OS* os)
 {
-	DateTimeOS::initLibrary(os);
+	DateTimeOS::initExtension(os);
 }
 
 bool timelib_is_leap(timelib_sll year)

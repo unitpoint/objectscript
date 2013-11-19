@@ -17,6 +17,8 @@
 #include <pthread.h>
 #endif
 
+#include "ext-process/os-process.h"
+#include "ext-filesystem/os-filesystem.h"
 #include "ext-hashlib/os-hashlib.h"
 #include "ext-url/os-url.h"
 #include "ext-base64/os-base64.h"
@@ -98,9 +100,9 @@ void initStartTime()
 	char touch_filename[256];
 	strcpy(touch_filename, init_cache_path);
 #ifdef _MSC_VER
-	OS_MKDIR(touch_filename);
+	_mkdir(touch_filename);
 #else
-	OS_MKDIR(touch_filename, 0755);
+	mkdir(touch_filename, 0755);
 #endif
 	strcat(touch_filename, "/os-cache-touch");
 	std::remove(touch_filename);
@@ -133,33 +135,35 @@ protected:
 			// setGCStartUsedBytes(32 * 1024 * 1024);
 			cache_path = new (malloc(sizeof(Core::String) OS_DBG_FILEPOS)) Core::String(this, init_cache_path);
 
-			initHashLibrary(this);
-			initUrlLibrary(this);
-			initBase64Library(this);
-			initDateTimeLibrary(this);
+			initProcessExtension(this);
+			initFileSystemExtension(this);
+			initHashExtension(this);
+			initUrlExtension(this);
+			initBase64Extension(this);
+			initDateTimeExtension(this);
 
 #ifndef OS_CURL_DISABLED
-			initCurlLibrary(this);
+			initCurlExtension(this);
 #endif
 
 #ifndef OS_SQLITE3_DISABLED
-			initSqlite3Library(this);
+			initSqlite3Extension(this);
 #endif
 
 #ifndef OS_ICONV_DISABLED
-			initIconvLibrary(this);
+			initIconvExtension(this);
 #endif
 
 #ifndef OS_REGEXP_DISABLED
-			initRegexpLibrary(this);
+			initRegexpExtension(this);
 #endif
 
 #ifndef OS_ODBO_DISABLED
-			initODBOLibrary(this);
+			initODBOExtension(this);
 #endif
 
 #ifndef OS_ZLIB_DISABLED
-			initZLibrary(this);
+			initZlibExtension(this);
 #endif
 			return true;
 		}

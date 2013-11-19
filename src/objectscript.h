@@ -26,7 +26,6 @@
 * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 
-// #include <vector>
 #include <stdarg.h>
 #include <stdio.h>
 #include <assert.h>
@@ -49,7 +48,7 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
-#define OS_VERSION		OS_TEXT("1.13.2-rc")
+#define OS_VERSION		OS_TEXT("1.14-rc")
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -122,22 +121,6 @@ inline void operator delete(void *, void *){}
 #define OS_VPRINTF ::vprintf
 #define OS_PRINTF ::printf
 #define OS_OUTPUT(buf, size) fwrite((const char*)buf, size, 1, stdout)
-
-#ifdef _MSC_VER
-#include <io.h>
-#define OS_GETCWD ::_getcwd
-#define OS_CHDIR ::_chdir
-#define OS_MKDIR ::_mkdir
-#define OS_RMDIR ::_rmdir
-#define OS_CHMOD ::_chmod
-#else
-#define OS_GETCWD ::getcwd
-#define OS_CHDIR ::chdir
-#define OS_MKDIR ::mkdir
-#define OS_RMDIR ::rmdir
-#define OS_CHMOD ::chmod
-#endif
-
 
 #define OS_IS_SPACE(c) ((c) > OS_TEXT('\0') && (c) <= OS_TEXT(' '))
 #define OS_IS_ALPHA ::isalpha
@@ -2926,7 +2909,6 @@ namespace ObjectScript
 		void initBufferClass();
 		void initFileClass();
 		void initExceptionClass();
-		void initProcessModule();
 		void initPathModule();
 		void initMathModule();
 		void initJsonModule();

@@ -13923,7 +13923,6 @@ bool OS::init(MemoryManager * p_manager)
 		initPathModule();
 		initJsonModule();
 		initMathModule();
-		initProcessModule();
 		initGCModule();
 		initLangTokenizerModule();
 		initPostScript();
@@ -24206,10 +24205,10 @@ void OS::initPathModule()
 			return os->getFilenameExt(filename);
 		}
 
-		static bool exists(OS * os, const OS::String& filename)
+		/* static bool exists(OS * os, const OS::String& filename)
 		{
 			return os->isFileExist(filename);
-		}
+		} */
 
 		static bool absolute(OS * os, const OS::String& filename)
 		{
@@ -24221,7 +24220,7 @@ void OS::initPathModule()
 		def(OS_TEXT("dirname"), &Lib::dirname),
 		def(OS_TEXT("basename"), &Lib::basename),
 		def(OS_TEXT("extname"), &Lib::extname),
-		def(OS_TEXT("exists"), &Lib::exists),
+		// def(OS_TEXT("exists"), &Lib::exists),
 		def(OS_TEXT("absolute"), &Lib::absolute),
 		// resolve will set to require.resolve inside of initPostScript
 		{}
@@ -24299,194 +24298,6 @@ void OS::initJsonModule()
 	pop();
 }
 
-void OS::initProcessModule()
-{
-	struct Lib
-	{
-		static int cwd(OS * os, int params, int, int, void*)
-		{
-#ifndef IW_SDK
-            const int OS_PATH_MAX = 1024;
-			Core::Buffer buf(os);
-            buf.reserveCapacity((OS_PATH_MAX+1) * sizeof(OS_CHAR));
-            OS_GETCWD((OS_CHAR*)buf.buffer.buf, OS_PATH_MAX);
-            os->pushString(buf);
-			return 1;
-#else
-			os->setException(OS_TEXT("this function is disabled for platform"));
-			return 0;
-#endif
-		}
-		
-		static int chdir(OS * os, int params, int, int, void*)
-		{
-#ifndef IW_SDK
-			if(params >= 1){
-				os->pushBool(OS_CHDIR(os->toString(-params).toChar()) == 0);
-				return 1;
-			}
-			return 0;
-#else
-			os->setException(OS_TEXT("this function is disabled for platform"));
-			return 0;
-#endif
-		}
-		
-		static int mkdir(OS * os, int params, int, int, void*)
-		{
-#ifndef IW_SDK
-			if(params >= 1){
-#ifdef _MSC_VER
-				os->pushBool(OS_MKDIR(os->toString(-params).toChar()) == 0);
-#else
-				int mode = params >= 2 ? os->toInt(-params+1) : 0755;
-				os->pushBool(OS_MKDIR(os->toString(-params).toChar(), mode) == 0);
-#endif
-				return 1;
-			}
-			return 0;
-#else
-			os->setException(OS_TEXT("this function is disabled for platform"));
-			return 0;
-#endif
-		}
-		
-		static int rmdir(OS * os, int params, int, int, void*)
-		{
-#if 0		// TODO: is it OK to rmdir?
-			if(params >= 1){
-				os->pushBool(OS_RMDIR(os->toString(-params).toChar()) == 0);
-				return 1;
-			}
-#else
-			os->setException(OS_TEXT("this function is disabled due to security reason"));
-#endif
-			return 0;
-		}
-		
-		static int chmod(OS * os, int params, int, int, void*)
-		{
-#ifndef IW_SDK
-			if(params >= 2){
-				int mode = os->toInt(-params+1);
-				os->pushBool(OS_CHMOD(os->toString(-params).toChar(), mode) == 0);
-				return 1;
-			}
-			return 0;
-#else
-			os->setException(OS_TEXT("this function is disabled for platform"));
-			return 0;
-#endif
-		}
-		
-		static int exitFunc(OS * os, int params, int, int, void*)
-		{
-#if 1		// TODO: script should use 'terminate' function instead of exit if possible
-			::exit(params >= 1 ? os->toInt(-params) : 0);
-#else
-			os->setException(OS_TEXT("this function is disabled due to security reason"));
-#endif
-			return 0;
-		}
-		
-		static int getgid(OS * os, int params, int, int, void*)
-		{
-#if 0
-			// TODO: implement under linux
-#else
-			os->setException(OS_TEXT("this function is not implemented yet"));
-			return 0;
-#endif
-		}
-		
-		static int setgid(OS * os, int params, int, int, void*)
-		{
-#if 0
-			// TODO: implement under linux
-#else
-			os->setException(OS_TEXT("this function is not implemented yet"));
-			return 0;
-#endif
-		}
-		
-		static int getuid(OS * os, int params, int, int, void*)
-		{
-#if 0
-			// TODO: implement under linux
-#else
-			os->setException(OS_TEXT("this function is not implemented yet"));
-			return 0;
-#endif
-		}
-		
-		static int setuid(OS * os, int params, int, int, void*)
-		{
-#if 0
-			// TODO: implement under linux
-#else
-			os->setException(OS_TEXT("this function is not implemented yet"));
-			return 0;
-#endif
-		}
-		
-		static int getPID(OS * os, int params, int, int, void*)
-		{
-#if 0
-			// TODO: implement under linux
-#else
-			os->setException(OS_TEXT("this function is not implemented yet"));
-			return 0;
-#endif
-		}
-		
-		static int kill(OS * os, int params, int, int, void*)
-		{
-#if 0
-			// TODO: implement under linux
-#else
-			os->setException(OS_TEXT("this function is not implemented yet"));
-			return 0;
-#endif
-		}
-		
-		static int umask(OS * os, int params, int, int, void*)
-		{
-#if 0
-			// TODO: implement under linux
-#else
-			os->setException(OS_TEXT("this function is not implemented yet"));
-			return 0;
-#endif
-		}
-	};
-
-	FuncDef funcs[] = {
-		{OS_TEXT("cwd"), Lib::cwd},
-		{OS_TEXT("chdir"), Lib::chdir},
-		{OS_TEXT("mkdir"), Lib::mkdir},
-		{OS_TEXT("rmdir"), Lib::rmdir},
-		{OS_TEXT("exit"), Lib::exitFunc}, // exit identifier could be defined for platform
-		{OS_TEXT("getgid"), Lib::getgid},
-		{OS_TEXT("setgid"), Lib::setgid},
-		{OS_TEXT("getuid"), Lib::getuid},
-		{OS_TEXT("setuid"), Lib::setuid},
-		{OS_TEXT("__get@PID"), Lib::getPID},
-		{OS_TEXT("kill"), Lib::kill},
-		{OS_TEXT("umask"), Lib::umask},
-		{}
-	};
-
-	getModule(OS_TEXT("process"));
-	setFuncs(funcs);
-
-	pushStackValue();
-	pushString(OS_TEXT("argv"));
-	newArray();
-	setProperty(); // process.argv should be populated later
-
-	pop();
-}
-
 void OS::initGCModule()
 {
 	struct GC
@@ -24552,13 +24363,13 @@ void OS::initGCModule()
 		{OS_TEXT("__get@numObjects"), GC::getNumObjects},
 		{OS_TEXT("__get@numCreatedObjects"), GC::getNumCreatedObjects},
 		{OS_TEXT("__get@numDestroyedObjects"), GC::getNumDestroyedObjects},
-		{OS_TEXT("__get@gcStartUsedBytes"), GC::getStartUsedBytes},
-		{OS_TEXT("__set@gcStartUsedBytes"), GC::setStartUsedBytes},
+		{OS_TEXT("__get@startUsedBytes"), GC::getStartUsedBytes},
+		{OS_TEXT("__set@startUsedBytes"), GC::setStartUsedBytes},
 		{OS_TEXT("full"), GC::full},
 		{}
 	};
 
-	getModule(OS_TEXT("GC"));
+	getModule(OS_TEXT("gc"));
 	setFuncs(list);
 	pop();
 }

@@ -86,7 +86,7 @@ public:
 	}
 };
 
-void initUrlLibrary(OS * os)
+void initUrlExtension(OS * os)
 {
 	OS::FuncDef funcs[] = {
 		{OS_TEXT("encode"), &UrlOS::encode},

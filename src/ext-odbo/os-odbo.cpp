@@ -440,7 +440,7 @@ public:
 		static int fetch(OS * os, int params, int, int, void * user_param);
 	};
 
-	static void initLibrary(OS* os);
+	static void initExtension(OS* os);
 
 };
 
@@ -794,11 +794,11 @@ int ODBO_OS::ODBO::getLastInsertId(OS * os, int params, int, int, void * user_pa
 	}else if(self->type == "sqlite"){
 		*self->handle << "select last_insert_rowid()", soci::into(value); 
 	}else if(self->type == "mssql"){
-		std::string table = Lib::getTableName(self);
-		*self->handle << ("select ident_current('" + table + "')"), soci::into(value); 
+		std::string sequence_name = params > 0 ? os->toString(-params+0).toChar() : Lib::getTableName(self);
+		*self->handle << ("select ident_current('" + sequence_name + "')"), soci::into(value); 
 	}else{
-		std::string table = Lib::getTableName(self);
-		self->handle->get_last_insert_id(table, value);
+		std::string sequence_name = params > 0 ? os->toString(-params+0).toChar() : Lib::getTableName(self);
+		self->handle->get_last_insert_id(sequence_name, value);
 	}
 	os->pushNumber(value); // sqlite3_last_insert_rowid(self->db));
 	return 1;
@@ -827,7 +827,7 @@ int ODBO_OS::ODBO::query(OS * os, int params, int, int, void * user_param)
 	return 0;
 }
 
-void ODBO_OS::initLibrary(OS* os)
+void ODBO_OS::initExtension(OS* os)
 {
 	soci::register_factory_mysql();
 	{
@@ -879,9 +879,9 @@ void ODBO_OS::initLibrary(OS* os)
 	));
 }
 
-void initODBOLibrary(OS* os)
+void initODBOExtension(OS* os)
 {
-	ODBO_OS::initLibrary(os);
+	ODBO_OS::initExtension(os);
 }
 
 } // namespace ObjectScript

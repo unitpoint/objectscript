@@ -1,5 +1,5 @@
-#ifndef __OS_DATETIME_H__
-#define __OS_DATETIME_H__
+#ifndef __OS_EXT_DATETIME_H__
+#define __OS_EXT_DATETIME_H__
 
 /******************************************************************************
 * Copyright (C) 2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -33,8 +33,8 @@ namespace ObjectScript {
 	/*
 		ObjectScript DateTime extension
 	*/
-	void initDateTimeLibrary(OS* os);
+	void initDateTimeExtension(OS* os);
 
 };
 
-#endif // __OS_DATETIME_H__
+#endif // __OS_EXT_DATETIME_H__

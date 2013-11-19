@@ -83,7 +83,7 @@ public:
 			}		
 		}
 
-		static void initLibrary(OS * os);
+		static void initExtension(OS * os);
 	};
 
 	static RegexpCache * toRegexpCache(OS*);
@@ -1240,10 +1240,10 @@ public:
 			return true;
 		}
 
-		static void initLibrary(OS * os);
+		static void initExtension(OS * os);
 	};
 
-	static void initLibrary(OS * os)
+	static void initExtension(OS * os)
 	{
 #define OS_AUTO_TEXT(exp) OS_TEXT(#exp)
 		os->eval(OS_AUTO_TEXT(
@@ -1285,7 +1285,7 @@ RegexpOS::RegexpCache * RegexpOS::toRegexpCache(OS * os)
 	return CtypeValue<RegexpOS::RegexpCache*>::getArg(os, -1);
 }			
 
-void RegexpOS::RegexpCache::initLibrary(OS * os)
+void RegexpOS::RegexpCache::initExtension(OS * os)
 {
 	struct Lib
 	{
@@ -1303,7 +1303,7 @@ void RegexpOS::RegexpCache::initLibrary(OS * os)
 	registerUserClass<RegexpCache>(os, funcs);
 }
 
-void RegexpOS::Regexp::initLibrary(OS * os)
+void RegexpOS::Regexp::initExtension(OS * os)
 {
 	struct Lib
 	{
@@ -1422,11 +1422,11 @@ void RegexpOS::Regexp::initLibrary(OS * os)
 	registerUserClass<Regexp>(os, funcs, numbers);
 }
 
-void initRegexpLibrary(OS* os)
+void initRegexpExtension(OS* os)
 {
-	RegexpOS::Regexp::initLibrary(os);
-	RegexpOS::RegexpCache::initLibrary(os);
-	RegexpOS::initLibrary(os);
+	RegexpOS::Regexp::initExtension(os);
+	RegexpOS::RegexpCache::initExtension(os);
+	RegexpOS::initExtension(os);
 }
 
 } // namespace ObjectScript

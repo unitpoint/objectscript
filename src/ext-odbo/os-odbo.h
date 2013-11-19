@@ -1,5 +1,5 @@
-#ifndef __OS_ODBO_H__
-#define __OS_ODBO_H__
+#ifndef __OS_EXT_ODBO_H__
+#define __OS_EXT_ODBO_H__
 
 /******************************************************************************
 * Copyright (C) 2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -33,8 +33,8 @@ namespace ObjectScript {
 	/*
 		ObjectScript Database Object (ODBO) extension
 	*/
-	void initODBOLibrary(OS* os);
+	void initODBOExtension(OS* os);
 
 };
 
-#endif // __OS_ODBO_H__
+#endif // __OS_EXT_ODBO_H__

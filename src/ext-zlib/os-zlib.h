@@ -1,5 +1,5 @@
-#ifndef __OS_ZLIB_H__
-#define __OS_ZLIB_H__
+#ifndef __OS_EXT_ZLIB_H__
+#define __OS_EXT_ZLIB_H__
 
 /******************************************************************************
 * Copyright (C) 2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -33,8 +33,8 @@ namespace ObjectScript {
 	/*
 		ObjectScript zlib extension
 	*/
-	void initZLibrary(OS* os);
+	void initZlibExtension(OS* os);
 
 };
 
-#endif // __OS_ZLIB_H__
+#endif // __OS_EXT_ZLIB_H__

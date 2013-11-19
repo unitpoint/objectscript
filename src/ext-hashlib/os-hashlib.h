@@ -1,5 +1,5 @@
-#ifndef __OS_HASHLIB_H__
-#define __OS_HASHLIB_H__
+#ifndef __OS_EXT_HASHLIB_H__
+#define __OS_EXT_HASHLIB_H__
 
 /******************************************************************************
 * Copyright (C) 2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -33,8 +33,8 @@ namespace ObjectScript {
 	/*
 		ObjectScript Hashlib extension
 	*/
-	void initHashLibrary(OS* os);
+	void initHashExtension(OS* os);
 
 };
 
-#endif // __OS_HASHLIB_H__
+#endif // __OS_EXT_HASHLIB_H__

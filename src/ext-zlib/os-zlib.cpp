@@ -39,7 +39,7 @@ public:
 		os->setException();
 	}
 
-	static void initLibrary(OS * os);
+	static void initExtension(OS * os);
 
 	/* proto binary encode(binary data, int encoding[, int level = -1])
 	   Compress data with the specified encoding */
@@ -236,7 +236,7 @@ retry_raw_inflate:
 	}
 };
 
-void ZlibOS::initLibrary(OS * os)
+void ZlibOS::initExtension(OS * os)
 {
 	OS::FuncDef funcs[] = {
 		{OS_TEXT("encode"), encode},
@@ -254,9 +254,9 @@ void ZlibOS::initLibrary(OS * os)
 	os->pop();
 }
 
-void initZLibrary(OS* os)
+void initZlibExtension(OS* os)
 {
-	ZlibOS::initLibrary(os);
+	ZlibOS::initExtension(os);
 }
 
 } // namespace ObjectScript

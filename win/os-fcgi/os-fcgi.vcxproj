@@ -472,6 +472,7 @@
     <ClInclude Include="..\..\3rdparty\pcrelib\pcre.h" />
     <ClInclude Include="..\..\src\ext-url\os-url.h" />
     <ClInclude Include="..\..\src\ext-zlib\os-zlib.h" />
+    <ClInclude Include="..\..\src\objectscript.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -493,6 +494,7 @@
       <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ShowIncludes>
       <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'">true</ShowIncludes>
     </ClCompile>
+    <ClCompile Include="..\..\src\ext-filesystem\os-filesystem.cpp" />
     <ClCompile Include="..\..\src\ext-hashlib\des\des.cpp" />
     <ClCompile Include="..\..\src\ext-hashlib\md5\md5.cpp" />
     <ClCompile Include="..\..\src\ext-hashlib\os-hashlib.cpp" />
@@ -503,6 +505,7 @@
     <ClCompile Include="..\..\src\ext-hashlib\sha\usha.cpp" />
     <ClCompile Include="..\..\src\ext-iconv\os-iconv.cpp" />
     <ClCompile Include="..\..\src\ext-odbo\os-odbo.cpp" />
+    <ClCompile Include="..\..\src\ext-process\os-process.cpp" />
     <ClCompile Include="..\..\src\ext-regexp\os-regexp.cpp" />
     <ClCompile Include="..\..\src\ext-sqlite3\os-sqlite3.cpp" />
     <ClCompile Include="..\..\src\ext-sqlite3\sqlite3.c" />

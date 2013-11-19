@@ -623,7 +623,7 @@ template <> struct UserDataDestructor<OpenglCache>
 	}
 };
 
-void initOpenglLibrary(OS* os)
+void initOpenglExtension(OS* os)
 {
 	os->pushStackValue(OS_REGISTER_USERPOOL);
 	os->pushString(CtypeName<OpenglCache>::getName());

@@ -40,7 +40,7 @@ public:
 		return false; // os->isExceptionSet();
 	}
 
-	static void initLibrary(OS * os);
+	static void initExtension(OS * os);
 
 	struct SqliteStatement;
 	struct Sqlite
@@ -564,7 +564,7 @@ int SqliteOS::Sqlite::query(OS * os, int params, int, int, void * user_param)
 	return 0;
 }
 
-void SqliteOS::initLibrary(OS * os)
+void SqliteOS::initExtension(OS * os)
 {
 	{
 		OS::FuncDef funcs[] = {
@@ -592,9 +592,9 @@ void SqliteOS::initLibrary(OS * os)
 	Sqlite::initScript(os);
 }
 
-void initSqlite3Library(OS* os)
+void initSqlite3Extension(OS* os)
 {
-	SqliteOS::initLibrary(os);
+	SqliteOS::initExtension(os);
 }
 
 } // namespace ObjectScript

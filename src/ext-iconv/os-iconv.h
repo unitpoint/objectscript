@@ -1,5 +1,5 @@
-#ifndef __OS_ICONV_H__
-#define __OS_ICONV_H__
+#ifndef __OS_EXT_ICONV_H__
+#define __OS_EXT_ICONV_H__
 
 /******************************************************************************
 * Copyright (C) 2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
@@ -33,8 +33,8 @@ namespace ObjectScript {
 	/*
 		ObjectScript DateTime extension
 	*/
-	void initIconvLibrary(OS* os);
+	void initIconvExtension(OS* os);
 
 };
 
-#endif // __OS_ICONV_H__
+#endif // __OS_EXT_ICONV_H__
