@@ -7,7 +7,7 @@
 #include "../os-binder.h"
 #include <limits.h>
 
-#ifdef _MSC_VER
+#if defined _MSC_VER && !defined HAVE_FTIME
 #define HAVE_FTIME
 #endif
 
