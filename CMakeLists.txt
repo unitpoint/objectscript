@@ -227,6 +227,16 @@ SET(GCC_COVERAGE_COMPILE_FLAGS "${GCC_COVERAGE_COMPILE_FLAGS} ")
 SET(GCC_COVERAGE_LINK_FLAGS    "${GCC_COVERAGE_LINK_FLAGS} -lpthread -ldl")
 # end sqlite3
 
+# begin process
+list(APPEND SOURCES src/ext-process/os-process.cpp)
+list(APPEND HEADERS src/ext-process/os-process.h)
+# end process
+
+# begin filesystem
+list(APPEND SOURCES src/ext-filesystem/os-filesystem.cpp)
+list(APPEND HEADERS src/ext-filesystem/os-filesystem.h)
+# end filesystem
+
 # begin datetime
 list(APPEND SOURCES src/ext-datetime/os-datetime.cpp)
 list(APPEND HEADERS src/ext-datetime/os-datetime.h)
