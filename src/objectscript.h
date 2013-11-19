@@ -2364,7 +2364,7 @@ namespace ObjectScript
 				String func_require;
 				String func_core;
 				String func_main;
-				String func_createConstProperty;
+				String func_defineConstProperty;
 
 				String typeof_null;
 				String typeof_boolean;

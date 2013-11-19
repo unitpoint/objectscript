@@ -5247,7 +5247,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 	case EXP_TYPE_OBJECT_CREATE_CONST:
 		OS_ASSERT(exp->list.count == 1);
 		exp->slots.b = cacheString(exp->token->str);
-		exp->slots.c = cacheString(allocator->core->strings->func_createConstProperty);
+		exp->slots.c = cacheString(allocator->core->strings->func_defineConstProperty);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_INDEX:
@@ -13446,7 +13446,7 @@ OS::Core::Strings::Strings(OS * allocator)
 
 	func_core(allocator, OS_TEXT("{{CORE}}")),
 	func_main(allocator, OS_TEXT("{{main}}")),
-	func_createConstProperty(allocator, OS_TEXT("createConstProperty")),
+	func_defineConstProperty(allocator, OS_TEXT("defineConstProperty")),
 
 	typeof_null(allocator, OS_TEXT("null")),
 	typeof_boolean(allocator, OS_TEXT("boolean")),
@@ -24543,7 +24543,7 @@ void OS::initPreScript()
 			}
 		}
 
-		function createConstProperty(obj, name, value){
+		function defineConstProperty(obj, name, value){
 			objectOf(obj) || throw "object required"
 			obj["__get@"..name] = function(){
 				return value
