@@ -264,7 +264,7 @@ static int OS_SNPRINTF(OS_CHAR * str, size_t size, const OS_CHAR *format, ...)
 static bool OS_ISNAN(OS_FLOAT a)
 {
 	volatile OS_FLOAT b = a;
-	return b != b;
+	return !(b == b);
 }
 // #endif
 
@@ -1812,8 +1812,17 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 	bool is_template = template_enabled;
 
 	enum EStringType { NOT_STRING, SIMPLE, QUOTE, MULTI_SIMPLE, MULTI_QUOTE } string_type = NOT_STRING;
-	EStringType saved_string_type = NOT_STRING;
-	bool var_in_string = false;
+	// EStringType saved_string_type = NOT_STRING;
+	struct StringTypeStack: public Vector<EStringType>
+	{
+		OS * allocator;
+		StringTypeStack(OS * a){ allocator = a; }
+		~StringTypeStack()
+		{
+			allocator->vectorClear(*this);
+		}
+	} string_type_stack(allocator);
+	int var_in_string = 0;
 	
 	const char * multi_string_id = NULL;
 	int multi_string_id_len = 0;
@@ -1886,13 +1895,14 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				continue;
 			}
 
-			if(var_in_string && *str == OS_TEXT('}')){
-				OS_ASSERT(saved_string_type == QUOTE || saved_string_type == MULTI_QUOTE);
+			if(var_in_string == 1 && *str == OS_TEXT('}')){
+				var_in_string = 0;
+				// OS_ASSERT(saved_string_type == QUOTE || saved_string_type == MULTI_QUOTE);
 				addToken(String(allocator, OS_TEXT(")")), END_BRACKET_BLOCK, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
 				addToken(String(allocator, OS_TEXT("}")), AFTER_INJECT_VAR, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
-				var_in_string = false;
-				string_type = saved_string_type;
-				saved_string_type = NOT_STRING;
+				string_type = allocator->vectorPop(string_type_stack);
+				OS_ASSERT(string_type == QUOTE || string_type == MULTI_QUOTE);
+				// saved_string_type = NOT_STRING;
 				if(string_type == MULTI_QUOTE){
 					str++;
 				}
@@ -1901,6 +1911,11 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 			}else if(*str == OS_TEXT('\'')){
 				string_type = SIMPLE;
 			}else if(str[0] == OS_TEXT('<') && str[1] == OS_TEXT('<') && str[2] == OS_TEXT('<')){
+				if(var_in_string){
+					error = ERROR_SYNTAX;
+					cur_pos = (int)(str - line_start);
+					return false;
+				}
 				str += 3;
 				multi_string_id = str;
 				while(*str && *str != OS_TEXT('\'') && *str != OS_TEXT('"')) str++;
@@ -1935,13 +1950,23 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 			}else{
 				string_type = NOT_STRING;
 			}
-			if(!var_in_string && (string_type == MULTI_QUOTE || string_type == MULTI_SIMPLE)){ // begin multi line string
+			if(string_type == MULTI_QUOTE || string_type == MULTI_SIMPLE){ // begin multi line string
+				if(var_in_string){
+					error = ERROR_SYNTAX;
+					cur_pos = (int)(str - line_start);
+					return false;
+				}
 				Buffer buf(allocator);
 				for(;;){
 					const OS_CHAR * token_start = str;
 					bool finished = false;
 					while(*str){
 						if(OS_MEMCMP(str, multi_string_id, multi_string_id_len) == 0){
+							if(var_in_string){
+								error = ERROR_SYNTAX;
+								cur_pos = (int)(str - line_start);
+								return false;
+							}				
 							string_type = NOT_STRING;
 							bool start = str == line_start;
 							str += multi_string_id_len;
@@ -1962,9 +1987,15 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 						OS_CHAR c = *str++;
 						if(string_type == MULTI_QUOTE){
 							if(c == OS_TEXT('$') && string_type != SIMPLE && *str == OS_TEXT('{')){
-								OS_ASSERT(!var_in_string);
-								var_in_string = finished = true;
-								saved_string_type = string_type;
+								if(var_in_string){
+									error = ERROR_SYNTAX;
+									cur_pos = (int)(str - line_start);
+									return false;
+								}				
+								var_in_string = 1;
+								finished = true;
+								allocator->vectorPush(string_type_stack, string_type OS_DBG_FILEPOS);
+								// saved_string_type = string_type;
 								string_type = NOT_STRING;
 								str++;
 								addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
@@ -1992,16 +2023,23 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				}
 				continue;
 			}
-			if(!var_in_string && string_type != NOT_STRING){ // begin string
+			if(/*!var_in_string &&*/ string_type != NOT_STRING){ // begin string
+				const OS_CHAR * token_start = str;
 				Buffer buf(allocator);
 				OS_CHAR close_char = string_type == SIMPLE ? OS_TEXT('\'') : string_type == QUOTE ? OS_TEXT('"') : OS_TEXT('\0');
-				const OS_CHAR * token_start = str;
+				bool finished = false;
 				for(str++; *str && *str != close_char;){
 					OS_CHAR c = *str++;
 					if(c == OS_TEXT('$') && string_type != SIMPLE && *str == OS_TEXT('{')){
-						OS_ASSERT(!var_in_string);
-						var_in_string = true;
-						saved_string_type = string_type;
+						if(var_in_string){
+							error = ERROR_SYNTAX;
+							cur_pos = (int)(str - line_start);
+							return false;
+						}				
+						var_in_string = 1;
+						finished = true;
+						allocator->vectorPush(string_type_stack, string_type OS_DBG_FILEPOS);
+						// saved_string_type = string_type;
 						string_type = NOT_STRING;
 						str++;
 						addToken(buf, STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
@@ -2062,7 +2100,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					}
 					buf.append(c);
 				}
-				if(var_in_string){
+				if(finished){
 					continue;
 				}
 				OS_ASSERT(string_type == SIMPLE || string_type == QUOTE);
@@ -2144,6 +2182,17 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					int len = operator_desc[i].len;
 					if(OS_STRNCMP(str, operator_desc[i].name, len) == 0){
 						addToken(String(allocator, str, (int)len), operator_desc[i].type, cur_line, (int)(str - line_start) OS_DBG_FILEPOS);
+						if(var_in_string && len == 1){
+							if(*str == OS_TEXT('{')){
+								var_in_string++;
+							}else if(*str == OS_TEXT('}')){
+								if(--var_in_string <= 0){
+									error = ERROR_SYNTAX;
+									cur_pos = (int)(str - line_start);
+									return false;
+								}
+							}
+						}
 						str += len;
 						break;
 					}
@@ -12406,7 +12455,7 @@ void OS::Core::registerFreeCandidateValue(GCValue * value)
 {
 	OS_ASSERT(value->value_id);
 	OS_ASSERT(!gc_candidate_values.get(value->value_id));
-	if((gc_candidate_values.count>>(HASH_GROW_SHIFT+1)) >= gc_candidate_values.head_mask){
+	if((gc_candidate_values.count>>HASH_GROW_SHIFT) >= gc_candidate_values.head_mask){
 		int new_size = gc_candidate_values.heads ? (gc_candidate_values.head_mask+1) * 2 : 32;
 		int alloc_size = sizeof(GCValue*) * new_size;
 		GCValue ** new_heads = (GCValue**)malloc(alloc_size OS_DBG_FILEPOS); // new Value*[new_size];
@@ -20432,7 +20481,7 @@ void OS::initCoreFunctions()
 			return 1;
 		}
 
-		static int toBool(OS * os, int params, int, int, void*)
+		static int toBoolean(OS * os, int params, int, int, void*)
 		{
 			if(params < 1) return 0;
 			os->pushBool(os->toBool(-params));
@@ -20508,7 +20557,7 @@ void OS::initCoreFunctions()
 		{OS_TEXT("objectOf"), Lib::objectOf},
 		{OS_TEXT("userdataOf"), Lib::userdataOf},
 		{OS_TEXT("functionOf"), Lib::functionOf},
-		{OS_TEXT("toBool"), Lib::toBool},
+		{OS_TEXT("toBoolean"), Lib::toBoolean},
 		{OS_TEXT("toNumber"), Lib::toNumber},
 		{OS_TEXT("toString"), Lib::toString},
 		{OS_TEXT("print"), Lib::print},
