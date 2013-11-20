@@ -1804,6 +1804,22 @@ bool OS::Core::Tokenizer::parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool 
 	return false;
 }
 
+/*
+	implement EStringType & StringTypeStack outside of OS::Core::Tokenizer::parseLines to prevent error: 
+		template argument for ‘template<class T> struct ObjectScript::OS::Vector’ 
+		uses local type ‘ObjectScript::OS::Core::Tokenizer::parseLines(ObjectScript::OS_ESourceCodeType, bool)::EStringType’
+*/
+enum EStringType { NOT_STRING, SIMPLE, QUOTE, MULTI_SIMPLE, MULTI_QUOTE };
+struct StringTypeStack: public OS::Vector<EStringType>
+{
+	OS * allocator;
+	StringTypeStack(OS * a){ allocator = a; }
+	~StringTypeStack()
+	{
+		allocator->vectorClear(*this);
+	}
+};
+
 bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	OS * allocator = getAllocator();
@@ -1811,17 +1827,8 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 	bool template_enabled = source_code_type == OS_SOURCECODE_TEMPLATE;
 	bool is_template = template_enabled;
 
-	enum EStringType { NOT_STRING, SIMPLE, QUOTE, MULTI_SIMPLE, MULTI_QUOTE } string_type = NOT_STRING;
-	// EStringType saved_string_type = NOT_STRING;
-	struct StringTypeStack: public Vector<EStringType>
-	{
-		OS * allocator;
-		StringTypeStack(OS * a){ allocator = a; }
-		~StringTypeStack()
-		{
-			allocator->vectorClear(*this);
-		}
-	} string_type_stack(allocator);
+	EStringType string_type = NOT_STRING;
+	StringTypeStack string_type_stack(allocator);
 	int var_in_string = 0;
 	
 	const char * multi_string_id = NULL;
