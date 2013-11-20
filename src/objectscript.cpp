@@ -21531,6 +21531,23 @@ dump_object:
 			return 0;
 		}
 		
+		static int deleteFirst(OS * os, int params, int, int, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_OBJECT:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+				if(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->count > 0){
+					os->core->deleteTableProperty(OS_VALUE_VARIANT(self_var).object->table, OS_VALUE_VARIANT(self_var).object->table->first->index);
+				}
+				break;
+			}
+			return 0;
+		}
+		
 		static int getLast(OS * os, int params, int, int, void*)
 		{
 			Core::Value self_var = os->core->getStackValue(-params-1);
@@ -21563,6 +21580,23 @@ dump_object:
 					os->core->pushValue(value);
 					os->core->setValue(OS_VALUE_VARIANT(self_var).object->table->last->value, value);
 					return 1;
+				}
+				break;
+			}
+			return 0;
+		}
+
+		static int deleteLast(OS * os, int params, int, int, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_OBJECT:
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:
+			case OS_VALUE_TYPE_FUNCTION:
+			case OS_VALUE_TYPE_CFUNCTION:
+				if(OS_VALUE_VARIANT(self_var).object->table && OS_VALUE_VARIANT(self_var).object->table->count > 0){
+					os->core->deleteTableProperty(OS_VALUE_VARIANT(self_var).object->table, OS_VALUE_VARIANT(self_var).object->table->last->index);
 				}
 				break;
 			}
@@ -21609,10 +21643,14 @@ dump_object:
 		{OS_TEXT("getFirst"), Object::getFirst},
 		{OS_TEXT("__set@first"), Object::setFirst},
 		{OS_TEXT("setFirst"), Object::setFirst},
+		{OS_TEXT("__del@first"), Object::deleteFirst},
+		{OS_TEXT("deleteFirst"), Object::deleteFirst},
 		{OS_TEXT("__get@last"), Object::getLast},
 		{OS_TEXT("getLast"), Object::getLast},
 		{OS_TEXT("__set@last"), Object::setLast},
 		{OS_TEXT("setLast"), Object::setLast},
+		{OS_TEXT("__del@last"), Object::deleteLast},
+		{OS_TEXT("deleteLast"), Object::deleteLast},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_OBJECT]);
@@ -22061,6 +22099,19 @@ void OS::initArrayClass()
 			return 0;
 		}
 		
+		static int deleteFirst(OS * os, int params, int, int need_ret_values, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_ARRAY:
+				if(OS_VALUE_VARIANT(self_var).arr->values.count > 0){
+					os->core->releaseValue(OS_VALUE_VARIANT(self_var).arr->values.buf[0]); 
+					os->vectorRemoveAtIndex(OS_VALUE_VARIANT(self_var).arr->values, 0);
+				}
+			}
+			return 0;
+		}
+		
 		static int getLast(OS * os, int params, int, int need_ret_values, void*)
 		{
 			Core::Value self_var = os->core->getStackValue(-params-1);
@@ -22084,6 +22135,20 @@ void OS::initArrayClass()
 					os->core->pushValue(value);
 					os->core->setValue(OS_VALUE_VARIANT(self_var).arr->values.lastElement(), value);
 					return 1;
+				}
+			}
+			return 0;
+		}
+		
+		static int deleteLast(OS * os, int params, int, int need_ret_values, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			switch(OS_VALUE_TYPE(self_var)){
+			case OS_VALUE_TYPE_ARRAY:
+				if(OS_VALUE_VARIANT(self_var).arr->values.count > 0){
+					int last = OS_VALUE_VARIANT(self_var).arr->values.count-1;
+					os->core->releaseValue(OS_VALUE_VARIANT(self_var).arr->values.buf[last]); 
+					os->vectorRemoveAtIndex(OS_VALUE_VARIANT(self_var).arr->values, last);
 				}
 			}
 			return 0;
@@ -22121,10 +22186,14 @@ void OS::initArrayClass()
 		{OS_TEXT("getFirst"), Array::getFirst},
 		{OS_TEXT("__set@first"), Array::setFirst},
 		{OS_TEXT("setFirst"), Array::setFirst},
+		{OS_TEXT("__del@first"), Array::deleteFirst},
+		{OS_TEXT("deleteFirst"), Array::deleteFirst},
 		{OS_TEXT("__get@last"), Array::getLast},
 		{OS_TEXT("getLast"), Array::getLast},
 		{OS_TEXT("__set@last"), Array::setLast},
 		{OS_TEXT("setLast"), Array::setLast},
+		{OS_TEXT("__del@last"), Array::deleteLast},
+		{OS_TEXT("deleteLast"), Array::deleteLast},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_ARRAY]);
