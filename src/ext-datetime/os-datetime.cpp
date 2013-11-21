@@ -1618,6 +1618,18 @@ public:
 						offset < 0 ? '-' : '+', abs(offset / 3600), abs((offset % 3600) / 60)
 						);
 					break;
+				case 'R':
+					{
+						offset = lib.getGMTOffset();
+						DateTime n(os);
+						n.setCOMDate(this->comdate - (double)offset / 3600.0 / 24.0);
+
+						length = OS_SNPRINTF(buffer, 96, "%3s, %02d %3s %04d %02d:%02d:%02d GMT",
+							day_short_names[n.day_of_week],
+							(int)n.day, mon_short_names[n.month - 1],
+							(int)n.year, (int)n.hour, (int)n.minute, (int)n.second);
+						break;
+					}
 				case 'U': length = OS_SNPRINTF(buffer, 32, "%lld", (timelib_sll)getTicks()); break;
 
 				case '\\': if (i < fmt_len) i++; /* break intentionally missing */
