@@ -10,7 +10,7 @@
 #include "3rdparty/MPFDParser-1.0/Parser.h"
 #include <stdlib.h>
 
-#define OS_FCGI_VERSION_STR	OS_TEXT("1.1.1")
+#define OS_FCGI_VERSION	OS_TEXT("1.1.2")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -270,11 +270,17 @@ public:
 		return LOAD_COMPILED_FILE;
 	}
 
-	static int triggerHeaderSent(OS * p_os, int params, int, int, void*)
+	static int notifyHeadersSent(OS * p_os, int params, int, int, void*)
 	{
 		FCGX_OS * os = (FCGX_OS*)p_os;
 		os->header_sent = true;
 		return 0;
+	}
+
+	static int getFCGIVersion(OS * p_os, int params, int, int, void*)
+	{
+		p_os->pushString(OS_FCGI_VERSION);
+		return 1;
 	}
 
 	/*
@@ -316,7 +322,8 @@ public:
 	void initGlobalFunctions()
 	{
 		FuncDef funcs[] = {
-			{"triggerHeaderSent", FCGX_OS::triggerHeaderSent},
+			{"notifyHeadersSent", FCGX_OS::notifyHeadersSent},
+			{"__get@OS_FCGI_VERSION", FCGX_OS::getFCGIVersion},
 			{}
 		};
 		pushGlobals();
@@ -731,7 +738,7 @@ int main(int argc, char * argv[])
 {
 	initStartTime();
 
-	printf("ObjectScript FastCGI Process Manager %s\n", OS_FCGI_VERSION_STR);
+	printf("ObjectScript FastCGI Process Manager %s\n", OS_FCGI_VERSION);
 	printf("%s\n", OS_COPYRIGHT);
 	printf("%s\n", OS_OPENSOURCE);
 

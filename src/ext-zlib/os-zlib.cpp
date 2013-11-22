@@ -182,7 +182,7 @@ retry_raw_inflate:
 	   Compress data with the specified encoding */
 	static int encode(OS * os, int params, int, int, void * user_param)
 	{
-		return encodeInternal(os, params, 0);
+		return encodeInternal(os, params, ZLIB_ENCODING_ANY);
 	}
 
 	/* proto binary zlib_decode(binary data[, int max_decoded_len])
@@ -239,8 +239,8 @@ retry_raw_inflate:
 void ZlibOS::initExtension(OS * os)
 {
 	OS::FuncDef funcs[] = {
-		{OS_TEXT("encode"), encode},
-		{OS_TEXT("decode"), decode},
+		// {OS_TEXT("encode"), encode},
+		// {OS_TEXT("decode"), decode},
 		{OS_TEXT("gzdeflate"), gzdeflate},
 		{OS_TEXT("gzencode"), gzencode},
 		{OS_TEXT("gzcompress"), gzcompress},

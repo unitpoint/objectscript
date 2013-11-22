@@ -41,6 +41,8 @@ public:
 					|| (*s >= OS_TEXT('a') && *s <= OS_TEXT('z')) 
 					|| *s == OS_TEXT('-') || *s == OS_TEXT('_')
 					|| *s == OS_TEXT('.') || *s == OS_TEXT('~')
+					// || *s == OS_TEXT('!') || *s == OS_TEXT('*')
+					// || *s == OS_TEXT('\'')|| *s == OS_TEXT('(') || *s == OS_TEXT(')')
 					)
 				{
 					buf.append(*s);
