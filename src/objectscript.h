@@ -56,7 +56,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.15-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.16-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -2038,6 +2038,7 @@ namespace ObjectScript
 				Scope * expectCodeExpression(Scope*);
 				Expression * expectFunctionExpression(Scope*);
 				Expression * expectFunctionSugarExpression(Scope*);
+				Expression * expectFunctionBlockExpression(Scope*);
 				Expression * expectExtendsExpression(Scope*);
 				Expression * expectDeleteExpression(Scope*);
 				Expression * expectVarExpression(Scope*);
@@ -2384,6 +2385,7 @@ namespace ObjectScript
 				String func_concat;
 				String func_echo;
 				String func_require;
+				String func_call;
 				String func_core;
 				String func_main;
 				String func_defineConstProperty;

@@ -7202,6 +7202,104 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 	return scope;
 }
 
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionBlockExpression(Scope * parent)
+{
+	OS_ASSERT(recent_token && recent_token->type == Tokenizer::BEGIN_CODE_BLOCK);
+	Scope * scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(parent, EXP_TYPE_FUNCTION, recent_token);
+	scope->function = scope;
+	scope->ret_values = 1;
+	scope->addPreVars();
+	scope->num_params = scope->num_locals;
+	scope->addPostVars();
+
+	if(!expectToken()){
+		allocator->deleteObj(scope);
+		return NULL;
+	}
+	scope->parser_started = true;
+
+	Params p = Params()
+		.setAllowAssign(true)
+		.setAllowAutoCall(true)
+		.setAllowBinaryOperator(true)
+		.setAllowParams(true)
+		.setAllowRootBlocks(true);
+
+	Expression * exp;
+	ExpressionList list(allocator);
+	while(!isError()){
+		exp = expectSingleExpression(scope, p);
+		if(isError()){
+			break;
+		}
+		if(exp){
+			list.add(exp OS_DBG_FILEPOS);
+		}
+		TokenType token_type = recent_token->type;
+		if(token_type == Tokenizer::CODE_SEPARATOR){
+			if(!readToken()){
+				break;
+			}
+			token_type = recent_token->type;
+		}
+		if(token_type == Tokenizer::END_ARRAY_BLOCK 
+			|| token_type == Tokenizer::END_BRACKET_BLOCK
+			|| token_type == Tokenizer::END_CODE_BLOCK)
+		{
+			break;
+		}
+	}
+	if(isError()){
+		allocator->deleteObj(scope);
+		return NULL;
+	}
+	if(!recent_token || recent_token->type != Tokenizer::END_CODE_BLOCK){
+		setError(Tokenizer::END_CODE_BLOCK, recent_token);
+		allocator->deleteObj(scope);
+		return NULL;
+	}
+	readToken();
+
+	if(list.count > 0){
+		exp = newExpressionFromList(list, 1, true);
+		switch(exp->type){
+		case EXP_TYPE_CODE_LIST:
+			scope->list.swap(exp->list);
+			allocator->deleteObj(exp);
+			break;
+
+		default:
+			scope->list.add(exp OS_DBG_FILEPOS);
+		}
+		if(scope->list.count > 0){
+			Expression * last_exp = scope->list.lastElement();
+			if(last_exp->ret_values == 1 && last_exp->type != EXP_TYPE_RETURN){
+				scope->list.lastElement() = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_RETURN, last_exp->token, last_exp OS_DBG_FILEPOS);
+				scope->list.lastElement()->ret_values = 1;
+			}
+		}
+	}
+	exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CALL_METHOD, scope->token, scope OS_DBG_FILEPOS);
+	{
+		Expression * params = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, exp->token);
+		
+		String method_name = allocator->core->strings->func_call;
+		TokenData * token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), method_name, Tokenizer::NAME, exp->token->line, exp->token->pos);
+		Expression * exp_method_name = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_STRING, token);
+		exp_method_name->ret_values = 1;
+		token->release();
+
+		Expression * exp_this = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_THIS, exp->token);
+		exp_this->ret_values = 1;
+
+		params->list.add(exp_method_name OS_DBG_FILEPOS);
+		params->list.add(exp_this OS_DBG_FILEPOS);
+		params->ret_values = 2;
+		exp->list.add(params OS_DBG_FILEPOS);
+	}
+	return exp;
+}
+
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope * scope)
 {
 	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_var);
@@ -8875,9 +8973,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		// end unary operators
 
 	case Tokenizer::OPERATOR_THIS:
+		readToken();
+		if(recent_token && recent_token->type == Tokenizer::BEGIN_CODE_BLOCK){
+			exp = expectFunctionBlockExpression(scope);
+			return exp ? finishValueExpression(scope, exp, p) : NULL;
+		}
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_THIS, token);
 		exp->ret_values = 1;
-		readToken();
 		if(recent_token && recent_token->type == Tokenizer::NAME){
 			Expression * exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, recent_token);
 			exp2->ret_values = 1;
@@ -13532,6 +13634,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	func_concat(allocator, OS_TEXT("concat")),
 	func_echo(allocator, OS_TEXT("echo")),
 	func_require(allocator, OS_TEXT("require")),
+	func_call(allocator, OS_TEXT("call")),
 
 	func_core(allocator, OS_TEXT("{{CORE}}")),
 	func_main(allocator, OS_TEXT("{{main}}")),
