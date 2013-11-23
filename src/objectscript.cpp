@@ -2973,6 +2973,12 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 			break;
 		}
 
+	case EXP_TYPE_INIT_ITER:
+		OS_ASSERT(list.count == 1);
+		list[0]->debugPrint(out, compiler, scope, depth);
+		out += String::format(allocator, OS_TEXT("%s%s: # (%d)\n"), spaces, OS::Core::Compiler::getExpName(type), slots.a);
+		break;
+
 	case EXP_TYPE_NEW_LOCAL_VAR:
 		{
 			break;
@@ -3562,6 +3568,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_CALL:
 	case EXP_TYPE_CALL_AUTO_PARAM:
 	case EXP_TYPE_CALL_METHOD:
+	case EXP_TYPE_INIT_ITER:
 	case EXP_TYPE_TAIL_CALL:
 	case EXP_TYPE_TAIL_CALL_METHOD:
 
@@ -5545,6 +5552,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		}
 		return exp;
 
+	case EXP_TYPE_INIT_ITER:
+		stack_pos = scope->function->stack_cur_size;
+		exp = Lib::processList(this, scope, exp);
+		exp->slots.a = stack_pos;
+		OS_ASSERT(scope->function->stack_cur_size == stack_pos + exp->ret_values);
+		return exp;
+
 	case EXP_TYPE_IF:
 		OS_ASSERT(exp->list.count == 2 || exp->list.count == 3);
 		stack_pos = scope->function->stack_cur_size;
@@ -7450,6 +7464,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 		}
 		body_exp = expectExpressionValues(body_exp, 0);
 
+#if 1
+		exp = expectExpressionValues(exp, 1);
+		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_INIT_ITER, exp->token, exp OS_DBG_FILEPOS);
+		exp->ret_values = 1;
+#else
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CALL_METHOD, exp->token, exp OS_DBG_FILEPOS);
 		{
 			Expression * params = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, exp->token);
@@ -7464,7 +7483,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 			params->ret_values = 1;
 			exp->list.add(params OS_DBG_FILEPOS);
 		}
-		exp = expectExpressionValues(exp, vars.count + 1);
+		exp = expectExpressionValues(exp, 1); // vars.count + 1);
+#endif
 		int num_locals = vars.count;
 
 		const int temp_count = 2;
@@ -7486,7 +7506,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 
 		ExpressionList list(allocator);
 
-		// OS: var func, state, state2 = (in_exp).__iter()
+		// OS: var func = (in_exp).__iter()
 		{
 			Expression * params = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, exp->token);
 			for(int i = num_locals; i < vars.count-1; i++){
@@ -9282,6 +9302,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type, ECompiledVal
 	case EXP_TYPE_CALL_METHOD:
 		return OS_TEXT("call method");
 
+	case EXP_TYPE_INIT_ITER:
+		return OS_TEXT("init iter");
+
 	case EXP_TYPE_TAIL_CALL_METHOD:
 		return OS_TEXT("tail call method");
 
@@ -9925,6 +9948,7 @@ OS::Core::OpcodeType OS::Core::Program::getOpcodeType(Compiler::ExpressionType e
 #endif
 	case Compiler::EXP_TYPE_SUPER_CALL: return OP_SUPER_CALL;
 	// case Compiler::EXP_TYPE_SUPER: return OP_SUPER;
+	case Compiler::EXP_TYPE_INIT_ITER: return OP_INIT_ITER;
 
 	case Compiler::EXP_TYPE_GET_PROPERTY: return OP_GET_PROPERTY;
 	case Compiler::EXP_TYPE_SET_PROPERTY: return OP_SET_PROPERTY;
@@ -11609,7 +11633,7 @@ OS::Core::GCValue::GCValue()
 	table = NULL;
 	name = NULL;
 	type = OS_VALUE_TYPE_NULL;
-	is_object_instance = false;
+	// is_object_instance = false;
 	is_destructor_called = false;
 }
 
@@ -15587,7 +15611,7 @@ OS::Core::GCCFunctionValue * OS::Core::pushCFunctionValue(OS_CFunction func, int
 	return res;
 }
 
-OS::Core::GCUserdataValue * OS::Core::pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param, bool is_object_instance)
+OS::Core::GCUserdataValue * OS::Core::pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param)
 {
 	gcFreeCandidateValues();
 	GCUserdataValue * res = new (malloc(sizeof(GCUserdataValue) + data_size OS_DBG_FILEPOS)) GCUserdataValue();
@@ -15596,7 +15620,7 @@ OS::Core::GCUserdataValue * OS::Core::pushUserdataValue(int crc, int data_size, 
 	res->crc = crc;
 	res->dtor = dtor;
 	res->user_param = user_param;
-	res->is_object_instance = is_object_instance;
+	// res->is_object_instance = is_object_instance;
 	res->ptr = data_size ? res + 1 : NULL;
 	res->type = OS_VALUE_TYPE_USERDATA;
 	registerValueAndPush(res);
@@ -15627,7 +15651,7 @@ OS::Core::GCUserdataValue * OS::Core::findUserPointerValue(void * ptr)
 	return NULL;
 }
 
-OS::Core::GCUserdataValue * OS::Core::pushUserPointerValue(int crc, void * ptr, OS_UserdataDtor dtor, void * user_param, bool is_object_instance)
+OS::Core::GCUserdataValue * OS::Core::pushUserPointerValue(int crc, void * ptr, OS_UserdataDtor dtor, void * user_param)
 {
 	int hash = OS_PTR_HASH(ptr);
 	if(userptr_refs.count > 0){
@@ -15653,7 +15677,7 @@ OS::Core::GCUserdataValue * OS::Core::pushUserPointerValue(int crc, void * ptr, 
 	res->crc = crc;
 	res->dtor = dtor;
 	res->user_param = user_param;
-	res->is_object_instance = is_object_instance;
+	// res->is_object_instance = is_object_instance;
 	res->ptr = ptr;
 	res->type = OS_VALUE_TYPE_USERPTR;
 	registerValueAndPush(res);
@@ -15738,64 +15762,6 @@ void OS::Core::pushBool(bool val)
 	pushValue(val);
 #endif
 }
-
-/*
-OS::Core::GCStringValue * OS::Core::pushStringValue(const String& val)
-{
-	pushValue(Value(val)); // newStringValue(val));
-	return val.string;
-}
-
-OS::Core::GCStringValue * OS::Core::pushStringValue(const OS_CHAR * val)
-{
-	return pushValue(newStringValue(val));
-}
-
-OS::Core::GCStringValue * OS::Core::pushStringValue(const OS_CHAR * val, int len)
-{
-	return pushValue(newStringValue(val, len));
-}
-
-OS::Core::GCStringValue * OS::Core::pushStringValue(const void * val, int size)
-{
-	return pushValue(newStringValue(val, size));
-}
-
-OS::Core::GCCFunctionValue * OS::Core::pushCFunctionValue(OS_CFunction func, void * user_param)
-{
-	return pushValue(newCFunctionValue(func, user_param));
-}
-
-OS::Core::GCCFunctionValue * OS::Core::pushCFunctionValue(OS_CFunction func, int closure_values, void * user_param)
-{
-	return pushValue(newCFunctionValue(func, closure_values, user_param));
-}
-
-OS::Core::GCUserdataValue * OS::Core::pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param, bool is_object_instance)
-{
-	return pushValue(newUserdataValue(crc, data_size, dtor, user_param, is_object_instance));
-}
-
-OS::Core::GCUserdataValue * OS::Core::pushUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param, bool is_object_instance)
-{
-	return pushValue(newUserPointerValue(crc, data, dtor, user_param, is_object_instance));
-}
-
-OS::Core::GCObjectValue * OS::Core::pushObjectValue()
-{
-	return pushValue(newObjectValue());
-}
-
-OS::Core::GCObjectValue * OS::Core::pushObjectValue(GCValue * prototype)
-{
-	return pushValue(newObjectValue(prototype));
-}
-
-OS::Core::GCArrayValue * OS::Core::pushArrayValue(int initial_capacity)
-{
-	return pushValue(newArrayValue(initial_capacity));
-}
-*/
 
 void OS::Core::pushTypeOf(const Value& val)
 {
@@ -15903,9 +15869,7 @@ bool OS::Core::pushValueOf(Value val)
 	bool prototype_enabled = true;
 	Value func;
 	GCValue * proto = OS_VALUE_VARIANT(val).value;
-	if(!OS_VALUE_VARIANT(val).value->is_object_instance){
-		// proto = prototypes[PROTOTYPE_OBJECT];
-	}
+	proto = proto->prototype ? proto->prototype : prototypes[PROTOTYPE_OBJECT];
 	if(getPropertyValue(func, proto, strings->func_valueOf, prototype_enabled)
 		&& func.isFunction())
 	{
@@ -16696,26 +16660,26 @@ void OS::pushCFunction(OS_CFunction func, int closure_values, void * user_param)
 	core->pushCFunctionValue(func, closure_values, user_param);
 }
 
-void * OS::pushUserdata(int crc, int data_size, OS_UserdataDtor dtor, void * user_param, bool is_object_instance)
+void * OS::pushUserdata(int crc, int data_size, OS_UserdataDtor dtor, void * user_param)
 {
-	Core::GCUserdataValue * userdata = core->pushUserdataValue(crc, data_size, dtor, user_param, is_object_instance);
+	Core::GCUserdataValue * userdata = core->pushUserdataValue(crc, data_size, dtor, user_param);
 	return userdata ? userdata->ptr : NULL;
 }
 
-void * OS::pushUserdata(int data_size, OS_UserdataDtor dtor, void * user_param, bool is_object_instance)
+void * OS::pushUserdata(int data_size, OS_UserdataDtor dtor, void * user_param)
 {
-	return pushUserdata(0, data_size, dtor, user_param, is_object_instance);
+	return pushUserdata(0, data_size, dtor, user_param);
 }
 
-void * OS::pushUserPointer(int crc, void * data, OS_UserdataDtor dtor, void * user_param, bool is_object_instance)
+void * OS::pushUserPointer(int crc, void * data, OS_UserdataDtor dtor, void * user_param)
 {
-	Core::GCUserdataValue * userdata = core->pushUserPointerValue(crc, data, dtor, user_param, is_object_instance);
+	Core::GCUserdataValue * userdata = core->pushUserPointerValue(crc, data, dtor, user_param);
 	return userdata ? userdata->ptr : NULL;
 }
 
-void * OS::pushUserPointer(void * data, OS_UserdataDtor dtor, void * user_param, bool is_object_instance)
+void * OS::pushUserPointer(void * data, OS_UserdataDtor dtor, void * user_param)
 {
-	return pushUserPointer(0, data, dtor, user_param, is_object_instance);
+	return pushUserPointer(0, data, dtor, user_param);
 }
 
 void OS::newObject()
@@ -17416,17 +17380,11 @@ OS::String OS::getValueName(int offs)
 
 OS::Core::String OS::Core::getValueClassname(GCValue * value)
 {
-#if 1
-	if(value && value->is_object_instance){
-		value = value->prototype;
-	}
-#else
-	while(value && value->is_object_instance){
-		value = value->prototype;
-	}
-#endif
-	if(value && value->name){
-		return OS::Core::String(allocator, value->name);
+	OS_ASSERT(value);
+	for(GCValue * cur = value->prototype; cur; cur = cur->prototype){
+		if(cur->name){
+			return OS::Core::String(allocator, cur->name);
+		}
 	}
 	switch(value->type){
 	case OS_VALUE_TYPE_STRING:
@@ -17446,6 +17404,7 @@ OS::Core::String OS::Core::getValueClassname(GCValue * value)
 	case OS_VALUE_TYPE_CFUNCTION:
 		return OS::Core::String(allocator, OS_TEXT("Function"));
 	}
+	OS_ASSERT(false);
 	return OS::Core::String(allocator);
 }
 
@@ -17465,6 +17424,7 @@ OS::Core::String OS::Core::getValueClassname(const Value& val)
 	case OS_VALUE_TYPE_BOOL:
 		return OS::Core::String(allocator, OS_TEXT("Boolean"));
 	}
+	OS_ASSERT(false);
 	return OS::Core::String(allocator);
 }
 
@@ -18854,6 +18814,25 @@ corrupted:
 			}
 #endif
 
+		OS_CASE_OPCODE(OP_INIT_ITER):
+			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
+			a = OS_GETARG_A(instruction);
+			OS_ASSERT(OS_GETARG_A(instruction) >= 0 && OS_GETARG_A(instruction) < stack_func->func->func_decl->stack_size);
+			if(OS_IS_VALUE_GC(stack_func_locals[a])){
+				GCValue * proto = OS_VALUE_VARIANT(stack_func_locals[a]).value->prototype;
+				if(!proto){
+					proto = prototypes[PROTOTYPE_OBJECT];
+				}
+				OS_GETTER_VALUE_PTR(value, OS_VALUE_VARIANT(stack_func_locals[a]).value, proto, strings->__iter, false, true);
+				stack_func_locals = this->stack_func_locals;
+				stack_func_locals[a + 1] = stack_func_locals[a]; // this
+				stack_func_locals[a] = value; // func
+				call(this->stack_func->locals_stack_pos + a, 2, 1, NULL, true);
+			}else{
+				OS_SET_VALUE_NULL(stack_func_locals[a]);
+			}
+			continue;
+
 		OS_CASE_OPCODE(OP_CALL_METHOD):
 			OS_PROFILE_END_OPCODE(opcode); // we shouldn't profile call here
 			a = OS_GETARG_A(instruction);
@@ -18934,7 +18913,7 @@ corrupted:
 				GCFunctionValue * func_value = stack_func->func;
 				if(stack_func->self_for_proto && func_value->name){
 					proto = stack_func->self_for_proto->prototype;
-					if(proto && stack_func->self_for_proto->is_object_instance 
+					if(proto // && stack_func->self_for_proto->is_object_instance 
 						&& stack_func_locals[PRE_VAR_THIS].getGCValue() == stack_func->self_for_proto)
 					{
 						proto = proto->prototype;
@@ -19133,7 +19112,7 @@ corrupted:
 				case OP_MULTI_SUPER:
 					if(stack_func->self_for_proto){
 						GCValue * proto = stack_func->self_for_proto->prototype;
-						if(proto && stack_func->self_for_proto->is_object_instance 
+						if(proto // && stack_func->self_for_proto->is_object_instance 
 							&& stack_func_locals[PRE_VAR_THIS].getGCValue() == stack_func->self_for_proto)
 						{
 							proto = proto->prototype;
@@ -24656,10 +24635,10 @@ void OS::initPreScript()
 				return
 			}
 			filename = resolvedFilename
-			return (modulesLoaded.getProperty(filename) || {||
+			return modulesLoaded.getProperty(filename) || {||
 				modulesLoaded[filename] = {} // block recursive require
 				return modulesLoaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
-			}())
+			}()
 		}
 		require.paths = []
 
@@ -25022,7 +25001,7 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 		{
 			Value class_value = func; // we should create stack value here because of stack could be resized
 			GCValue * object = initObjectInstance(pushObjectValue(OS_VALUE_VARIANT(class_value).value));
-			object->is_object_instance = true;
+			// object->is_object_instance = true;
 			object->external_ref_count++;
 
 			bool prototype_enabled = true;
@@ -25057,12 +25036,12 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 				call(start_pos, call_params, ret_values);
 
 				// TODO: correct?
-				if(ret_values > 0){
+				/* if(ret_values > 0){
 					GCValue * gc_value = stack_values[start_pos].getGCValue();
 					if(gc_value){
 						gc_value->is_object_instance = true;
 					}
-				}
+				} */
 				return;
 			}
 			break;

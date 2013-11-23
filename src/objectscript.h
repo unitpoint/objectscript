@@ -56,7 +56,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.14.2-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.15-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -1197,7 +1197,7 @@ namespace ObjectScript
 				int gc_step_type;
 
 				OS_EValueType type;
-				bool is_object_instance;
+				// bool is_object_instance;
 				bool is_destructor_called;
 
 				// EGCColor gc_color;
@@ -1482,6 +1482,7 @@ namespace ObjectScript
 				OP_TAIL_CALL,
 				OP_TAIL_CALL_METHOD,
 #endif
+				OP_INIT_ITER,
 
 				OP_GET_PROPERTY,
 				OP_SET_PROPERTY,
@@ -1626,6 +1627,7 @@ namespace ObjectScript
 					EXP_TYPE_SET_DIM_NO_POP,
 
 					EXP_TYPE_CALL_METHOD,
+					EXP_TYPE_INIT_ITER,
 
 					EXP_TYPE_TAIL_CALL,
 					EXP_TYPE_TAIL_CALL_METHOD,
@@ -2688,8 +2690,8 @@ namespace ObjectScript
 
 			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
 			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
-			GCUserdataValue * pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param, bool is_object_instance);
-			GCUserdataValue * pushUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param, bool is_object_instance);
+			GCUserdataValue * pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param);
+			GCUserdataValue * pushUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param);
 			GCUserdataValue * findUserPointerValue(void * data);
 			GCObjectValue * pushObjectValue();
 			GCObjectValue * pushObjectValue(GCValue * prototype);
@@ -2719,20 +2721,6 @@ namespace ObjectScript
 			#endif
 			}
 			
-			/*
-			GCStringValue * pushStringValue(const String&);
-			GCStringValue * pushStringValue(const OS_CHAR*);
-			GCStringValue * pushStringValue(const OS_CHAR*, int len);
-			GCStringValue * pushStringValue(const void*, int size);
-			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, void * user_param);
-			GCCFunctionValue * pushCFunctionValue(OS_CFunction func, int closure_values, void * user_param);
-			GCUserdataValue * pushUserdataValue(int crc, int data_size, OS_UserdataDtor dtor, void * user_param, bool is_object_instance);
-			GCUserdataValue * pushUserPointerValue(int crc, void * data, OS_UserdataDtor dtor, void * user_param, bool is_object_instance);
-			GCObjectValue * pushObjectValue();
-			GCObjectValue * pushObjectValue(GCValue * prototype);
-			GCArrayValue * pushArrayValue(int initial_capacity = 0);
-			*/
-
 			String getTypeStr(const Value& val);
 			void pushTypeOf(const Value& val);
 			bool pushBoolOf(const Value& val);
@@ -3055,10 +3043,10 @@ namespace ObjectScript
 		void pushString(const Core::String&);
 		void pushCFunction(OS_CFunction func, void * user_param = NULL);
 		void pushCFunction(OS_CFunction func, int closure_values, void * user_param = NULL);
-		void * pushUserdata(int crc, int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL, bool is_object_instance = true);
-		void * pushUserdata(int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL, bool is_object_instance = true);
-		void * pushUserPointer(int crc, void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL, bool is_object_instance = true);
-		void * pushUserPointer(void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL, bool is_object_instance = true);
+		void * pushUserdata(int crc, int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserdata(int data_size, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserPointer(int crc, void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
+		void * pushUserPointer(void * data, OS_UserdataDtor dtor = NULL, void * user_param = NULL);
 		int findUserPointerValueId(void * data);
 		void newObject();
 		void newArray(int initial_capacity = 0);
