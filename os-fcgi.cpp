@@ -105,7 +105,7 @@ protected:
 
 	FCGX_Request * request;
 	// int shutdown_funcs_id;
-	bool header_sent;
+	bool headers_sent;
 	Core::String * cache_path;
 
 	virtual ~FCGX_OS()
@@ -164,7 +164,7 @@ public:
 	FCGX_OS()
 	{
 		request = NULL;
-		header_sent = false;
+		headers_sent = false;
 	}
 
 	void initPreScript()
@@ -213,8 +213,8 @@ public:
 
 	void echo(const void * buf, int size)
 	{
-		if(!header_sent){
-			header_sent = true;
+		if(!headers_sent){
+			headers_sent = true;
 			appendBuffer("Content-type: text/html; charset=utf-8\r\n\r\n");
 		}
 		appendBuffer(buf, size);
@@ -273,7 +273,7 @@ public:
 	static int notifyHeadersSent(OS * p_os, int params, int, int, void*)
 	{
 		FCGX_OS * os = (FCGX_OS*)p_os;
-		os->header_sent = true;
+		os->headers_sent = true;
 		return 0;
 	}
 
@@ -514,8 +514,8 @@ public:
 				"</center></body></html>";
 
 			if(script_filename.isEmpty()){
-				if(!header_sent){
-					header_sent = true;
+				if(!headers_sent){
+					headers_sent = true;
 					FCGX_PutS(just_ready, request->out);
 				}else
 					FCGX_PutS("Server is just ready to use ObjectScript", request->out);
@@ -539,8 +539,8 @@ public:
 					}
 				}
 				if(!found){
-					if(!header_sent){
-						header_sent = true;
+					if(!headers_sent){
+						headers_sent = true;
 						FCGX_PutS(just_ready, request->out);
 					}else
 						FCGX_PutS("Server is just ready to use ObjectScript", request->out);
@@ -551,16 +551,16 @@ public:
 			if(ext == OS_EXT_SOURCECODE || ext == OS_EXT_TEMPLATE || ext == OS_EXT_TEMPLATE_HTML || ext == OS_EXT_TEMPLATE_HTM){
 				require(script_filename, true);
 				triggerShutdownFunctions();
-				if(!header_sent){
-					header_sent = true;
+				if(!headers_sent){
+					headers_sent = true;
 					FCGX_PutS(just_ready, request->out);
 				}
 			}else{
 				// print requested file, it's not recommended, only ObjectScript scripts are recommended
 				FileHandle * f = openFile(script_filename, "rb");
 				if(f){
-					if(!header_sent){
-						header_sent = true;
+					if(!headers_sent){
+						headers_sent = true;
 						FCGX_PutS("Content-type: ", request->out);
 						FCGX_PutS(getContentType(ext), request->out);
 						FCGX_PutS("\r\n\r\n", request->out);
@@ -576,8 +576,8 @@ public:
 					free(buf);				
 					closeFile(f);
 				}else{
-					if(!header_sent){
-						header_sent = true;
+					if(!headers_sent){
+						headers_sent = true;
 						FCGX_FPrintF(request->out, not_found, getFilename(script_filename).toChar());
 					}else{
 						FCGX_FPrintF(request->out, "404 Not Found %s", getFilename(script_filename).toChar());

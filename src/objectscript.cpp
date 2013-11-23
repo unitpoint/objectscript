@@ -8213,6 +8213,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newAssingExpression(Scope *
 					}
 					break;
 				}
+			case EXP_TYPE_CONST_NULL:
+			case EXP_TYPE_CONST_NUMBER:
+			case EXP_TYPE_CONST_STRING:
+			case EXP_TYPE_CONST_TRUE:
+			case EXP_TYPE_CONST_FALSE:
+				setError(ERROR_EXPECT_WRITEABLE, var_exp_left->token);
+				allocator->deleteObj(var_exp);
+				allocator->deleteObj(value_exp);
+				return NULL;
 			}
 			ExpressionType exp_type = EXP_TYPE_SET_PROPERTY;
 			Expression * var_exp_right = var_exp->list[1];

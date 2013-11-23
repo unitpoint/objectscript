@@ -48,7 +48,15 @@ inline void operator delete(void *, void *){}
 #include <vadefs.h>
 #endif
 
-#define OS_VERSION		OS_TEXT("1.14.2-rc")
+#if INTPTR_MAX == INT32_MAX
+#define OS_PLATFORM_BITS_VERSION
+#elif INTPTR_MAX == INT64_MAX
+#define OS_PLATFORM_BITS_VERSION OS_TEXT("-x64")
+#else
+#define OS_PLATFORM_BITS_VERSION
+#endif
+
+#define OS_VERSION		OS_TEXT("1.14.2-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
