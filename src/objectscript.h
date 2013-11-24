@@ -56,7 +56,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.16-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.16.1-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -554,6 +554,11 @@ namespace ObjectScript
 				free(obj);
 				obj = NULL;
 			}
+		}
+
+		template<class T> void destroyObj(T& obj)
+		{
+			obj.~T();
 		}
 
 	protected:
@@ -1413,6 +1418,11 @@ namespace ObjectScript
 
 				GCValue * getGCValue() const;
 
+				bool operator==(const Value& b) const
+				{
+					return OS_MEMCMP(this, &b, sizeof(b)) == 0;
+				}
+
 				bool isNull() const;
 				bool isFunction() const;
 				bool isUserdata() const;
@@ -2244,6 +2254,8 @@ namespace ObjectScript
 
 				GCArrayValue * arguments;
 				GCArrayValue * rest_arguments;
+
+				Vector<GCFunctionValue*> sub_funcs;
 				
 				int caller_stack_size;
 				int locals_stack_pos;
@@ -2599,6 +2611,7 @@ namespace ObjectScript
 			void retainValues(const Value*, int count);
 			void releaseValue(const Value&);
 			void releaseValueAndClear(Value&);
+			void releaseValue(GCValue*);
 			template <class T> void releaseValueAndClear(T*& out)
 			{
 				if(out){

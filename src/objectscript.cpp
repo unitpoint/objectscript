@@ -12857,6 +12857,9 @@ void OS::Core::gcFreeCandidateValues(bool full)
 				mark(stack_func->rest_arguments);
 			}
 			mark(stack_func->locals);
+			for(int i = 0; i < stack_func->sub_funcs.count; i++){
+				mark(stack_func->sub_funcs[i]);
+			}
 		}
 
 		void mark(Table * table)
@@ -15169,11 +15172,9 @@ void OS::Core::retainValues(const Value * list, int count)
 	}
 }
 
-void OS::Core::releaseValue(const Value& val)
+void OS::Core::releaseValue(GCValue * value)
 {
-	if(OS_IS_VALUE_GC(val)){
-		GCValue * value = OS_VALUE_VARIANT(val).value;
-		OS_ASSERT(value);
+	if(value){
 		if(gc_fix_in_progress && value->gc_step_type != gc_step_type){
 			return;
 		}
@@ -15183,6 +15184,15 @@ void OS::Core::releaseValue(const Value& val)
 		if(!--value->ref_count){
 			saveFreeCandidateValue(value);
 		}
+	}
+}
+
+void OS::Core::releaseValue(const Value& val)
+{
+	if(OS_IS_VALUE_GC(val)){
+		GCValue * value = OS_VALUE_VARIANT(val).value;
+		OS_ASSERT(value);
+		releaseValue(value);
 	}
 }
 
@@ -18013,11 +18023,17 @@ void OS::Core::clearStackFunction(StackFunction * stack_func)
 		}
 		stack_func->locals->is_stack_locals = false;
 	}else{
-		releaseValue(stack_func->arguments);
-		releaseValue(stack_func->rest_arguments);
-		releaseValue(stack_func->self_for_proto);
 		deleteLocals(stack_func->locals);
 	}
+	releaseValue(stack_func->arguments);
+	releaseValue(stack_func->rest_arguments);
+	releaseValue(stack_func->self_for_proto);
+	
+	for(int i = 0; i < stack_func->sub_funcs.count; i++){
+		releaseValue(stack_func->sub_funcs[i]);
+	}
+	allocator->vectorClear(stack_func->sub_funcs);
+	allocator->destroyObj(stack_func->sub_funcs);
 }
 
 void OS::Core::reloadStackFunctionCache()
@@ -18897,10 +18913,18 @@ corrupted:
 				prog = stack_func->func->prog;
 				OS_ASSERT(b > 0 && b < prog->num_functions);
 				FunctionDecl * func_decl = prog->functions + b;
-				// int env_index = stack_func->func->func_decl->num_params + VAR_ENV;
-				// GCFunctionValue * func_value = 
-				pushFunctionValue(stack_func, prog, func_decl, stack_func_locals[stack_func_env_index]);
-				this->stack_func_locals[OS_GETARG_A(instruction)] = stack_values.buf[--stack_values.count]; // func_value;
+				while(stack_func->sub_funcs.count <= b){
+					allocator->vectorAddItem(stack_func->sub_funcs, (GCFunctionValue*)NULL OS_DBG_FILEPOS);
+				}
+				GCFunctionValue * func_value = stack_func->sub_funcs[b];
+				if(func_value && func_value->env == stack_func_locals[stack_func_env_index]){
+					this->stack_func_locals[OS_GETARG_A(instruction)] = Value(func_value, Value::Valid());
+				}else{
+					pushFunctionValue(stack_func, prog, func_decl, stack_func_locals[stack_func_env_index]);
+					OS_ASSERT(OS_VALUE_TYPE(stack_values.lastElement()) == OS_VALUE_TYPE_FUNCTION && dynamic_cast<GCFunctionValue*>(stack_values.lastElement().getGCValue()));
+					setValue(stack_func->sub_funcs[b], OS_VALUE_VARIANT(stack_values.lastElement()).func);
+					this->stack_func_locals[OS_GETARG_A(instruction)] = stack_values.buf[--stack_values.count];
+				}
 				stack_func->opcodes += func_decl->opcodes_size;
 				break;
 			}

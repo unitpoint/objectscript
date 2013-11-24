@@ -527,7 +527,7 @@
     <ClCompile Include="..\..\src\ext-zlib\zlib\uncompr.c" />
     <ClCompile Include="..\..\src\ext-zlib\zlib\zutil.c" />
     <ClCompile Include="..\..\src\objectscript.cpp">
-      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NoListing</AssemblerOutput>
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">All</AssemblerOutput>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NoListing</AssemblerOutput>
     </ClCompile>
     <ClCompile Include="..\..\3rdparty\pcrelib\pcreposix.c" />
