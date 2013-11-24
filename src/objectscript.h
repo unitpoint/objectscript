@@ -2377,6 +2377,7 @@ namespace ObjectScript
 				String func_getDirname;
 				String func_extends;
 				String func_delete;
+				String func_length;
 				String func_in;
 				String func_is;
 				String func_push;

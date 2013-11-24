@@ -5299,7 +5299,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 
 	case EXP_TYPE_LENGTH:
 		OS_ASSERT(exp->list.count == 1);
-		exp->slots.b = cacheString(allocator->core->strings->__len);
+		exp->slots.b = cacheString(allocator->core->strings->func_length);
 		break;
 
 	case EXP_TYPE_OBJECT_SET_BY_NAME:
@@ -5988,6 +5988,43 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		}
 
 	case EXP_TYPE_LENGTH: // #
+#if 1
+		OS_ASSERT(exp->list.count == 1 && exp->ret_values == 1);
+		stack_pos = scope->function->stack_cur_size;
+
+		exp1 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_PARAMS, exp->token);
+		exp1->list.swap(exp->list);
+		exp1->ret_values = 1;
+
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+		exp2->slots.a = scope->allocTempVar();
+		exp2->slots.b = scope->function->num_params + POST_VAR_GLOBALS;
+		exp2->ret_values = 1;
+		exp->list.add(exp2 OS_DBG_FILEPOS);
+
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+		exp2->slots.a = scope->allocTempVar();
+		exp2->slots.b = -1 - exp->slots.b - prog_numbers.count - CONST_STD_VALUES;
+		exp2->ret_values = 1;
+		allocator->vectorInsertAtIndex(exp1->list, 0, exp2 OS_DBG_FILEPOS);
+
+		if(exp2->slots.b < -OS_MAX_GENERIC_CONST_INDEX){
+			exp2->type = EXP_TYPE_GET_XCONST;
+		}
+
+		OS_ASSERT(exp1->list.count == 2);
+		exp1->list[1] = postCompileNewVM(scope, exp1->list[1]);
+		OS_ASSERT(stack_pos+3 == scope->function->stack_cur_size);
+
+		exp->list.add(exp1 OS_DBG_FILEPOS); // params
+
+		exp->type = EXP_TYPE_CALL_METHOD;
+		exp->slots.a = stack_pos;
+		exp->slots.b = scope->function->stack_cur_size - stack_pos;
+		exp->slots.c = exp->ret_values;
+		scope->function->stack_cur_size = stack_pos + exp->ret_values;
+		return exp;
+#else
 		OS_ASSERT(exp->list.count == 1);
 		stack_pos = scope->function->stack_cur_size;
 		exp = Lib::processList(this, scope, exp);
@@ -6013,6 +6050,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.c = exp->ret_values;
 		scope->function->stack_cur_size = stack_pos + exp->ret_values;
 		return exp;
+#endif
 
 	case EXP_TYPE_BIT_NOT:		// ~
 	case EXP_TYPE_PLUS:			// +
@@ -13626,6 +13664,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	func_getDirname(allocator, OS_TEXT("__getdirname")),
 	func_extends(allocator, OS_TEXT("__extends")),
 	func_delete(allocator, OS_TEXT("__delete")),
+	func_length(allocator, OS_TEXT("__length")),
 	func_in(allocator, OS_TEXT("__in")),
 	func_is(allocator, OS_TEXT("__is")),
 	func_push(allocator, OS_TEXT("push")),
@@ -19550,10 +19589,18 @@ void OS::runOp(OS_EOpcode opcode)
 		return lib.runUnaryOpcode(Core::OP_MINUS);
 
 	case OP_LENGTH: // #
+#if 1
+		getGlobal(core->strings->func_length);
+		pushGlobals();
+		pushStackValue(-3);
+		call(1, 1);
+		remove(-2);
+#else
 		getProperty(-1, core->strings->__len);
 		pushStackValue(-2);
 		call(0, 1);
 		remove(-2);
+#endif
 		return;
 	}
 	pushNull();
@@ -20475,6 +20522,23 @@ void OS::initCoreFunctions()
 			return 0;
 		}
 
+		static int length(OS * os, int params, int, int, void*)
+		{
+			OS_ASSERT(params == 1);
+			Core::Value func;
+			Core::Value value = os->core->getStackValue(-params);
+			os->core->pushPrototypeValue(value);
+			if(os->core->getPropertyValue(func, os->core->getStackValue(-1), os->core->strings->__len, true)
+				&& func.isFunction())
+			{
+				os->core->pushValue(func);
+				os->core->pushValue(value);
+				os->call(0, 1);
+				return 1;
+			}
+			return 0;
+		}
+
 		static int extends(OS * os, int params, int, int, void*)
 		{
 			OS_ASSERT(params == 2);
@@ -20644,6 +20708,7 @@ void OS::initCoreFunctions()
 		{core->strings->func_getDirname, Lib::getDirname},
 		{core->strings->func_extends, Lib::extends},
 		{core->strings->func_delete, Lib::deleteOp},
+		{core->strings->func_length, Lib::length},
 		{core->strings->func_in, Lib::in},
 		{core->strings->func_is, Lib::is},
 		{OS_TEXT("typeOf"), Lib::typeOf},
@@ -24738,10 +24803,10 @@ void OS::initPreScript()
 				return
 			}
 			filename = resolvedFilename
-			return modulesLoaded.getProperty(filename) || {||
+			return modulesLoaded.getProperty(filename) || @{
 				modulesLoaded[filename] = {} // block recursive require
 				return modulesLoaded[filename] = compileFile(filename, required, source_code_type, check_utf8_bom)()
-			}()
+			}
 		}
 		require.paths = []
 
