@@ -801,7 +801,7 @@ public:
 
 		XXX This could also be done using some integer arithmetics rather
 		than with this iterative approach... */
-		int setAbsDate(long absdate, int calendar = CALENDAR_GREGORIAN)
+		int _setAbsDate(long absdate, int calendar = CALENDAR_GREGORIAN)
 		{
 			long year;
 			long yearoffset;
@@ -875,8 +875,13 @@ public:
 			return 0;
 		}
 
+		int setAbsDate(long absdate)
+		{
+			return setAbsDateTime(absdate, abstime, calendar);
+		}
+
 		/* Sets the time part of the DateTime object. */
-		int setAbsTime(double abstime)
+		int _setAbsTime(double abstime)
 		{
 			int inttime;
 			int hour,minute;
@@ -903,6 +908,11 @@ public:
 			datetime->second = second;
 
 			return 0;
+		}
+
+		int setAbsTime(double abstime)
+		{
+			return setAbsDateTime(absdate, abstime, calendar);
 		}
 
 		double getAbsTime()
@@ -1020,20 +1030,10 @@ public:
 		int setAbsDateTime(long absdate, double abstime, int calendar)
 		{
 			DateTime * datetime = this;
-			/*
-			DPRINTF("SetFromAbsDateTime(datetime=%x,"
-				"absdate=%ld,abstime=%.20f,calendar=%i)\n",
-				datetime,absdate,abstime,calendar);
-			DPRINTF("SetFromAbsDateTime: "
-				"abstime is %.20f, diff %.20f, as int %i\n", 
-				abstime,
-				abstime - SECONDS_PER_DAY,
-				(int)abstime);
-			*/
 
 			/* Bounds check */
 			if(!(abstime >= 0.0 && abstime < MAX_ABSTIME_VALUE)){
-				triggerError(os, OS::String::format(os, "abstime out of range (0.0 - <86401.0): %i", (int)abstime));
+				triggerError(os, OS::String::format(os, "abstime out of range (0.0 - 86401.0): %i", (int)abstime));
 				return -1;
 			}
 
@@ -1051,11 +1051,11 @@ public:
 			}
 
 			/* Calculate the date */
-			if(setAbsDate(datetime->absdate, calendar) < 0)
+			if(_setAbsDate(datetime->absdate, calendar) < 0)
 				return -1;
 
 			/* Calculate the time */
-			if(setAbsTime(datetime->abstime) < 0)
+			if(_setAbsTime(datetime->abstime) < 0)
 				return -1;
 
 			return 0;
@@ -1095,11 +1095,11 @@ public:
 			datetime->abstime = abstime;
 
 			/* Calculate the date */
-			if(setAbsDate(absdate, CALENDAR_GREGORIAN) < 0)
+			if(_setAbsDate(absdate, CALENDAR_GREGORIAN) < 0)
 				return -1;
 
 			/* Calculate the time */
-			if(setAbsTime(abstime) < 0)
+			if(_setAbsTime(abstime) < 0)
 				return -1;
 
 			return 0;
@@ -1409,6 +1409,11 @@ public:
 			return gmticks - ticks;
 		}
 
+		void setGMTOffsetRO()
+		{
+			os->setException("GMTOffset is readonly property");
+		}
+
 		/* Return the instance's value in absolute days: days since 0001-01-01
 		0:00:00 using fractions for parts of a day. */
 		double getAbsDays()
@@ -1700,6 +1705,11 @@ public:
 			return DateTimeOS::isLeapyear(year, calendar);
 		}
 
+		void setIsLeapyearRO()
+		{
+			os->setException("isLeapyear is readonly property");
+		}
+
 		long getYear()
 		{
 			return year;
@@ -1759,14 +1769,29 @@ public:
 			return day_of_week;
 		}
 
+		void setDayOfWeekRO()
+		{
+			os->setException("dayOfWeek is readonly property");
+		}
+
 		int getDayOfYear()
 		{
 			return day_of_year;
 		}
 
+		void setDayOfYearRO()
+		{
+			os->setException("dayOfYear is readonly property");
+		}
+
 		int getCalendar()
 		{
 			return calendar;
+		}
+
+		void setCalendarRO()
+		{
+			os->setException("calendar is readonly property");
 		}
 
 		OS::String toJson()
@@ -2087,6 +2112,7 @@ void DateTimeOS::initExtension(OS * os)
 			def(OS_TEXT("__set@absdays"), &DateTime::setAbsDays),
 
 			def(OS_TEXT("__get@GMTOffset"), &DateTime::getGMTOffset),
+			def(OS_TEXT("__set@GMTOffset"), &DateTime::setGMTOffsetRO),
 
 			def(OS_TEXT("__get@GMTicks"), &DateTime::getGMTicks),
 			def(OS_TEXT("__set@GMTicks"), &DateTime::setGMTicks),
@@ -2110,10 +2136,8 @@ void DateTimeOS::initExtension(OS * os)
 			def(OS_TEXT("__get@absdate"), &DateTime::getAbsDate),
 			def(OS_TEXT("__set@absdate"), &DateTime::setAbsDate),
 			
-			def(OS_TEXT("__get@ticks"), &DateTime::getTicks),
-			def(OS_TEXT("__set@ticks"), &DateTime::setTicks),
-
 			def(OS_TEXT("__get@isLeapyear"), &DateTime::isLeapyear),
+			def(OS_TEXT("__set@isLeapyear"), &DateTime::setIsLeapyearRO),
 
 			def(OS_TEXT("__get@year"), &DateTime::getYear),
 			def(OS_TEXT("__set@year"), &DateTime::setYear),
@@ -2134,8 +2158,13 @@ void DateTimeOS::initExtension(OS * os)
 			def(OS_TEXT("__set@second"), &DateTime::setSecond),
 			
 			def(OS_TEXT("__get@dayOfWeek"), &DateTime::getDayOfWeek),
+			def(OS_TEXT("__set@dayOfWeek"), &DateTime::setDayOfWeekRO),
+			
 			def(OS_TEXT("__get@dayOfYear"), &DateTime::getDayOfYear),
+			def(OS_TEXT("__set@dayOfYear"), &DateTime::setDayOfYearRO),
+			
 			def(OS_TEXT("__get@calendar"), &DateTime::getCalendar),
+			def(OS_TEXT("__set@calendar"), &DateTime::setCalendarRO),
 			{}
 		};
 		registerUserClass<DateTime>(os, funcs);
