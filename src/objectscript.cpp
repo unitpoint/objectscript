@@ -17425,46 +17425,120 @@ void OS::addProperty(bool setter_enabled)
 	pop(2);
 }
 
-void OS::setSmartProperty(const OS_CHAR * name, bool setter_enabled)
+void OS::addProperty(int offs, bool setter_enabled)
 {
-	setSmartProperty(Core::String(this, name), setter_enabled);
+	OS_INT i;
+	Core::Value object = core->getStackValue(offs);
+	switch(OS_VALUE_TYPE(object)){
+	case OS_VALUE_TYPE_ARRAY:
+		// core->insertValue(OS_VALUE_VARIANT(object).arr->values.count, -1);
+		i = OS_VALUE_VARIANT(object).arr->values.count;
+		break;
+
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+		// core->insertValue(OS_VALUE_VARIANT(object).object->table ? OS_VALUE_VARIANT(object).object->table->next_index : 0, -1);
+		i = OS_VALUE_VARIANT(object).object->table ? OS_VALUE_VARIANT(object).object->table->next_index : 0;
+		break;
+
+	default:
+		OS_ASSERT(false);
+		pop(2);
+		return;
+	}
+	// setProperty(setter_enabled);
+	Core::Value value = core->stack_values[core->stack_values.count - 1];
+	core->setPropertyValue(object, i, value, setter_enabled);
+	pop();
 }
 
-void OS::setSmartProperty(const Core::String& p_name, bool setter_enabled)
+bool OS::setSmartProperty(const OS_CHAR * name, bool setter_enabled)
 {
-	// TODO: "name[]" doesn't work corectly, it's need to be fixed
+	return setSmartProperty(Core::String(this, name), setter_enabled);
+}
+
+bool OS::setSmartProperty(const Core::String& p_name, bool setter_enabled)
+{
 	int offs = getAbsoluteOffs(-2);
 	bool index = false;
 	const OS_CHAR * name = p_name;
 	const OS_CHAR * cur = name;
 	const OS_CHAR * end = cur + p_name.getLen();
-	for(; cur < end; cur++){
-		if(*cur == (index ? OS_TEXT(']') : OS_TEXT('[')) || *cur == OS_TEXT('.')){
-			if(cur > name){
-				pushString(name, (int)(cur - name));
+	const OS_CHAR * begin_index = NULL, * end_index = NULL;
+	for(bool initialized = false; cur < end;){
+		OS_CHAR start_char = 0, end_char = 0;
+		if(*cur == OS_TEXT('.')){
+			if(!initialized){ // start with .
+				pop(getAbsoluteOffs(-1) - offs);
+				return false;
 			}
-			if(*cur == OS_TEXT('[')){
-				index = true;
-			}else if(*cur == OS_TEXT(']')){
-				index = false;
-			}
-			name = cur + 1;
+			start_char = *cur++;
+		}else if(*cur == OS_TEXT('[')){
+			start_char = *cur++;
+		}else if(initialized){
+			pop(getAbsoluteOffs(-1) - offs);
+			return false;
 		}
-	}
-	if(*name){
-		pushString(name, (int)(end - name));
+		begin_index = cur;
+		end_index = NULL;
+		for(; cur < end; cur++){
+			if(OS_STRCHR(OS_TEXT("[]."), *cur)){
+				end_index = cur;
+				if(start_char == OS_TEXT('[')){
+					end_char = *cur++;
+				}
+				break;
+			}
+		}
+		if(!end_index){
+			end_index = cur;
+		}
+		if(start_char == OS_TEXT('[') && end_char != OS_TEXT(']')){
+			pop(getAbsoluteOffs(-1) - offs);
+			return false;
+		}
+		if(begin_index == end_index){
+			if(!initialized){ // start with []
+				pop(getAbsoluteOffs(-1) - offs);
+				return false;
+			}
+			pushNull();
+		}else{
+			pushString(begin_index, (int)(end_index - begin_index));
+			initialized = true;
+		}
 	}
 	int count = getAbsoluteOffs(-2) - offs;
 	for(int i = 0; i < count-1; i++){
-		newObject();
-		pushStackValue();
-		setProperty(offs, toString(offs + 2 + i), setter_enabled);
+		if(isNull(offs + 2 + i)){
+			newObject();
+			pushStackValue();
+			addProperty(offs, setter_enabled);
+		}else{
+			String prop_name = toString(offs + 2 + i);
+			getProperty(offs, prop_name, setter_enabled);
+			if(!isObject()){
+				pop();
+				newObject();
+				pushStackValue();
+				setProperty(offs, prop_name, setter_enabled);
+			}
+		}
 		move(-1, offs);
 		remove(offs + 1);
 	}
-	String prop_name = toString();
-	remove(offs + 2, count);
-	setProperty(prop_name, setter_enabled);
+	if(isNull()){
+		remove(offs + 2, count);
+		addProperty(setter_enabled);
+	}else{
+		String prop_name = toString();
+		remove(offs + 2, count);
+		setProperty(prop_name, setter_enabled);
+	}
+	return true;
 }
 
 void OS::deleteProperty(bool del_enabled)
@@ -20854,7 +20928,8 @@ void OS::initObjectClass()
 				{
 					String name = os->toString(-params+0);
 					os->remove(-params+0);
-					os->setSmartProperty(name, setter_enabled);
+					os->pushBool(os->setSmartProperty(name, setter_enabled));
+					return 1;
 				}
 			}
 			return 0;
