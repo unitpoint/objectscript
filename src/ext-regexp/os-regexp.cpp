@@ -774,7 +774,13 @@ public:
 			if (walk[1] == 0)
 				return false;
 
+			bool in_brace = false;
+			if (*walk == '$' && walk[1] == '{') {
+				in_brace = true;
+				walk++;
+			}
 			walk++;
+
 			if(OS_IS_ALNUM(*walk)){
 				*backref = *walk - '0';
 				walk++;
@@ -785,6 +791,13 @@ public:
 				*backref = *backref * 10 + *walk - '0';
 				walk++;
 			}
+
+			if (in_brace) {
+				if (*walk == 0 || *walk != '}')
+					return false;
+				else
+					walk++;
+			} 
 
 			*str = walk;
 			return true;	
