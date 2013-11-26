@@ -22136,7 +22136,11 @@ void OS::initArrayClass()
 				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
 				Core::GCArrayValue * arr = OS_VALUE_VARIANT(self_var).arr;
 				int count = arr->values.count;
-				for(int i = 0; i < count; i++){
+				int i = params >= 2 ? os->toInt(-params+1) : count-1;
+				if(i < 0){
+					i = 0;
+				}
+				for(; i < count; i++){
 					os->core->pushOpResultValue(Core::OP_COMPARE, arr->values[i], value);
 					if(os->popInt() == 0){
 						os->pushNumber(i);
@@ -22155,7 +22159,11 @@ void OS::initArrayClass()
 				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
 				Core::GCArrayValue * arr = OS_VALUE_VARIANT(self_var).arr;
 				int count = arr->values.count;
-				for(int i = count-1; i >= 0; i--){
+				int i = params >= 2 ? os->toInt(-params+1) : count-1;
+				if(i > count-1){
+					i = count-1;
+				}
+				for(; i >= 0; i--){
 					os->core->pushOpResultValue(Core::OP_COMPARE, arr->values[i], value);
 					if(os->popInt() == 0){
 						os->pushNumber(i);
@@ -22165,97 +22173,6 @@ void OS::initArrayClass()
 			}
 			return 0;
 		}
-
-		/* static int merge(OS * os, int params, int, int, void*)
-		{
-			Core::Value self_var = os->core->getStackValue(-params-1);
-			if(OS_VALUE_TYPE(self_var) == OS_VALUE_TYPE_ARRAY){
-				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
-				int offs = os->getAbsoluteOffs(-params);
-				Core::GCArrayValue * arr = OS_VALUE_VARIANT(self_var).arr;
-				for(int i = 0; i < params; i++){
-					Core::Value value = os->core->getStackValue(offs+i);
-					switch(OS_VALUE_TYPE(value)){
-					case OS_VALUE_TYPE_ARRAY:
-						OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(value).arr));
-						for(int j = 0; j < OS_VALUE_VARIANT(value).arr->values.count; j++){
-							OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(value).arr));
-							os->core->retainValue(value);
-							os->vectorAddItem(arr->values, value OS_DBG_FILEPOS);
-						}
-						break;
-
-					case OS_VALUE_TYPE_OBJECT:
-					case OS_VALUE_TYPE_USERDATA:
-					case OS_VALUE_TYPE_USERPTR:
-					case OS_VALUE_TYPE_FUNCTION:
-					case OS_VALUE_TYPE_CFUNCTION:
-						OS_ASSERT(dynamic_cast<Core::GCObjectValue*>(OS_VALUE_VARIANT(value).object));
-						if(OS_VALUE_VARIANT(value).object->table){
-							Core::Property * prop = OS_VALUE_VARIANT(value).object->table->first;
-							for(; prop; prop = prop->next){
-								os->pushStackValue(offs-1);
-								os->core->pushValue(prop->value);
-								os->addProperty();
-							}
-						}
-						break;
-					}
-				}
-				os->pushStackValue(offs-1);
-				return 1;
-			}
-
-			}
-
-			if(params < 1){
-				OS_ASSERT(params == 0);
-				// return this
-				return 1;
-			}
-			int offs = os->getAbsoluteOffs(-params);
-			bool is_array = os->isArray(offs-1);
-			if(is_array || os->isObject(offs-1)){
-				for(int i = 0; i < params; i++){
-					Core::Value value = os->core->getStackValue(offs+i);
-					switch(OS_VALUE_TYPE(value)){
-					case OS_VALUE_TYPE_ARRAY:
-						{
-							OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(value).arr));
-							for(int j = 0; j < OS_VALUE_VARIANT(value).arr->values.count; j++){
-								os->pushStackValue(offs-1);
-								os->core->pushValue(OS_VALUE_VARIANT(value).arr->values[j]);
-								os->addProperty();
-							}
-							break;
-						}
-
-					case OS_VALUE_TYPE_OBJECT:
-						{
-							OS_ASSERT(dynamic_cast<Core::GCObjectValue*>(OS_VALUE_VARIANT(value).object));
-							if(OS_VALUE_VARIANT(value).object->table){
-								Core::Property * prop = OS_VALUE_VARIANT(value).object->table->first;
-								for(; prop; prop = prop->next){
-									os->pushStackValue(offs-1);
-									if(is_array){
-										os->core->pushValue(prop->value);
-										os->addProperty();
-									}else{
-										os->core->pushValue(prop->index);
-										os->core->pushValue(prop->value);
-										os->setProperty();
-									}
-								}
-							}
-							break;
-						}
-					}
-				}
-				os->pushStackValue(offs-1);
-				return 1;
-			}
-			return 0;
-		} */
 
 		static int join(OS * os, int params, int, int, void*)
 		{
@@ -22297,6 +22214,10 @@ void OS::initArrayClass()
 			Core::Value value = os->core->getStackValue(-params-1);
 			switch(OS_VALUE_TYPE(value)){
 			case OS_VALUE_TYPE_ARRAY:
+#if 1
+				os->core->pushValue(value);
+				return 1;
+#else
 				{
 					Core::GCArrayValue * arr = os->core->pushArrayValue(OS_VALUE_VARIANT(value).arr->values.count);
 					for(int i = 0; i < OS_VALUE_VARIANT(value).arr->values.count; i++){
@@ -22305,6 +22226,7 @@ void OS::initArrayClass()
 					}
 					return 1;
 				}
+#endif
 			}
 			return 0;
 		}
