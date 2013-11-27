@@ -56,7 +56,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.16.3-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.16.4-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -300,6 +300,7 @@ namespace ObjectScript
 		OP_CONCAT,	// ..
 		OP_IN,		// in
 		OP_IS,		// is
+		OP_AS,		// as
 
 		// unary operators
 
@@ -981,7 +982,8 @@ namespace ObjectScript
 					OPERATOR_COLON,     // :
 
 					OPERATOR_IN,		// in
-					OPERATOR_IS,	// is
+					OPERATOR_IS,		// is
+					OPERATOR_AS,		// as
 					OPERATOR_LENGTH,	// #
 
 					OPERATOR_BIT_AND, // &
@@ -1655,7 +1657,8 @@ namespace ObjectScript
 					EXP_TYPE_MINUS,			// -
 					EXP_TYPE_LENGTH,		// #
 					EXP_TYPE_IN,			// in
-					EXP_TYPE_IS,	// is
+					EXP_TYPE_IS,			// is
+					EXP_TYPE_AS,			// as
 
 					EXP_TYPE_BIN_OPERATOR_BY_LOCALS,
 					EXP_TYPE_BIN_OPERATOR_BY_LOCAL_AND_NUMBER,
@@ -2392,6 +2395,7 @@ namespace ObjectScript
 				String func_length;
 				String func_in;
 				String func_is;
+				String func_as;
 				String func_push;
 				String func_valueOf;
 				String func_clone;
@@ -2416,6 +2420,7 @@ namespace ObjectScript
 				String syntax_set;
 				String syntax_super;
 				String syntax_is;
+				String syntax_as;
 				String syntax_extends;
 				String syntax_delete;
 				String syntax_prototype;
@@ -3106,6 +3111,7 @@ namespace ObjectScript
 		bool isUserdata(int offs = -1);
 		bool isUserdata(int crc, int offs, int prototype_crc = 0);
 		bool is(int value_offs = -2, int prototype_offs = -1);
+		bool as(int value_offs = -2, int prototype_offs = -1);
 		bool in(int name_offs = -2, int obj_offs = -1);
 
 		void * toUserdata(int crc, int offs = -1, int prototype_crc = 0);

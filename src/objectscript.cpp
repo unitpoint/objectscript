@@ -1503,6 +1503,7 @@ bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
 		case OS::Core::Tokenizer::AFTER_INJECT_VAR:
 		case OS::Core::Tokenizer::OPERATOR_IN:		// in
 		case OS::Core::Tokenizer::OPERATOR_IS:
+		case OS::Core::Tokenizer::OPERATOR_AS:
 
 		case OS::Core::Tokenizer::OPERATOR_LOGIC_AND: // &&
 		case OS::Core::Tokenizer::OPERATOR_LOGIC_OR:  // ||
@@ -2452,6 +2453,7 @@ bool OS::Core::Compiler::Expression::isBinaryOperator() const
 	case EXP_TYPE_QUESTION:
 	case EXP_TYPE_IN:
 	case EXP_TYPE_IS:
+	case EXP_TYPE_AS:
 	case EXP_TYPE_CONCAT: // ..
 	case EXP_TYPE_BEFORE_INJECT_VAR: // ..
 	case EXP_TYPE_AFTER_INJECT_VAR: // ..
@@ -2890,6 +2892,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 	case EXP_TYPE_AFTER_INJECT_VAR: // ..
 	case EXP_TYPE_IN:
 	case EXP_TYPE_IS:
+	case EXP_TYPE_AS:
 	case EXP_TYPE_BIT_AND: // &
 	case EXP_TYPE_BIT_OR:  // |
 	case EXP_TYPE_BIT_XOR: // ^
@@ -4103,6 +4106,7 @@ OS::Core::Compiler::ExpressionType OS::Core::Compiler::getExpressionType(TokenTy
 	case Tokenizer::OPERATOR_QUESTION: return EXP_TYPE_QUESTION;
 	case Tokenizer::OPERATOR_IN: return EXP_TYPE_IN;
 	case Tokenizer::OPERATOR_IS: return EXP_TYPE_IS;
+	case Tokenizer::OPERATOR_AS: return EXP_TYPE_AS;
 
 	case Tokenizer::OPERATOR_BIT_AND: return EXP_TYPE_BIT_AND;
 	case Tokenizer::OPERATOR_BIT_OR: return EXP_TYPE_BIT_OR;
@@ -4205,6 +4209,7 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::getOpcodeLevel(ExpressionTyp
 	case EXP_TYPE_POW: // **
 	case EXP_TYPE_IN:
 	case EXP_TYPE_IS:
+	case EXP_TYPE_AS:
 		return OP_LEVEL_13;
 
 	case EXP_TYPE_PRE_INC:     // ++
@@ -5338,6 +5343,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 		exp->slots.b = cacheString(allocator->core->strings->func_is);
 		break;
 
+	case EXP_TYPE_AS:
+		OS_ASSERT(exp->list.count == 2);
+		exp->slots.b = cacheString(allocator->core->strings->func_as);
+		break;
+
 	case EXP_TYPE_CONST_NUMBER:
 		OS_ASSERT(exp->list.count == 0);
 		exp->slots.b = cacheNumber((OS_NUMBER)exp->token->getFloat());
@@ -5902,6 +5912,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_EXTENDS:
 	case EXP_TYPE_IN:
 	case EXP_TYPE_IS:
+	case EXP_TYPE_AS:
 	case EXP_TYPE_DELETE:
 		OS_ASSERT(exp->list.count == 2 && (exp->ret_values == 1 || (exp->ret_values == 0 && exp->type == EXP_TYPE_DELETE)));
 		stack_pos = scope->function->stack_cur_size;
@@ -8460,6 +8471,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 			}
 		}else if(recent_token->str == allocator->core->strings->syntax_is){
 			recent_token->type = Tokenizer::OPERATOR_IS;
+		}else if(recent_token->str == allocator->core->strings->syntax_as){
+			recent_token->type = Tokenizer::OPERATOR_AS;
 		}
 	}
 	if(!recent_token || !recent_token->isTypeOf(Tokenizer::BINARY_OPERATOR) || (!p.allow_params && recent_token->type == Tokenizer::PARAM_SEPARATOR)){
@@ -8576,14 +8589,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::OPERATOR_LOGIC_LE:  // <=
 		case Tokenizer::OPERATOR_LOGIC_GREATER: // >
 		case Tokenizer::OPERATOR_LOGIC_LESS:    // <
-		case Tokenizer::OPERATOR_LOGIC_NOT:     // !
+		// case Tokenizer::OPERATOR_LOGIC_NOT:     // !
 
 		case Tokenizer::OPERATOR_QUESTION:  // ?
 
 		case Tokenizer::OPERATOR_BIT_AND: // &
 		case Tokenizer::OPERATOR_BIT_OR:  // |
 		case Tokenizer::OPERATOR_BIT_XOR: // ^
-		case Tokenizer::OPERATOR_BIT_NOT: // ~
+		// case Tokenizer::OPERATOR_BIT_NOT: // ~
 		case Tokenizer::OPERATOR_COMPARE: // <=>
 		case Tokenizer::OPERATOR_ADD: // +
 		case Tokenizer::OPERATOR_SUB: // -
@@ -8686,6 +8699,18 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 					return exp;
 				}
 				token->type = Tokenizer::OPERATOR_IS;
+				exp = finishBinaryOperator(scope, OP_LEVEL_NOTHING, exp, p, is_finished);
+				if(!exp){
+					return NULL;
+				}
+				OS_ASSERT(is_finished);
+				continue;
+			}
+			if(token->str == allocator->core->strings->syntax_as){
+				if(!p.allow_binary_operator){
+					return exp;
+				}
+				token->type = Tokenizer::OPERATOR_AS;
 				exp = finishBinaryOperator(scope, OP_LEVEL_NOTHING, exp, p, is_finished);
 				if(!exp){
 					return NULL;
@@ -9573,6 +9598,9 @@ const OS_CHAR * OS::Core::Compiler::getExpName(ExpressionType type, ECompiledVal
 
 	case EXP_TYPE_IS:
 		return OS_TEXT("is");
+
+	case EXP_TYPE_AS:
+		return OS_TEXT("as");
 
 	case EXP_TYPE_SUPER:
 		return OS_TEXT("super");
@@ -13670,6 +13698,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	func_length(allocator, OS_TEXT("__length")),
 	func_in(allocator, OS_TEXT("__in")),
 	func_is(allocator, OS_TEXT("__is")),
+	func_as(allocator, OS_TEXT("__as")),
 	func_push(allocator, OS_TEXT("push")),
 	func_valueOf(allocator, OS_TEXT("valueOf")),
 	func_clone(allocator, OS_TEXT("clone")),
@@ -13695,6 +13724,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_set(allocator, OS_TEXT("set")),
 	syntax_super(allocator, OS_TEXT("super")),
 	syntax_is(allocator, OS_TEXT("is")),
+	syntax_as(allocator, OS_TEXT("as")),
 
 	syntax_extends(allocator, OS_TEXT("extends")),
 	syntax_delete(allocator, OS_TEXT("delete")),
@@ -19677,6 +19707,9 @@ void OS::runOp(OS_EOpcode opcode)
 	case OP_IS: // is
 		return lib.call(core->strings->func_is);
 
+	case OP_AS: // as
+		return lib.call(core->strings->func_as);
+
 	case OP_BIT_NOT: // ~
 		return lib.runUnaryOpcode(Core::OP_BIT_NOT);
 
@@ -20685,6 +20718,18 @@ void OS::initCoreFunctions()
 			return 1;
 		}
 
+		static int as(OS * os, int params, int, int, void*)
+		{
+			if(params == 2){
+				Core::Value value = os->core->getStackValue(-2);
+				if(os->core->isValueOf(value, os->core->getStackValue(-1))){
+					os->core->pushValue(value);
+					return 1;
+				}
+			}
+			return 0;
+		}
+
 		static int typeOf(OS * os, int params, int, int, void*)
 		{
 			if(params < 1) return 0;
@@ -20809,6 +20854,7 @@ void OS::initCoreFunctions()
 		{core->strings->func_length, Lib::length},
 		{core->strings->func_in, Lib::in},
 		{core->strings->func_is, Lib::is},
+		{core->strings->func_as, Lib::as},
 		{OS_TEXT("typeOf"), Lib::typeOf},
 		// {OS_TEXT("valueOf"), Lib::valueOf},
 		{OS_TEXT("booleanOf"), Lib::booleanOf},
