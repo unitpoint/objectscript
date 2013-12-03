@@ -14,6 +14,7 @@
 #include <io.h>
 #else
 #include <dirent.h>
+#include <unistd.h>
 #endif
 
 namespace ObjectScript {

@@ -72,6 +72,7 @@ char init_cache_path[128] =
 	"/tmp"
 #endif
 ;
+int listen_socket = 0;
 
 #include <cstdio>
 
@@ -638,7 +639,7 @@ void log(const char * msg)
 
 void * doit(void * a)
 {
-    int listen_socket = (int)(ptrdiff_t)a;
+    // int listen_socket = (int)(ptrdiff_t)a;
 
     FCGX_Request * request = new FCGX_Request();
     if(FCGX_InitRequest(request, listen_socket, 0)){
@@ -749,7 +750,7 @@ int main(int argc, char * argv[])
 		exit(1); 
 	}
 
-	int threads, listen_socket;
+	int threads;
 	{
 		OS * os = OS::create();
 #ifdef _MSC_VER
@@ -790,13 +791,13 @@ int main(int argc, char * argv[])
 	
 	pthread_t id[MAX_THREAD_COUNT];
 	for(int i = 1; i < threads; i++){
-        pthread_create(&id[i], NULL, doit, (void*)listen_socket);
+        pthread_create(&id[i], NULL, doit, NULL);
 	}
 #else
 	threads = 1;
 	printf("threads: %d\n", threads);
 #endif
-	doit((void*)listen_socket);
+	doit(NULL);
 
 	return 0;
 }

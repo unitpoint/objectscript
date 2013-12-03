@@ -11,6 +11,7 @@
 #define OS_GETCWD ::_getcwd
 #define OS_CHDIR ::_chdir
 #else
+#include <unistd.h>
 #define OS_GETCWD ::getcwd
 #define OS_CHDIR ::chdir
 #endif
