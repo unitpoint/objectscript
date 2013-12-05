@@ -113,6 +113,7 @@ ELSE()
 			   -DWITH_ODBC=OFF 
 			   -DWITH_FIREBIRD=OFF 
 			   -DWITH_POSTGRESQL=OFF 
+			   -DCMAKE_INSTALL_PREFIX=/usr
 		BUILD_COMMAND make -j8
                 INSTALL_COMMAND make install
                 STEP_TARGETS build install
@@ -152,7 +153,7 @@ IF (NOT FORCE32)
 		list(APPEND SOURCES src/ext-regexp/os-regexp.cpp)
 		list(APPEND HEADERS src/ext-regexp/os-regexp.h)
     else()
-		message(STATUS "[ WARNING ]: Could not find PCRE library")
+		message(FATAL_ERROR "[ ERROR ]: Couldn't find PCRE library")
 		add_definitions( -DOS_REGEXP_DISABLED )
     endif()
 ELSE()
@@ -534,6 +535,10 @@ if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
       ${CMAKE_CURRENT_BINARY_DIR}/${target})
 endif()
 
+if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+  add_custom_target(strip_os ALL COMMAND ${CMAKE_STRIP}
+      ${CMAKE_CURRENT_BINARY_DIR}/os)
+endif()
 
 add_executable(${target} os-fcgi.cpp ${SOURCES} ${HEADERS})
 target_link_libraries(${target} ${CMAKE_THREAD_LIBS_INIT} ${CURL_LIBRARIES} ${PCRE_LIBRARIES} ${MYSQL_LIBRARIES} ${SOCI_LIBRARY} ${SOCI_mysql_PLUGIN} dl)
@@ -554,6 +559,7 @@ ENDIF()
 
 install(TARGETS os RUNTIME DESTINATION usr/bin)
 install(TARGETS ${target} RUNTIME DESTINATION usr/sbin)
+
 install(FILES conf/etc/init.d/${target} DESTINATION etc/init.d
     PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
                 GROUP_EXECUTE GROUP_READ
