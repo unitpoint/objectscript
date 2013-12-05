@@ -113,7 +113,6 @@ ELSE()
 			   -DWITH_ODBC=OFF 
 			   -DWITH_FIREBIRD=OFF 
 			   -DWITH_POSTGRESQL=OFF 
-			   -DCMAKE_INSTALL_PREFIX=/usr
 		BUILD_COMMAND make -j8
                 INSTALL_COMMAND make install
                 STEP_TARGETS build install
