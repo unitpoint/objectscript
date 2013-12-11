@@ -6,7 +6,7 @@ The ObjectScript has syntax from JavaScript, multiple results from Lua, sugar sy
 
 The ObjectScript is universal scripting language, there are no compromises any more.
 
-Compile and Install __os-fcgi__
+Compile and Install __os-fcgi__ and __os__
 =======
 
 Run following commands in a *root* shell
@@ -41,7 +41,7 @@ Nginx config example (for __os-fcgi__)
 		}
 		charset	utf-8;
 		location ~ ^.+\.osh? {
-			fastcgi_split_path_info	^(.+\.osh?)(.*)$;
+			fastcgi_split_path_info	^(.+?\.osh?)(.*)$;
 			fastcgi_pass	127.0.0.1:9000;
 			fastcgi_index	index.osh;
 			include fastcgi_params;
