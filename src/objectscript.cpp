@@ -8124,7 +8124,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 
 		if(exp_type == EXP_TYPE_CONCAT || exp_type == EXP_TYPE_BEFORE_INJECT_VAR || exp_type == EXP_TYPE_AFTER_INJECT_VAR){
 			return lib.newExpression(String(allocator, left_exp->toString(), right_exp->toString()), left_exp, right_exp);
-		}else if(left_exp->type != EXP_TYPE_CONST_STRING && right_exp->type != EXP_TYPE_CONST_STRING)
+		}else if(left_exp->type != EXP_TYPE_CONST_STRING && right_exp->type != EXP_TYPE_CONST_STRING
+					&& left_exp->type != EXP_TYPE_CONST_NULL && right_exp->type != EXP_TYPE_CONST_NULL)
 		switch(exp_type){
 		case EXP_TYPE_CONCAT:    // ..
 		case EXP_TYPE_BEFORE_INJECT_VAR:    // ..
@@ -8485,6 +8486,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 	OpcodeLevel right_level = getOpcodeLevel(right_exp_type);
 	if(left_exp_type != EXP_TYPE_PARAMS && right_exp_type == EXP_TYPE_ASSIGN){
 		right_level = (OpcodeLevel)(left_level + 1);
+	/* }else if(left_exp_type == EXP_TYPE_LOGIC_AND && right_exp_type == EXP_TYPE_LOGIC_AND){
+		right_level = (OpcodeLevel)(left_level + 1);
+	}else if(left_exp_type == EXP_TYPE_LOGIC_OR && right_exp_type == EXP_TYPE_LOGIC_OR){
+		right_level = (OpcodeLevel)(left_level + 1); */
 	}
 	if(left_level == right_level){
 		exp = newBinaryExpression(scope, left_exp_type, binary_operator, exp, exp2);
@@ -15222,7 +15227,15 @@ void OS::Core::releaseValue(const Value& val)
 	if(OS_IS_VALUE_GC(val)){
 		GCValue * value = OS_VALUE_VARIANT(val).value;
 		OS_ASSERT(value);
-		releaseValue(value);
+		if(gc_fix_in_progress && value->gc_step_type != gc_step_type){
+			return;
+		}
+		// release
+		OS_ASSERT(value->value_id);
+		OS_ASSERT(value->ref_count > 0);
+		if(!--value->ref_count){
+			saveFreeCandidateValue(value);
+		}
 	}
 }
 
