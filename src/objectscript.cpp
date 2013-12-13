@@ -11301,25 +11301,22 @@ void OS::Core::deleteValueProperty(GCValue * table_value, Value index, bool del_
 			const void * buf2 = OS_VALUE_VARIANT(index).string->toChar();
 			int size2 = OS_VALUE_VARIANT(index).string->getDataSize();
 			GCStringValue * del_name = pushStringValue(buf1, size1, buf2, size2);
-			if(getPropertyValue(value, table_value, del_name, prototype_enabled)
-				&& value.isFunction())
-			{
+			if(getPropertyValue(value, table_value, del_name, prototype_enabled)){
 				pop(); // del_name
 				pushValue(value);
 				pushValue(table_value);
 				pushValue(index);
-				call(1, 0);
+				call(1, 0, OS_CALLTYPE_FUNC);
 				return;
 			}
 			pop(); // del_name
+			/* TODO: check __get@ method to throw readonly exception? */
 		}
-		if(getPropertyValue(value, table_value, strings->__del, prototype_enabled)
-			&& value.isFunction())
-		{
+		if(getPropertyValue(value, table_value, strings->__del, prototype_enabled)){
 			pushValue(value);
 			pushValue(table_value);
 			pushValue(index);
-			call(1, 0);
+			call(1, 0, OS_CALLTYPE_FUNC);
 		}
 	}
 }
@@ -11473,7 +11470,7 @@ int OS::Core::compareUserPropValues(OS * os, const void * a, const void * b, voi
 	os->core->pushValue(props[1]->value);
 	os->core->pushValue(props[0]->index);
 	os->core->pushValue(props[1]->index);
-	os->call(4, 1);
+	os->call(4, 1, OS_CALLTYPE_FUNC);
 	return compareResult(os->popNumber());
 }
 
@@ -11503,7 +11500,7 @@ int OS::Core::compareUserPropKeys(OS * os, const void * a, const void * b, void*
 	os->core->pushValue(props[1]->index);
 	os->core->pushValue(props[0]->value);
 	os->core->pushValue(props[1]->value);
-	os->call(4, 1);
+	os->call(4, 1, OS_CALLTYPE_FUNC);
 	return compareResult(os->popNumber());
 }
 
@@ -11531,7 +11528,7 @@ int OS::Core::compareUserArrayValues(OS * os, const void * a, const void * b, vo
 	os->pushNull();
 	os->core->pushValue(*values[0]);
 	os->core->pushValue(*values[1]);
-	os->call(2, 1);
+	os->call(2, 1, OS_CALLTYPE_FUNC);
 	return compareResult(os->popNumber());
 }
 
@@ -13899,7 +13896,7 @@ void OS::printf(const OS_CHAR * format, ...)
 	getGlobal(core->strings->func_echo);
 	pushGlobals();
 	pushString(Core::String::formatVa(this, format, va));
-	call(1);
+	call(1, 0, OS_CALLTYPE_FUNC);
 
 	// OS_VPRINTF(format, va);
 	va_end(va);
@@ -14093,7 +14090,7 @@ void OS::handleException()
 		getGlobal(core->strings->func_unhandledException);
 		pushGlobals();
 		pushStackValue(-3); // exception
-		call(1, 0);
+		call(1, 0, OS_CALLTYPE_FUNC);
 		pop();
 		resetException();
 	}
@@ -14601,7 +14598,7 @@ OS::String OS::resolvePath(const String& filename)
 			if(!cur_path.isEmpty()){
 				resolved_path = resolvePath(filename, cur_path);
 				if(!resolved_path.isEmpty()){
-					pop();
+					pop(2);
 					return resolved_path;
 				}
 			}
@@ -14684,10 +14681,10 @@ void OS::Core::triggerValueDestructor(GCValue * val)
 			return;
 		}
 		Table * table = val->table;
-		if(table && (prop = table->get(func)) && prop->value.isFunction()){
+		if(table && (prop = table->get(func))){
 			pushValue(prop->value);
 			pushValue(self);
-			call(0, 0);
+			call(0, 0, OS_CALLTYPE_FUNC);
 		}
 		if(!val->prototype){
 			return;
@@ -15410,23 +15407,24 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 				const void * buf2 = OS_VALUE_VARIANT(local7_index_copy).string->toChar(); \
 				int size2 = OS_VALUE_VARIANT(local7_index_copy).string->getDataSize(); \
 				GCStringValue * setter_name = pushStringValue(buf1, size1, buf2, size2); \
-				if(getPropertyValue(func, local7_table_value, setter_name, true) && func.isFunction()){ \
+				if(getPropertyValue(func, local7_table_value, setter_name, true)){ \
 					pop(); \
 					pushValue(func); \
 					pushValue(local7_table_value); \
 					pushValue(local7_value_copy); \
-					call(1, 0); \
+					call(1, 0, OS_CALLTYPE_FUNC); \
 					break; \
 				} \
 				pop(); \
+				/* TODO: check __get@ method to throw readonly exception? */ \
 			} \
-			if(getPropertyValue(func, local7_table_value, strings->__set, true) && func.isFunction()){ \
+			if(getPropertyValue(func, local7_table_value, strings->__set, true)){ \
 				if(pushSetRecursion(local7_table_value, local7_index_copy)){ \
 					pushValue(func); \
 					pushValue(local7_table_value); \
 					pushValue(local7_index_copy); \
 					pushValue(local7_value_copy); \
-					call(2, 0); \
+					call(2, 0, OS_CALLTYPE_FUNC); \
 					popSetRecursion(local7_table_value, local7_index_copy); \
 					break; \
 				} \
@@ -16065,12 +16063,10 @@ bool OS::Core::pushValueOf(Value val)
 	Value func;
 	GCValue * proto = OS_VALUE_VARIANT(val).value;
 	proto = proto->prototype ? proto->prototype : prototypes[PROTOTYPE_OBJECT];
-	if(getPropertyValue(func, proto, strings->func_valueOf, prototype_enabled)
-		&& func.isFunction())
-	{
+	if(getPropertyValue(func, proto, strings->func_valueOf, prototype_enabled)){
 		pushValue(func);
 		pushValue(val);
-		call(0, 1);
+		call(0, 1, OS_CALLTYPE_FUNC);
 		switch(OS_VALUE_TYPE(stack_values.lastElement())){
 		case OS_VALUE_TYPE_NULL:
 		case OS_VALUE_TYPE_NUMBER:
@@ -16140,12 +16136,10 @@ void OS::Core::pushCloneValue(Value value)
 {
 	bool prototype_enabled = true;
 	Value func;
-	if(getPropertyValue(func, value, strings->func_clone, prototype_enabled)
-		&& func.isFunction())
-	{
+	if(getPropertyValue(func, value, strings->func_clone, prototype_enabled)){
 		pushValue(func);
 		pushValue(value);
-		call(0, 1);
+		call(0, 1, OS_CALLTYPE_FUNC);
 		return;
 	}
 	pushNull();
@@ -16212,10 +16206,10 @@ void OS::Core::pushOpResultValue(OpcodeType opcode, const Value& value)
 			Value func;
 			bool prototype_enabled = true;
 			Value index(method_name);
-			if(core->getPropertyValue(func, value, index, prototype_enabled) && func.isFunction()){
+			if(core->getPropertyValueByPrototype(func, value, index, prototype_enabled)){
 				core->pushValue(func);
 				core->pushValue(value);
-				core->call(0, 1);
+				core->call(0, 1, OS_CALLTYPE_FUNC);
 				return;
 			}
 			core->allocator->setException(String::format(core->allocator, OS_TEXT("method %s is not implemented in %s"), 
@@ -16276,18 +16270,18 @@ bool OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 		{
 			Value func;
 			bool prototype_enabled = true;
-			if(core->getPropertyValue(func, left_value, method_name, prototype_enabled) && func.isFunction()){
+			if(core->getPropertyValueByPrototype(func, left_value, method_name, prototype_enabled)){
 				core->pushValue(func);
 				core->pushValue(left_value);
 				core->pushValue(right_value);
-				core->call(1, 1);
+				core->call(1, 1, OS_CALLTYPE_FUNC);
 				return;
 			}
-			if(core->getPropertyValue(func, right_value, reverse_method_name, prototype_enabled) && func.isFunction()){
+			if(core->getPropertyValueByPrototype(func, right_value, reverse_method_name, prototype_enabled)){
 				core->pushValue(func);
 				core->pushValue(right_value);
 				core->pushValue(left_value);
-				core->call(1, 1);
+				core->call(1, 1, OS_CALLTYPE_FUNC);
 				return;
 			}
 			core->allocator->setException(String::format(core->allocator, OS_TEXT("method %s is not implemented in %s and %s is not implemented in %s"), 
@@ -17860,9 +17854,146 @@ bool OS::Core::getPropertyValue(Value& result, GCValue * table_value, const Valu
 
 bool OS::Core::getPropertyValue(Value& result, const Value& obj, const Value& index, bool prototype_enabled)
 {
+#if 1
+	GCValue * table_value;
+	bool primitive_type = false;
+	switch(OS_VALUE_TYPE(obj)){
+	default:
+	case OS_VALUE_TYPE_NULL:
+		/* TODO: throw exception? */
+		return false;
+		
+	case OS_VALUE_TYPE_BOOL:
+		if(!prototype_enabled){
+			return false;
+		}
+		table_value = prototypes[PROTOTYPE_BOOL];
+		primitive_type = true;
+		break;
+
+	case OS_VALUE_TYPE_NUMBER:
+		if(!prototype_enabled){
+			return false;
+		}
+		table_value = prototypes[PROTOTYPE_NUMBER];
+		primitive_type = true;
+		break;
+
+	case OS_VALUE_TYPE_STRING:
+		if(!prototype_enabled){
+			return false;
+		}
+		table_value = prototypes[PROTOTYPE_STRING];
+		primitive_type = true;
+		break;
+
+	case OS_VALUE_TYPE_ARRAY:
+		table_value = OS_VALUE_VARIANT(obj).value;
+		if(OS_IS_VALUE_NUMBER(index)){
+			OS_ASSERT(dynamic_cast<GCArrayValue*>(table_value));
+			int i; OS_NUMBER_TO_INT(i, OS_VALUE_NUMBER(index));
+			if((i >= 0 || (i += ((GCArrayValue*)table_value)->values.count) >= 0) && i < ((GCArrayValue*)table_value)->values.count){
+				result = ((GCArrayValue*)table_value)->values[i];
+			}else{
+				/* TODO: throw exception? */
+				OS_SET_VALUE_NULL(result);
+			}
+			return true;
+		}
+		break;
+
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+		table_value = OS_VALUE_VARIANT(obj).value;
+		break;
+	}
+	Property * prop = NULL;
+	Table * table = table_value->table;
+	if(table && (prop = table->get(index))){
+		result = prop->value;
+		return true;
+	}
+	if(prototype_enabled){
+		GCValue * cur_value = table_value;
+		while(cur_value->prototype){
+			cur_value = cur_value->prototype;
+			Table * cur_table = cur_value->table;
+			if(cur_table && (prop = cur_table->get(index))){
+				result = prop->value;
+				return true;
+			}
+		}
+	}
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
+		result = primitive_type ? table_value : table_value->prototype;
+		return true;
+	}
+	return false;
+#else
 	bool result_bool;
 	OS_GET_PROP_VALUE(result_bool, result, obj, index, prototype_enabled);
 	return result_bool;
+#endif
+}
+
+bool OS::Core::getPropertyValueByPrototype(Value& result, const Value& obj, const Value& index, bool prototype_enabled)
+{
+	GCValue * table_value;
+	switch(OS_VALUE_TYPE(obj)){
+	default:
+	case OS_VALUE_TYPE_NULL:
+		/* TODO: throw exception? */
+		return false;
+		
+	case OS_VALUE_TYPE_BOOL:
+		table_value = prototypes[PROTOTYPE_BOOL];
+		break;
+
+	case OS_VALUE_TYPE_NUMBER:
+		table_value = prototypes[PROTOTYPE_NUMBER];
+		break;
+
+	case OS_VALUE_TYPE_STRING:
+		table_value = prototypes[PROTOTYPE_STRING];
+		break;
+
+	case OS_VALUE_TYPE_ARRAY:
+	case OS_VALUE_TYPE_OBJECT:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
+		table_value = OS_VALUE_VARIANT(obj).value->prototype;
+		if(!table_value){
+			return false;
+		}
+		break;
+	}
+	Property * prop = NULL;
+	Table * table = table_value->table;
+	if(table && (prop = table->get(index))){
+		result = prop->value;
+		return true;
+	}
+	if(prototype_enabled){
+		GCValue * cur_value = table_value;
+		while(cur_value->prototype){
+			cur_value = cur_value->prototype;
+			Table * cur_table = cur_value->table;
+			if(cur_table && (prop = cur_table->get(index))){
+				result = prop->value;
+				return true;
+			}
+		}
+	}
+	if(OS_VALUE_TYPE(index) == OS_VALUE_TYPE_STRING && strings->syntax_prototype == OS_VALUE_VARIANT(index).string){
+		result = table_value->prototype;
+		return true;
+	}
+	return false;
 }
 
 bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled)
@@ -17881,13 +18012,11 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 			const void * buf1 = strings->__issetAt.toChar();
 			int size1 = strings->__issetAt.getDataSize();
 			GCStringValue * isset_name = pushStringValue(buf1, size1, buf2, size2);
-			if(getPropertyValue(value, table_value, isset_name, prototype_enabled)
-				&& value.isFunction())
-			{
+			if(getPropertyValue(value, table_value, isset_name, prototype_enabled)){
 				pop(); // isset_name
 				pushValue(value);
 				pushValue(table_value);
-				call(0, 1);
+				call(0, 1, OS_CALLTYPE_FUNC);
 				return allocator->popBool();
 			}
 			pop(); // isset_name
@@ -17896,20 +18025,18 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 			const void * buf1 = strings->__getAt.toChar();
 			int size1 = strings->__getAt.getDataSize();
 			GCStringValue * getter_name = pushStringValue(buf1, size1, buf2, size2);
-			if(getPropertyValue(value, table_value, getter_name, prototype_enabled) && value.isFunction()){
+			if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
 				pop(); // getter_name
 				return true;
 			}
 			pop(); // getter_name
 		}
 	}
-	if(getPropertyValue(value, table_value, strings->__isset, prototype_enabled)
-		&& value.isFunction())
-	{
+	if(getPropertyValue(value, table_value, strings->__isset, prototype_enabled)){
 		pushValue(value);
 		pushValue(table_value);
 		pushValue(index);
-		call(1, 1);
+		call(1, 1, OS_CALLTYPE_FUNC);
 		return allocator->popBool();
 	}
 	return false;
@@ -17936,30 +18063,20 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 				OS_GET_PROP_VALUE_PTR(local3_result_bool, local3_result, local3_table_value, getter_name, local3_prototype_enabled); \
 				pop(); \
 				if(local3_result_bool){ \
-					if(!local3_result.isFunction()){ \
-						/* TODO: throw exception? */ \
-						OS_SET_VALUE_NULL(local3_result); \
-						break; \
-					} \
 					pushValue(local3_result); \
 					pushValue(_this); \
-					call(0, 1); \
+					call(0, 1, OS_CALLTYPE_FUNC); \
 					local3_result = stack_values.buf[--stack_values.count]; \
 					break; \
 				} \
 			} \
 			OS_GET_PROP_VALUE_PTR(local3_result_bool, local3_result, local3_table_value, strings->__get, local3_prototype_enabled); \
 			if(local3_result_bool){ \
-				if(!local3_result.isFunction()){ \
-					/* TODO: throw exception? */ \
-					OS_SET_VALUE_NULL(local3_result); \
-					break; \
-				} \
 				if(pushGetRecursion(local3_table_value, local3_index)){ \
 					pushValue(local3_result); \
 					pushValue(_this); \
 					pushValue(local3_index); \
-					call(1, 1); \
+					call(1, 1, OS_CALLTYPE_FUNC); \
 					local3_result = stack_values.buf[--stack_values.count]; \
 					popGetRecursion(local3_table_value, local3_index); \
 					break; \
@@ -19054,7 +19171,7 @@ corrupted:
 			OS_ASSERT(b >= 2 && a+b <= stack_func->func->func_decl->stack_size);
 			c = OS_GETARG_C(instruction);
 			OS_ASSERT(c >= 0 && a+c <= stack_func->func->func_decl->stack_size);
-			call(stack_func->locals_stack_pos + a, b, c, NULL, true);
+			call(stack_func->locals_stack_pos + a, b, c, NULL, true, OS_CALLTYPE_AUTO);
 			continue;
 
 #ifdef OS_TAIL_CALL_ENABLED
@@ -19110,7 +19227,7 @@ corrupted:
 				stack_func_locals = this->stack_func_locals;
 				stack_func_locals[a + 1] = stack_func_locals[a]; // this
 				stack_func_locals[a] = value; // func
-				call(this->stack_func->locals_stack_pos + a, 2, 1, NULL, true);
+				call(this->stack_func->locals_stack_pos + a, 2, 1, NULL, true, OS_CALLTYPE_FUNC);
 			}else{
 				OS_SET_VALUE_NULL(stack_func_locals[a]);
 			}
@@ -19135,7 +19252,7 @@ corrupted:
 			stack_func_locals[a + 1] = stack_func_locals[a]; // this
 			stack_func_locals[a] = stack_values.buf[--stack_values.count]; // func
 #endif
-			call(this->stack_func->locals_stack_pos + a, b, c, NULL, true);
+			call(this->stack_func->locals_stack_pos + a, b, c, NULL, true, OS_CALLTYPE_AUTO);
 			continue;
 
 #ifdef OS_TAIL_CALL_ENABLED
@@ -19241,17 +19358,12 @@ corrupted:
 							}
 						}
 						stack_func_locals = this->stack_func_locals;
-						if(value.isFunction()){
-							stack_func_locals[a] = value;
-							stack_func_locals[a + 1] = stack_func_locals[PRE_VAR_THIS];
-						}else{
-							stack_func_locals[a] = stack_func_locals[a + 1] = Value();
-						}
+						stack_func_locals[a] = value;
+						stack_func_locals[a + 1] = stack_func_locals[PRE_VAR_THIS];
 						stack_func = this->stack_func;
 					}
 				}
-
-				call(stack_func->locals_stack_pos + a, b, c, proto, true);
+				call(stack_func->locals_stack_pos + a, b, c, proto, true, OS_CALLTYPE_FUNC);
 				continue;
 			}
 
@@ -19605,7 +19717,7 @@ void OS::runOp(OS_EOpcode opcode)
 			core->allocator->pushGlobals();
 			core->allocator->pushStackValue(offs);
 			core->allocator->pushStackValue(offs+1);
-			core->allocator->call(2, 1);
+			core->allocator->call(2, 1, OS_CALLTYPE_FUNC);
 			core->allocator->remove(-3, 2);
 		}
 
@@ -19733,18 +19845,11 @@ void OS::runOp(OS_EOpcode opcode)
 		return lib.runUnaryOpcode(Core::OP_MINUS);
 
 	case OP_LENGTH: // #
-#if 1
 		getGlobal(core->strings->func_length);
 		pushGlobals();
 		pushStackValue(-3);
-		call(1, 1);
+		call(1, 1, OS_CALLTYPE_FUNC);
 		remove(-2);
-#else
-		getProperty(-1, core->strings->__len);
-		pushStackValue(-2);
-		call(0, 1);
-		remove(-2);
-#endif
 		return;
 	}
 	pushNull();
@@ -19753,9 +19858,10 @@ void OS::runOp(OS_EOpcode opcode)
 int OS::getLen(int offs)
 {
 	offs = getAbsoluteOffs(offs);
-	getProperty(offs, core->strings->__len);
+	getGlobal(core->strings->func_length);
+	pushGlobals();
 	pushStackValue(offs);
-	call(0, 1);
+	call(1, 1, OS_CALLTYPE_FUNC);
 	return popInt();
 }
 
@@ -19908,7 +20014,7 @@ bool OS::nextIteratorStep(int results, const Core::String& iter_func)
 		pushStackValue();
 		getProperty(iter_func);
 		pushStackValue(-2);
-		call(0, 1);
+		call(0, 1, OS_CALLTYPE_FUNC);
 		break;
 
 	case OS_VALUE_TYPE_FUNCTION:
@@ -19922,7 +20028,7 @@ bool OS::nextIteratorStep(int results, const Core::String& iter_func)
 	}
 	pushStackValue();
 	pushNull();
-	call(0, results + 1);
+	call(0, results + 1, OS_CALLTYPE_FUNC);
 	if(toBool(-results - 1)){
 		remove(-results - 1);
 		return true;
@@ -19962,7 +20068,7 @@ void OS::initCoreFunctions()
 			os->pushString(s);
 			os->pushNumber(0);
 			os->pushNumber(1);
-			os->call(2, 1);
+			os->call(2, 1, OS_CALLTYPE_FUNC);
 			return os->popString();
 		}
 
@@ -20542,12 +20648,12 @@ void OS::initCoreFunctions()
 					os->pushStackValue(offs + i);
 				}
 				os->pushString(OS_TEXT("\n"));
-				os->call(params * 2);
+				os->call(params * 2, 0, OS_CALLTYPE_FUNC);
 			}else{
 				os->getGlobal(os->core->strings->func_echo);
 				os->pushGlobals();
 				os->pushString(OS_TEXT("\n"));
-				os->call(1);
+				os->call(1, 0, OS_CALLTYPE_FUNC);
 			}
 			return 0;
 		}
@@ -20567,7 +20673,7 @@ void OS::initCoreFunctions()
 				os->getGlobal(os->core->strings->func_echo);
 				os->pushGlobals();
 				os->pushStackValue(-3);
-				os->call(1);
+				os->call(1, 0, OS_CALLTYPE_FUNC);
 			}
 			return 0;
 		}
@@ -20671,13 +20777,10 @@ void OS::initCoreFunctions()
 			OS_ASSERT(params == 1);
 			Core::Value func;
 			Core::Value value = os->core->getStackValue(-params);
-			os->core->pushPrototypeValue(value);
-			if(os->core->getPropertyValue(func, os->core->getStackValue(-1), os->core->strings->__len, true)
-				&& func.isFunction())
-			{
+			if(os->core->getPropertyValueByPrototype(func, value, os->core->strings->__len, true)){
 				os->core->pushValue(func);
 				os->core->pushValue(value);
-				os->call(0, 1);
+				os->core->call(0, 1, OS_CALLTYPE_FUNC);
 				return 1;
 			}
 			return 0;
@@ -21137,7 +21240,7 @@ void OS::initObjectClass()
 				os->getProperty("toJson");
 				if(!os->core->isEqualExactly(func_var, os->core->getStackValue(-1))){
 					os->core->pushValue(self_var);
-					os->call(0, 1);
+					os->call(0, 1, OS_CALLTYPE_FUNC);
 					self_var = os->core->getStackValue(-1);
 					type = (OS_EValueType)OS_VALUE_TYPE(self_var);
 					if(type == OS_VALUE_TYPE_STRING){
@@ -21194,7 +21297,7 @@ void OS::initObjectClass()
 						os->pushCFunction(toJson);
 						os->pushNull();
 						os->core->pushValue(arr->values[i]);
-						os->call(1, 1);
+						os->call(1, 1, OS_CALLTYPE_FUNC);
 						buf += os->popString();
 					}
 					if(!os->isExceptionSet()){
@@ -21252,7 +21355,7 @@ void OS::initObjectClass()
 						os->pushCFunction(toJson);
 						os->pushNull();
 						os->core->pushValue(prop->value);
-						os->call(1, 1);
+						os->call(1, 1, OS_CALLTYPE_FUNC);
 						buf += os->popString();
 					}
 					if(!os->isExceptionSet()){
@@ -22094,7 +22197,7 @@ void OS::initArrayClass()
 				}
 				OS_ASSERT(os->isFunction());
 				os->core->pushValue(self_var);
-				os->call(0, 1);
+				os->call(0, 1, OS_CALLTYPE_FUNC);
 				return 1;
 			}
 			os->setException(OS_TEXT("Array iterator requires array"));
@@ -22494,7 +22597,7 @@ void OS::initBufferClass()
 				os->getPrototype();
 				os->getProperty(os->core->strings->func_valueOf);
 				os->pushStackValue(offs);
-				os->call(0, 1);
+				os->call(0, 1, OS_CALLTYPE_FUNC);
 				return 1;
 			}
 			OS_GET_SELF(Core::Buffer*);
@@ -23510,7 +23613,7 @@ void OS::initStringClass()
 						os->pushString(subject);
 						if(params >= 2) os->pushStackValue(offs+1);
 						if(params >= 3) os->pushStackValue(offs+2);
-						os->call(params >= 3 ? 3 : params, 1);
+						os->call(params >= 3 ? 3 : params, 1, OS_CALLTYPE_FUNC);
 						return 1;
 					}
 					if(os->isObject(-params)){
@@ -23520,7 +23623,7 @@ void OS::initStringClass()
 							os->pushString(subject);
 							os->pushStackValue(-4);
 							os->pushStackValue(-4);
-							os->call(2, 1);
+							os->call(2, 1, OS_CALLTYPE_FUNC);
 							subject = os->toString();
 							os->pop(3);
 						}
@@ -23725,7 +23828,7 @@ void OS::initStringClass()
 						os->pushString(subject);
 						if(params >= 2) os->pushStackValue(offs+2); // limit
 						if(params >= 3) os->pushStackValue(offs+3); // flags
-						os->call(params >= 3 ? 3 : params, 1);
+						os->call(params >= 3 ? 3 : params, 1, OS_CALLTYPE_FUNC);
 						return 1;
 					}
 				}
@@ -24067,7 +24170,7 @@ void OS::initFunctionClass()
 			os->pushStackValue(offs-1); // self as func
 			if(params < 1){
 				os->pushNull();
-				os->call(0, need_ret_values);
+				os->call(0, need_ret_values, OS_CALLTYPE_FUNC);
 				return need_ret_values;
 			}
 			os->pushStackValue(offs); // first param - new this
@@ -24078,7 +24181,7 @@ void OS::initFunctionClass()
 				for(int i = 0; i < count; i++){
 					os->core->pushValue(OS_VALUE_VARIANT(params_var).arr->values[i]);
 				}
-				os->call(count, need_ret_values);
+				os->call(count, need_ret_values, OS_CALLTYPE_FUNC);
 				return need_ret_values;
 			}
 			if(OS_VALUE_TYPE(params_var) == OS_VALUE_TYPE_OBJECT){ // && OS_VALUE_VARIANT(params_var).object->table){
@@ -24107,17 +24210,17 @@ void OS::initFunctionClass()
 						os->core->getPropertyValue(value, table_value, func_decl->locals[i].name, true);
 						os->core->pushValue(value);
 					}
-					os->call(num_params - Core::PRE_VARS, need_ret_values);
+					os->call(num_params - Core::PRE_VARS, need_ret_values, OS_CALLTYPE_FUNC);
 					return need_ret_values;
 				}
 			}
-			os->call(0, need_ret_values);
+			os->call(0, need_ret_values, OS_CALLTYPE_FUNC);
 			return need_ret_values;
 		}
 
 		static int call(OS * os, int params, int, int need_ret_values, void*)
 		{
-			os->call(params-1, need_ret_values);
+			os->call(params-1, need_ret_values, OS_CALLTYPE_FUNC);
 			return need_ret_values;
 		}
 
@@ -24604,7 +24707,7 @@ void OS::initJsonModule()
 				os->getProperty(OS_TEXT("toJson"));
 				os->pushNull();
 				os->pushStackValue(offs);
-				os->call(1, 1);
+				os->call(1, 1, OS_CALLTYPE_FUNC);
 				return 1;
 			}
 			return 0;
@@ -24636,7 +24739,7 @@ void OS::initJsonModule()
 				}
 				if(new_os->isFunction()){
 					new_os->pushNull();
-					new_os->call(0, 1);
+					new_os->call(0, 1, OS_CALLTYPE_FUNC);
 					os->core->pushCloneValueFrom(new_os, new_os->core->getStackValue(-1));
 					ret = 1;
 				}
@@ -25088,7 +25191,7 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 	}
 }
 
-void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func)
+void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func, OS_ECallType call_type)
 {
 	OS_ASSERT(start_pos >= OS_TOP_STACK_NULL_VALUES && call_params >= 2 && start_pos + call_params <= stack_values.count);
 	Value& func = stack_values[start_pos];
@@ -25246,18 +25349,18 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 		}
 
 	case OS_VALUE_TYPE_OBJECT:
-		{
+		if(call_type == OS_CALLTYPE_FUNC){
+			allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
+		}else{
 			Value class_value = func; // we should create stack value here because of stack could be resized
 			GCValue * object = initObjectInstance(pushObjectValue(OS_VALUE_VARIANT(class_value).value));
 			// object->is_object_instance = true;
 			object->external_ref_count++;
 
 			bool prototype_enabled = true;
-			if(getPropertyValue(stack_values.buf[start_pos], class_value, strings->__construct, prototype_enabled)
-				&& stack_values.buf[start_pos].isFunction())
-			{
+			if(getPropertyValue(stack_values.buf[start_pos], class_value, strings->__construct, prototype_enabled)){
 				stack_values.buf[start_pos + 1] = object;
-				call(start_pos, call_params, 0);
+				call(start_pos, call_params, 0, NULL, false, OS_CALLTYPE_FUNC);
 			}
 			OS_ASSERT(start_pos + ret_values <= stack_values.count);
 			if(ret_values > 0){
@@ -25272,24 +25375,16 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		{
+		if(call_type == OS_CALLTYPE_FUNC){
+			allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
+		}else{
 			Value ctor;
 			Value class_value = func; // we should create stack value here because of stack could be resized
 			bool prototype_enabled = true;
-			if(getPropertyValue(ctor, class_value, strings->__construct, prototype_enabled)
-				&& ctor.isFunction())
-			{
+			if(getPropertyValue(ctor, class_value, strings->__construct, prototype_enabled)){
 				stack_values.buf[start_pos + 0] = ctor;
 				stack_values.buf[start_pos + 1] = class_value;
-				call(start_pos, call_params, ret_values);
-
-				// TODO: correct?
-				/* if(ret_values > 0){
-					GCValue * gc_value = stack_values[start_pos].getGCValue();
-					if(gc_value){
-						gc_value->is_object_instance = true;
-					}
-				} */
+				call(start_pos, call_params, ret_values, NULL, false, OS_CALLTYPE_FUNC);
 				return;
 			}
 			break;
@@ -25306,11 +25401,21 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 	OS_SET_NULL_VALUES(stack_values.buf + start_pos, ret_values);
 }
 
-void OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func)
+void OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func, OS_ECallType call_type)
 {
 	params += 2;
 	int start_pos = stack_values.count - params;
-	call(start_pos, params, ret_values, self_for_proto, allow_only_enter_func);
+	call(start_pos, params, ret_values, self_for_proto, allow_only_enter_func, call_type);
+	stack_values.count = start_pos + ret_values;
+}
+
+void OS::Core::call(int params, int ret_values, OS_ECallType call_type)
+{
+	params += 2;
+	int start_pos = stack_values.count - params;
+	GCValue * self_for_proto = NULL;
+	bool allow_only_enter_func = false; 
+	call(start_pos, params, ret_values, self_for_proto, allow_only_enter_func, call_type);
 	stack_values.count = start_pos + ret_values;
 }
 
@@ -25409,9 +25514,9 @@ bool OS::compile(OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 	return compile(popString(), source_code_type, check_utf8_bom);
 }
 
-void OS::call(int params, int ret_values)
+void OS::call(int params, int ret_values, OS_ECallType call_type)
 {
-	core->call(params, ret_values);
+	core->call(params, ret_values, call_type);
 }
 
 void OS::eval(const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom, bool handle_exception)
@@ -25426,7 +25531,7 @@ void OS::eval(const String& str, int params, int ret_values, OS_ESourceCodeType 
 	compile(str, source_code_type, check_utf8_bom);
 	pushNull();
 	move(-2, 2, -2-params);
-	core->call(params, ret_values);
+	core->call(params, ret_values, OS_CALLTYPE_FUNC);
 
 	if(handle_exception){
 		handleException();
@@ -25469,7 +25574,7 @@ void OS::require(const String& filename, bool required, int ret_values, OS_ESour
 	pushBool(required);
 	pushNumber(source_code_type);
 	pushBool(check_utf8_bom);
-	call(4, ret_values);
+	call(4, ret_values, OS_CALLTYPE_FUNC);
 
 	if(handle_exception){
 		handleException();

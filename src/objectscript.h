@@ -56,7 +56,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.16.4-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.16.5-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -308,6 +308,12 @@ namespace ObjectScript
 		OP_PLUS,		// +
 		OP_MINUS,			// -
 		OP_LENGTH,		// #
+	};
+
+	enum OS_ECallType
+	{
+		OS_CALLTYPE_AUTO,
+		OS_CALLTYPE_FUNC
 	};
 
 	class OS
@@ -2863,6 +2869,7 @@ namespace ObjectScript
 
 			bool getPropertyValue(Value& result, GCValue * table_value, const Value& index, bool prototype_enabled);
 			bool getPropertyValue(Value& result, const Value& table_value, const Value& index, bool prototype_enabled);
+			bool getPropertyValueByPrototype(Value& result, const Value& table_value, const Value& index, bool prototype_enabled);
 
 			bool hasProperty(GCValue * table_value, Value index, bool getter_enabled, bool prototype_enabled);
 			void pushPropertyValue(GCValue * table_value, const Value& index, bool getter_enabled, bool prototype_enabled);
@@ -2880,8 +2887,11 @@ namespace ObjectScript
 			void execute();
 			void reloadStackFunctionCache();
 
-			void call(int params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
-			void call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto = NULL, bool allow_only_enter_func = false);
+			void call(int params, int ret_values, GCValue * self_for_proto, 
+				bool allow_only_enter_func, OS_ECallType call_type);
+			void call(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
+			void call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, 
+				bool allow_only_enter_func, OS_ECallType call_type);
 
 			Core(OS*);
 			~Core();
@@ -3154,7 +3164,7 @@ namespace ObjectScript
 		bool compile(const String& str, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 		bool compile(OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
-		void call(int params = 0, int ret_values = 0);
+		void call(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);
 		void eval(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 		void eval(const String& str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 
