@@ -704,6 +704,7 @@ public:
 		}
 
 		triggerShutdownFunctions();
+		triggerCleanupFunctions();
 	}
 };
 
