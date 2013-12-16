@@ -10,10 +10,14 @@
 #include <direct.h>
 #define OS_GETCWD ::_getcwd
 #define OS_CHDIR ::_chdir
+#define OS_POPEN ::_popen
+#define OS_PCLOSE ::_pclose
 #else
 #include <unistd.h>
 #define OS_GETCWD ::getcwd
 #define OS_CHDIR ::chdir
+#define OS_POPEN ::popen
+#define OS_PCLOSE ::pclose
 #endif
 
 namespace ObjectScript {
@@ -132,6 +136,37 @@ public:
 #endif
 	}
 
+	static int exec(OS * os, int params, int, int need_ret_values, void*)
+	{
+		if(params > 0){
+			OS::String cmd = os->toString(-params+0);
+			FILE * pipe = OS_POPEN(cmd.toChar(), "r");
+			if(!pipe){
+				return 0;
+			}
+			Core::Buffer buf(os);
+
+			Core::Buffer temp(os);
+			const int MAX_TEMP_SIZE = 1024*10;
+			temp.reserveCapacity(MAX_TEMP_SIZE);
+			
+			while(!feof(pipe)){
+				int len = fread(temp.buffer.buf, 1, MAX_TEMP_SIZE, pipe);
+				if(len > 0){
+					if(need_ret_values > 0){
+						buf.append((void*)temp.buffer.buf, len);
+					}
+				}else{
+					// TODO: throw exception?
+					break;
+				}
+			}
+			OS_PCLOSE(pipe);
+			os->pushString(buf);
+			return 1;
+		}
+		return 0;
+	}
 };
 
 void initProcessExtension(OS * os)
@@ -147,6 +182,7 @@ void initProcessExtension(OS * os)
 		{OS_TEXT("__get@PID"), ProcessOS::getPID},
 		{OS_TEXT("kill"), ProcessOS::kill},
 		{OS_TEXT("umask"), ProcessOS::umask},
+		{OS_TEXT("exec"), ProcessOS::exec},
 		{}
 	};
 
