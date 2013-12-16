@@ -4599,6 +4599,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newExpressionFromList(Expre
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * scope, Expression * exp)
 {
+#ifdef OS_DEBUG
+	allocator->checkNativeStackUsage(OS_TEXT("OS::Core::Compiler::postCompilePass2"));
+#endif
 	switch(exp->type){
 	case EXP_TYPE_FUNCTION:
 		{
@@ -11310,7 +11313,16 @@ void OS::Core::deleteValueProperty(GCValue * table_value, Value index, bool del_
 				return;
 			}
 			pop(); // del_name
-			/* TODO: check __get@ method to throw readonly exception? */
+			
+			buf1 = strings->__getAt.toChar();
+			size1 = strings->__getAt.getDataSize();
+			GCStringValue * getter_name = pushStringValue(buf1, size1, buf2, size2);
+			if(getPropertyValue(value, table_value, getter_name, prototype_enabled)){
+				pop();
+				allocator->setException(String::format(allocator, OS_TEXT("%s is readonly property, you should not delete the one"), valueToString(index).toChar()));
+				return;
+			}
+			pop();
 		}
 		if(getPropertyValue(value, table_value, strings->__del, prototype_enabled)){
 			pushValue(value);
@@ -15416,7 +15428,15 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 					break; \
 				} \
 				pop(); \
-				/* TODO: check __get@ method to throw readonly exception? */ \
+				buf1 = strings->__getAt.toChar(); \
+				size1 = strings->__getAt.getDataSize(); \
+				GCStringValue * getter_name = pushStringValue(buf1, size1, buf2, size2); \
+				if(getPropertyValue(func, local7_table_value, getter_name, true)){ \
+					pop(); \
+					allocator->setException(String::format(allocator, OS_TEXT("%s is readonly property, you should not set the one"), valueToString(local7_index_copy).toChar())); \
+					break; \
+				} \
+				pop(); \
 			} \
 			if(getPropertyValue(func, local7_table_value, strings->__set, true)){ \
 				if(pushSetRecursion(local7_table_value, local7_index_copy)){ \
@@ -15428,7 +15448,7 @@ bool OS::Core::hasSpecialPrefix(const Value& value)
 					popSetRecursion(local7_table_value, local7_index_copy); \
 					break; \
 				} \
-				allocator->setException(String::format(allocator, OS_TEXT("recursive set '%s'"), valueToString(local7_index_copy).toChar())); \
+				allocator->setException(String::format(allocator, OS_TEXT("recursive set %s"), valueToString(local7_index_copy).toChar())); \
 			} \
 		} \
 		OS_ASSERT(local7_table_value->type != OS_VALUE_TYPE_STRING); \
