@@ -1127,6 +1127,12 @@ OS::Core::Buffer::~Buffer()
 	freeCacheStr();
 }
 
+void OS::Core::Buffer::clear()
+{
+	freeCacheStr();
+	MemStreamWriter::clear();
+}
+
 OS::Core::Buffer& OS::Core::Buffer::append(OS_CHAR c)
 {
 	return append((const void*)&c, sizeof(c));
@@ -1193,6 +1199,30 @@ void OS::Core::Buffer::freeCacheStr()
 		}
 		cache_str = NULL;
 	}
+}
+
+void OS::Core::Buffer::swap(Buffer& b)
+{
+	OS * temp_allocator = allocator;
+	GCStringValue * temp_cache_str = cache_str;
+	OS_BYTE * temp_buf = buffer.buf;
+	int temp_capacity = buffer.capacity;
+	int temp_count = buffer.count;
+	int temp_pos = pos;
+	
+	allocator = b.allocator;
+	cache_str = b.cache_str;
+	buffer.buf = b.buffer.buf;
+	buffer.capacity = b.buffer.capacity;
+	buffer.count = b.buffer.count;
+	pos = b.pos;
+	
+	b.allocator = temp_allocator;
+	b.cache_str = temp_cache_str;
+	b.buffer.buf = temp_buf;
+	b.buffer.capacity = temp_capacity;
+	b.buffer.count = temp_count;
+	b.pos = temp_pos;
 }
 
 OS::Core::GCStringValue * OS::Core::Buffer::toGCStringValue()
@@ -21358,13 +21388,22 @@ void OS::initObjectClass()
 							buf += OS_VALUE_VARIANT(prop->index).boolean ? os->core->strings->syntax_true : os->core->strings->syntax_false;
 							break; */
 
-						case OS_VALUE_TYPE_NUMBER:
+						/* case OS_VALUE_TYPE_NUMBER:
 							buf += OS::Core::String(os, (OS_FLOAT)OS_VALUE_NUMBER(prop->index));
-							break;
+							break; */
 
+						case OS_VALUE_TYPE_NUMBER:
 						case OS_VALUE_TYPE_STRING:
+#if 1
+							os->pushCFunction(toJson);
+							os->pushNull();
+							os->core->pushValue(prop->index);
+							os->call(1, 1, OS_CALLTYPE_FUNC);
+							buf += os->popString();
+#else
 							OS_ASSERT(dynamic_cast<Core::GCStringValue*>(OS_VALUE_VARIANT(prop->index).string));
 							os->core->appendQuotedString(buf, OS::Core::String(os, OS_VALUE_VARIANT(prop->index).string));
+#endif
 							break;
 
 						default:
@@ -24086,7 +24125,7 @@ void OS::initFileClass()
 				self->open(os->toString(-params));
 			}
 			CtypeValue<Core::File*>::push(os, self);
-			return 1;
+			return self->isOpen() ? 1 : 0;
 		}
 		
 		static int open(OS * os, int params, int, int, void * user_param)

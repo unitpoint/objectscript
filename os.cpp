@@ -23,6 +23,7 @@
 #include "ext-url/os-url.h"
 #include "ext-base64/os-base64.h"
 #include "ext-datetime/os-datetime.h"
+#include "ext-json/os-json.h"
 
 #ifndef OS_CURL_DISABLED
 #include "ext-curl/os-curl.h"
@@ -141,6 +142,7 @@ protected:
 			initUrlExtension(this);
 			initBase64Extension(this);
 			initDateTimeExtension(this);
+			initJsonExtension(this);
 
 #ifndef OS_CURL_DISABLED
 			initCurlExtension(this);

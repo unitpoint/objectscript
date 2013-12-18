@@ -464,6 +464,7 @@
     <ClInclude Include="..\..\src\ext-hashlib\os-hashlib.h" />
     <ClInclude Include="..\..\src\ext-hashlib\sha\sha-private.h" />
     <ClInclude Include="..\..\src\ext-hashlib\sha\sha.h" />
+    <ClInclude Include="..\..\src\ext-json\os-json.h" />
     <ClInclude Include="..\..\src\ext-odbo\os-odbo.h" />
     <ClInclude Include="..\..\src\ext-regexp\os-regexp.h" />
     <ClInclude Include="..\..\src\ext-sqlite3\os-sqlite3.h" />
@@ -504,6 +505,7 @@
     <ClCompile Include="..\..\src\ext-hashlib\sha\sha384-512.cpp" />
     <ClCompile Include="..\..\src\ext-hashlib\sha\usha.cpp" />
     <ClCompile Include="..\..\src\ext-iconv\os-iconv.cpp" />
+    <ClCompile Include="..\..\src\ext-json\os-json.cpp" />
     <ClCompile Include="..\..\src\ext-odbo\os-odbo.cpp" />
     <ClCompile Include="..\..\src\ext-process\os-process.cpp" />
     <ClCompile Include="..\..\src\ext-regexp\os-regexp.cpp" />
