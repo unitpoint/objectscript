@@ -242,6 +242,11 @@ list(APPEND SOURCES src/ext-datetime/os-datetime.cpp)
 list(APPEND HEADERS src/ext-datetime/os-datetime.h)
 # end datetime
 
+# begin json
+list(APPEND SOURCES src/ext-json/os-json.cpp)
+list(APPEND HEADERS src/ext-json/os-json.h)
+# end json
+
 # begin hashlib
 list(APPEND SOURCES src/ext-hashlib/os-hashlib.cpp)
 list(APPEND HEADERS src/ext-hashlib/os-hashlib.h)
