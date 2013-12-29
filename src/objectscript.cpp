@@ -21291,6 +21291,9 @@ void OS::initObjectClass()
 				if(!os->core->isEqualExactly(func_var, os->core->getStackValue(-1))){
 					os->core->pushValue(self_var);
 					os->call(0, 1, OS_CALLTYPE_FUNC);
+#if 1
+					return 1;
+#else
 					self_var = os->core->getStackValue(-1);
 					type = (OS_EValueType)OS_VALUE_TYPE(self_var);
 					if(type == OS_VALUE_TYPE_STRING){
@@ -21301,6 +21304,7 @@ void OS::initObjectClass()
 						}
 						OS_ASSERT(false);
 					}
+#endif
 				}else{
 					os->pop();
 				}
