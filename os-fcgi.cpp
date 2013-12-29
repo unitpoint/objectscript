@@ -10,7 +10,7 @@
 #include "3rdparty/MPFDParser-1.0/Parser.h"
 #include <stdlib.h>
 
-#define OS_FCGI_VERSION	OS_TEXT("1.1.2")
+#define OS_FCGI_VERSION	OS_TEXT("1.1.3")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -387,6 +387,9 @@ public:
 		const char * multipart_form_data = "multipart/form-data;";
 		int multipart_form_data_len = (int)strlen(multipart_form_data);
 
+		const char * form_urlencoded = "application/x-www-form-urlencoded";
+		int form_urlencoded_len = (int)strlen(form_urlencoded);
+
 		MPFD::Parser POSTParser = MPFD::Parser();
 		if(content_length > 0 && content_type.getLen() > 0 && strncmp(content_type.toChar(), multipart_form_data, multipart_form_data_len) == 0){
 			POSTParser.SetTempDirForFileUpload("/tmp");
@@ -438,7 +441,7 @@ public:
 					setSmartProperty(it->first.c_str());
 				}
 			}
-		}else if(content_length > 0 && content_type == "application/x-www-form-urlencoded"){
+		}else if(content_length > 0 && strncmp(content_type.toChar(), form_urlencoded, form_urlencoded_len) == 0){
 			Core::Buffer buf(this);
 			buf.reserveCapacity(content_length+4);
 			for(int cur_len; (cur_len = FCGX_GetStr((char*)buf.buffer.buf, content_length, request->in)) > 0;){
