@@ -25113,31 +25113,50 @@ int OS::Core::syncRetValues(int need_ret_values, int cur_ret_values)
 
 OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
 {
-	struct Lib {
-		static GCObjectValue * initObjectInstance_r(Core * core, GCObjectValue * object, GCValue * prototype)
+	OS_ASSERT(!object->table || !object->table->count);
+	struct InitObject
+	{
+		Core * core;
+		GCObjectValue * object;
+		Value value;
+
+		InitObject(Core * p_core, GCObjectValue * p_object)
 		{
-			if(prototype->prototype){
-				initObjectInstance_r(core, object, prototype->prototype);
-			}
-			Value value;
-			if(core->getPropertyValue(value, prototype, core->strings->__object, false)){
-				GCValue * object_props = value.getGCValue();
-				if(object_props && object_props->table){
-					Property * prop = object_props->table->first;
-					for(; prop; prop = prop->next){
-						core->pushCloneValue(prop->value);
-						core->setPropertyValue(object, prop->index, core->stack_values.lastElement(), false);
-						core->pop();
+			core = p_core;
+			object = p_object;
+			setProperties_r(object->prototype);
+			cloneProperties();
+		}
+
+		void setProperties_r(GCValue * prototype)
+		{
+			if(prototype){
+				setProperties_r(prototype->prototype);
+				if(core->getPropertyValue(value, prototype, core->strings->__object, false)){
+					GCValue * object_props = value.getGCValue();
+					if(object_props && object_props->table){
+						Property * prop = object_props->table->first;
+						for(; prop; prop = prop->next){
+							core->setPropertyValue(object, prop->index, prop->value, false);
+						}
 					}
 				}
 			}
+		}
 
-			return object;
+		void cloneProperties()
+		{
+			if(object->table){
+				Property * prop = object->table->first;
+				for(; prop; prop = prop->next){
+					core->pushCloneValue(prop->value);
+					core->setValue(prop->value, core->stack_values.lastElement());
+					core->pop();
+				}
+			}
 		}
 	};
-	if(object->prototype){
-		Lib::initObjectInstance_r(this, object, object->prototype);
-	}
+	InitObject(this, object);
 	return object;
 }
 
