@@ -15735,10 +15735,18 @@ OS::Core::GCStringValue * OS::Core::pushStringValue(const void * buf1, int size1
 		OS_MEMCPY(buf+size1+size2, buf3, size3);
 		return pushStringValue((void*)buf, size1 + size2 + size3);
 	}
+#if 1
+	Buffer buf(allocator);
+	buf.append(buf1, size1);
+	buf.append(buf2, size2);
+	buf.append(buf3, size3);
+	return pushStringValue((void*)buf.buffer.buf, buf.getSize());
+#else
 	GCStringValue * str = pushStringValue(buf1, size1, buf2, size2);
 	str = pushStringValue(str->toBytes(), str->data_size, buf3, size3);
 	removeStackValue(-2);
 	return str;
+#endif
 }
 
 OS::Core::GCStringValue * OS::Core::pushStringValue(GCStringValue * a, GCStringValue * b)
@@ -16929,6 +16937,11 @@ void OS::newObject()
 void OS::newArray(int initial_capacity)
 {
 	core->pushArrayValue(initial_capacity);
+}
+
+void OS::pushBackTrace(int skip_funcs, int max_trace_funcs)
+{
+	core->pushBackTrace(skip_funcs, max_trace_funcs);
 }
 
 void OS::pushStackValue(int offs)

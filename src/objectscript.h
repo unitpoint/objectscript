@@ -3086,6 +3086,8 @@ namespace ObjectScript
 		void newObject();
 		void newArray(int initial_capacity = 0);
 
+		void pushBackTrace(int skip_funcs, int max_trace_funcs = 20);
+
 		void pushStackValue(int offs = -1);
 		void pushGlobals();
 		void pushUserPool();
