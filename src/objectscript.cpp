@@ -25545,9 +25545,10 @@ bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType
 	if(!sourcecode_file_exist && !compiled_file_exist){
 		if(required){
 			setException(String::format(this, OS_TEXT("required filename %s is not exist"), p_filename.toChar()));
+			pushNull();
 			return false;
 		}
-		// core->error(OS_E_WARNING, String::format(this, OS_TEXT("filename %s is not exist"), p_filename.toChar()));
+		pushNull();
 		return false;
 	}
 	if(!sourcecode_file_exist){
@@ -25567,6 +25568,7 @@ bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType
 		}
 		prog->release();
 		if(!recompile_enabled){
+			pushNull();
 			return false;
 		}
 	}
@@ -25574,6 +25576,7 @@ bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType
 	Core::FileStreamReader file(this, filename);
 	if(!file.f){
 		setException(String::format(this, OS_TEXT("error open filename %s"), p_filename.toChar()));
+		pushNull();
 		return false;
 	}
 
