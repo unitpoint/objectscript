@@ -11649,6 +11649,7 @@ void OS::Core::clearFunctionValue(GCFunctionValue * func_value)
 
 	releaseValueAndClear(func_value->name);
 	releaseValueAndClear(func_value->prototype);
+	releaseValueAndClear(func_value->userdata);
 
 	func_value->func_decl = NULL;
 
@@ -11844,6 +11845,7 @@ OS::Core::GCValue::GCValue()
 	prototype = NULL;
 	table = NULL;
 	name = NULL;
+	userdata = NULL;
 	type = OS_VALUE_TYPE_NULL;
 	// is_object_instance = false;
 	is_destructor_called = false;
@@ -11857,6 +11859,7 @@ OS::Core::GCValue::~GCValue()
 	OS_ASSERT(!table && !name);
 	OS_ASSERT(!hash_next);
 	OS_ASSERT(!prototype);
+	OS_ASSERT(!userdata);
 }
 
 // =====================================================================
@@ -12956,6 +12959,9 @@ void OS::Core::gcFreeCandidateValues(bool full)
 			/* if(cur->value_id == 24576){
 				int i = 0;
 			} */
+			if(cur->userdata){
+				mark(cur->userdata);
+			}
 			if(cur->prototype){
 				mark(cur->prototype);
 			}
@@ -14823,6 +14829,7 @@ void OS::Core::clearValue(GCValue * val)
 	}
 	releaseValueAndClear(val->name);
 	releaseValueAndClear(val->prototype);
+	releaseValueAndClear(val->userdata);
 	val->type = OS_VALUE_TYPE_UNKNOWN;
 }
 
@@ -14904,6 +14911,9 @@ bool OS::Core::isValueUsed(GCValue * val)
 				return true;
 			}
 			// prototype & name can be destroyed!!!
+			if(cur->userdata && findAt(cur->userdata)){
+				return true;
+			}
 			if(cur->prototype && findAt(cur->prototype)){
 				return true;
 			}
@@ -15104,6 +15114,9 @@ bool OS::Core::isValueExist(GCValue * p_val)
 				return true;
 			}
 			// prototype & name can be destroyed!!!
+			if(cur->userdata && findAt(cur->userdata)){
+				return true;
+			}
 			if(cur->prototype && findAt(cur->prototype)){
 				return true;
 			}
@@ -17680,6 +17693,32 @@ void OS::setPrototype(int userdata_crc)
 		Core::Value value = core->stack_values[core->stack_values.count - 2];
 		Core::Value proto = core->stack_values[core->stack_values.count - 1];
 		core->setPrototypeValue(value, proto, userdata_crc);
+	}
+	pop(2);
+}
+
+void OS::getUserdata()
+{
+	Core::Value value = core->getStackValue(-1);
+	if(OS_IS_VALUE_GC(value)){
+		core->pushValue(OS_VALUE_VARIANT(value).object->userdata);
+	}else{
+		pushNull();
+	}
+}
+
+void OS::setUserdata()
+{
+	if(core->stack_values.count >= 2){
+		Core::Value value = core->stack_values[core->stack_values.count - 2];
+		Core::Value userdata = core->stack_values[core->stack_values.count - 1];
+		if(OS_IS_VALUE_GC(value)){
+			if(userdata.isUserdata()){
+				core->setValue(OS_VALUE_VARIANT(value).value->userdata, OS_VALUE_VARIANT(userdata).userdata);
+			}else{
+				core->releaseValueAndClear(OS_VALUE_VARIANT(value).value->userdata);
+			}
+		}
 	}
 	pop(2);
 }
@@ -21968,6 +22007,10 @@ dump_object:
 			if(new_value != value && value->table && value->table->count > 0){
 				new_value->table = os->core->newTable(OS_DBG_FILEPOS_START);
 				os->core->copyTableProperties(new_value->table, value->table);
+			}
+			// TODO: correct?
+			if(new_value != value && value->userdata){
+				os->core->retainValue(new_value->userdata = value->userdata);
 			}
 			return 1;
 		}

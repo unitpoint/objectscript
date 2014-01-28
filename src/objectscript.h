@@ -56,7 +56,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.16.7-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.16.8-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -1194,6 +1194,7 @@ namespace ObjectScript
 				void removeIterator(IteratorState*);
 			};
 
+			struct GCUserdataValue;
 			struct GCValue
 			{
 				int value_id;
@@ -1209,6 +1210,7 @@ namespace ObjectScript
 				
 				Table * table;
 				GCStringValue * name;
+				GCUserdataValue * userdata;
 
 				int gc_step_type;
 
@@ -3065,6 +3067,9 @@ namespace ObjectScript
 		void setPrototype();
 		void setPrototype(int userdata_crc);
 
+		void getUserdata();
+		void setUserdata();
+		
 		int getValueId(int offs = -1);
 		String getValueName(int offs = -1);
 		String getValueClassname(int offs = -1);
