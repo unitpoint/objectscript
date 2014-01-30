@@ -17684,6 +17684,82 @@ void OS::setPrototype(int userdata_crc)
 	pop(2);
 }
 
+int OS::getCFuncClosureCount(int offs)
+{
+	Core::Value func = core->getStackValue(offs);
+	if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_CFUNCTION){
+		OS_ASSERT(dynamic_cast<Core::GCCFunctionValue*>(OS_VALUE_VARIANT(func).cfunc));
+		Core::GCCFunctionValue * cfunc_value = OS_VALUE_VARIANT(func).cfunc;
+		return cfunc_value->num_closure_values;
+	}
+	return 0;
+}
+
+void OS::getCFuncClosure(int offs, int i)
+{
+	Core::Value func = core->getStackValue(offs);
+	if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_CFUNCTION){
+		OS_ASSERT(dynamic_cast<Core::GCCFunctionValue*>(OS_VALUE_VARIANT(func).cfunc));
+		Core::GCCFunctionValue * cfunc_value = OS_VALUE_VARIANT(func).cfunc;
+		if(i >= 0 && i < cfunc_value->num_closure_values){
+			Core::Value * closure_values = (Core::Value*)(cfunc_value + 1);
+			core->pushValue(closure_values[i]);
+			return;
+		}
+	}
+	pushNull();
+}
+
+void OS::getCFuncClosure(int i)
+{
+	if(core->stack_values.count >= 1){
+		Core::Value func = core->stack_values.lastElement();
+		if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_CFUNCTION){
+			OS_ASSERT(dynamic_cast<Core::GCCFunctionValue*>(OS_VALUE_VARIANT(func).cfunc));
+			Core::GCCFunctionValue * cfunc_value = OS_VALUE_VARIANT(func).cfunc;
+			if(i >= 0 && i < cfunc_value->num_closure_values){
+				Core::Value * closure_values = (Core::Value*)(cfunc_value + 1);
+				core->pushValue(closure_values[i]);
+				remove(-2);
+				return;
+			}
+		}
+	}
+	pop();
+	pushNull();
+}
+
+void OS::setCFuncClosure(int offs, int i)
+{
+	Core::Value func = core->getStackValue(offs);
+	if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_CFUNCTION){
+		OS_ASSERT(dynamic_cast<Core::GCCFunctionValue*>(OS_VALUE_VARIANT(func).cfunc));
+		Core::GCCFunctionValue * cfunc_value = OS_VALUE_VARIANT(func).cfunc;
+		if(i >= 0 && i < cfunc_value->num_closure_values){
+			Core::Value * closure_values = (Core::Value*)(cfunc_value + 1);
+			core->setValue(closure_values[i], core->getStackValue(-1));
+		}
+	}
+	pop();
+}
+
+void OS::setCFuncClosure(int i)
+{
+	if(core->stack_values.count >= 2){
+		Core::Value value = core->stack_values[core->stack_values.count - 2];
+		Core::Value func = core->stack_values[core->stack_values.count - 1];
+		if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_CFUNCTION){
+			OS_ASSERT(dynamic_cast<Core::GCCFunctionValue*>(OS_VALUE_VARIANT(func).cfunc));
+			Core::GCCFunctionValue * cfunc_value = OS_VALUE_VARIANT(func).cfunc;
+			if(i >= 0 && i < cfunc_value->num_closure_values){
+				Core::Value * closure_values = (Core::Value*)(cfunc_value + 1);
+				core->setValue(closure_values[i], value);
+			}
+		}
+	}
+	pop(2);
+}
+
 int OS::getValueId(int offs)
 {
 	Core::Value val = core->getStackValue(offs);
