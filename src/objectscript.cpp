@@ -7561,6 +7561,138 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 	return ret_exp;
 }
 
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectWhileExpression(Scope * parent)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_while);
+
+	Scope * scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(parent, EXP_TYPE_SCOPE, recent_token);
+	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) || !expectToken()){
+		allocator->deleteObj(scope);
+		return NULL;
+	}
+	Expression * bool_exp = expectSingleExpression(scope, Params().setAllowAutoCall(true).setAllowBinaryOperator(true));
+	if(!bool_exp){
+		allocator->deleteObj(scope);
+		return NULL;
+	}
+	bool_exp = expectExpressionValues(bool_exp, 1);
+	if(!bool_exp->ret_values){
+		setError(ERROR_EXPECT_VALUE, bool_exp->token);
+		allocator->deleteObj(scope);
+		allocator->deleteObj(bool_exp);
+		return NULL;
+	}
+	if(recent_token->type != Tokenizer::END_BRACKET_BLOCK){
+		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
+		allocator->deleteObj(scope);
+		allocator->deleteObj(bool_exp);
+		return NULL;
+	}
+	readToken();
+
+	Scope * loop_scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(scope, EXP_TYPE_FOR_LOOP_SCOPE, recent_token);
+	Expression * body_exp = expectSingleExpression(loop_scope, true, true);
+	if(!body_exp){
+		allocator->deleteObj(scope);
+		allocator->deleteObj(bool_exp);
+		allocator->deleteObj(loop_scope);
+		return NULL;
+	}
+	Expression * not_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_LOGIC_NOT, bool_exp->token, bool_exp OS_DBG_FILEPOS);
+	not_exp->ret_values = 1;
+
+	Expression * break_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_BREAK, bool_exp->token);
+	Expression * if_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_IF, bool_exp->token, not_exp, break_exp OS_DBG_FILEPOS);
+
+	loop_scope->list.add(if_exp OS_DBG_FILEPOS);
+
+	body_exp = expectExpressionValues(body_exp, 0);
+	loop_scope->list.add(body_exp OS_DBG_FILEPOS);
+
+	Expression * post_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, bool_exp->token);
+	loop_scope->list.add(post_exp OS_DBG_FILEPOS);
+
+	Expression * pre_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, bool_exp->token);
+	scope->list.add(pre_exp OS_DBG_FILEPOS);
+	scope->list.add(loop_scope OS_DBG_FILEPOS);
+	return scope;
+}
+
+OS::Core::Compiler::Expression * OS::Core::Compiler::expectDoExpression(Scope * parent)
+{
+	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_do);
+
+	Scope * scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(parent, EXP_TYPE_SCOPE, recent_token);
+	if(!expectToken()){
+		allocator->deleteObj(scope);
+		return NULL;
+	}
+
+	Scope * loop_scope = new (malloc(sizeof(Scope) OS_DBG_FILEPOS)) Scope(scope, EXP_TYPE_FOR_LOOP_SCOPE, recent_token);
+	Expression * body_exp = expectSingleExpression(loop_scope, true, true);
+	if(!body_exp){
+		allocator->deleteObj(scope);
+		allocator->deleteObj(loop_scope);
+		return NULL;
+	}
+	body_exp = expectExpressionValues(body_exp, 0);
+
+	if(recent_token && recent_token->type == Tokenizer::END_CODE_BLOCK){
+		readToken();
+	}
+	ungetToken();
+	if(!expectToken() || recent_token->type != Tokenizer::NAME || recent_token->str != allocator->core->strings->syntax_while){
+		setError(allocator->core->strings->syntax_while, recent_token);
+		allocator->deleteObj(scope);
+		allocator->deleteObj(loop_scope);
+		return NULL;
+	}
+	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) || !expectToken()){
+		allocator->deleteObj(scope);
+		allocator->deleteObj(loop_scope);
+		return NULL;
+	}
+
+	Expression * bool_exp = expectSingleExpression(scope, Params().setAllowAutoCall(true).setAllowBinaryOperator(true));
+	if(!bool_exp){
+		allocator->deleteObj(scope);
+		return NULL;
+	}
+	bool_exp = expectExpressionValues(bool_exp, 1);
+	if(!bool_exp->ret_values){
+		setError(ERROR_EXPECT_VALUE, bool_exp->token);
+		allocator->deleteObj(scope);
+		allocator->deleteObj(bool_exp);
+		return NULL;
+	}
+	if(recent_token->type != Tokenizer::END_BRACKET_BLOCK){
+		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
+		allocator->deleteObj(scope);
+		allocator->deleteObj(bool_exp);
+		return NULL;
+	}
+	readToken();
+
+	Expression * not_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_LOGIC_NOT, bool_exp->token, bool_exp OS_DBG_FILEPOS);
+	not_exp->ret_values = 1;
+
+	Expression * break_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_BREAK, bool_exp->token);
+	Expression * if_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_IF, bool_exp->token, not_exp, break_exp OS_DBG_FILEPOS);
+
+	Expression * nop_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, bool_exp->token);
+	loop_scope->list.add(nop_exp OS_DBG_FILEPOS);
+
+	loop_scope->list.add(body_exp OS_DBG_FILEPOS);
+
+	Expression * post_exp = if_exp;
+	loop_scope->list.add(post_exp OS_DBG_FILEPOS);
+
+	Expression * pre_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, bool_exp->token);
+	scope->list.add(pre_exp OS_DBG_FILEPOS);
+	scope->list.add(loop_scope OS_DBG_FILEPOS);
+	return scope;
+}
+
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope * parent)
 {
 	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_for);
@@ -9317,12 +9449,18 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 			return NULL;
 		}
 		if(token->str == allocator->core->strings->syntax_while){
-			setError(ERROR_SYNTAX, token);
-			return NULL;
+			if(!p.allow_root_blocks){
+				setError(ERROR_NESTED_ROOT_BLOCK, token);
+				return NULL;
+			}
+			return expectWhileExpression(scope);
 		}
 		if(token->str == allocator->core->strings->syntax_do){
-			setError(ERROR_SYNTAX, token);
-			return NULL;
+			if(!p.allow_root_blocks){
+				setError(ERROR_NESTED_ROOT_BLOCK, token);
+				return NULL;
+			}
+			return expectDoExpression(scope);
 		}
 		if(token->str == allocator->core->strings->syntax_const){
 			setError(ERROR_SYNTAX, token);
