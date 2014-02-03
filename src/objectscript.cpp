@@ -7575,13 +7575,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectWhileExpression(Scope
 		allocator->deleteObj(scope);
 		return NULL;
 	}
-	bool_exp = expectExpressionValues(bool_exp, 1);
 	if(!bool_exp->ret_values){
 		setError(ERROR_EXPECT_VALUE, bool_exp->token);
 		allocator->deleteObj(scope);
 		allocator->deleteObj(bool_exp);
 		return NULL;
 	}
+	bool_exp = expectExpressionValues(bool_exp, 1);
+	
 	if(recent_token->type != Tokenizer::END_BRACKET_BLOCK){
 		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
 		allocator->deleteObj(scope);
@@ -7598,6 +7599,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectWhileExpression(Scope
 		allocator->deleteObj(loop_scope);
 		return NULL;
 	}
+	body_exp = expectExpressionValues(body_exp, 0);
+	
 	Expression * not_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_LOGIC_NOT, bool_exp->token, bool_exp OS_DBG_FILEPOS);
 	not_exp->ret_values = 1;
 
@@ -7606,7 +7609,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectWhileExpression(Scope
 
 	loop_scope->list.add(if_exp OS_DBG_FILEPOS);
 
-	body_exp = expectExpressionValues(body_exp, 0);
 	loop_scope->list.add(body_exp OS_DBG_FILEPOS);
 
 	Expression * post_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, bool_exp->token);
@@ -7645,29 +7647,38 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectDoExpression(Scope * 
 		setError(allocator->core->strings->syntax_while, recent_token);
 		allocator->deleteObj(scope);
 		allocator->deleteObj(loop_scope);
+		allocator->deleteObj(body_exp);
 		return NULL;
 	}
 	if(!expectToken(Tokenizer::BEGIN_BRACKET_BLOCK) || !expectToken()){
 		allocator->deleteObj(scope);
 		allocator->deleteObj(loop_scope);
+		allocator->deleteObj(body_exp);
 		return NULL;
 	}
 
 	Expression * bool_exp = expectSingleExpression(scope, Params().setAllowAutoCall(true).setAllowBinaryOperator(true));
 	if(!bool_exp){
 		allocator->deleteObj(scope);
+		allocator->deleteObj(loop_scope);
+		allocator->deleteObj(body_exp);
 		return NULL;
 	}
-	bool_exp = expectExpressionValues(bool_exp, 1);
 	if(!bool_exp->ret_values){
 		setError(ERROR_EXPECT_VALUE, bool_exp->token);
 		allocator->deleteObj(scope);
+		allocator->deleteObj(loop_scope);
+		allocator->deleteObj(body_exp);
 		allocator->deleteObj(bool_exp);
 		return NULL;
 	}
+	bool_exp = expectExpressionValues(bool_exp, 1);
+	
 	if(recent_token->type != Tokenizer::END_BRACKET_BLOCK){
 		setError(Tokenizer::END_BRACKET_BLOCK, recent_token);
 		allocator->deleteObj(scope);
+		allocator->deleteObj(loop_scope);
+		allocator->deleteObj(body_exp);
 		allocator->deleteObj(bool_exp);
 		return NULL;
 	}
@@ -13203,7 +13214,7 @@ void OS::Core::gcFreeCandidateValues(bool full)
 		Value& value = stack_values[i];
 		if(OS_IS_VALUE_GC(value)){
 			OS_ASSERT(OS_VALUE_VARIANT(value).value);
-			if(candidate = gc_candidate_values.get(OS_VALUE_VARIANT(value).value->value_id)){
+			if((candidate = gc_candidate_values.get(OS_VALUE_VARIANT(value).value->value_id))){
 				candidate->gc_step_type = gc_step_type;
 			}
 		}

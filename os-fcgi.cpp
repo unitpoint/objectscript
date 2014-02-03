@@ -491,6 +491,7 @@ public:
 			}
 		}
 		
+		extern char **environ;
 		initEnv("_ENV", environ);
 		
 		getGlobal("_SERVER");

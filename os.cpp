@@ -571,7 +571,7 @@ public:
 	void dotty()
 	{
 		bool ok;
-		while(ok = compileLine()){
+		while((ok = compileLine())){
 			OS_ASSERT(isFunction());
 			int offs = getAbsoluteOffs(-1);
 			pushNull();
@@ -626,6 +626,7 @@ public:
 			initEnv("_ENV", environ);
 #endif
 		}else{
+			extern char **environ;
 			initEnv("_ENV", environ);
 		}
 		
