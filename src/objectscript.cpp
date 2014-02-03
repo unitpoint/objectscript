@@ -3675,7 +3675,10 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 	case EXP_TYPE_CONTINUE:
 		OS_ASSERT(exp->list.count == 0);
 		writeDebugInfo(exp);
-		scope->addLoopBreak(writeOpcode(OP_JUMP), exp->type == EXP_TYPE_BREAK ? Scope::LOOP_BREAK : Scope::LOOP_CONTINUE);
+		if(!scope->addLoopBreak(writeOpcode(OP_JUMP), exp->type == EXP_TYPE_BREAK ? Scope::LOOP_BREAK : Scope::LOOP_CONTINUE)){
+			setError(ERROR_EXPECT_LOOP_SCOPE, exp->token);
+			return false;
+		}
 		break;
 
 	}
@@ -3732,6 +3735,9 @@ bool OS::Core::Compiler::Scope::addLoopBreak(int pos, ELoopBreakType type)
 		if(scope->type == EXP_TYPE_LOOP_SCOPE || scope->type == EXP_TYPE_FOR_LOOP_SCOPE){
 			break;
 		}
+		if(scope->type != EXP_TYPE_SCOPE){
+			return false;
+		}
 	}
 	if(!scope){
 		return false;
@@ -3755,6 +3761,19 @@ void OS::Core::Compiler::Scope::fixLoopBreaks(Compiler * compiler, int scope_sta
 			compiler->fixJumpOpcode(offs, loop_break.pos);
 		}
 	}
+}
+
+OS::Core::Compiler::Scope * OS::Core::Compiler::Scope::findLoopScope()
+{
+	for(Scope * scope = this; scope; scope = scope->parent){
+		if(scope->type == EXP_TYPE_LOOP_SCOPE || scope->type == EXP_TYPE_FOR_LOOP_SCOPE){
+			return scope;
+		}
+		if(scope->type != EXP_TYPE_SCOPE){
+			break;
+		}
+	}
+	return NULL;
 }
 
 void OS::Core::Compiler::Scope::addTryBlock(int start, int end, Scope * catch_block)
@@ -3907,151 +3926,154 @@ bool OS::Core::Compiler::compile()
 		}else{
 			prog_filename_string_index = cacheString(String(allocator));
 		}
-		if(!writeOpcodes(scope, exp)){
-			// TODO:
-		}
+		if(writeOpcodes(scope, exp)){
+			MemStreamWriter mem_writer(allocator);
+			saveToStream(&mem_writer);
 
-		MemStreamWriter mem_writer(allocator);
-		saveToStream(&mem_writer);
-
-		if(!is_eval && allocator->core->settings.create_compiled_file){
-			OS::String compiled_filename = allocator->getCompiledFilename(filename);
-			FileStreamWriter(allocator, compiled_filename).writeBytes(mem_writer.buffer.buf, mem_writer.buffer.count);
-		}
-
-		Program * prog = new (malloc(sizeof(Program) OS_DBG_FILEPOS)) Program(allocator);
-		// prog->filename = tokenizer->getTextData()->filename;
-
-		MemStreamReader mem_reader(NULL, mem_writer.buffer.buf, mem_writer.buffer.count);
-		prog->loadFromStream(&mem_reader);
-
-		prog->pushStartFunction();
-		prog->release();
-
-		allocator->deleteObj(exp);
-
-		return true;
-	}else{
-		Buffer dump(allocator);
-		dump += OS_TEXT("compiler error");
-		switch(error){
-		default:
-			dump += OS_TEXT(" unknown");
-			break;
-
-		case ERROR_SYNTAX:
-			dump += OS_TEXT(" SYNTAX");
-			break;
-
-		case ERROR_NESTED_ROOT_BLOCK:
-			dump += OS_TEXT(" NESTED_ROOT_BLOCK");
-			break;
-
-		case ERROR_LOCAL_VAL_NOT_DECLARED:
-			dump += OS_TEXT(" LOCAL_VAL_NOT_DECLARED");
-			break;
-
-		case ERROR_VAR_NAME:
-			dump += OS_TEXT(" VAR_NAME");
-			break;
-
-		case ERROR_EXPECT_TOKEN_TYPE:
-			dump += OS_TEXT(" EXPECT_TOKEN_TYPE ");
-			dump += Tokenizer::getTokenTypeName(expect_token_type);
-			break;
-
-		case ERROR_EXPECT_TOKEN_STR:
-			dump += OS_TEXT(" EXPECT_TOKEN_STR ");
-			dump += expect_token;
-			break;
-
-		case ERROR_EXPECT_TOKEN:
-			dump += OS_TEXT(" EXPECT_TOKEN");
-			break;
-
-		case ERROR_EXPECT_VALUE:
-			dump += OS_TEXT(" EXPECT_VALUE");
-			break;
-
-		case ERROR_EXPECT_WRITEABLE:
-			dump += OS_TEXT(" EXPECT_WRITEABLE");
-			break;
-
-		case ERROR_EXPECT_GET_OR_SET:
-			dump += OS_TEXT(" EXPECT_GET_OR_SET");
-			break;
-
-		case ERROR_EXPECT_EXPRESSION:
-			dump += OS_TEXT(" EXPECT_EXPRESSION");
-			break;
-
-		case ERROR_EXPECT_FUNCTION_SCOPE:
-			dump += OS_TEXT(" EXPECT_FUNCTION_SCOPE");
-			break;
-
-		case ERROR_EXPECT_CODE_SEP_BEFORE_NESTED_BLOCK:
-			dump += OS_TEXT(" EXPECT_CODE_SEP_BEFORE_NESTED_BLOCK");
-			break;
-
-		case ERROR_EXPECT_SWITCH_SCOPE:
-			dump += OS_TEXT(" EXPECT_SWITCH_SCOPE");
-			break;
-
-		case ERROR_FINISH_BINARY_OP:
-			dump += OS_TEXT(" FINISH_BINARY_OP");
-			break;
-
-		case ERROR_FINISH_UNARY_OP:
-			dump += OS_TEXT(" FINISH_UNARY_OP");
-			break;
-		}
-		allocator->getGlobal(OS_TEXT("CompilerException"));
-		allocator->pushGlobals();
-		allocator->pushString(dump);
-		allocator->pushNumber(error);
-		allocator->call(2, 1);
-		if(error_token){
-			if(error_token->text_data->filename.getDataSize() > 0){
-				allocator->pushString(error_token->text_data->filename);
-			}else{
-				allocator->pushString(OS_TEXT("{{eval}}"));
+			if(!is_eval && allocator->core->settings.create_compiled_file){
+				OS::String compiled_filename = allocator->getCompiledFilename(filename);
+				FileStreamWriter(allocator, compiled_filename).writeBytes(mem_writer.buffer.buf, mem_writer.buffer.count);
 			}
-			allocator->setProperty(-2, OS_TEXT("file"), false);
-			
-			allocator->pushNumber(error_token->line+1);
-			allocator->setProperty(-2, OS_TEXT("line"), false);
 
-			allocator->pushNumber(error_token->pos+1);
-			allocator->setProperty(-2, OS_TEXT("pos"), false);
+			Program * prog = new (malloc(sizeof(Program) OS_DBG_FILEPOS)) Program(allocator);
+			// prog->filename = tokenizer->getTextData()->filename;
 
-			allocator->pushString(error_token->str);
-			allocator->setProperty(-2, OS_TEXT("token"), false);
+			MemStreamReader mem_reader(NULL, mem_writer.buffer.buf, mem_writer.buffer.count);
+			prog->loadFromStream(&mem_reader);
 
-			allocator->pushString(error_token->text_data->lines[error_token->line]);
-			allocator->setProperty(-2, OS_TEXT("lineString"), false);
-		}else if(tokenizer->isError()){
-			if(tokenizer->getFilename().getDataSize() > 0){
-				allocator->pushString(tokenizer->getFilename());
-			}else{
-				allocator->pushString(OS_TEXT("{{eval}}"));
-			}
-			allocator->setProperty(-2, OS_TEXT("file"), false);
-			
-			allocator->pushNumber(tokenizer->getErrorLine()+1);
-			allocator->setProperty(-2, OS_TEXT("line"), false);
+			prog->pushStartFunction();
+			prog->release();
 
-			allocator->pushNumber(tokenizer->getErrorPos()+1);
-			allocator->setProperty(-2, OS_TEXT("pos"), false);
+			allocator->deleteObj(exp);
 
-			allocator->pushNull();
-			allocator->setProperty(-2, OS_TEXT("token"), false);
-
-			allocator->pushString(tokenizer->getLineString(tokenizer->getErrorLine()));
-			allocator->setProperty(-2, OS_TEXT("lineString"), false);
+			return true;
 		}
-		allocator->setException();
-		allocator->pushNull();
+		OS_ASSERT(error);
 	}
+
+	Buffer dump(allocator);
+	dump += OS_TEXT("compiler error");
+	switch(error){
+	default:
+		dump += OS_TEXT(" unknown");
+		break;
+
+	case ERROR_SYNTAX:
+		dump += OS_TEXT(" SYNTAX");
+		break;
+
+	case ERROR_NESTED_ROOT_BLOCK:
+		dump += OS_TEXT(" NESTED_ROOT_BLOCK");
+		break;
+
+	case ERROR_LOCAL_VAL_NOT_DECLARED:
+		dump += OS_TEXT(" LOCAL_VAL_NOT_DECLARED");
+		break;
+
+	case ERROR_VAR_NAME:
+		dump += OS_TEXT(" VAR_NAME");
+		break;
+
+	case ERROR_EXPECT_TOKEN_TYPE:
+		dump += OS_TEXT(" EXPECT_TOKEN_TYPE ");
+		dump += Tokenizer::getTokenTypeName(expect_token_type);
+		break;
+
+	case ERROR_EXPECT_TOKEN_STR:
+		dump += OS_TEXT(" EXPECT_TOKEN_STR ");
+		dump += expect_token;
+		break;
+
+	case ERROR_EXPECT_TOKEN:
+		dump += OS_TEXT(" EXPECT_TOKEN");
+		break;
+
+	case ERROR_EXPECT_VALUE:
+		dump += OS_TEXT(" EXPECT_VALUE");
+		break;
+
+	case ERROR_EXPECT_WRITEABLE:
+		dump += OS_TEXT(" EXPECT_WRITEABLE");
+		break;
+
+	case ERROR_EXPECT_GET_OR_SET:
+		dump += OS_TEXT(" EXPECT_GET_OR_SET");
+		break;
+
+	case ERROR_EXPECT_EXPRESSION:
+		dump += OS_TEXT(" EXPECT_EXPRESSION");
+		break;
+
+	case ERROR_EXPECT_FUNCTION_SCOPE:
+		dump += OS_TEXT(" EXPECT_FUNCTION_SCOPE");
+		break;
+
+	case ERROR_EXPECT_CODE_SEP_BEFORE_NESTED_BLOCK:
+		dump += OS_TEXT(" EXPECT_CODE_SEP_BEFORE_NESTED_BLOCK");
+		break;
+
+	case ERROR_EXPECT_SWITCH_SCOPE:
+		dump += OS_TEXT(" EXPECT_SWITCH_SCOPE");
+		break;
+
+	case ERROR_EXPECT_LOOP_SCOPE:
+		dump += OS_TEXT(" ERROR_EXPECT_LOOP_SCOPE");
+		break;
+
+	case ERROR_FINISH_BINARY_OP:
+		dump += OS_TEXT(" FINISH_BINARY_OP");
+		break;
+
+	case ERROR_FINISH_UNARY_OP:
+		dump += OS_TEXT(" FINISH_UNARY_OP");
+		break;
+	}
+	allocator->getGlobal(OS_TEXT("CompilerException"));
+	allocator->pushGlobals();
+	allocator->pushString(dump);
+	allocator->pushNumber(error);
+	allocator->call(2, 1);
+	if(error_token){
+		if(error_token->text_data->filename.getDataSize() > 0){
+			allocator->pushString(error_token->text_data->filename);
+		}else{
+			allocator->pushString(OS_TEXT("{{eval}}"));
+		}
+		allocator->setProperty(-2, OS_TEXT("file"), false);
+			
+		allocator->pushNumber(error_token->line+1);
+		allocator->setProperty(-2, OS_TEXT("line"), false);
+
+		allocator->pushNumber(error_token->pos+1);
+		allocator->setProperty(-2, OS_TEXT("pos"), false);
+
+		allocator->pushString(error_token->str);
+		allocator->setProperty(-2, OS_TEXT("token"), false);
+
+		allocator->pushString(error_token->text_data->lines[error_token->line]);
+		allocator->setProperty(-2, OS_TEXT("lineString"), false);
+	}else if(tokenizer->isError()){
+		if(tokenizer->getFilename().getDataSize() > 0){
+			allocator->pushString(tokenizer->getFilename());
+		}else{
+			allocator->pushString(OS_TEXT("{{eval}}"));
+		}
+		allocator->setProperty(-2, OS_TEXT("file"), false);
+			
+		allocator->pushNumber(tokenizer->getErrorLine()+1);
+		allocator->setProperty(-2, OS_TEXT("line"), false);
+
+		allocator->pushNumber(tokenizer->getErrorPos()+1);
+		allocator->setProperty(-2, OS_TEXT("pos"), false);
+
+		allocator->pushNull();
+		allocator->setProperty(-2, OS_TEXT("token"), false);
+
+		allocator->pushString(tokenizer->getLineString(tokenizer->getErrorLine()));
+		allocator->setProperty(-2, OS_TEXT("lineString"), false);
+	}
+	allocator->setException();
+	allocator->pushNull();
 	return false;
 }
 
@@ -9379,6 +9401,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 				// return NULL;
 				int i = 0;
 			} 
+			if(!scope->findLoopScope()){
+				setError(ERROR_EXPECT_LOOP_SCOPE, token);
+				return NULL;
+			}
 			readToken();
 			return new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_BREAK, token);
 		}
@@ -9387,6 +9413,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 				// setError(ERROR_NESTED_ROOT_BLOCK, token);
 				// return NULL;
 				int i = 0;
+			}
+			if(!scope->findLoopScope()){
+				setError(ERROR_EXPECT_LOOP_SCOPE, token);
+				return NULL;
 			}
 			readToken();
 			return new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONTINUE, token);

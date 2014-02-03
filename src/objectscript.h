@@ -61,7 +61,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.16.9-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.16.10-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -1896,6 +1896,8 @@ namespace ObjectScript
 					bool addLoopBreak(int pos, ELoopBreakType);
 					void fixLoopBreaks(Compiler*, int scope_start_pos, int scope_end_pos);
 
+					Scope * findLoopScope();
+
 					void addPreVars();
 					void addPostVars();
 					void addLocalVar(const String& name, ECompiledValueType type = CVT_UNKNOWN);
@@ -1923,6 +1925,7 @@ namespace ObjectScript
 					ERROR_EXPECT_FUNCTION_SCOPE,
 					ERROR_EXPECT_CODE_SEP_BEFORE_NESTED_BLOCK,
 					ERROR_EXPECT_SWITCH_SCOPE,
+					ERROR_EXPECT_LOOP_SCOPE,
 					ERROR_FINISH_BINARY_OP,
 					ERROR_FINISH_UNARY_OP,
 				};
