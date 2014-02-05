@@ -8054,12 +8054,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectCaseExpression(Scope 
 	{
 		case_exp = expectSingleExpression(scope, Params().setAllowAutoCall(true).setAllowCall(true).setAllowBinaryOperator(true));
 		if(!case_exp){
-			allocator->deleteObj(scope);
 			return NULL;
 		}
 		if(!case_exp->ret_values){
 			setError(ERROR_EXPECT_VALUE, case_exp->token);
-			allocator->deleteObj(scope);
 			allocator->deleteObj(case_exp);
 			return NULL;
 		}
@@ -8069,7 +8067,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectCaseExpression(Scope 
 	// check for next token is ":"
 	if(!recent_token || recent_token->type != Tokenizer::OPERATOR_COLON){
 		setError(Tokenizer::OPERATOR_COLON, recent_token);
-		allocator->deleteObj(scope);
 		if(case_exp)
 			allocator->deleteObj(case_exp);
 		return NULL;
@@ -9225,6 +9222,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::END_BRACKET_BLOCK:
 		case Tokenizer::END_CODE_BLOCK:
 		case Tokenizer::CODE_SEPARATOR:
+        case Tokenizer::OPERATOR_COLON:
 			return exp;
 
 		case Tokenizer::BEGIN_CODE_BLOCK: // {
