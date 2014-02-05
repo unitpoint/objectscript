@@ -1598,7 +1598,7 @@ namespace ObjectScript
 					EXP_TYPE_CONTINUE,
 					EXP_TYPE_DEBUGGER,
 					EXP_TYPE_DEBUG_LOCALS,
-					
+
 					EXP_TYPE_IF,
 					EXP_TYPE_QUESTION,
 
@@ -1620,7 +1620,7 @@ namespace ObjectScript
 					EXP_TYPE_GET_ARGUMENTS,
 					EXP_TYPE_GET_REST_ARGUMENTS,
 
-					EXP_TYPE_GET_LOCAL_VAR,
+					EXP_TYPE_GET_LOCAL_VAR, // sets local variable (not visible from script???)
 					EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE,
 					EXP_TYPE_SET_LOCAL_VAR,
 					EXP_TYPE_SET_LOCAL_VAR_NO_POP,
@@ -1628,7 +1628,7 @@ namespace ObjectScript
 					EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCALS,
 					EXP_TYPE_SET_LOCAL_VAR_BY_BIN_OPERATOR_LOCAL_AND_NUMBER,
 
-					EXP_TYPE_GET_ENV_VAR,
+					EXP_TYPE_GET_ENV_VAR, // sets variable visible from script
 					EXP_TYPE_GET_ENV_VAR_AUTO_CREATE,
 					EXP_TYPE_SET_ENV_VAR,
 					EXP_TYPE_SET_ENV_VAR_NO_POP,
@@ -1734,6 +1734,11 @@ namespace ObjectScript
 
 					EXP_TYPE_MOVE,
 					EXP_TYPE_GET_XCONST,
+
+					EXP_TYPE_SWITCH_SCOPE, // switch() {
+					EXP_TYPE_CASE,         // case:
+					EXP_TYPE_CASE_DEFAULT, // default:
+					EXP_TYPE_CASE_JUMP,    // internal - used to generate JUMP opcode
 				};
 
 			protected:
@@ -1867,6 +1872,14 @@ namespace ObjectScript
 						int catch_var_index;
 					};
 
+					struct SwitchCaseLabel
+					{
+						TokenData  * key; // token pointer is used as key to search label
+						Expression * exp;
+						int to_pos;
+						int from_pos;
+					};
+
 					// used by function scope
 					int prog_func_index;
 					Vector<LocalVar> locals;
@@ -1886,6 +1899,8 @@ namespace ObjectScript
 
 					Vector<LoopBreak> loop_breaks;
 
+					Vector<SwitchCaseLabel> case_labels;
+
 					bool parser_started;
 
 					Scope(Scope * parent, ExpressionType, TokenData*);
@@ -1897,6 +1912,18 @@ namespace ObjectScript
 					void fixLoopBreaks(Compiler*, int scope_start_pos, int scope_end_pos);
 
 					Scope * findLoopScope();
+
+					bool addCaseLabel(TokenData * key);
+					// set address of JUMP opcode
+					bool setCaseLabelJump(TokenData * key, int pos, Compiler* cmp);
+					// set address of target opcode
+					bool setCaseLabelPos(TokenData * key, int pos, Compiler* cmp);
+					// set expression to evaluate to jump to label ("default" element has no expression)
+					bool setCaseLabelExp(TokenData * key, Expression * exp);
+					// returns parent Scope object if it has type EXP_TY_SWITCH_SCOPE
+					Scope* getSwitchScope();
+					// finds EXP_TY_SWITCH_SCOPE in parent's scopes
+					Scope* findSwitchScope();
 
 					void addPreVars();
 					void addPostVars();
@@ -2089,6 +2116,8 @@ namespace ObjectScript
 				Expression * expectIfExpression(Scope*);
 				Expression * expectWhileExpression(Scope*);
 				Expression * expectDoExpression(Scope*);
+				Expression * expectSwitchExpression(Scope*);
+				Expression * expectCaseExpression(Scope*);
 				Expression * expectForExpression(Scope*);
 				Expression * expectDebugLocalsExpression(Scope*);
 				Expression * expectBracketExpression(Scope*, const Params& p);
