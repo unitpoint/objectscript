@@ -9903,7 +9903,16 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		OS_ASSERT(scope->function);
 		exp->active_locals = scope->function->num_locals;
 		readToken();
-		return finishValueExpression(scope, exp, p);
+
+		{
+			Expression * finished = finishValueExpression(scope, exp, p);
+			if(!finished)
+			{
+				allocator->deleteObj(exp);
+				return 0;
+			}
+			return finished;
+		}
 
 	case Tokenizer::OUTPUT_STRING:
 	case Tokenizer::OUTPUT_NEXT_VALUE:
