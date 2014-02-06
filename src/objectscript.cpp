@@ -9205,7 +9205,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::OPERATOR_RSHIFT_ASSIGN: // >>=
 		case Tokenizer::OPERATOR_POW_ASSIGN: // **=
 			setError(ERROR_SYNTAX, token);
-            allocator->deleteObj(exp);
+			allocator->deleteObj(exp);
 			return NULL;
 
 		case Tokenizer::OPERATOR_ASSIGN: // =
@@ -9904,7 +9904,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		OS_ASSERT(scope->function);
 		exp->active_locals = scope->function->num_locals;
 		readToken();
-		return  finishValueExpression(scope, exp, p);
+		return finishValueExpression(scope, exp, p);
 
 	case Tokenizer::OUTPUT_STRING:
 	case Tokenizer::OUTPUT_NEXT_VALUE:
