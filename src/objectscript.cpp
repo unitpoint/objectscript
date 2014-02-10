@@ -4604,33 +4604,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 
 	case EXP_TYPE_CODE_LIST:
 		if(exp->list.count > 0){
-			Expression * last_exp = exp->list[exp->list.count-1];
-			switch(last_exp->type){
-			case EXP_TYPE_CALL:
-			case EXP_TYPE_CALL_AUTO_PARAM:
-			case EXP_TYPE_CALL_DIM:
-			case EXP_TYPE_CALL_METHOD:
-			case EXP_TYPE_GET_PROPERTY:
-			case EXP_TYPE_GET_THIS_PROPERTY_BY_STRING:
-			case EXP_TYPE_GET_PROPERTY_BY_LOCALS:
-			case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
-			case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
-			case EXP_TYPE_INDIRECT:
-			case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
-			case EXP_TYPE_TAIL_CALL_METHOD: // ret values are not used for tail call
-			case EXP_TYPE_BREAK:
-			case EXP_TYPE_CONTINUE:
-				last_exp->ret_values = ret_values;
-				exp->ret_values = ret_values;
-				return exp;
-
-			case EXP_TYPE_RETURN:
-				last_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CODE_LIST, last_exp->token, last_exp OS_DBG_FILEPOS);
-				exp->list[exp->list.count-1] = last_exp;
-				last_exp->ret_values = ret_values;
-				exp->ret_values = ret_values;
-				return exp;
-			}
+			Expression * last_exp = exp->list.lastElement();
+			exp->list.lastElement() = last_exp = expectExpressionValues(last_exp, ret_values, auto_no_values);
+			exp->ret_values = last_exp->ret_values;
+			return exp;
 		}
 		break;
 
@@ -6698,13 +6675,17 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 
 	Expression * exp;
 	ExpressionList list(allocator);
+	bool last_exp_exists = true;
 	while(!isError()){
 		exp = expectSingleExpression(scope, p);
 		if(isError()){
 			break;
 		}
 		if(exp){
+			last_exp_exists = true;
 			list.add(exp OS_DBG_FILEPOS);
+		}else{
+			last_exp_exists = false;
 		}
 		if(!recent_token){
 			break;
@@ -6731,6 +6712,9 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 		setError(Tokenizer::END_CODE_BLOCK, recent_token);
 		allocator->deleteObj(scope);
 		return NULL;
+	}
+	if(is_new_func && !last_exp_exists && list.count > 0){
+		list.add(new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, recent_token) OS_DBG_FILEPOS);
 	}
 	readToken();
 
@@ -7400,13 +7384,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 
 	Expression * exp;
 	ExpressionList list(allocator);
+	bool last_exp_exists = true;
 	while(!isError()){
 		exp = expectSingleExpression(scope, p);
 		if(isError()){
 			break;
 		}
 		if(exp){
+			last_exp_exists = true;
 			list.add(exp OS_DBG_FILEPOS);
+		}else{
+			last_exp_exists = false;
 		}
 		TokenType token_type = recent_token->type;
 		if(token_type == Tokenizer::CODE_SEPARATOR){
@@ -7430,6 +7418,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 		setError(Tokenizer::END_CODE_BLOCK, recent_token);
 		allocator->deleteObj(scope);
 		return NULL;
+	}
+	if(!last_exp_exists && list.count > 0){
+		list.add(new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, recent_token) OS_DBG_FILEPOS);
 	}
 	readToken();
 
@@ -8532,8 +8523,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 		return NULL;
 	}
 	TokenData * token = recent_token;
-	Expression * if_exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true).setAllowNopResult(true));
+	Expression * if_exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true)); // .setAllowNopResult(true));
 	if(!if_exp){
+		setError(ERROR_EXPECT_VALUE, token);
 		return NULL;
 	}
 	if_exp = expectExpressionValues(if_exp, 1);
@@ -9565,13 +9557,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 				exp->token->setFloat((OS_FLOAT)~exp->toInt());
 				return finishValueExpressionNoAutoCall(scope, exp, p);
 
-			case Tokenizer::OPERATOR_LOGIC_NOT:
+			/* case Tokenizer::OPERATOR_LOGIC_NOT:
 				{
 					bool b = !exp->toInt();
 					exp->type = b ? EXP_TYPE_CONST_TRUE : EXP_TYPE_CONST_FALSE;
 					exp->token->setFloat((OS_FLOAT)b);
 					return finishValueExpressionNoAutoCall(scope, exp, p);
-				}
+				} */
 			}
 			break;
 		}
