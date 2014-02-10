@@ -8532,8 +8532,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 		return NULL;
 	}
 	TokenData * token = recent_token;
-	Expression * if_exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true).setAllowNopResult(true));
+	Expression * if_exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true)); // .setAllowNopResult(true));
 	if(!if_exp){
+		setError(ERROR_EXPECT_VALUE, token);
 		return NULL;
 	}
 	if_exp = expectExpressionValues(if_exp, 1);
@@ -9565,13 +9566,13 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 				exp->token->setFloat((OS_FLOAT)~exp->toInt());
 				return finishValueExpressionNoAutoCall(scope, exp, p);
 
-			case Tokenizer::OPERATOR_LOGIC_NOT:
+			/* case Tokenizer::OPERATOR_LOGIC_NOT:
 				{
 					bool b = !exp->toInt();
 					exp->type = b ? EXP_TYPE_CONST_TRUE : EXP_TYPE_CONST_FALSE;
 					exp->token->setFloat((OS_FLOAT)b);
 					return finishValueExpressionNoAutoCall(scope, exp, p);
-				}
+				} */
 			}
 			break;
 		}
