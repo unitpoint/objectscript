@@ -4604,33 +4604,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 
 	case EXP_TYPE_CODE_LIST:
 		if(exp->list.count > 0){
-			Expression * last_exp = exp->list[exp->list.count-1];
-			switch(last_exp->type){
-			case EXP_TYPE_CALL:
-			case EXP_TYPE_CALL_AUTO_PARAM:
-			case EXP_TYPE_CALL_DIM:
-			case EXP_TYPE_CALL_METHOD:
-			case EXP_TYPE_GET_PROPERTY:
-			case EXP_TYPE_GET_THIS_PROPERTY_BY_STRING:
-			case EXP_TYPE_GET_PROPERTY_BY_LOCALS:
-			case EXP_TYPE_GET_PROPERTY_BY_LOCAL_AND_NUMBER:
-			case EXP_TYPE_GET_PROPERTY_AUTO_CREATE:
-			case EXP_TYPE_INDIRECT:
-			case EXP_TYPE_TAIL_CALL: // ret values are not used for tail call
-			case EXP_TYPE_TAIL_CALL_METHOD: // ret values are not used for tail call
-			case EXP_TYPE_BREAK:
-			case EXP_TYPE_CONTINUE:
-				last_exp->ret_values = ret_values;
-				exp->ret_values = ret_values;
-				return exp;
-
-			case EXP_TYPE_RETURN:
-				last_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CODE_LIST, last_exp->token, last_exp OS_DBG_FILEPOS);
-				exp->list[exp->list.count-1] = last_exp;
-				last_exp->ret_values = ret_values;
-				exp->ret_values = ret_values;
-				return exp;
-			}
+			Expression * last_exp = exp->list.lastElement();
+			exp->list.lastElement() = last_exp = expectExpressionValues(last_exp, ret_values, auto_no_values);
+			exp->ret_values = last_exp->ret_values;
+			return exp;
 		}
 		break;
 
