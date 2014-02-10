@@ -6675,13 +6675,17 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 
 	Expression * exp;
 	ExpressionList list(allocator);
+	bool last_exp_exists = true;
 	while(!isError()){
 		exp = expectSingleExpression(scope, p);
 		if(isError()){
 			break;
 		}
 		if(exp){
+			last_exp_exists = true;
 			list.add(exp OS_DBG_FILEPOS);
+		}else{
+			last_exp_exists = false;
 		}
 		if(!recent_token){
 			break;
@@ -6708,6 +6712,9 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectCodeExpression(Scope * par
 		setError(Tokenizer::END_CODE_BLOCK, recent_token);
 		allocator->deleteObj(scope);
 		return NULL;
+	}
+	if(is_new_func && !last_exp_exists && list.count > 0){
+		list.add(new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, recent_token) OS_DBG_FILEPOS);
 	}
 	readToken();
 
@@ -7377,13 +7384,17 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 
 	Expression * exp;
 	ExpressionList list(allocator);
+	bool last_exp_exists = true;
 	while(!isError()){
 		exp = expectSingleExpression(scope, p);
 		if(isError()){
 			break;
 		}
 		if(exp){
+			last_exp_exists = true;
 			list.add(exp OS_DBG_FILEPOS);
+		}else{
+			last_exp_exists = false;
 		}
 		TokenType token_type = recent_token->type;
 		if(token_type == Tokenizer::CODE_SEPARATOR){
@@ -7407,6 +7418,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 		setError(Tokenizer::END_CODE_BLOCK, recent_token);
 		allocator->deleteObj(scope);
 		return NULL;
+	}
+	if(!last_exp_exists && list.count > 0){
+		list.add(new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, recent_token) OS_DBG_FILEPOS);
 	}
 	readToken();
 
