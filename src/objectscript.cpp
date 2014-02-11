@@ -1944,6 +1944,17 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				if(string_type == MULTI_QUOTE){
 					str++;
 				}
+			}else if(*str == OS_TEXT('`')){
+				const OS_CHAR * token_start = str;
+				str = OS_STRCHR(str+1, OS_TEXT('`'));
+				if(!str){
+					cur_pos = OS_STRLEN(line_start);
+					error = ERROR_CONST_STRING;
+					return false;
+				}
+				str++;
+				addToken(String(allocator, token_start+1, str-token_start-2), STRING, cur_line, (int)(token_start - line_start) OS_DBG_FILEPOS);
+				continue;
 			}else if(*str == OS_TEXT('"')){
 				string_type = QUOTE;
 			}else if(*str == OS_TEXT('\'')){
