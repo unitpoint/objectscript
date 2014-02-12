@@ -4902,6 +4902,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 		OS_ASSERT(exp->list.count == 1);
 		if(exp->ret_values > 0){
 			OS_ASSERT(exp->ret_values == 1);
+			if(exp->list[0]->type == EXP_TYPE_INDIRECT){
+				exp->type = exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_INDIRECT_POST_INC : EXP_TYPE_INDIRECT_POST_DEC;
+				return postCompilePass2(scope, exp);
+			}
 			exp->list[0] = postCompilePass2(scope, exp->list[0]);
 
 			Expression * var_exp = exp->list[0];
@@ -9124,19 +9128,23 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		// post ++, post --
 		case Tokenizer::OPERATOR_INC:
 		case Tokenizer::OPERATOR_DEC:
-			if(exp->type != EXP_TYPE_NAME){
+			if(exp->type == EXP_TYPE_NAME){
+				OS_ASSERT(exp->ret_values == 1);
+				if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
+					setError(ERROR_LOCAL_VAL_NOT_DECLARED, exp->token);
+					allocator->deleteObj(exp);
+					return NULL;
+				}
+				if(scope->function->max_up_count < exp->local_var.up_count){
+					scope->function->max_up_count = exp->local_var.up_count;
+				}
+				exp->type = EXP_TYPE_GET_LOCAL_VAR;
+			}else if(exp->type == EXP_TYPE_INDIRECT){
+				// keep curent exp
+			}else{
+				// TODO: set error?
 				return exp;
 			}
-			OS_ASSERT(exp->ret_values == 1);
-			if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
-				setError(ERROR_LOCAL_VAL_NOT_DECLARED, exp->token);
-				allocator->deleteObj(exp);
-				return NULL;
-			}
-			if(scope->function->max_up_count < exp->local_var.up_count){
-				scope->function->max_up_count = exp->local_var.up_count;
-			}
-			exp->type = EXP_TYPE_GET_LOCAL_VAR;
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_POST_INC : EXP_TYPE_POST_DEC, exp->token, exp OS_DBG_FILEPOS);
 			exp->ret_values = 1;
 			readToken();

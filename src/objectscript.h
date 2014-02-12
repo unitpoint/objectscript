@@ -1699,6 +1699,9 @@ namespace ObjectScript
 					EXP_TYPE_POST_INC,    // ++
 					EXP_TYPE_POST_DEC,    // --
 
+					EXP_TYPE_INDIRECT_POST_INC,    // ++
+					EXP_TYPE_INDIRECT_POST_DEC,    // --
+
 					EXP_TYPE_BIT_AND, // &
 					EXP_TYPE_BIT_OR,  // |
 					EXP_TYPE_BIT_XOR, // ^
