@@ -9124,23 +9124,77 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		// post ++, post --
 		case Tokenizer::OPERATOR_INC:
 		case Tokenizer::OPERATOR_DEC:
-			if(exp->type != EXP_TYPE_NAME){
+			if(exp->type == EXP_TYPE_NAME){
+				OS_ASSERT(exp->ret_values == 1);
+				if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
+					setError(ERROR_LOCAL_VAL_NOT_DECLARED, exp->token);
+					allocator->deleteObj(exp);
+					return NULL;
+				}
+				if(scope->function->max_up_count < exp->local_var.up_count){
+					scope->function->max_up_count = exp->local_var.up_count;
+				}
+				exp->type = EXP_TYPE_GET_LOCAL_VAR;
+				exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_POST_INC : EXP_TYPE_POST_DEC, exp->token, exp OS_DBG_FILEPOS);
+				exp->ret_values = 1;
+				readToken();
+				return finishValueExpressionNoAutoCall(scope, exp, p);
+			}
+			else if(exp->type == EXP_TYPE_INDIRECT)
+			{
+				OS_ASSERT(exp->ret_values == 1);
+				OS_ASSERT(exp->list.count == 2);
+				if(exp->list[1]->type != EXP_TYPE_NAME)
+				{
+					setError(ERROR_EXPECT_TOKEN_TYPE, exp->token);
+					allocator->deleteObj(exp);
+					return NULL;
+				}
+
+				// create token to access local variable
+				String ind_var_name = String(allocator, OS_TEXT("#indirect var"));
+				TokenData * ind_var_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), ind_var_name, Tokenizer::NAME, exp->token->line, exp->token->pos);
+
+				// expression to save middle indirect result into local variable
+				Expression * copy_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_LOCAL_VAR_NO_POP, ind_var_token, exp->list[0] OS_DBG_FILEPOS);
+				copy_exp->ret_values = 1;
+
+				// in current expression replace list[0] expression by another one to allow save middle result in local variable
+				exp->list[0] = copy_exp;
+
+				// token & expression for const '1'
+				TokenData * num_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), String(allocator, OS_TEXT("1")), Tokenizer::NUMBER, exp->token->line, exp->token->pos);
+				num_token->setFloat(1);
+				Expression * num_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NUMBER, num_token);
+				num_exp->ret_values = 1;
+
+				// operation expression: local var +/- 1
+				Expression * op_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token, exp, num_exp OS_DBG_FILEPOS);
+				op_exp->ret_values = 1;
+
+				// expression to set property (property name)
+				Expression * prop_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_STRING, exp->list[1]->token);
+				prop_exp->ret_values = 1;
+
+				// expression to get local variable
+				Expression * get_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, ind_var_token);
+				get_exp->ret_values = 1;
+
+				// set property & return result value
+				Expression * indir_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_INDIRECT, exp->token, get_exp, prop_exp OS_DBG_FILEPOS);
+				indir_exp->ret_values = 1;
+
+				// release tokens
+				ind_var_token->release();
+				num_token->release();
+
+				// finalize text expression
+				readToken();
+
+				return finishValueExpressionNoAutoCall(scope, newAssingExpression(scope, indir_exp, op_exp), p);
+			}
+			else
 				return exp;
-			}
-			OS_ASSERT(exp->ret_values == 1);
-			if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
-				setError(ERROR_LOCAL_VAL_NOT_DECLARED, exp->token);
-				allocator->deleteObj(exp);
-				return NULL;
-			}
-			if(scope->function->max_up_count < exp->local_var.up_count){
-				scope->function->max_up_count = exp->local_var.up_count;
-			}
-			exp->type = EXP_TYPE_GET_LOCAL_VAR;
-			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_POST_INC : EXP_TYPE_POST_DEC, exp->token, exp OS_DBG_FILEPOS);
-			exp->ret_values = 1;
-			readToken();
-			return finishValueExpressionNoAutoCall(scope, exp, p);
 
 		case Tokenizer::OPERATOR_CONCAT:    // ..
 		case Tokenizer::BEFORE_INJECT_VAR:    // ..
@@ -9207,9 +9261,124 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::OPERATOR_LSHIFT_ASSIGN: // <<=
 		case Tokenizer::OPERATOR_RSHIFT_ASSIGN: // >>=
 		case Tokenizer::OPERATOR_POW_ASSIGN: // **=
-			setError(ERROR_SYNTAX, token);
-			allocator->deleteObj(exp);
-			return NULL;
+			{
+				OS_ASSERT(exp->ret_values == 1);
+
+				Expression * set_exp = 0;
+
+				readToken();
+
+				Expression * arg = expectSingleExpression(scope, Params().setAllowAutoCall(true).setAllowCall(true).setAllowBinaryOperator(true));
+				if(!arg){
+					allocator->deleteObj(exp);
+					return NULL;
+				}
+				if(!arg->ret_values){
+					setError(ERROR_EXPECT_VALUE, arg->token);
+					allocator->deleteObj(arg);
+					return NULL;
+				}
+				arg = expectExpressionValues(arg, 1);
+
+				if(exp->type == EXP_TYPE_NAME){
+					set_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NAME, exp->token);
+					set_exp->active_locals = scope->function->num_locals;
+				}
+				else if(exp->type == EXP_TYPE_INDIRECT)
+				{
+					OS_ASSERT(exp->list.count == 2);
+					if(exp->list[1]->type != EXP_TYPE_NAME)
+					{
+						setError(ERROR_EXPECT_TOKEN_TYPE, exp->token);
+						allocator->deleteObj(exp);
+						return NULL;
+					}
+
+					// create token to access local variable
+					String ind_var_name = String(allocator, OS_TEXT("#indirect var"));
+					TokenData * ind_var_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), ind_var_name, Tokenizer::NAME, exp->token->line, exp->token->pos);
+
+					// expression to save middle indirect result into local variable
+					Expression * copy_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_LOCAL_VAR_NO_POP, ind_var_token, exp->list[0] OS_DBG_FILEPOS);
+					copy_exp->ret_values = 1;
+
+					// in current expression replace list[0] expression by another one to allow save middle result in local variable
+					exp->list[0] = copy_exp;
+
+					// expression to set property (property name)
+					Expression * prop_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_STRING, exp->list[1]->token);
+					prop_exp->ret_values = 1;
+
+					// expression to get local variable
+					Expression * get_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, ind_var_token);
+					get_exp->ret_values = 1;
+
+					// set property & return result value
+					set_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_INDIRECT, exp->token, get_exp, prop_exp OS_DBG_FILEPOS);
+
+					// release tokens
+					ind_var_token->release();
+				}
+				else
+				{
+					setError(ERROR_SYNTAX, token);
+					allocator->deleteObj(exp);
+					return NULL;
+				}
+
+				ExpressionType extype = EXP_TYPE_NOP;
+
+				switch(token_type)
+				{
+					case Tokenizer::OPERATOR_BIT_AND_ASSIGN: // &=
+						extype = EXP_TYPE_BIT_AND;
+						break;
+					case Tokenizer::OPERATOR_BIT_OR_ASSIGN:  // |=
+						extype = EXP_TYPE_BIT_OR;
+						break;
+					case Tokenizer::OPERATOR_BIT_XOR_ASSIGN: // ^=
+						extype = EXP_TYPE_BIT_XOR;
+						break;
+					case Tokenizer::OPERATOR_BIT_NOT_ASSIGN: // ~=
+						extype = EXP_TYPE_BIT_NOT;
+						break;
+					case Tokenizer::OPERATOR_ADD_ASSIGN: // +=
+						extype = EXP_TYPE_ADD;
+						break;
+					case Tokenizer::OPERATOR_SUB_ASSIGN: // -=
+						extype = EXP_TYPE_SUB;
+						break;
+					case Tokenizer::OPERATOR_MUL_ASSIGN: // *=
+						extype = EXP_TYPE_MUL;
+						break;
+					case Tokenizer::OPERATOR_DIV_ASSIGN: // /=
+						extype = EXP_TYPE_DIV;
+						break;
+					case Tokenizer::OPERATOR_MOD_ASSIGN: // %=
+						extype = EXP_TYPE_MOD;
+						break;
+					case Tokenizer::OPERATOR_LSHIFT_ASSIGN: // <<=
+						extype = EXP_TYPE_LSHIFT;
+						break;
+					case Tokenizer::OPERATOR_RSHIFT_ASSIGN: // >>=
+						extype = EXP_TYPE_RSHIFT;
+						break;
+					case Tokenizer::OPERATOR_POW_ASSIGN: // **=
+						extype = EXP_TYPE_POW;
+						break;
+					default:
+						OS_ASSERT(false);
+						break;
+				}
+				
+				// operation expression: local var +/- 1
+				Expression * op_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(extype, exp->token, exp, arg OS_DBG_FILEPOS);
+				op_exp->ret_values = 1;
+
+				set_exp->ret_values = 1;
+
+				return finishValueExpressionNoAutoCall(scope, newAssingExpression(scope, set_exp, op_exp), p);
+			}
 
 		case Tokenizer::OPERATOR_ASSIGN: // =
 			if(!p.allow_binary_operator){ // allow_assing){ // allow_binary_operator){
@@ -9226,7 +9395,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		case Tokenizer::END_BRACKET_BLOCK:
 		case Tokenizer::END_CODE_BLOCK:
 		case Tokenizer::CODE_SEPARATOR:
-        case Tokenizer::OPERATOR_COLON:
+		case Tokenizer::OPERATOR_COLON:
 			return exp;
 
 		case Tokenizer::BEGIN_CODE_BLOCK: // {
