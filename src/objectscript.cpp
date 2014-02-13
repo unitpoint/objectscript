@@ -2455,6 +2455,10 @@ bool OS::Core::Compiler::Expression::isUnaryOperator() const
 	case EXP_TYPE_PRE_DEC:		// --
 	case EXP_TYPE_POST_INC:		// ++
 	case EXP_TYPE_POST_DEC:		// --
+	case EXP_TYPE_INDIRECT_PRE_INC:    // ++
+	case EXP_TYPE_INDIRECT_PRE_DEC:    // --
+	case EXP_TYPE_INDIRECT_POST_INC:    // ++
+	case EXP_TYPE_INDIRECT_POST_DEC:    // --
 	case EXP_TYPE_BIT_NOT:		// ~
 		return true;
 	}
@@ -4420,6 +4424,10 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::getOpcodeLevel(ExpressionTyp
 	case EXP_TYPE_PRE_DEC:     // --
 	case EXP_TYPE_POST_INC:    // ++
 	case EXP_TYPE_POST_DEC:    // --
+	case EXP_TYPE_INDIRECT_PRE_INC:    // ++
+	case EXP_TYPE_INDIRECT_PRE_DEC:    // --
+	case EXP_TYPE_INDIRECT_POST_INC:    // ++
+	case EXP_TYPE_INDIRECT_POST_DEC:    // --
 		return OP_LEVEL_14;
 
 	case EXP_TYPE_LOGIC_BOOL:	// !!
@@ -4674,6 +4682,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 	case EXP_TYPE_PRE_DEC:
 	case EXP_TYPE_POST_INC:
 	case EXP_TYPE_POST_DEC:
+	case EXP_TYPE_INDIRECT_PRE_INC:    // ++
+	case EXP_TYPE_INDIRECT_PRE_DEC:    // --
+	case EXP_TYPE_INDIRECT_POST_INC:    // ++
+	case EXP_TYPE_INDIRECT_POST_DEC:    // --
 		OS_ASSERT(exp->ret_values == 1);
 		if(!ret_values){
 			exp->ret_values = 0;
@@ -4962,6 +4974,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 	case EXP_TYPE_PRE_DEC:
 		{
 			OS_ASSERT(exp->list.count == 1);
+			if(exp->list[0]->type == EXP_TYPE_INDIRECT){
+				exp->type = exp->type == EXP_TYPE_PRE_INC ? EXP_TYPE_INDIRECT_PRE_INC : EXP_TYPE_INDIRECT_PRE_DEC;
+				return postCompilePass2(scope, exp);
+			}
 			exp->list[0] = postCompilePass2(scope, exp->list[0]);
 
 			Expression * var_exp = exp->list[0];
@@ -6286,6 +6302,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		scope->function->stack_cur_size = stack_pos+1;
 		
 		exp->slots.a = stack_pos;
+		return exp;
+
+	case EXP_TYPE_INDIRECT_PRE_INC:
+		OS_ASSERT(exp->list.count == 1);
+		stack_pos = scope->function->stack_cur_size;
+		
+		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
+		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+
 		return exp;
 
 	// case EXP_TYPE_CONCAT:
