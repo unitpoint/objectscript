@@ -2455,10 +2455,6 @@ bool OS::Core::Compiler::Expression::isUnaryOperator() const
 	case EXP_TYPE_PRE_DEC:		// --
 	case EXP_TYPE_POST_INC:		// ++
 	case EXP_TYPE_POST_DEC:		// --
-	case EXP_TYPE_INDIRECT_PRE_INC:    // ++
-	case EXP_TYPE_INDIRECT_PRE_DEC:    // --
-	case EXP_TYPE_INDIRECT_POST_INC:    // ++
-	case EXP_TYPE_INDIRECT_POST_DEC:    // --
 	case EXP_TYPE_BIT_NOT:		// ~
 		return true;
 	}
@@ -2816,8 +2812,10 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 		break;
 
 	case EXP_TYPE_SET_UPVALUE:
-		OS_ASSERT(list.count == 1);
-		list[0]->debugPrint(out, compiler, scope, depth);
+		OS_ASSERT(list.count == 0 || list.count == 1);
+		if(list.count == 1){
+			list[0]->debugPrint(out, compiler, scope, depth);
+		}
 		out += String::format(allocator, OS_TEXT("%sset upvalue: %s (%d %d) = %s (%d)\n"), spaces,
 			getSlotStr(compiler, scope, slots.a, slots.c).toChar(), slots.a, slots.c, 
 			getSlotStr(compiler, scope, slots.b).toChar(), slots.b);
@@ -2965,10 +2963,13 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 	case EXP_TYPE_RSHIFT_ASSIGN: // >>=
 	case EXP_TYPE_POW_ASSIGN: // **=
 		{
-			OS_ASSERT(list.count == 2);
+			if(list.count == 2){
+				list[0]->debugPrint(out, compiler, scope, depth);
+				list[1]->debugPrint(out, compiler, scope, depth);
+			}else{
+				OS_ASSERT(list.count == 0);
+			}
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type, local_var.type);
-			list[0]->debugPrint(out, compiler, scope, depth);
-			list[1]->debugPrint(out, compiler, scope, depth);
 			out += String::format(allocator, OS_TEXT("%s%s (%d) = %s (%d) [%s] %s (%d)\n"), spaces,  
 				getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
 				getSlotStr(compiler, scope, slots.b).toChar(), slots.b, exp_name,
@@ -3070,7 +3071,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 	case EXP_TYPE_SET_PROPERTY_NO_POP:
 	case EXP_TYPE_INIT_PROPERTY:
 		{
-			OS_ASSERT(list.count >= 1 && list.count <= 3);
+			OS_ASSERT(list.count >= 0 && list.count <= 3);
 			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
 			for(i = 0; i < list.count; i++){
 				list[i]->debugPrint(out, compiler, scope, depth);
@@ -4424,10 +4425,6 @@ OS::Core::Compiler::OpcodeLevel OS::Core::Compiler::getOpcodeLevel(ExpressionTyp
 	case EXP_TYPE_PRE_DEC:     // --
 	case EXP_TYPE_POST_INC:    // ++
 	case EXP_TYPE_POST_DEC:    // --
-	case EXP_TYPE_INDIRECT_PRE_INC:    // ++
-	case EXP_TYPE_INDIRECT_PRE_DEC:    // --
-	case EXP_TYPE_INDIRECT_POST_INC:    // ++
-	case EXP_TYPE_INDIRECT_POST_DEC:    // --
 		return OP_LEVEL_14;
 
 	case EXP_TYPE_LOGIC_BOOL:	// !!
@@ -4682,10 +4679,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 	case EXP_TYPE_PRE_DEC:
 	case EXP_TYPE_POST_INC:
 	case EXP_TYPE_POST_DEC:
-	case EXP_TYPE_INDIRECT_PRE_INC:    // ++
-	case EXP_TYPE_INDIRECT_PRE_DEC:    // --
-	case EXP_TYPE_INDIRECT_POST_INC:    // ++
-	case EXP_TYPE_INDIRECT_POST_DEC:    // --
 		OS_ASSERT(exp->ret_values == 1);
 		if(!ret_values){
 			exp->ret_values = 0;
@@ -4911,111 +4904,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 
 	case EXP_TYPE_POST_INC:
 	case EXP_TYPE_POST_DEC:
-		OS_ASSERT(exp->list.count == 1);
-		if(exp->ret_values > 0){
-			OS_ASSERT(exp->ret_values == 1);
-			if(exp->list[0]->type == EXP_TYPE_INDIRECT){
-				exp->type = exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_INDIRECT_POST_INC : EXP_TYPE_INDIRECT_POST_DEC;
-				return postCompilePass2(scope, exp);
-			}
-			exp->list[0] = postCompilePass2(scope, exp->list[0]);
-
-			Expression * var_exp = exp->list[0];
-			OS_ASSERT(var_exp->type == EXP_TYPE_GET_LOCAL_VAR);
-
-			String temp_var_name = String(allocator, OS_TEXT("#temp")); // + String(allocator, (OS_INT)scope->function->num_locals+1);
-			TokenData * temp_var_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), temp_var_name, Tokenizer::NAME, exp->token->line, exp->token->pos);
-
-			TokenData * num_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), String(allocator, OS_TEXT("1")), Tokenizer::NUMBER, exp->token->line, exp->token->pos);
-			num_token->setFloat(1);
-
-			Expression * cur_var_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, var_exp->token);
-			cur_var_exp->ret_values = 1;
-			cur_var_exp->local_var = var_exp->local_var;
-
-			Expression * result_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CODE_LIST, exp->token);
-			Expression * copy_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_LOCAL_VAR, temp_var_token, cur_var_exp OS_DBG_FILEPOS);
-			// OS_ASSERT(!findLocalVar(copy_exp->local_var, scope, temp_var_name, scope->function->num_locals, false));
-			scope->addLocalVar(temp_var_name, copy_exp->local_var);
-			result_exp->list.add(copy_exp OS_DBG_FILEPOS);
-
-			cur_var_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, var_exp->token);
-			cur_var_exp->ret_values = 1;
-			cur_var_exp->local_var = var_exp->local_var;
-
-			Expression * num_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NUMBER, num_token);
-			num_exp->ret_values = 1;
-
-			Expression * op_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token, cur_var_exp, num_exp OS_DBG_FILEPOS);
-			op_exp->ret_values = 1;
-
-			Expression * set_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_LOCAL_VAR, var_exp->token, op_exp OS_DBG_FILEPOS);
-			set_exp->local_var = var_exp->local_var;
-
-			result_exp->list.add(set_exp OS_DBG_FILEPOS);
-
-			Expression * get_temp_var_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, temp_var_token);
-			get_temp_var_exp->ret_values = 1;
-			get_temp_var_exp->local_var = copy_exp->local_var;
-
-			result_exp->list.add(get_temp_var_exp OS_DBG_FILEPOS);
-			result_exp->ret_values = 1;
-
-			temp_var_token->release();
-			num_token->release();
-
-			allocator->deleteObj(exp);
-			return postCompilePass2(scope, result_exp);
-		}
-		exp->type = exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_PRE_INC : EXP_TYPE_PRE_DEC;
-		// no break
-
 	case EXP_TYPE_PRE_INC:
 	case EXP_TYPE_PRE_DEC:
-		{
-			OS_ASSERT(exp->list.count == 1);
-			if(exp->list[0]->type == EXP_TYPE_INDIRECT){
-				exp->type = exp->type == EXP_TYPE_PRE_INC ? EXP_TYPE_INDIRECT_PRE_INC : EXP_TYPE_INDIRECT_PRE_DEC;
-				return postCompilePass2(scope, exp);
-			}
-			exp->list[0] = postCompilePass2(scope, exp->list[0]);
-
-			Expression * var_exp = exp->list[0];
-			OS_ASSERT(var_exp->type == EXP_TYPE_GET_LOCAL_VAR);
-
-			TokenData * num_token = new (malloc(sizeof(TokenData) OS_DBG_FILEPOS)) TokenData(tokenizer->getTextData(), String(allocator, OS_TEXT("1")), Tokenizer::NUMBER, exp->token->line, exp->token->pos);
-			num_token->setFloat(1);
-
-			Expression * cur_var_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, var_exp->token);
-			cur_var_exp->ret_values = 1;
-			cur_var_exp->local_var = var_exp->local_var;
-
-			Expression * num_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CONST_NUMBER, num_token);
-			num_exp->ret_values = 1;
-
-			Expression * op_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp->type == EXP_TYPE_PRE_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token, cur_var_exp, num_exp OS_DBG_FILEPOS);
-			op_exp->ret_values = 1;
-
-			Expression * set_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_LOCAL_VAR, var_exp->token, op_exp OS_DBG_FILEPOS);
-			set_exp->local_var = var_exp->local_var;
-
-			Expression * result_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CODE_LIST, exp->token);
-			result_exp->list.add(set_exp OS_DBG_FILEPOS);
-
-			if(exp->ret_values > 0){
-				OS_ASSERT(exp->ret_values == 1);
-
-				cur_var_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, var_exp->token);
-				cur_var_exp->ret_values = 1;
-				cur_var_exp->local_var = var_exp->local_var;
-
-				result_exp->list.add(cur_var_exp OS_DBG_FILEPOS);
-				result_exp->ret_values = 1;
-			}
-			allocator->deleteObj(exp);
-			num_token->release();
-			return postCompilePass2(scope, result_exp);
-		}
+		OS_ASSERT(exp->list.count == 1);
+		break;
 
 	case EXP_TYPE_NAME:
 		if(findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
@@ -5578,6 +5470,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 	case EXP_TYPE_CONST_TRUE:
 		OS_ASSERT(exp->list.count == 0);
 		exp->slots.b = CONST_TRUE;
+		break;
+
+	case EXP_TYPE_PRE_INC:
+	case EXP_TYPE_PRE_DEC:
+	case EXP_TYPE_POST_INC:
+	case EXP_TYPE_POST_DEC:
+		OS_ASSERT(exp->list.count == 1);
+		exp->slots.b = cacheNumber((OS_NUMBER)1.0);
 		break;
 	}
 	return Lib::processList(this, scope, exp);
@@ -6304,12 +6204,78 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.a = stack_pos;
 		return exp;
 
-	case EXP_TYPE_INDIRECT_PRE_INC:
+	case EXP_TYPE_PRE_INC:
+	case EXP_TYPE_PRE_DEC:
 		OS_ASSERT(exp->list.count == 1);
 		stack_pos = scope->function->stack_cur_size;
 		
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
+
+		b = -1 - exp->slots.b - CONST_STD_VALUES; // const index
+		if(b < -OS_MAX_GENERIC_CONST_INDEX){
+			if(scope->function->stack_cur_size <= exp1->slots.b){
+				scope->function->stack_cur_size = exp1->slots.b+1;
+			}
+			if(scope->function->stack_cur_size <= exp1->slots.c){
+				scope->function->stack_cur_size = exp1->slots.c+1;
+			}
+
+			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
+			exp_xconst->slots.b = b;
+			exp_xconst->slots.a = b = scope->allocTempVar();
+			exp_xconst->ret_values = 1;
+		}else exp_xconst = NULL;
+			
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp->type == EXP_TYPE_PRE_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token);
+		exp2->slots.a = exp1->slots.a;
+		exp2->slots.b = exp1->slots.a;			
+		exp2->slots.c = b; // const number 1
+		exp2->ret_values = 1;
+		exp->list.add(exp2 OS_DBG_FILEPOS);
+
+		switch(exp1->type){
+		case EXP_TYPE_MOVE:
+			if(exp1->slots.b >= scope->function->num_locals){
+				setError(ERROR_LOCAL_VAL_NOT_DECLARED, exp1->token);
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+			exp2->slots.a = exp1->slots.b;
+			exp2->slots.b = exp1->slots.a;
+			exp2->ret_values = 1;
+			exp->list.add(exp2 OS_DBG_FILEPOS);
+			break;
+
+		case EXP_TYPE_GET_UPVALUE:
+			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_UPVALUE, exp->token);
+			exp2->slots.b = exp1->slots.a;
+			exp2->slots.a = exp1->slots.b;
+			exp2->slots.c = exp1->slots.c;
+			exp2->ret_values = 1;
+			exp->list.add(exp2 OS_DBG_FILEPOS);
+			break;
+
+		case EXP_TYPE_GET_PROPERTY:
+			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_PROPERTY_NO_POP, exp->token);
+			exp2->slots.c = exp1->slots.a;
+			exp2->slots.a = exp1->slots.b;
+			exp2->slots.b = exp1->slots.c;
+			exp2->ret_values = 1;
+			exp->list.add(exp2 OS_DBG_FILEPOS);
+			break;
+
+		default:
+			setError(ERROR_SYNTAX, exp1->token);
+			allocator->deleteObj(exp);
+			return NULL;
+		}
+		scope->function->stack_cur_size = stack_pos+1;
+
+		exp->slots.a = exp1->slots.a;
+		exp->slots.b = 0;
+		exp->type = EXP_TYPE_CODE_LIST;
 
 		return exp;
 
@@ -9618,23 +9584,22 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		// pre ++, pre --
 	case Tokenizer::OPERATOR_INC:
 	case Tokenizer::OPERATOR_DEC:
-		if(!expectToken(Tokenizer::NAME)){
+		if(!expectToken()){
 			return NULL;
 		}
-		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, recent_token);
-		exp->ret_values = 1;
-		exp->active_locals = scope->function->num_locals;
-		if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
-			setError(ERROR_LOCAL_VAL_NOT_DECLARED, exp->token);
+		exp = expectSingleExpression(scope, Params());
+		if(!exp){
+			return NULL;
+		}
+		if(exp->type != EXP_TYPE_NAME && exp->type != EXP_TYPE_INDIRECT
+			&& exp->type != EXP_TYPE_CALL_DIM)
+		{
+			setError(ERROR_SYNTAX, exp->token);
 			allocator->deleteObj(exp);
 			return NULL;
 		}
-		if(scope->function->max_up_count < exp->local_var.up_count){
-			scope->function->max_up_count = exp->local_var.up_count;
-		}
 		exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_PRE_INC : EXP_TYPE_PRE_DEC, exp->token, exp OS_DBG_FILEPOS);
 		exp->ret_values = 1;
-		readToken();
 		return finishValueExpressionNoAutoCall(scope, exp, p);
 		// end unary operators
 
