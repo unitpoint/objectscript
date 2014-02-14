@@ -6206,29 +6206,37 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 	case EXP_TYPE_PRE_INC:
 	case EXP_TYPE_PRE_DEC:
+	case EXP_TYPE_POST_INC:
+	case EXP_TYPE_POST_DEC:
 		OS_ASSERT(exp->list.count == 1);
 		stack_pos = scope->function->stack_cur_size;
 		
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
 		OS_ASSERT(stack_pos+1 == scope->function->stack_cur_size);
 
-		b = -1 - exp->slots.b - CONST_STD_VALUES; // const index
-		if(b < -OS_MAX_GENERIC_CONST_INDEX){
+		switch(exp1->type){
+		// case EXP_TYPE_MOVE:
+		case EXP_TYPE_GET_UPVALUE:
+		case EXP_TYPE_GET_PROPERTY:
 			if(scope->function->stack_cur_size <= exp1->slots.b){
 				scope->function->stack_cur_size = exp1->slots.b+1;
 			}
 			if(scope->function->stack_cur_size <= exp1->slots.c){
 				scope->function->stack_cur_size = exp1->slots.c+1;
 			}
+			break;
+		}
 
+		b = -1 - exp->slots.b - CONST_STD_VALUES; // const index
+		if(b < -OS_MAX_GENERIC_CONST_INDEX){
 			exp_xconst = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_XCONST, exp->token);
 			exp_xconst->slots.b = b;
 			exp_xconst->slots.a = b = scope->allocTempVar();
 			exp_xconst->ret_values = 1;
 		}else exp_xconst = NULL;
 			
-		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp->type == EXP_TYPE_PRE_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token);
-		exp2->slots.a = exp1->slots.a;
+		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp->type == EXP_TYPE_PRE_INC || exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token);
+		exp2->slots.a = exp->slots.a = exp->type == EXP_TYPE_PRE_INC || exp->type == EXP_TYPE_PRE_DEC ? exp1->slots.a : scope->allocTempVar();
 		exp2->slots.b = exp1->slots.a;			
 		exp2->slots.c = b; // const number 1
 		exp2->ret_values = 1;
@@ -6243,14 +6251,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			}
 			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
 			exp2->slots.a = exp1->slots.b;
-			exp2->slots.b = exp1->slots.a;
+			exp2->slots.b = exp->slots.a;
 			exp2->ret_values = 1;
 			exp->list.add(exp2 OS_DBG_FILEPOS);
 			break;
 
 		case EXP_TYPE_GET_UPVALUE:
 			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_UPVALUE, exp->token);
-			exp2->slots.b = exp1->slots.a;
+			exp2->slots.b = exp->slots.a;
 			exp2->slots.a = exp1->slots.b;
 			exp2->slots.c = exp1->slots.c;
 			exp2->ret_values = 1;
@@ -6259,7 +6267,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		case EXP_TYPE_GET_PROPERTY:
 			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_PROPERTY_NO_POP, exp->token);
-			exp2->slots.c = exp1->slots.a;
+			exp2->slots.c = exp->slots.a;
 			exp2->slots.a = exp1->slots.b;
 			exp2->slots.b = exp1->slots.c;
 			exp2->ret_values = 1;
@@ -6273,7 +6281,6 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		}
 		scope->function->stack_cur_size = stack_pos+1;
 
-		exp->slots.a = exp1->slots.a;
 		exp->slots.b = 0;
 		exp->type = EXP_TYPE_CODE_LIST;
 
@@ -9119,22 +9126,12 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 		// post ++, post --
 		case Tokenizer::OPERATOR_INC:
 		case Tokenizer::OPERATOR_DEC:
-			if(exp->type == EXP_TYPE_NAME){
-				OS_ASSERT(exp->ret_values == 1);
-				if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, true)){
-					setError(ERROR_LOCAL_VAL_NOT_DECLARED, exp->token);
-					allocator->deleteObj(exp);
-					return NULL;
-				}
-				if(scope->function->max_up_count < exp->local_var.up_count){
-					scope->function->max_up_count = exp->local_var.up_count;
-				}
-				exp->type = EXP_TYPE_GET_LOCAL_VAR;
-			}else if(exp->type == EXP_TYPE_INDIRECT){
-				// keep curent exp
-			}else{
-				// TODO: set error?
-				return exp;
+			if(exp->type != EXP_TYPE_NAME && exp->type != EXP_TYPE_INDIRECT
+				&& exp->type != EXP_TYPE_CALL_DIM)
+			{
+				setError(ERROR_SYNTAX, exp->token);
+				allocator->deleteObj(exp);
+				return NULL;
 			}
 			exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(token_type == Tokenizer::OPERATOR_INC ? EXP_TYPE_POST_INC : EXP_TYPE_POST_DEC, exp->token, exp OS_DBG_FILEPOS);
 			exp->ret_values = 1;
