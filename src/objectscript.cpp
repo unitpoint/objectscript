@@ -2551,6 +2551,11 @@ bool OS::Core::Compiler::Expression::isBinaryOperator() const
 
 bool OS::Core::Compiler::Expression::isAssignOperator() const
 {
+	return isAssignOperator(type);
+}
+
+bool OS::Core::Compiler::Expression::isAssignOperator(ExpressionType type)
+{
 	switch(type){
 	case EXP_TYPE_ASSIGN: // =
 
@@ -2645,7 +2650,8 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 	}
 	spaces[i] = OS_TEXT('\0');
 
-	const OS_CHAR * type_name;
+	const OS_CHAR * type_name, * exp_name;
+	ECompiledValueType val_type;
 	switch(type){
 	default:
 		OS_ASSERT(false);
@@ -2697,15 +2703,13 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 		break;
 
 	case EXP_TYPE_TRY_CATCH:
-		{
-			OS_ASSERT(list.count == 2);
-			out += String::format(allocator, OS_TEXT("%sbegin try catch\n"), spaces);
-			list[0]->debugPrint(out, compiler, scope, depth+1);
-			out += String::format(allocator, OS_TEXT("%scatch\n"), spaces);
-			list[1]->debugPrint(out, compiler, scope, depth+1);
-			out += String::format(allocator, OS_TEXT("%send try catch\n"), spaces);
-			break;
-		}
+		OS_ASSERT(list.count == 2);
+		out += String::format(allocator, OS_TEXT("%sbegin try catch\n"), spaces);
+		list[0]->debugPrint(out, compiler, scope, depth+1);
+		out += String::format(allocator, OS_TEXT("%scatch\n"), spaces);
+		list[1]->debugPrint(out, compiler, scope, depth+1);
+		out += String::format(allocator, OS_TEXT("%send try catch\n"), spaces);
+		break;
 
 	case EXP_TYPE_THROW:
 		OS_ASSERT(list.count == 1);
@@ -2775,7 +2779,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 		{
 			Scope * scope = dynamic_cast<Scope*>(this);
 			OS_ASSERT(scope);
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
+			exp_name = OS::Core::Compiler::getExpName(type);
 			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
 			if(scope->locals.count > 0){
 				out += String::format(allocator, OS_TEXT("%s  begin locals %d\n"), spaces, scope->locals.count);
@@ -2830,22 +2834,20 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 					
 	case EXP_TYPE_MOVE:
 	case EXP_TYPE_GET_XCONST:
-		{
-			for(i = 0; i < list.count; i++){
-				list[i]->debugPrint(out, compiler, scope, depth);
-			}
-			if(slots.a != slots.b && slots.a){
-				OS_ASSERT(slots.a > 0);
-				const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-				out += String::format(allocator, OS_TEXT("%s%s: %s (%d) = %s (%d)\n"), spaces, exp_name,
-					getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
-					getSlotStr(compiler, scope, slots.b).toChar(), slots.b);
-			}else if(slots.a){
-				out += String::format(allocator, OS_TEXT("%suse value: %s (%d)\n"), spaces,
-					getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
-			}
-			break;
+		for(i = 0; i < list.count; i++){
+			list[i]->debugPrint(out, compiler, scope, depth);
 		}
+		if(slots.a != slots.b && slots.a){
+			OS_ASSERT(slots.a > 0);
+			exp_name = OS::Core::Compiler::getExpName(type);
+			out += String::format(allocator, OS_TEXT("%s%s: %s (%d) = %s (%d)\n"), spaces, exp_name,
+				getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
+				getSlotStr(compiler, scope, slots.b).toChar(), slots.b);
+		}else if(slots.a){
+			out += String::format(allocator, OS_TEXT("%suse value: %s (%d)\n"), spaces,
+				getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
+		}
+		break;
 
 	case EXP_TYPE_BREAK:
 		OS_ASSERT(list.count == 0);
@@ -2922,19 +2924,17 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 		break;
 
 	case EXP_TYPE_PLUS:			// +
-	case EXP_TYPE_MINUS:			// -
+	case EXP_TYPE_MINUS:		// -
 	case EXP_TYPE_LOGIC_BOOL:	// !!
 	case EXP_TYPE_LOGIC_NOT:	// !
 	case EXP_TYPE_BIT_NOT:		// ~
-		{
-			OS_ASSERT(list.count == 1);
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			list[0]->debugPrint(out, compiler, scope, depth);
-			out += String::format(allocator, OS_TEXT("%s%s (%d) = [%s] %s (%d)\n"), spaces,
-				getSlotStr(compiler, scope, slots.a).toChar(), slots.a, exp_name,
-				getSlotStr(compiler, scope, slots.b).toChar(), slots.b);
-			break;
-		}
+		OS_ASSERT(list.count == 1);
+		exp_name = OS::Core::Compiler::getExpName(type);
+		list[0]->debugPrint(out, compiler, scope, depth);
+		out += String::format(allocator, OS_TEXT("%s%s (%d) = [%s] %s (%d)\n"), spaces,
+			getSlotStr(compiler, scope, slots.a).toChar(), slots.a, exp_name,
+			getSlotStr(compiler, scope, slots.b).toChar(), slots.b);
+		break;
 
 	case EXP_TYPE_INDIRECT:
 	case EXP_TYPE_ASSIGN:
@@ -2947,10 +2947,6 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 	case EXP_TYPE_BIT_AND: // &
 	case EXP_TYPE_BIT_OR:  // |
 	case EXP_TYPE_BIT_XOR: // ^
-	case EXP_TYPE_BIT_AND_ASSIGN: // &=
-	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
-	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
-	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
 	case EXP_TYPE_COMPARE: // <=>
 	case EXP_TYPE_ADD: // +
 	case EXP_TYPE_SUB: // -
@@ -2960,40 +2956,16 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 	case EXP_TYPE_LSHIFT: // <<
 	case EXP_TYPE_RSHIFT: // >>
 	case EXP_TYPE_POW: // **
-		{
-			if(list.count == 2){
-				list[0]->debugPrint(out, compiler, scope, depth);
-				list[1]->debugPrint(out, compiler, scope, depth);
-			}else{
-				OS_ASSERT(list.count == 0);
-			}
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type, local_var.type);
-			out += String::format(allocator, OS_TEXT("%s%s (%d) = %s (%d) [%s] %s (%d)\n"), spaces,  
-				getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
-				getSlotStr(compiler, scope, slots.b).toChar(), slots.b, exp_name,
-				getSlotStr(compiler, scope, slots.c).toChar(), slots.c);
-			break;
+		for(i = 0; i < list.count; i++){
+			list[i]->debugPrint(out, compiler, scope, depth);
 		}
+		exp_name = OS::Core::Compiler::getExpName(type, local_var.type);
+		out += String::format(allocator, OS_TEXT("%s%s (%d) = %s (%d) [%s] %s (%d)\n"), spaces,  
+			getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
+			getSlotStr(compiler, scope, slots.b).toChar(), slots.b, exp_name,
+			getSlotStr(compiler, scope, slots.c).toChar(), slots.c);
+		break;
 	
-	/* 
-	case EXP_TYPE_ADD_ASSIGN: // +=
-	case EXP_TYPE_SUB_ASSIGN: // -=
-	case EXP_TYPE_MUL_ASSIGN: // *=
-	case EXP_TYPE_DIV_ASSIGN: // /=
-	case EXP_TYPE_MOD_ASSIGN: // %=
-	case EXP_TYPE_LSHIFT_ASSIGN: // <<=
-	case EXP_TYPE_RSHIFT_ASSIGN: // >>=
-	case EXP_TYPE_POW_ASSIGN: // **=
-		{
-			OS_ASSERT(list.count == 1);
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			list[0]->debugPrint(out, compiler, scope, depth+1);
-			out += String::format(allocator, OS_TEXT("%send %s, ret values %d\n"), spaces, exp_name, ret_values);
-			break;
-		}
-	*/
-
 	case EXP_TYPE_LOGIC_PTR_EQ:  // ===
 	case EXP_TYPE_LOGIC_PTR_NE:  // !==
 	case EXP_TYPE_LOGIC_EQ:  // ==
@@ -3002,43 +2974,37 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 	case EXP_TYPE_LOGIC_LE:  // <=
 	case EXP_TYPE_LOGIC_GREATER: // >
 	case EXP_TYPE_LOGIC_LESS:    // <
-		{
-			OS_ASSERT(list.count == 2);
-			list[0]->debugPrint(out, compiler, scope, depth);
-			list[1]->debugPrint(out, compiler, scope, depth);
-			ECompiledValueType val_type = list[0]->local_var.type == CVT_NUMBER && list[1]->local_var.type == CVT_NUMBER ? CVT_NUMBER : CVT_UNKNOWN;
-			out += String::format(allocator, OS_TEXT("%s%s (%d) = %s (%d) [%s] %s (%d)\n"), spaces,  
-				getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
-				getSlotStr(compiler, scope, slots.a).toChar(), slots.a, OS::Core::Compiler::getExpName(type, val_type),
-				getSlotStr(compiler, scope, slots.a+1).toChar(), slots.a+1);
-			break;
-		}
+		OS_ASSERT(list.count == 2);
+		list[0]->debugPrint(out, compiler, scope, depth);
+		list[1]->debugPrint(out, compiler, scope, depth);
+		val_type = list[0]->local_var.type == CVT_NUMBER && list[1]->local_var.type == CVT_NUMBER ? CVT_NUMBER : CVT_UNKNOWN;
+		out += String::format(allocator, OS_TEXT("%s%s (%d) = %s (%d) [%s] %s (%d)\n"), spaces,  
+			getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
+			getSlotStr(compiler, scope, slots.a).toChar(), slots.a, OS::Core::Compiler::getExpName(type, val_type),
+			getSlotStr(compiler, scope, slots.a+1).toChar(), slots.a+1);
+		break;
 
 	case EXP_TYPE_LOGIC_AND: // &&
 	case EXP_TYPE_LOGIC_OR:  // ||
-		{
-			OS_ASSERT(list.count == 2);
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type, local_var.type);
-			list[0]->debugPrint(out, compiler, scope, depth);
-			out += String::format(allocator, OS_TEXT("%s%s: %s (%d)\n"), spaces, exp_name,
-				getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
-			list[1]->debugPrint(out, compiler, scope, depth + 1);
-			break;
-		}
+		OS_ASSERT(list.count == 2);
+		exp_name = OS::Core::Compiler::getExpName(type, local_var.type);
+		list[0]->debugPrint(out, compiler, scope, depth);
+		out += String::format(allocator, OS_TEXT("%s%s: %s (%d)\n"), spaces, exp_name,
+			getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
+		list[1]->debugPrint(out, compiler, scope, depth + 1);
+		break;
 
 	case EXP_TYPE_CALL_METHOD:
 	case EXP_TYPE_SUPER_CALL:
 	case EXP_TYPE_CALL:
 	case EXP_TYPE_CALL_AUTO_PARAM:
-		{
-			OS_ASSERT(list.count == 2);
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
-			list[0]->debugPrint(out, compiler, scope, depth+1);
-			list[1]->debugPrint(out, compiler, scope, depth+1);
-			out += String::format(allocator, OS_TEXT("%send %s: start %d, params %d, ret values %d\n"), spaces, exp_name, slots.a, slots.b, slots.c);
-			break;
-		}
+		OS_ASSERT(list.count == 2);
+		exp_name = OS::Core::Compiler::getExpName(type);
+		out += String::format(allocator, OS_TEXT("%sbegin %s\n"), spaces, exp_name);
+		list[0]->debugPrint(out, compiler, scope, depth+1);
+		list[1]->debugPrint(out, compiler, scope, depth+1);
+		out += String::format(allocator, OS_TEXT("%send %s: start %d, params %d, ret values %d\n"), spaces, exp_name, slots.a, slots.b, slots.c);
+		break;
 
 	case EXP_TYPE_INIT_ITER:
 		OS_ASSERT(list.count == 1);
@@ -3047,19 +3013,15 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 		break;
 
 	case EXP_TYPE_NEW_LOCAL_VAR:
-		{
-			break;
-		}
+		break;
 
 	case EXP_TYPE_GET_THIS:
 	case EXP_TYPE_GET_ARGUMENTS:
 	case EXP_TYPE_GET_REST_ARGUMENTS:
-		{
-			OS_ASSERT(list.count == 0);
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += String::format(allocator, OS_TEXT("%s%s: %s (%d)\n"), spaces, exp_name, getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
-			break;
-		}
+		OS_ASSERT(list.count == 0);
+		exp_name = OS::Core::Compiler::getExpName(type);
+		out += String::format(allocator, OS_TEXT("%s%s: %s (%d)\n"), spaces, exp_name, getSlotStr(compiler, scope, slots.a).toChar(), slots.a);
+		break;
 
 	case EXP_TYPE_GET_LOCAL_VAR:
 	case EXP_TYPE_GET_LOCAL_VAR_AUTO_CREATE:
@@ -3067,7 +3029,7 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 			for(i = 0; i < list.count; i++){
 				list[i]->debugPrint(out, compiler, scope, depth);
 			}
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
+			exp_name = OS::Core::Compiler::getExpName(type);
 			String info = String::format(allocator, OS_TEXT("(%d %d%s)"),
 				local_var.index, local_var.up_count, 
 				local_var.scope_type == LOCAL_PARAM ? OS_TEXT(" param") : (local_var.scope_type == LOCAL_TEMP ? OS_TEXT(" temp") : OS_TEXT("")));
@@ -3077,37 +3039,31 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 
 	case EXP_TYPE_GET_ENV_VAR:
 	case EXP_TYPE_GET_ENV_VAR_AUTO_CREATE:
-		{
-			OS_ASSERT(list.count == 0);
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += String::format(allocator, OS_TEXT("%s%s %s\n"), spaces, exp_name, token->str.toChar());
-			break;
-		}
+		OS_ASSERT(list.count == 0);
+		exp_name = OS::Core::Compiler::getExpName(type);
+		out += String::format(allocator, OS_TEXT("%s%s %s\n"), spaces, exp_name, token->str.toChar());
+		break;
 
 	case EXP_TYPE_SET_PROPERTY:
 	case EXP_TYPE_SET_PROPERTY_NO_POP:
 	case EXP_TYPE_INIT_PROPERTY:
-		{
-			OS_ASSERT(list.count >= 0 && list.count <= 3);
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			for(i = 0; i < list.count; i++){
-				list[i]->debugPrint(out, compiler, scope, depth);
-			}
-			out += String::format(allocator, OS_TEXT("%s%s: %s (%d) [%s (%d)] = %s (%d)\n"), spaces, exp_name, 
-				getSlotStr(compiler, scope, slots.a).toChar(), slots.a,
-				getSlotStr(compiler, scope, slots.b).toChar(), slots.b,
-				getSlotStr(compiler, scope, slots.c).toChar(), slots.c);
-			break;
+		OS_ASSERT(list.count >= 0 && list.count <= 3);
+		exp_name = OS::Core::Compiler::getExpName(type);
+		for(i = 0; i < list.count; i++){
+			list[i]->debugPrint(out, compiler, scope, depth);
 		}
+		out += String::format(allocator, OS_TEXT("%s%s: %s (%d) [%s (%d)] = %s (%d)\n"), spaces, exp_name, 
+			getSlotStr(compiler, scope, slots.a).toChar(), slots.a,
+			getSlotStr(compiler, scope, slots.b).toChar(), slots.b,
+			getSlotStr(compiler, scope, slots.c).toChar(), slots.c);
+		break;
 
 	case EXP_TYPE_CASE:
 	case EXP_TYPE_CASE_DEFAULT:
 	case EXP_TYPE_CASE_JUMP:
-		{
-			const OS_CHAR * exp_name = OS::Core::Compiler::getExpName(type);
-			out += String::format(allocator, OS_TEXT("%s%s %s\n"), spaces, exp_name, token->str.toChar());
-			break;
-		}
+		exp_name = OS::Core::Compiler::getExpName(type);
+		out += String::format(allocator, OS_TEXT("%s%s %s\n"), spaces, exp_name, token->str.toChar());
+		break;
 	}
 }
 
@@ -4636,6 +4592,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 		exp->ret_values = ret_values;
 		return exp;
 
+	case EXP_TYPE_BIT_AND_ASSIGN: // &=
+	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
+	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
+	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
 	case EXP_TYPE_ADD_ASSIGN: // +=
 	case EXP_TYPE_SUB_ASSIGN: // -=
 	case EXP_TYPE_MUL_ASSIGN: // *=
@@ -6271,6 +6231,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp_xconst->slots.b = b;
 			exp_xconst->slots.a = b = scope->allocTempVar();
 			exp_xconst->ret_values = 1;
+			exp->list.add(exp_xconst OS_DBG_FILEPOS);
 		}else exp_xconst = NULL;
 			
 		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp->type == EXP_TYPE_PRE_INC || exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token);
@@ -6295,7 +6256,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			break;
 
 		case EXP_TYPE_GET_UPVALUE:
-			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_UPVALUE, exp->token);
+			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_SET_UPVALUE_NO_POP, exp->token);
 			exp2->slots.b = exp->slots.a;
 			exp2->slots.a = exp1->slots.b;
 			exp2->slots.c = exp1->slots.c;
@@ -6314,8 +6275,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		default:
 			setError(ERROR_SYNTAX, exp1->token);
-			allocator->deleteObj(exp);
-			return NULL;
+			// allocator->deleteObj(exp);
+			return exp;
 		}
 		scope->function->stack_cur_size = stack_pos+1;
 
@@ -6324,6 +6285,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		return exp;
 
+	case EXP_TYPE_BIT_AND_ASSIGN: // &=
+	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
+	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
+	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
 	case EXP_TYPE_ADD_ASSIGN: // +=
 	case EXP_TYPE_SUB_ASSIGN: // -=
 	case EXP_TYPE_MUL_ASSIGN: // *=
@@ -6334,10 +6299,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_POW_ASSIGN: // **=
 		OS_ASSERT(exp->list.count == 1);
 		stack_pos = scope->function->stack_cur_size;
+		scope->allocTempVar();
 		
+		exp_type = exp->list[0]->type;
 		exp->list[0] = exp1 = postCompileNewVM(scope, exp->list[0]);
-		OS_ASSERT(stack_pos + exp->ret_values == scope->function->stack_cur_size);
-		if(exp1->type == EXP_TYPE_MOVE && exp1->list.count == 1){ // no pop opcode
+		OS_ASSERT(stack_pos + 1 + exp->ret_values == scope->function->stack_cur_size);
+		if( (exp_type == EXP_TYPE_SET_PROPERTY_NO_POP && exp1->type == EXP_TYPE_MOVE && exp1->list.count == 1) 
+			|| (exp_type == EXP_TYPE_SET_LOCAL_VAR && exp1->type == EXP_TYPE_NOP && exp1->list.count == 1) 
+			)
+		{ // no pop opcode
 			exp2 = exp1->list.removeIndex(0);
 			allocator->deleteObj(exp1);
 			exp->list[0] = exp1 = exp2;
@@ -6347,6 +6317,22 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		default:
 			OS_ASSERT(false);
 			// no break
+
+		case EXP_TYPE_BIT_AND_ASSIGN: // &=
+			exp_type = EXP_TYPE_BIT_AND;
+			break;
+
+		case EXP_TYPE_BIT_OR_ASSIGN:  // |=
+			exp_type = EXP_TYPE_BIT_OR;
+			break;
+
+		case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
+			exp_type = EXP_TYPE_BIT_XOR;
+			break;
+
+		case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
+			exp_type = EXP_TYPE_BIT_NOT;
+			break;
 
 		case EXP_TYPE_ADD_ASSIGN: // +=
 			exp_type = EXP_TYPE_ADD;
@@ -6383,6 +6369,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		switch(exp1->type){
 		// case EXP_TYPE_MOVE:
+		case EXP_TYPE_SET_UPVALUE:
+		case EXP_TYPE_SET_UPVALUE_NO_POP:
+		case EXP_TYPE_SET_PROPERTY:
 		case EXP_TYPE_SET_PROPERTY_NO_POP:
 			if(scope->function->stack_cur_size <= exp1->slots.b){
 				scope->function->stack_cur_size = exp1->slots.b+1;
@@ -6393,29 +6382,85 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			break;
 		}
 		
+		int i;
 		switch(exp1->type){
+		case EXP_TYPE_MOVE:
+			if(exp1->slots.a >= scope->function->num_locals){
+				setError(ERROR_EXPECT_WRITEABLE, exp1->token);
+				allocator->deleteObj(exp);
+				return NULL;
+			}
+			exp1->slots.c = exp1->slots.b;
+			exp1->slots.b = exp1->slots.a;
+			exp1->type = exp_type;
+			if(exp1->list.count == 1 && (exp2 = exp1->list[0])->type == EXP_TYPE_MOVE){
+				if(exp2->slots.a >= scope->function->num_locals){
+					exp1->slots.c = exp2->slots.b;
+					exp2->type = EXP_TYPE_NOP;
+				}
+			}
+			if(exp->ret_values > 0){
+				OS_ASSERT(exp->ret_values == 1);
+				exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+				exp2->slots.a = exp->slots.a = stack_pos;
+				exp2->slots.b = exp1->slots.a;
+				exp2->ret_values = 1;
+				exp->list.add(exp2 OS_DBG_FILEPOS);
+			}
+			break;
+
+		case EXP_TYPE_SET_UPVALUE:
+		case EXP_TYPE_SET_UPVALUE_NO_POP:
+			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_UPVALUE, exp1->token);
+			exp2->slots.a = stack_pos; // scope->allocTempVar();
+			exp2->slots.b = exp1->slots.a;
+			exp2->slots.c = exp1->slots.c;
+			exp2->ret_values = 1;
+			exp->list.insert(0, exp2 OS_DBG_FILEPOS);
+			
+			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp_type, exp->token);
+			exp2->slots.a = stack_pos; // scope->function->stack_cur_size-1;
+			exp2->slots.b = exp2->slots.a;
+			exp2->slots.c = exp1->slots.b;
+			exp2->ret_values = 1;
+			exp->list.insert(1, exp2 OS_DBG_FILEPOS);
+
+			for(i = 0; i < exp1->list.count; i++){
+				exp->list.insert(i, exp1->list[i] OS_DBG_FILEPOS);
+			}
+			allocator->vectorClear(exp1->list);
+
+			exp->slots.a = exp1->slots.b = exp2->slots.a;
+			break;
+
+		case EXP_TYPE_SET_PROPERTY:
 		case EXP_TYPE_SET_PROPERTY_NO_POP:
 			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_PROPERTY, exp1->token);
-			exp2->slots.a = scope->allocTempVar();
+			exp2->slots.a = stack_pos; // scope->allocTempVar();
 			exp2->slots.b = exp1->slots.a;
 			exp2->slots.c = exp1->slots.b;
 			exp2->ret_values = 1;
 			exp->list.insert(0, exp2 OS_DBG_FILEPOS);
 			
 			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp_type, exp->token);
-			exp2->slots.a = scope->function->stack_cur_size-1;
+			exp2->slots.a = stack_pos; // scope->function->stack_cur_size-1;
 			exp2->slots.b = exp2->slots.a;
 			exp2->slots.c = exp1->slots.c;
 			exp2->ret_values = 1;
 			exp->list.insert(1, exp2 OS_DBG_FILEPOS);
 
-			exp1->slots.c = exp2->slots.a;
+			for(i = 0; i < exp1->list.count; i++){
+				exp->list.insert(i, exp1->list[i] OS_DBG_FILEPOS);
+			}
+			allocator->vectorClear(exp1->list);
+
+			exp->slots.a = exp1->slots.c = exp2->slots.a;
 			break;
 		
 		default:
 			setError(ERROR_SYNTAX, exp1->token);
-			allocator->deleteObj(exp);
-			return NULL;
+			// allocator->deleteObj(exp);
+			return exp;
 		}
 		scope->function->stack_cur_size = stack_pos + exp->ret_values;
 
@@ -6518,7 +6563,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			return exp;
 		}
 		exp1 = exp->list[0];
-		if(exp1->type == EXP_TYPE_PARAMS){
+		if(exp1->type == EXP_TYPE_PARAMS || exp1->type == EXP_TYPE_CODE_LIST){
 			OS_ASSERT(exp1->list.count > 0);
 			exp1 = exp1->list.lastElement();
 		}
@@ -9209,7 +9254,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishBinaryOperator(Scope 
 	ExpressionType right_exp_type = getExpressionType(recent_token->type);
 	OpcodeLevel left_level = getOpcodeLevel(left_exp_type);
 	OpcodeLevel right_level = getOpcodeLevel(right_exp_type);
-	if(left_exp_type != EXP_TYPE_PARAMS && right_exp_type == EXP_TYPE_ASSIGN){
+	if(left_exp_type != EXP_TYPE_PARAMS && Expression::isAssignOperator(right_exp_type)){ // == EXP_TYPE_ASSIGN){
 		right_level = (OpcodeLevel)(left_level + 1);
 	/* }else if(left_exp_type == EXP_TYPE_LOGIC_AND && right_exp_type == EXP_TYPE_LOGIC_AND){
 		right_level = (OpcodeLevel)(left_level + 1);
