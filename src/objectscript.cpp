@@ -4038,46 +4038,48 @@ bool OS::Core::Compiler::compile()
 		prog_numbers_table = allocator->core->newTable(OS_DBG_FILEPOS_START);
 		
 		Expression * exp = postCompileExpression(scope, scope);
-		OS_ASSERT(exp->type == EXP_TYPE_FUNCTION);
+		if(exp){
+			OS_ASSERT(exp->type == EXP_TYPE_FUNCTION);
 
-		OS::String filename = tokenizer->getTextData()->filename;
-		bool is_eval = filename.getDataSize() == 0;
+			OS::String filename = tokenizer->getTextData()->filename;
+			bool is_eval = filename.getDataSize() == 0;
 
-		if((!is_eval || allocator->core->settings.create_text_eval_opcodes) && 
-			allocator->core->settings.create_text_opcodes)
-		{
-			Buffer dump(allocator);
-			OS_ASSERT(dynamic_cast<Scope*>(exp));
-			exp->debugPrint(dump, this, dynamic_cast<Scope*>(exp), 0);
-			OS::String dump_filename = allocator->getTextOpcodesFilename(filename);
-			FileStreamWriter(allocator, dump_filename).writeBytes(dump.buffer.buf, dump.buffer.count);
-		}
-		if(allocator->core->settings.create_debug_info){
-			prog_filename_string_index = cacheString(filename);
-		}else{
-			prog_filename_string_index = cacheString(String(allocator));
-		}
-		if(writeOpcodes(scope, exp)){
-			MemStreamWriter mem_writer(allocator);
-			saveToStream(&mem_writer);
-
-			if(!is_eval && allocator->core->settings.create_compiled_file){
-				OS::String compiled_filename = allocator->getCompiledFilename(filename);
-				FileStreamWriter(allocator, compiled_filename).writeBytes(mem_writer.buffer.buf, mem_writer.buffer.count);
+			if((!is_eval || allocator->core->settings.create_text_eval_opcodes) && 
+				allocator->core->settings.create_text_opcodes)
+			{
+				Buffer dump(allocator);
+				OS_ASSERT(dynamic_cast<Scope*>(exp));
+				exp->debugPrint(dump, this, dynamic_cast<Scope*>(exp), 0);
+				OS::String dump_filename = allocator->getTextOpcodesFilename(filename);
+				FileStreamWriter(allocator, dump_filename).writeBytes(dump.buffer.buf, dump.buffer.count);
 			}
+			if(allocator->core->settings.create_debug_info){
+				prog_filename_string_index = cacheString(filename);
+			}else{
+				prog_filename_string_index = cacheString(String(allocator));
+			}
+			if(writeOpcodes(scope, exp)){
+				MemStreamWriter mem_writer(allocator);
+				saveToStream(&mem_writer);
 
-			Program * prog = new (malloc(sizeof(Program) OS_DBG_FILEPOS)) Program(allocator);
-			// prog->filename = tokenizer->getTextData()->filename;
+				if(!is_eval && allocator->core->settings.create_compiled_file){
+					OS::String compiled_filename = allocator->getCompiledFilename(filename);
+					FileStreamWriter(allocator, compiled_filename).writeBytes(mem_writer.buffer.buf, mem_writer.buffer.count);
+				}
 
-			MemStreamReader mem_reader(NULL, mem_writer.buffer.buf, mem_writer.buffer.count);
-			prog->loadFromStream(&mem_reader);
+				Program * prog = new (malloc(sizeof(Program) OS_DBG_FILEPOS)) Program(allocator);
+				// prog->filename = tokenizer->getTextData()->filename;
 
-			prog->pushStartFunction();
-			prog->release();
+				MemStreamReader mem_reader(NULL, mem_writer.buffer.buf, mem_writer.buffer.count);
+				prog->loadFromStream(&mem_reader);
 
-			allocator->deleteObj(exp);
+				prog->pushStartFunction();
+				prog->release();
 
-			return true;
+				allocator->deleteObj(exp);
+
+				return true;
+			}
 		}
 		OS_ASSERT(error);
 	}
@@ -4785,6 +4787,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 #ifdef OS_DEBUG
 	allocator->checkNativeStackUsage(OS_TEXT("OS::Core::Compiler::postCompilePass2"));
 #endif
+	if(isError()){
+		return exp;
+	}
 	switch(exp->type){
 	case EXP_TYPE_FUNCTION:
 		{
@@ -5225,6 +5230,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileFixValueType(Scope * scope, Expression * exp)
 {
+	if(isError()){
+		return exp;
+	}
 	switch(exp->type){
 	case EXP_TYPE_FUNCTION:
 		{
@@ -5313,6 +5321,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileExpression(Scope
 	exp = postCompilePass3(scope, exp);
 	exp = postCompileNewVM(scope, exp);
 	OS_ASSERT(scope->function->stack_cur_size == scope->function->num_locals || scope->function->stack_cur_size == scope->function->num_locals+1);
+	if(isError()){
+		allocator->deleteObj(exp);
+		return NULL;
+	}
 	return exp;
 #else
 	OS_ASSERT(scope->type == EXP_TYPE_FUNCTION);
@@ -5332,7 +5344,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 			return exp;
 		}
 	};
-
+	if(isError()){
+		return exp;
+	}
 	switch(exp->type){
 	case EXP_TYPE_FUNCTION:
 		{
@@ -5543,6 +5557,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			return exp;
 		}
 	};
+	if(isError()){
+		return exp;
+	}
 	Expression * exp1, * exp2, * exp_xconst;
 	int stack_pos, b;
 	bool no_pop;
@@ -6245,8 +6262,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		case EXP_TYPE_MOVE:
 			if(exp1->slots.b >= scope->function->num_locals){
 				setError(ERROR_EXPECT_WRITEABLE, exp1->token);
-				allocator->deleteObj(exp);
-				return NULL;
+				// allocator->deleteObj(exp);
+				return exp;
 			}
 			exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
 			exp2->slots.a = exp1->slots.b;
@@ -6387,8 +6404,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		case EXP_TYPE_MOVE:
 			if(exp1->slots.a >= scope->function->num_locals){
 				setError(ERROR_EXPECT_WRITEABLE, exp1->token);
-				allocator->deleteObj(exp);
-				return NULL;
+				// allocator->deleteObj(exp);
+				return exp;
 			}
 			exp1->slots.c = exp1->slots.b;
 			exp1->slots.b = exp1->slots.a;
@@ -8939,6 +8956,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 	case EXP_TYPE_QUESTION:
 		return finishQuestionOperator(scope, token, left_exp, right_exp);
 
+	case EXP_TYPE_BIT_AND_ASSIGN: // &=
+	case EXP_TYPE_BIT_OR_ASSIGN:  // |=
+	case EXP_TYPE_BIT_XOR_ASSIGN: // ^=
+	case EXP_TYPE_BIT_NOT_ASSIGN: // ~=
 	case EXP_TYPE_ADD_ASSIGN: // +=
 	case EXP_TYPE_SUB_ASSIGN: // -=
 	case EXP_TYPE_MUL_ASSIGN: // *=
