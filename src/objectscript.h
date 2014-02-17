@@ -61,7 +61,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.17.1-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.17.3-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2013 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -1731,6 +1731,7 @@ namespace ObjectScript
 
 					EXP_TYPE_GET_UPVALUE,
 					EXP_TYPE_SET_UPVALUE,
+					EXP_TYPE_SET_UPVALUE_NO_POP,
 
 					EXP_TYPE_MOVE,
 					EXP_TYPE_GET_XCONST,
@@ -1758,6 +1759,7 @@ namespace ObjectScript
 					bool isWriteable() const;
 
 					Expression * add(Expression* OS_DBG_FILEPOS_DECL);
+					Expression * insert(int i, Expression* OS_DBG_FILEPOS_DECL);
 					Expression * removeIndex(int i);
 					Expression * removeLast();
 
@@ -1822,6 +1824,7 @@ namespace ObjectScript
 					bool isUnaryOperator() const;
 					bool isBinaryOperator() const;
 					bool isAssignOperator() const;
+					static bool isAssignOperator(ExpressionType);
 					bool isLogicOperator() const;
 
 					String getSlotStr(Compiler * compiler, Scope * scope, int slot_num, int up_count = 0);
