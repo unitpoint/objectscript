@@ -2893,10 +2893,13 @@ void OS::Core::Compiler::Expression::debugPrint(Buffer& out, OS::Core::Compiler 
 		break;
 
 	case EXP_TYPE_GET_PROPERTY:
-		OS_ASSERT(list.count == 0 || list.count == 2);
+		/* OS_ASSERT(list.count == 0 || list.count == 2);
 		if(list.count == 2){
 			list[0]->debugPrint(out, compiler, scope, depth);
 			list[1]->debugPrint(out, compiler, scope, depth);
+		} */
+		for(i = 0; i < list.count; i++){
+			list[i]->debugPrint(out, compiler, scope, depth);
 		}
 		out += String::format(allocator, OS_TEXT("%s%s: %s (%d) = %s (%d) [%s (%d)]\n"), spaces, OS::Core::Compiler::getExpName(type), 
 					getSlotStr(compiler, scope, slots.a).toChar(), slots.a, 
@@ -6288,6 +6291,15 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp2->slots.b = exp1->slots.c;
 			exp2->ret_values = 1;
 			exp->list.add(exp2 OS_DBG_FILEPOS);
+
+			if(exp1->slots.a == exp1->slots.b){
+				// OS_ASSERT(exp->list[0]->list.count);
+				Expression * exp3 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_MOVE, exp->token);
+				exp3->slots.a = exp2->slots.a = scope->allocTempVar();
+				exp3->slots.b = exp1->slots.a;
+				exp3->ret_values = 1;
+				exp->list[0]->list.add(exp3 OS_DBG_FILEPOS);
+			}
 			break;
 
 		default:
