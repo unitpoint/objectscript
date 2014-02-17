@@ -6307,7 +6307,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			// allocator->deleteObj(exp);
 			return exp;
 		}
-		scope->function->stack_cur_size = stack_pos+1;
+		scope->function->stack_cur_size = stack_pos + exp->ret_values;
 
 		exp->slots.b = 0;
 		exp->type = EXP_TYPE_CODE_LIST;
