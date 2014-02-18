@@ -13738,7 +13738,9 @@ void OS::Core::gcFreeCandidateValues(bool full)
 			}
 			mark(stack_func->locals);
 			for(int i = 0; i < stack_func->sub_funcs.count; i++){
-				mark(stack_func->sub_funcs[i]);
+				if(stack_func->sub_funcs[i]){
+					mark(stack_func->sub_funcs[i]);
+				}
 			}
 		}
 
@@ -13755,6 +13757,7 @@ void OS::Core::gcFreeCandidateValues(bool full)
 
 		void mark(GCValue * cur)
 		{
+			OS_ASSERT(cur);
 			OS_ASSERT((OS_U32)(intptr_t)cur != 0xdededede);
 			OS_ASSERT(gc_step_type == allocator->core->gc_step_type);
 			if(cur->gc_step_type == allocator->core->gc_step_type){
