@@ -9012,6 +9012,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::newBinaryExpression(Scope *
 				}
 			}
 			allocator->deleteObj(left_exp);
+			if(!values_exp)
+				return NULL;
 			OS_ASSERT(values_exp->ret_values == 0);
 			if(exp_type != EXP_TYPE_ASSIGN){
 				setError(ERROR_SYNTAX, token);
