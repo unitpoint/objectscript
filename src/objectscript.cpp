@@ -5643,7 +5643,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		return exp;
 
 	case EXP_TYPE_VALUE:
-		break;
+		exp = Lib::processList(this, scope, exp);
+		if(exp->ret_values)
+			exp->slots.a = exp->list[0]->slots.a;
+		return exp;
 
 	case EXP_TYPE_RETURN:
 		stack_pos = scope->function->stack_cur_size;
