@@ -5962,6 +5962,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->type = EXP_TYPE_MOVE;
 		return exp;
 
+	case EXP_TYPE_SUPER:
 	case EXP_TYPE_GET_ARGUMENTS:
 	case EXP_TYPE_GET_REST_ARGUMENTS:
 		OS_ASSERT(exp->list.count == 0);
