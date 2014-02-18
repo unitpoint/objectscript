@@ -7621,6 +7621,11 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionSugarExpressi
 		}else{
 			last_exp_exists = false;
 		}
+        if(!recent_token)
+        { // TODO: add more intellectual error reporting???
+            setError(Tokenizer::END_CODE_BLOCK, exp->token); // use last expression token
+            break;
+        }
 		TokenType token_type = recent_token->type;
 		if(token_type == Tokenizer::CODE_SEPARATOR){
 			if(!readToken()){
