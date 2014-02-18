@@ -8577,6 +8577,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectForExpression(Scope *
 		.setAllowAssign(true)
 		.setAllowAutoCall(true)
 		.setAllowBinaryOperator(true)
+		.setAllowParams(true)
 		.setAllowNopResult(true));
 	if(!post_exp){
 		allocator->deleteObj(scope);
