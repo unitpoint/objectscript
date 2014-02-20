@@ -28,8 +28,11 @@
 
 #include "objectscript.h"
 
-namespace ObjectScript {
+#ifndef OS_MEMORY_MANAGER_PAGE_BLOCKS
+#define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
+#endif
 
+namespace ObjectScript {
 
 class OSMemoryManagerOld: public OS::MemoryManager
 {

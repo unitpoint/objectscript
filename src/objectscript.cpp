@@ -535,23 +535,23 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 
 	if(str[0] == OS_TEXT('0') && str[1] != OS_TEXT('.')){
 		bool is_valid, is_octal = false;
-		OS_UINT int_val;
+		OS_UINT uint_val;
 		if(str[1] == OS_TEXT('x')){ // || str[1] == OS_TEXT('X')){ // parse hex
 			str += 2;
-			is_valid = parseSimpleHex(str, int_val);
+			is_valid = parseSimpleHex(str, uint_val);
 		}else if(str[1] == OS_TEXT('b')){ // || str[1] == OS_TEXT('B')){ // parse hex
 			str += 2;
-			is_valid = parseSimpleBin(str, int_val);
+			is_valid = parseSimpleBin(str, uint_val);
 		}else{ // parse octal
 			is_octal = true;
-			is_valid = parseSimpleOctal(str, int_val);
+			is_valid = parseSimpleOctal(str, uint_val);
 		}
 		if(!is_valid || (start_str+1 == str && !is_octal)){
 			result = 0;
 			return false;
 		}
-		result = (OS_FLOAT)int_val;
-		if((OS_UINT)result != int_val){
+		result = (OS_FLOAT)uint_val;
+		if((OS_UINT)result != uint_val){
 			result = 0;
 			return false;
 		}
@@ -696,7 +696,7 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a, int precision)
 		return dst;
 	}
 	int n = OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, FloatFormatStr<OS_NUMBER>::precisionFmt(), precision, a);
-	OS_ASSERT(n >= 1 && !OS_STRSTR(dst, OS_TEXT(".")) || dst[n-1] != '0'); (void)n;
+	OS_ASSERT(n >= 1 && (!OS_STRSTR(dst, OS_TEXT(".")) || dst[n-1] != '0')); (void)n;
 	return dst;
 }
 
@@ -21107,278 +21107,6 @@ void OS::initCoreFunctions()
 			while (size-- > 0) buf.append(OS_TEXT(' '));
 		}
 
-#if 0
-		static OS_CHAR *cvt(double arg, int ndigits, int *decpt, int *sign, OS_CHAR *buf, int eflag)
-		{
-			int r2;
-			double fi, fj;
-			OS_CHAR *p, *p1;
-
-			if (ndigits < 0) ndigits = 0;
-			if (ndigits >= CVTBUFSIZE - 1) ndigits = CVTBUFSIZE - 2;
-			r2 = 0;
-			*sign = 0;
-			p = &buf[0];
-			if (arg < 0) {
-				*sign = 1;
-				arg = -arg;
-			}
-			arg = modf(arg, &fi);
-			p1 = &buf[CVTBUFSIZE];
-
-			if (fi != 0) {
-				p1 = &buf[CVTBUFSIZE];
-				while (fi != 0) {
-					fj = ::modf(fi / 10, &fi);
-					*--p1 = (int)((fj + .03) * 10) + OS_TEXT('0');
-					r2++;
-				}
-				while (p1 < &buf[CVTBUFSIZE]) *p++ = *p1++;
-			} else if (arg > 0) {
-				while ((fj = arg * 10) < 1) {
-					arg = fj;
-					r2--;
-				}
-			}
-			p1 = &buf[ndigits];
-			if (eflag == 0) p1 += r2;
-			*decpt = r2;
-			if (p1 < &buf[0]) {
-				buf[0] = OS_TEXT('\0');
-				return buf;
-			}
-			while (p <= p1 && p < &buf[CVTBUFSIZE]) {
-				arg *= 10;
-				arg = modf(arg, &fj);
-				*p++ = (int) fj + OS_TEXT('0');
-			}
-			if (p1 >= &buf[CVTBUFSIZE]) {
-				buf[CVTBUFSIZE - 1] = OS_TEXT('\0');
-				return buf;
-			}
-			p = p1;
-			*p1 += 5;
-			while (*p1 > OS_TEXT('9')) {
-				*p1 = OS_TEXT('0');
-				if (p1 > buf) {
-					++*--p1;
-				} else {
-					*p1 = OS_TEXT('1');
-					(*decpt)++;
-					if (eflag == 0) {
-						if (p > buf) *p = OS_TEXT('0');
-						p++;
-					}
-				}
-			}
-			*p = OS_TEXT('\0');
-			return buf;
-		}
-
-		static OS_CHAR *ecvtbuf(double arg, int ndigits, int *decpt, int *sign, OS_CHAR *buf)
-		{
-			return cvt(arg, ndigits, decpt, sign, buf, 1);
-		}
-
-		static OS_CHAR *fcvtbuf(double arg, int ndigits, int *decpt, int *sign, OS_CHAR *buf)
-		{
-			return cvt(arg, ndigits, decpt, sign, buf, 0);
-		}
-
-		static void cfltcvt(double value, OS_CHAR *buffer, OS_CHAR fmt, int precision)
-		{
-			int decpt, sign, exp, pos;
-			OS_CHAR *digits = NULL;
-			OS_CHAR cvtbuf[CVTBUFSIZE];
-			int capexp = 0;
-			int magnitude;
-
-			if (fmt == OS_TEXT('G') || fmt == OS_TEXT('E')) {
-				capexp = 1;
-				fmt += OS_TEXT('a') - OS_TEXT('A');
-			}
-
-			if (fmt == OS_TEXT('g')) {
-				digits = ecvtbuf(value, precision, &decpt, &sign, cvtbuf);
-				magnitude = decpt - 1;
-				if (magnitude < -4  ||  magnitude > precision - 1) {
-					fmt = OS_TEXT('e');
-					precision -= 1;
-				} else {
-					fmt = OS_TEXT('f');
-					precision -= decpt;
-				}
-			}
-
-			if (fmt == OS_TEXT('e')) {
-				digits = ecvtbuf(value, precision + 1, &decpt, &sign, cvtbuf);
-
-				if (sign) *buffer++ = '-';
-				*buffer++ = *digits;
-				if (precision > 0) *buffer++ = '.';
-				OS_MEMCPY(buffer, digits + 1, precision);
-				buffer += precision;
-				*buffer++ = capexp ? OS_TEXT('E') : OS_TEXT('e');
-
-				if (decpt == 0) {
-					if (value == 0.0) {
-						exp = 0;
-					} else {
-						exp = -1;
-					}
-				} else {
-					exp = decpt - 1;
-				}
-
-				if (exp < 0) {
-					*buffer++ = OS_TEXT('-');
-					exp = -exp;
-				} else {
-					*buffer++ = OS_TEXT('+');
-				}
-
-				buffer[2] = (exp % 10) + OS_TEXT('0');
-				exp = exp / 10;
-				buffer[1] = (exp % 10) + OS_TEXT('0');
-				exp = exp / 10;
-				buffer[0] = (exp % 10) + OS_TEXT('0');
-				buffer += 3;
-			} else if (fmt == 'f') {
-				digits = fcvtbuf(value, precision, &decpt, &sign, cvtbuf);
-				if (sign) *buffer++ = '-';
-				if (*digits) {
-					if (decpt <= 0) {
-						*buffer++ = OS_TEXT('0');
-						*buffer++ = OS_TEXT('.');
-						for (pos = 0; pos < -decpt; pos++) *buffer++ = OS_TEXT('0');
-						while (*digits) *buffer++ = *digits++;
-					} else {
-						pos = 0;
-						while (*digits) {
-							if (pos++ == decpt) *buffer++ = OS_TEXT('.');
-							*buffer++ = *digits++;
-						}
-					}
-				} else {
-					*buffer++ = OS_TEXT('0');
-					if (precision > 0) {
-						*buffer++ = OS_TEXT('.');
-						for (pos = 0; pos < precision; pos++) *buffer++ = OS_TEXT('0');
-					}
-				}
-			}
-
-			*buffer = OS_TEXT('\0');
-		}
-
-		static void forcdecpt(OS_CHAR *buffer)
-		{
-			while (*buffer) {
-				if (*buffer == OS_TEXT('.')) return;
-				if (*buffer == OS_TEXT('e') || *buffer == OS_TEXT('E')) break;
-				buffer++;
-			}
-
-			if (*buffer) {
-				int n = strlen(buffer);
-				while (n > 0) {
-					buffer[n + 1] = buffer[n];
-					n--;
-				}
-
-				*buffer = OS_TEXT('.');
-			} else {
-				*buffer++ = OS_TEXT('.');
-				*buffer = OS_TEXT('\0');
-			}
-		}
-
-		static void cropzeros(OS_CHAR *buffer)
-		{
-			OS_CHAR *stop;
-			while (*buffer && *buffer != OS_TEXT('.')) buffer++;
-			if (*buffer++) {
-				while (*buffer && *buffer != OS_TEXT('e') && *buffer != OS_TEXT('E')) buffer++;
-				stop = buffer--;
-				while (*buffer == OS_TEXT('0')) buffer--;
-				if (*buffer == '.') buffer--;
-				while (*++buffer = *stop++);
-			}
-		}
-
-
-		static void flt(OS::Core::Buffer& buf, double num, int size, int precision, OS_CHAR fmt, int flags)
-		{
-			OS_CHAR tmp[128];
-			OS_CHAR c, sign;
-			int n, i;
-
-			switch(fmt){
-			case OS_TEXT('d'):
-			case OS_TEXT('i'):
-			case OS_TEXT('n'):
-				fmt = OS_TEXT('G');
-				break;
-			}
-
-			if(precision < 0){
-				double p = 10.0;
-				for(int i = -precision-1; i > 0; i--){
-					p *= 10.0;
-				}
-				num = ::floor(num / p + 0.5) * p;
-				precision = 0;
-				// fmt = OS_TEXT('G');
-				// flags &= ~PRECISION;
-			}
-
-			// Left align means no zero padding
-			if (flags & LEFT) flags &= ~ZEROPAD;
-
-			// Determine padding and sign char
-			c = (flags & ZEROPAD) ? '0' : ' ';
-			sign = 0;
-			if(1){ // flags & SIGN) {
-				if (num < 0.0) {
-					sign = '-';
-					num = -num;
-					size--;
-				} else if (flags & PLUS) {
-					sign = '+';
-					size--;
-				} else if (flags & SPACE) {
-					sign = ' ';
-					size--;
-				}
-			}
-
-			// Compute the precision value
-			if (precision == 0 && (fmt == 'g' || fmt == 'G')) {
-				precision = (flags & PRECISION) ? 1 : 17; // ANSI specified
-			}else if(precision == 0 && !(flags & PRECISION)) {
-				precision = 6; // Default precision: 6
-			}
-
-			// Convert floating point number to text
-			cfltcvt(num, tmp, fmt, precision);
-
-			// '#' and precision == 0 means force a decimal point
-			if ((flags & SPECIAL) && precision == 0) forcdecpt(tmp);
-
-			// 'g' format means crop zero unless '#' given
-			if ((fmt == 'g' || fmt == 'G') && !(flags & SPECIAL)) cropzeros(tmp);
-
-			n = OS_STRLEN(tmp);
-
-			// Output number with alignment and padding
-			size -= n;
-			if (!(flags & (ZEROPAD | LEFT))) while (size-- > 0) buf.append(OS_TEXT(' '));
-			if (sign) buf.append(sign);
-			if (!(flags & LEFT)) while (size-- > 0) buf.append(c);
-			for (i = 0; i < n; i++) buf.append(tmp[i]);
-			while (size-- > 0) buf.append(OS_TEXT(' '));
-		}
-#else
 		static void flt(OS::Core::Buffer& buf, double num, int size, int precision, OS_CHAR fmt, int flags)
 		{
 			OS_CHAR format[128], tmp[128];
@@ -21417,7 +21145,6 @@ void OS::initCoreFunctions()
 			i = OS_SNPRINTF(tmp, sizeof(tmp), format, num);
 			buf.append(tmp, i);
 		}
-#endif
 
 		static void flt(OS::Core::Buffer& buf, OS_FLOAT num)
 		{

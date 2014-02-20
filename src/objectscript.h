@@ -160,8 +160,6 @@ inline void operator delete(void *, void *){}
 #define OS_EXT_COMPILED OS_TEXT(".osc")
 #define OS_EXT_TEXT_OPCODES OS_TEXT(".ost")
 
-#define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
-
 #ifdef OS_DEBUG
 
 #define OS_ASSERT assert
@@ -267,12 +265,6 @@ namespace ObjectScript
 	enum
 	{
 		TERMINATED_EXCEPTION_CODE = 1<<30
-	};
-
-	enum
-	{
-		OS_GC_PHASE_MARK,
-		OS_GC_PHASE_SWEEP,
 	};
 
 	enum OS_EOpcode
