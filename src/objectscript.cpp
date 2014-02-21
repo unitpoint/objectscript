@@ -8209,7 +8209,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSwitchExpression(Scop
 			Expression * temp_var = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, temp_var_token);
 			temp_var->ret_values = 1;
 
-			Expression * equ_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_LOGIC_EQ, exp->token, temp_var, exp OS_DBG_FILEPOS);
+			Expression * equ_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_LOGIC_PTR_EQ, exp->token, temp_var, exp OS_DBG_FILEPOS);
 			equ_exp->ret_values = 1;
 
 			// EXP_TYPE_CASE_JUMP expression used because during compilation it record "from" position to case_label element
