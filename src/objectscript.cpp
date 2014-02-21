@@ -3346,7 +3346,8 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			OS_ASSERT(exp->list.count == 2 || exp->list.count == 3);
 			Expression * exp_compare = exp->list[0];
 			bool inverse = exp_compare->type == EXP_TYPE_LOGIC_NOT;
-			if(inverse){
+			// DON'T allow optimize if(!(a > 0)) to if(a <= 0)
+			if(0 && inverse){
 				OS_ASSERT(exp_compare->list.count == 1);
 				switch(exp_compare->list[0]->type){
 				case EXP_TYPE_LOGIC_PTR_EQ:
