@@ -61,7 +61,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.17.5-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.17.7-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -159,8 +159,6 @@ inline void operator delete(void *, void *){}
 #define OS_EXT_TEMPLATE_HTM OS_TEXT(".htm")
 #define OS_EXT_COMPILED OS_TEXT(".osc")
 #define OS_EXT_TEXT_OPCODES OS_TEXT(".ost")
-
-#define OS_MEMORY_MANAGER_PAGE_BLOCKS 32
 
 #ifdef OS_DEBUG
 
@@ -267,12 +265,6 @@ namespace ObjectScript
 	enum
 	{
 		TERMINATED_EXCEPTION_CODE = 1<<30
-	};
-
-	enum
-	{
-		OS_GC_PHASE_MARK,
-		OS_GC_PHASE_SWEEP,
 	};
 
 	enum OS_EOpcode
