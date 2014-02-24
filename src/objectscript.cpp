@@ -555,6 +555,9 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 			result = 0;
 			return false;
 		}
+		if(sign < 0){
+			result = -result;
+		};
 		return true;
 	}
 
@@ -2217,8 +2220,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 					break;
 				}
 				String name = String(allocator, name_start, (int)(str - name_start));
-				TokenType type = NAME;
-				addToken(name, type, cur_line, (int)(name_start - line_start) OS_DBG_FILEPOS);
+				addToken(name, NAME, cur_line, (int)(name_start - line_start) OS_DBG_FILEPOS);
 				continue;
 			}
 			// parse operator
@@ -2455,7 +2457,7 @@ bool OS::Core::Compiler::Expression::isUnaryOperator() const
 	case EXP_TYPE_LOGIC_BOOL:	// !!
 	case EXP_TYPE_LOGIC_NOT:	// !
 	case EXP_TYPE_PLUS:			// +
-	case EXP_TYPE_MINUS:			// -
+	case EXP_TYPE_MINUS:		// -
 	case EXP_TYPE_LENGTH:		// #
 	case EXP_TYPE_PRE_INC:		// ++
 	case EXP_TYPE_PRE_DEC:		// --
@@ -4798,7 +4800,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 	case EXP_TYPE_FUNCTION:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
-			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			OS_ASSERT(new_scope); // && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
 			if(new_scope != scope){
 				new_scope->func_index = scope->function->num_local_funcs++;
 				new_scope->func_depth = scope->function->func_depth + 1;
@@ -4816,7 +4818,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass2(Scope * sc
 	case EXP_TYPE_SWITCH_SCOPE:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
-			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			OS_ASSERT(new_scope); // && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
 			scope = new_scope;
 			break;
 		}
@@ -5241,7 +5243,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileFixValueType(Sco
 	case EXP_TYPE_FUNCTION:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
-			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			OS_ASSERT(new_scope); // && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
 			if(new_scope != scope){
 				new_scope->func_index = scope->function->num_local_funcs++;
 				new_scope->func_depth = scope->function->func_depth + 1;
@@ -5256,7 +5258,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileFixValueType(Sco
 	case EXP_TYPE_SWITCH_SCOPE:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
-			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			OS_ASSERT(new_scope); // && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
 			scope = new_scope;
 			break;
 		}
@@ -5355,7 +5357,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 	case EXP_TYPE_FUNCTION:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
-			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			OS_ASSERT(new_scope); // && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
 			scope = new_scope;
 			break;
 		}
@@ -5366,7 +5368,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 	case EXP_TYPE_SWITCH_SCOPE:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
-			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			OS_ASSERT(new_scope); // && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
 			scope = new_scope;
 			break;
 		}
@@ -5579,7 +5581,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_FUNCTION:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
-			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			OS_ASSERT(new_scope); // && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
 			scope = new_scope;
 			scope->slots.a = scope->parent ? scope->parent->allocTempVar() : 0;
 			scope->slots.b = scope->prog_func_index;
@@ -5592,7 +5594,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	case EXP_TYPE_SWITCH_SCOPE:
 		{
 			Scope * new_scope = dynamic_cast<Scope*>(exp);
-			OS_ASSERT(new_scope && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
+			OS_ASSERT(new_scope); // && (new_scope->parent == scope || (!new_scope->parent && new_scope->type == EXP_TYPE_FUNCTION)));
 			scope = new_scope;
 			break;
 		}
@@ -6029,12 +6031,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			OS_ASSERT(exp1->type == EXP_TYPE_CALL_METHOD);
 			OS_ASSERT(exp1->list.count == 2);
 			scope->function->stack_cur_size = exp1->slots.a + exp1->slots.b;
+			OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 			exp2 = postCompileNewVM(scope, exp->list[1]);
 			OS_ASSERT(exp2->ret_values == 1);
 			OS_ASSERT(exp1->list[1]->type == EXP_TYPE_PARAMS);
 			exp1->list[1]->list.add(exp2 OS_DBG_FILEPOS);
 			exp1->slots.b += exp2->ret_values;
 			scope->function->stack_cur_size = stack_pos+1;
+			OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 			allocator->vectorClear(exp->list);
 			allocator->deleteObj(exp);
 			return exp1;
@@ -6081,6 +6085,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = scope->function->stack_cur_size - stack_pos;
 		exp->slots.c = exp->ret_values;
 		scope->function->stack_cur_size = stack_pos + exp->ret_values;
+		OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 		return exp;
 
 	case EXP_TYPE_SET_DIM:
@@ -6127,6 +6132,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			exp->slots.b = scope->function->stack_cur_size - stack_pos;
 			exp->slots.c = 0;
 			scope->function->stack_cur_size = stack_pos - 1;
+			OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 			return exp;
 		}
 
@@ -6166,6 +6172,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = scope->function->stack_cur_size - stack_pos;
 		exp->slots.c = exp->ret_values;
 		scope->function->stack_cur_size = stack_pos + exp->ret_values;
+		OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 		return exp;
 #else
 		OS_ASSERT(exp->list.count == 1);
@@ -6224,6 +6231,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 
 		exp->list[1] = exp2 = postCompileNewVM(scope, exp->list[1]);
 		scope->function->stack_cur_size = stack_pos+1;
+		OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 		
 		exp->slots.a = stack_pos;
 		return exp;
@@ -6241,13 +6249,23 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		switch(exp1->type){
 		// case EXP_TYPE_MOVE:
 		case EXP_TYPE_GET_UPVALUE:
+			if(scope->function->stack_cur_size <= exp1->slots.a){
+				scope->function->stack_cur_size = exp1->slots.a+1;
+			}
+			OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
+			break;
+
 		case EXP_TYPE_GET_PROPERTY:
+			if(scope->function->stack_cur_size <= exp1->slots.a){
+				scope->function->stack_cur_size = exp1->slots.a+1;
+			}
 			if(scope->function->stack_cur_size <= exp1->slots.b){
 				scope->function->stack_cur_size = exp1->slots.b+1;
 			}
 			if(scope->function->stack_cur_size <= exp1->slots.c){
 				scope->function->stack_cur_size = exp1->slots.c+1;
 			}
+			OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 			break;
 		}
 
@@ -6314,6 +6332,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			return exp;
 		}
 		scope->function->stack_cur_size = stack_pos + exp->ret_values;
+		OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 
 		exp->slots.b = 0;
 		exp->type = EXP_TYPE_CODE_LIST;
@@ -6406,14 +6425,24 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		// case EXP_TYPE_MOVE:
 		case EXP_TYPE_SET_UPVALUE:
 		case EXP_TYPE_SET_UPVALUE_NO_POP:
+			if(scope->function->stack_cur_size <= exp1->slots.b){
+				scope->function->stack_cur_size = exp1->slots.b+1;
+			}
+			OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
+			break;
+
 		case EXP_TYPE_SET_PROPERTY:
 		case EXP_TYPE_SET_PROPERTY_NO_POP:
+			if(scope->function->stack_cur_size <= exp1->slots.a){
+				scope->function->stack_cur_size = exp1->slots.a+1;
+			}
 			if(scope->function->stack_cur_size <= exp1->slots.b){
 				scope->function->stack_cur_size = exp1->slots.b+1;
 			}
 			if(scope->function->stack_cur_size <= exp1->slots.c){
 				scope->function->stack_cur_size = exp1->slots.c+1;
 			}
+			OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 			break;
 		}
 		
@@ -6498,6 +6527,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			return exp;
 		}
 		scope->function->stack_cur_size = stack_pos + exp->ret_values;
+		OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 
 		// exp->slots.b = 0;
 		exp->type = EXP_TYPE_CODE_LIST;
@@ -6595,6 +6625,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		}
 		if(no_pop){
 			scope->function->stack_cur_size++;
+			OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 			return exp;
 		}
 		exp1 = exp->list[0];
@@ -6708,6 +6739,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		// exp1 = exp->list[0];
 		if(no_pop){
 			scope->function->stack_cur_size++;
+			OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 			return exp;
 		}
 		return exp;
