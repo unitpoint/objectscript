@@ -22989,7 +22989,7 @@ void OS::initArrayClass()
 			Core::Value value = os->core->getStackValue(-params);
 			if(OS_VALUE_TYPE(self_var) == OS_VALUE_TYPE_ARRAY){
 				OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(OS_VALUE_VARIANT(self_var).arr));
-				os->core->releaseValue(value);
+				os->core->retainValue(value);
 				os->vectorInsertAtIndex(OS_VALUE_VARIANT(self_var).arr->values, 0, value OS_DBG_FILEPOS);
 				os->core->pushValue(value);
 				return 1;
