@@ -61,7 +61,7 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.17.8-rc") OS_PLATFORM_BITS_VERSION
+#define OS_VERSION		OS_TEXT("1.18-rc") OS_PLATFORM_BITS_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -2468,6 +2468,7 @@ namespace ObjectScript
 				String syntax_delete;
 				String syntax_prototype;
 				String syntax_var;
+				String syntax_local;
 				String syntax_arguments;
 				String syntax_function;
 				String syntax_null;
