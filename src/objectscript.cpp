@@ -6279,7 +6279,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		}else exp_xconst = NULL;
 			
 		exp2 = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(exp->type == EXP_TYPE_PRE_INC || exp->type == EXP_TYPE_POST_INC ? EXP_TYPE_ADD : EXP_TYPE_SUB, exp->token);
-		exp2->slots.a = exp->slots.a = exp->type == EXP_TYPE_PRE_INC || exp->type == EXP_TYPE_PRE_DEC ? exp1->slots.a : scope->allocTempVar();
+		exp2->slots.a = exp->slots.a = exp->type == EXP_TYPE_PRE_INC || exp->type == EXP_TYPE_PRE_DEC || !exp->ret_values ? exp1->slots.a : scope->allocTempVar();
 		exp2->slots.b = exp1->slots.a;			
 		exp2->slots.c = b; // const number 1
 		exp2->ret_values = 1;
@@ -7815,7 +7815,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectFunctionBlockExpressi
 
 OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope * scope)
 {
-	OS_ASSERT(recent_token && recent_token->str == allocator->core->strings->syntax_var);
+	OS_ASSERT(recent_token && (recent_token->str == allocator->core->strings->syntax_var
+			|| recent_token->str == allocator->core->strings->syntax_local));
+	bool is_local_scope_var = recent_token->str == allocator->core->strings->syntax_local;
 	if(!expectToken(Tokenizer::NAME)){
 		return NULL;
 	}
@@ -7912,6 +7914,20 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			OS_ASSERT(is_finished);
 		}
 	}
+	struct Lib {
+		static void registerLocalVar(Compiler * compiler, Scope * scope, Expression * exp, bool is_local_scope_var)
+		{
+			if(is_local_scope_var){
+				if(!compiler->findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false, true)){
+					scope->addLocalVar(exp->token->str, exp->local_var);
+				}
+			}else{
+				if(!compiler->findLocalVar(exp->local_var, scope->function, exp->token->str, exp->active_locals, false, true)){
+					scope->function->addLocalVar(exp->token->str, exp->local_var);
+				}
+			}
+		}
+	};
 	Expression * ret_exp = exp;
 	while(exp){
 		switch(exp->type){
@@ -7922,9 +7938,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 					exp = params->list[i];
 					OS_ASSERT(exp->type == EXP_TYPE_NAME);
 					if(exp->type == EXP_TYPE_NAME){
-						if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false, true)){
-							scope->addLocalVar(exp->token->str, exp->local_var);
-						}
+						Lib::registerLocalVar(this, scope, exp, is_local_scope_var);
 						OS_ASSERT(exp->local_var.up_count == 0);
 						exp->type = EXP_TYPE_NEW_LOCAL_VAR;
 						exp->ret_values = 0;
@@ -7938,9 +7952,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			for(;;){
 				if(exp->local_var.up_scope_count == 0){
 				}else{
-					if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false, true)){
-						scope->addLocalVar(exp->token->str, exp->local_var);
-					}
+					Lib::registerLocalVar(this, scope, exp, is_local_scope_var);
 				}
 				OS_ASSERT(exp->list.count == 1);
 				exp = exp->list[0];
@@ -7958,9 +7970,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 
 		case EXP_TYPE_SET_ENV_VAR:
 			for(;;){
-				if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false, true)){
-					scope->addLocalVar(exp->token->str, exp->local_var);
-				}
+				Lib::registerLocalVar(this, scope, exp, is_local_scope_var);
 				exp->type = EXP_TYPE_SET_LOCAL_VAR;
 				OS_ASSERT(exp->list.count == 1);
 				exp = exp->list[0];
@@ -7977,9 +7987,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectVarExpression(Scope *
 			break;
 
 		case EXP_TYPE_NAME:
-			if(!findLocalVar(exp->local_var, scope, exp->token->str, exp->active_locals, false, true)){
-				scope->addLocalVar(exp->token->str, exp->local_var);
-			}
+			Lib::registerLocalVar(this, scope, exp, is_local_scope_var);
 			OS_ASSERT(exp->local_var.up_count == 0);
 			exp->type = EXP_TYPE_NEW_LOCAL_VAR;
 			exp->ret_values = 0;
@@ -9578,6 +9586,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::finishValueExpression(Scope
 			if(token->type == Tokenizer::NAME){
 				Core::Strings * strings = allocator->core->strings;
 				if(token->str == strings->syntax_var
+					|| token->str == strings->syntax_local
 					// || token->str == strings->syntax_function
 					|| token->str == strings->syntax_return
 					|| token->str == strings->syntax_if
@@ -9744,6 +9753,7 @@ bool OS::Core::Compiler::isVarNameValid(const String& name)
 		|| name == strings->syntax_delete
 		|| name == strings->syntax_prototype
 		|| name == strings->syntax_var
+		|| name == strings->syntax_local
 		|| name == strings->syntax_arguments
 		|| name == strings->syntax_function
 		|| name == strings->syntax_null
@@ -9951,7 +9961,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSingleExpression(Scop
 		return new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_NOP, token);
 
 	case Tokenizer::NAME:
-		if(token->str == allocator->core->strings->syntax_var){
+		if(token->str == allocator->core->strings->syntax_var || token->str == allocator->core->strings->syntax_local){
 			if(!p.allow_var_decl){
 				setError(ERROR_NESTED_ROOT_BLOCK, token);
 				return NULL;
@@ -14618,6 +14628,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	syntax_delete(allocator, OS_TEXT("delete")),
 	syntax_prototype(allocator, OS_TEXT("prototype")),
 	syntax_var(allocator, OS_TEXT("var")),
+	syntax_local(allocator, OS_TEXT("local")),
 	syntax_arguments(allocator, OS_TEXT("arguments")),
 	syntax_function(allocator, OS_TEXT("function")),
 	syntax_null(allocator, OS_TEXT("null")),
