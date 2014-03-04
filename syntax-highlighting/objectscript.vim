@@ -42,6 +42,7 @@ syn match   objectScriptNestedCode     "\$" nextgroup=objectScriptNestedBlock
 syn region  objectScriptNestedBlock    start=+{+ end=+}+ contained contains=objectScriptNestedBlock
 syn region  objectScriptStringD	       start=+"+  skip=+\\\\\|\\"+  end=+"\|$+	contains=objectScriptSpecial,objectScriptNestedCode,@htmlPreproc
 syn region  objectScriptStringS	       start=+'+  skip=+\\\\\|\\'+  end=+'\|$+	contains=objectScriptSpecial,@htmlPreproc
+syn region  objectScriptStringF	       start=+`+  end=+`+	contains=objectScriptSpecial,@htmlPreproc
 
 syn match   objectScriptSpecialCharacter "'\\.'"
 syn match   objectScriptNumber	       "-\=\<\d\+L\=\>\|0[xX][0-9a-fA-F]\+\>"
@@ -113,6 +114,7 @@ if version >= 508 || !exists("did_javascript_syn_inits")
   HiLink objectScriptCommentTodo	Todo
   HiLink objectScriptSpecial		Special
   HiLink objectScriptStringS		String
+  HiLink objectScriptStringF		String
   HiLink objectScriptStringD		String
   HiLink objectScriptCharacter		Character
   HiLink objectScriptSpecialCharacter	objectScriptSpecial
