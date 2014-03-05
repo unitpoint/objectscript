@@ -8802,7 +8802,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectIfExpression(Scope * 
 	TokenData * token = recent_token;
 	Expression * if_exp = expectSingleExpression(scope, Params().setAllowBinaryOperator(true)); // .setAllowNopResult(true));
 	if(!if_exp){
-		setError(ERROR_EXPECT_VALUE, token);
+		//setError(ERROR_EXPECT_VALUE, token); // error is created in nested expectSingleExpression call
 		return NULL;
 	}
 	if_exp = expectExpressionValues(if_exp, 1);
