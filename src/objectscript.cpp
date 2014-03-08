@@ -4597,6 +4597,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectExpressionValues(Expr
 	case EXP_TYPE_TAIL_CALL_METHOD: // ret values are not used for tail call
 	case EXP_TYPE_BREAK:
 	case EXP_TYPE_CONTINUE:
+	case EXP_TYPE_THROW:
 		exp->ret_values = ret_values;
 		return exp;
 
@@ -5616,7 +5617,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp->slots.b = scope->function->stack_cur_size - stack_pos;
 		exp->slots.c = 0;
 		OS_ASSERT(exp->slots.b == 1);
-		scope->function->stack_cur_size = stack_pos;
+		scope->function->stack_cur_size = stack_pos + exp->ret_values;
 #if 0	// don't allow optimization here
 		exp1 = exp->list[0];
 		if(exp1->type == EXP_TYPE_MOVE && exp1->slots.b >= 0){
@@ -13807,9 +13808,6 @@ void OS::Core::gcFreeCandidateValues(bool full)
 				return;
 			}
 			cur->gc_step_type = allocator->core->gc_step_type;
-			/* if(cur->value_id == 24576){
-				int i = 0;
-			} */
 			if(cur->prototype){
 				mark(cur->prototype);
 			}
@@ -25282,8 +25280,9 @@ void OS::initMathModule()
 
 		static int setRandomSeed(OS * os, int params, int, int, void*)
 		{
-			if(!params) return 0;
-			os->core->rand_seed = (OS_U32)os->toNumber(-params);
+			if(params > 0){
+				os->core->randInitialize((OS_U32)os->toNumber(-params));
+			}
 			return 0;
 		}
 
