@@ -2822,8 +2822,6 @@ namespace ObjectScript
 			void moveStackValues(int offs, int count, int new_offs);
 			void moveStackValue(int offs, int new_offs);
 
-			int syncRetValues(int need_ret_values, int cur_ret_values);
-
 			void registerStringRef(GCStringValue*);
 			void unregisterStringRef(GCStringValue*);
 			void deleteStringRefs();

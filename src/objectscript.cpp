@@ -25769,18 +25769,6 @@ void OS::initPostScript()
 	));
 }
 
-int OS::Core::syncRetValues(int need_ret_values, int cur_ret_values)
-{
-	if(cur_ret_values > need_ret_values){
-		pop(cur_ret_values - need_ret_values);
-	}else{ 
-		for(; cur_ret_values < need_ret_values; cur_ret_values++){
-			pushNull();
-		}
-	}
-	return need_ret_values;
-}
-
 OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
 {
 	OS_ASSERT(!object->table || !object->table->count);
