@@ -94,8 +94,18 @@ namespace ObjectScript {
 #endif
 #endif // OS_HEAP_PAGE_SIZE
 
+#ifdef OS_EMSCRIPTEN
+#define OS_HEAP_ALIGN ((int)sizeof(double))
+#else
+#define OS_HEAP_ALIGN ((int)sizeof(void*))
+#endif
+
+#define OS_HEAP_SIZE_ALIGN(size) (((int)(size)+(OS_HEAP_ALIGN-1))&~(OS_HEAP_ALIGN-1))
+#define OS_SIZEOF_INT OS_HEAP_SIZE_ALIGN(sizeof(int))
+#define OS_STRUCT_OFFS(s, offs) (OS_BYTE*)((int)(intptr_t)(s) + OS_HEAP_SIZE_ALIGN(sizeof(*s))*(offs))
+
 #ifdef OS_DEBUG
-#define OS_DUMMY_ID_SIZE (sizeof(int)*2)
+#define OS_DUMMY_ID_SIZE (OS_SIZEOF_INT*2)
 #else
 #define OS_DUMMY_ID_SIZE 0
 #endif
@@ -145,7 +155,7 @@ public:
 
 	enum 
 	{
-		ALIGN = sizeof(void*),
+		ALIGN = OS_HEAP_ALIGN,
 		MAX_SMALL_SIZE = OS_HEAP_CHUNK_SIZE,
 		DEF_PAGE_SIZE = OS_HEAP_PAGE_SIZE
 	};

@@ -1,4 +1,6 @@
-source/ext-socket/
+src/ext-socket/
+src/ext-websocket/
+3rdparty/libwebsockets/
 3rdparty/libmemcached*
 *.osc
 *.ost

@@ -568,6 +568,10 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 	}
 
 	if(*str == OS_TEXT('.')){ // parse float
+		if(str[1] == OS_TEXT('.')){
+			result = sign > 0 ? float_val : -float_val;
+			return true;
+		}
 		// parse 1.#INF ...
 		if(sign == 1 && start_str+1 == str && *start_str == OS_TEXT('1') && str[1] == OS_TEXT('#')){
 			const OS_CHAR * spec[] = {OS_TEXT("INF"), OS_TEXT("IND"), OS_TEXT("QNAN"), NULL};
@@ -1467,6 +1471,8 @@ OS::Core::Tokenizer::TokenData::TokenData(TextData * p_text_data, const String& 
 	type = p_type;
 	line = p_line;
 	pos = p_pos;
+	float_value = 0;
+	// text_data->allocator->printf("Token: %d, %s\n", (int)type, str.toChar());
 }
 
 OS * OS::Core::Tokenizer::TokenData::getAllocator() const
@@ -1499,6 +1505,11 @@ void OS::Core::Tokenizer::TokenData::release()
 OS_FLOAT OS::Core::Tokenizer::TokenData::getFloat() const
 {
 	return float_value;
+}
+
+void OS::Core::Tokenizer::TokenData::setFloat(OS_FLOAT value)
+{
+	float_value = value;
 }
 
 bool OS::Core::Tokenizer::TokenData::isTypeOf(TokenType token_type) const
@@ -1793,11 +1804,6 @@ bool OS::Core::Tokenizer::parseText(const OS_CHAR * text, int len, const String&
 		return true;
 	}
 	return false;
-}
-
-void OS::Core::Tokenizer::TokenData::setFloat(OS_FLOAT value)
-{
-	float_value = value;
 }
 
 OS::Core::Tokenizer::TokenData * OS::Core::Tokenizer::addToken(const String& str, TokenType type, int line, int pos OS_DBG_FILEPOS_DECL)
@@ -22105,12 +22111,14 @@ void OS::initObjectClass()
 			Core::Value self_var = os->core->getStackValue(-params-closure_values-1 + (params > 0));
 			switch(OS_VALUE_TYPE(self_var)){
 			case OS_VALUE_TYPE_NULL:
-				os->pushString(os->core->strings->typeof_null);
-				return 1;
+				// os->pushString(os->core->strings->typeof_null);
+				// return 1;
+				// no break
 
 			case OS_VALUE_TYPE_BOOL:
-				os->pushString(OS_VALUE_VARIANT(self_var).boolean ? os->core->strings->syntax_true : os->core->strings->syntax_false);
-				return 1;
+				// os->pushString(OS_VALUE_VARIANT(self_var).boolean ? os->core->strings->syntax_true : os->core->strings->syntax_false);
+				// return 1;
+				// no break
 
 			case OS_VALUE_TYPE_NUMBER:
 			case OS_VALUE_TYPE_STRING:
@@ -25546,6 +25554,20 @@ void OS::initGCModule()
 			}
 			return 0;
 		}
+		static int getValueBytes(OS * os, int params, int, int, void*)
+		{
+			os->pushNumber(sizeof(Core::Value));
+			return 1;
+		}
+		static int getNanTrickUsed(OS * os, int params, int, int, void*)
+		{
+#ifdef OS_NUMBER_NAN_TRICK
+			os->pushBool(true);
+#else
+			os->pushBool(false);
+#endif
+			return 1;
+		}
 		static int full(OS * os, int params, int, int, void*)
 		{
 			os->gcFull();
@@ -25562,6 +25584,8 @@ void OS::initGCModule()
 		{OS_TEXT("__get@numDestroyedObjects"), GC::getNumDestroyedObjects},
 		{OS_TEXT("__get@startWhenUsedBytes"), GC::getStartWhenUsedBytes},
 		{OS_TEXT("__set@startWhenUsedBytes"), GC::setStartWhenUsedBytes},
+		{OS_TEXT("__get@valueBytes"), GC::getValueBytes},
+		{OS_TEXT("__get@isNanTrickUsed"), GC::getNanTrickUsed},
 		{OS_TEXT("full"), GC::full},
 		{}
 	};
@@ -25624,7 +25648,9 @@ void OS::initLangTokenizerModule()
 #endif
 					os->pushStackValue(-1);
 					os->pushString(OS_TEXT("type"));
-					os->pushNumber(getTokenType(token->type));
+					int type = getTokenType(token->type);
+					// os->printf("pushTokensAsObject: %d, %s\n", type, token->str.toChar());
+					os->pushNumber(type);
 					os->setProperty();
 				}
 				os->addProperty();
