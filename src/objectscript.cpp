@@ -2212,7 +2212,7 @@ bool OS::Core::Tokenizer::parseLines(OS_ESourceCodeType source_code_type, bool c
 				}
 			}
 
-			if(*str == OS_TEXT('_') // || *str == OS_TEXT('$') // || *str == OS_TEXT('@') 
+			if(*str == OS_TEXT('_') || *str == OS_TEXT('$') // || *str == OS_TEXT('@') 
 				|| (*str >= OS_TEXT('a') && *str <= OS_TEXT('z'))
 				|| (*str >= OS_TEXT('A') && *str <= OS_TEXT('Z')) )
 			{ // parse name
@@ -12486,7 +12486,7 @@ OS::Core::GCFunctionValue * OS::Core::pushFunctionValue(StackFunction * stack_fu
 {
 	GCFunctionValue * func_value = new (allocator->malloc(sizeof(GCFunctionValue) OS_DBG_FILEPOS)) GCFunctionValue();
 	func_value->type = OS_VALUE_TYPE_FUNCTION;
-	retainValue(func_value->prototype = prototypes[PROTOTYPE_FUNCTION]);
+	retainValue(func_value->prototype = pushObjectValue(prototypes[PROTOTYPE_FUNCTION])); pop();
 	// func_value->prototype->ref_count++;
 	func_value->prog = prog->retain();
 	func_value->func_decl = func_decl;
@@ -25798,6 +25798,12 @@ void OS::initPreScript()
 			obj["__del@"..name] = function(){
 				throw "${@classname}.${name} is constant property, you should not delete the one"
 			}
+		}
+
+		function __new(func){
+			var obj = extends func {}
+			(functionOf(func) || throw "function required").apply(obj, ...)
+			return obj
 		}
 	));
 }
