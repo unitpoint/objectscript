@@ -787,10 +787,12 @@ OSHeapManager::~OSHeapManager()
 
 void * OSHeapManager::malloc(int size OS_DBG_FILEPOS_DECL)
 {
+#ifdef OS_DEBUG
 	cur_id++;
-	if(cur_id == 1362){
+	/* if(cur_id == 1362){
 		int i = 0;
-	}
+	} */
+#endif
 	if(size <= 0){
 		return NULL;
 	}
