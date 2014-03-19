@@ -1242,7 +1242,7 @@ public:
 				return NULL;
 			}
 
-			memset(tm, 0, sizeof(tm));
+			memset(tm, 0, sizeof(struct tm));
 			tm->tm_hour = (int)datetime->hour;
 			tm->tm_min = (int)datetime->minute;
 		#if ROUND_SECONDS_IN_TM_STRUCT
