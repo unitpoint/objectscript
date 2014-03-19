@@ -1766,13 +1766,15 @@ void OS::Core::Tokenizer::insertToken(int i, TokenData * token OS_DBG_FILEPOS_DE
 	getAllocator()->vectorInsertAtIndex(tokens, i, token OS_DBG_FILEPOS_PARAM);
 }
 
-bool OS::Core::Tokenizer::parseText(const OS_CHAR * text, int len, const String& filename, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
+bool OS::Core::Tokenizer::parseText(const OS_CHAR * text, int len, const String& filename, bool is_real_file, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 {
 	OS_ASSERT(text_data->lines.count == 0);
 
 	OS * allocator = getAllocator();
 
 	text_data->filename = filename;
+	text_data->is_real_file = is_real_file;
+
 	allocator->vectorClear(text_data->lines);
 
 	const OS_CHAR * str = text;
@@ -4054,7 +4056,7 @@ bool OS::Core::Compiler::compile()
 			OS_ASSERT(exp->type == EXP_TYPE_FUNCTION);
 
 			OS::String filename = tokenizer->getTextData()->filename;
-			bool is_eval = filename.getDataSize() == 0;
+			bool is_eval = filename.isEmpty() || !tokenizer->getTextData()->is_real_file;
 
 			if((!is_eval || allocator->core->settings.create_text_eval_opcodes) && 
 				allocator->core->settings.create_text_opcodes)
@@ -4179,7 +4181,7 @@ bool OS::Core::Compiler::compile()
 	allocator->pushNumber(error);
 	allocator->call(2, 1);
 	if(error_token){
-		if(error_token->text_data->filename.getDataSize() > 0){
+		if(!error_token->text_data->filename.isEmpty()){
 			allocator->pushString(error_token->text_data->filename);
 		}else{
 			allocator->pushString(OS_TEXT("{{eval}}"));
@@ -4198,7 +4200,7 @@ bool OS::Core::Compiler::compile()
 		allocator->pushString(error_token->text_data->lines[error_token->line]);
 		allocator->setProperty(-2, OS_TEXT("lineString"), false);
 	}else if(tokenizer->isError()){
-		if(tokenizer->getFilename().getDataSize() > 0){
+		if(!tokenizer->getFilename().isEmpty()){
 			allocator->pushString(tokenizer->getFilename());
 		}else{
 			allocator->pushString(OS_TEXT("{{eval}}"));
@@ -6849,7 +6851,7 @@ OS::Core::Compiler::Scope * OS::Core::Compiler::expectTextExpression()
 	bool ret_eval_value = false;
 	int ret_values = list.count == 1 && list[0]->ret_values > 0 && list[0]->type == EXP_TYPE_FUNCTION ? 1 : 0;
 	if(!ret_values){
-		bool is_eval = tokenizer->getTextData()->filename.getDataSize() == 0;
+		bool is_eval = tokenizer->getTextData()->filename.isEmpty();
 		if(is_eval){
 			exp = newExpressionFromList(list, 1, true);
 			ret_eval_value = true;
@@ -10964,7 +10966,7 @@ void OS::Core::Program::pushStartFunction()
 
 	GCFunctionValue * func_value = allocator->core->pushFunctionValue(NULL, this, func_decl, allocator->core->global_vars);
 	// allocator->core->pushValue(func_value);
-	if(filename.getDataSize()){
+	if(!filename.isEmpty()){
 		allocator->core->setValue(func_value->name, allocator->core->strings->func_main.string);
 	}else{
 		allocator->core->setValue(func_value->name, allocator->core->strings->func_core.string);
@@ -21455,6 +21457,24 @@ void OS::initCoreFunctions()
 			return 0;
 		}
 
+		static int compileFakeFile(OS * os, int params, int, int need_ret_values, void*)
+		{
+			if(params < 2){
+				return 0;
+			}
+			String filename = os->toString(-params);
+			String str = os->toString(-params+1);
+			OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO;
+			if(params >= 3){
+				source_code_type = (OS_ESourceCodeType)os->toInt(-params+2);
+			}
+			bool check_utf8_bom = params >= 4 ? os->toBool(-params+3) : true;
+			if(os->compileFakeFile(filename, str, source_code_type, check_utf8_bom)){
+				return 1;
+			}
+			return 0;
+		}
+
 		static int resolvePath(OS * os, int params, int, int, void*)
 		{
 			if(params >= 1){
@@ -21715,6 +21735,7 @@ void OS::initCoreFunctions()
 		{core->strings->func_concat, Lib::concat},
 		{OS_TEXT("compileText"), Lib::compileText},
 		{OS_TEXT("compileFile"), Lib::compileFile},
+		{OS_TEXT("compileFakeFile"), Lib::compileFakeFile},
 		// {OS_TEXT("resolvePath"), Lib::resolvePath},
 		{OS_TEXT("debugBackTrace"), Lib::debugBackTrace},
 		{OS_TEXT("terminate"), Lib::terminate},
@@ -25667,7 +25688,7 @@ void OS::initLangTokenizerModule()
 				return 0;
 			}
 			Core::Tokenizer tokenizer(os);
-			tokenizer.parseText(str.toChar(), str.getLen(), String(os),
+			tokenizer.parseText(str.toChar(), str.getLen(), String(os), false,
 				params >= 2 ? (OS_ESourceCodeType)os->toInt(-params+1) : OS_SOURCECODE_AUTO,
 				params >= 3 ? os->toBool(-params+2) : true);
 			pushTokensAsObject(os, tokenizer);
@@ -25691,7 +25712,7 @@ void OS::initLangTokenizerModule()
 			file_data.writeFromStream(&file);
 
 			Core::Tokenizer tokenizer(os);
-			tokenizer.parseText((OS_CHAR*)file_data.buffer.buf, file_data.buffer.count, filename,
+			tokenizer.parseText((OS_CHAR*)file_data.buffer.buf, file_data.buffer.count, filename, true,
 				params >= 2 ? (OS_ESourceCodeType)os->toInt(-params+1) : OS_SOURCECODE_AUTO,
 				params >= 3 ? os->toBool(-params+2) : true);
 
@@ -26259,7 +26280,20 @@ bool OS::compileFile(const String& p_filename, bool required, OS_ESourceCodeType
 	}
 
 	Core::Tokenizer tokenizer(this);
-	tokenizer.parseText((OS_CHAR*)file_data.buffer.buf, file_data.buffer.count, filename, source_code_type, check_utf8_bom);
+	tokenizer.parseText((OS_CHAR*)file_data.buffer.buf, file_data.buffer.count, filename, true, source_code_type, check_utf8_bom);
+
+	Core::Compiler compiler(&tokenizer);
+	return compiler.compile();
+}
+
+bool OS::compileFakeFile(const String& filename, const String& str, OS_ESourceCodeType source_code_type, bool check_utf8_bom)
+{
+	if(str.getDataSize() == 0){
+		pushNull();
+		return false;
+	}
+	Core::Tokenizer tokenizer(this);
+	tokenizer.parseText(str.toChar(), str.getLen(), filename, false, source_code_type, check_utf8_bom);
 
 	Core::Compiler compiler(&tokenizer);
 	return compiler.compile();
@@ -26272,7 +26306,7 @@ bool OS::compile(const String& str, OS_ESourceCodeType source_code_type, bool ch
 		return false;
 	}
 	Core::Tokenizer tokenizer(this);
-	tokenizer.parseText(str.toChar(), str.getLen(), String(this), source_code_type, check_utf8_bom);
+	tokenizer.parseText(str.toChar(), str.getLen(), String(this), true, source_code_type, check_utf8_bom);
 
 	Core::Compiler compiler(&tokenizer);
 	return compiler.compile();
@@ -26298,6 +26332,25 @@ void OS::eval(const String& str, int params, int ret_values, OS_ESourceCodeType 
 	resetException();
 	
 	compile(str, source_code_type, check_utf8_bom);
+	pushNull();
+	move(-2, 2, -2-params);
+	core->call(params, ret_values, OS_CALLTYPE_FUNC);
+
+	if(handle_exception){
+		handleException();
+	}
+}
+
+void OS::evalFakeFile(const OS_CHAR * filename, const OS_CHAR * str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom, bool handle_exception)
+{
+	evalFakeFile(String(this, filename), String(this, str), params, ret_values, source_code_type, check_utf8_bom, handle_exception);
+}
+
+void OS::evalFakeFile(const String& filename, const String& str, int params, int ret_values, OS_ESourceCodeType source_code_type, bool check_utf8_bom, bool handle_exception)
+{
+	resetException();
+	
+	compileFakeFile(filename, str, source_code_type, check_utf8_bom);
 	pushNull();
 	move(-2, 2, -2-params);
 	core->call(params, ret_values, OS_CALLTYPE_FUNC);
