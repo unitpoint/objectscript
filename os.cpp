@@ -20,6 +20,10 @@
 #ifdef OS_EMSCRIPTEN
 
 #include <emscripten.h>
+#include "ext-url/os-url.h"
+#include "ext-base64/os-base64.h"
+#include "ext-json/os-json.h"
+#include "ext-datetime/os-datetime.h"
 
 #else // #ifdef OS_EMSCRIPTEN
 
@@ -147,6 +151,11 @@ protected:
 #ifdef OS_EMSCRIPTEN
 
 			initEmscriptenExtension();
+
+			initUrlExtension(this);
+			initBase64Extension(this);
+			initDateTimeExtension(this);
+			initJsonExtension(this);
 
 #else // #ifdef OS_EMSCRIPTEN
 
@@ -807,6 +816,14 @@ void OS_eval(const char * text)
 	os->eval(text);
 }
 
+void OS_evalFakeFile(const char * filename, const char * text)
+{
+	if(!os){
+		OS_create();
+	}
+	os->evalFakeFile(filename, text);
+}
+
 void OS_release()
 {
 	if(os){
@@ -854,6 +871,7 @@ int main(int argc, char * argv[])
 #else
 	ConsoleOS * os = OS::create(new ConsoleOS(), new OSMemoryManagerOld());
 #endif
+	// os->eval("print json.decode(json.encode({a=2, 10=\"qwerty\"}))");
 	os->processRequest(argc, argv);
     os->release();
 
