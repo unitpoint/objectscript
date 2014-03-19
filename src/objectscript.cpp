@@ -15108,6 +15108,8 @@ void OS::shutdown()
 	free(core);
 	core = NULL;
 
+	// ((OSHeapManager*)memory_manager)->dumpUsage(this, "dump-err-exit.log");
+
 	memory_manager->release();
 	memory_manager = NULL;
 }
@@ -25802,7 +25804,7 @@ void OS::initPreScript()
 
 		function __new(func){
 			var obj = extends func {}
-			(functionOf(func) || throw "function required").apply(obj, ...)
+			;(functionOf(func) || throw "function required").apply(obj, ...)
 			return obj
 		}
 	));
