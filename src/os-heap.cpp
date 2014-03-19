@@ -198,6 +198,7 @@ void * OSHeapManager::allocSmall(OS_U32 size OS_DBG_FILEPOS_DECL)
 	small_block->filename = dbg_filename;
 	small_block->line = dbg_line;
 	small_block->insertBefore(dummy_small_block.next);
+	small_block->id = cur_id;
 #endif
 	OS_U32 data_size = small_block->getDataSize();
 	small_stats.registerAlloc(small_block->getSize(), data_size);
@@ -360,6 +361,7 @@ void * OSHeapManager::allocMedium(OS_U32 size OS_DBG_FILEPOS_DECL)
 #ifdef OS_DEBUG
 		block->filename = dbg_filename;
 		block->line = dbg_line;
+		block->id = cur_id;
 #endif
 		block->page = next_page++;
 		block->size = page_size;
@@ -383,6 +385,7 @@ void * OSHeapManager::allocMedium(OS_U32 size OS_DBG_FILEPOS_DECL)
 #ifdef OS_DEBUG
 		block->filename = dbg_filename;
 		block->line = dbg_line;
+		block->id = cur_id;
 #endif
 		block->size += size;
 		((FreeBlock*)block)->removeFreeLink();
@@ -397,15 +400,16 @@ void * OSHeapManager::allocMedium(OS_U32 size OS_DBG_FILEPOS_DECL)
 			insertFreeBlock((FreeBlock*)block);
 		}
 		OS_ASSERT("Heap corrupted!" && (block->size & (ALIGN-1)) == 0);
-		Block * newBlock = (Block*)(((OS_BYTE*)block) + block->size);
+		Block * new_block = (Block*)(((OS_BYTE*)block) + block->size);
 #ifdef OS_DEBUG
-		newBlock->filename = dbg_filename;
-		newBlock->line = dbg_line;
+		new_block->filename = dbg_filename;
+		new_block->line = dbg_line;
+		new_block->id = cur_id;
 #endif
-		newBlock->page = block->page;
-		newBlock->size = size;
-		newBlock->insertAfter(block);    
-		block = newBlock;
+		new_block->page = block->page;
+		new_block->size = size;
+		new_block->insertAfter(block);    
+		block = new_block;
 	}
 	block->is_free = false;
 
@@ -556,6 +560,7 @@ void * OSHeapManager::allocLarge(OS_U32 size OS_DBG_FILEPOS_DECL)
 #ifdef OS_DEBUG
 	block->filename = dbg_filename;
 	block->line = dbg_line;
+	block->id = cur_id;
 #endif
 	block->page = (OS_U16)-1;
 	block->size = size;
@@ -665,6 +670,7 @@ OSHeapManager::OSHeapManager()
 	dummy_small_block.size_slot = 0;
 	dummy_small_block.filename = "#dummy#";
 	dummy_small_block.line = 0;
+	cur_id = 0;
 #endif
 
 #ifndef OS_USE_HEAP_SAVING_MODE
@@ -781,6 +787,10 @@ OSHeapManager::~OSHeapManager()
 
 void * OSHeapManager::malloc(int size OS_DBG_FILEPOS_DECL)
 {
+	cur_id++;
+	if(cur_id == 1362){
+		int i = 0;
+	}
 	if(size <= 0){
 		return NULL;
 	}
@@ -1160,14 +1170,22 @@ void OSHeapManager::writeStats(OS * os, OS::FileHandle * f)
 void OSHeapManager::writeSmallBlockHeader(OS * os, OS::FileHandle * f)
 {
 	char buf[256];
+#ifdef OS_DEBUG
+	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tID\tLINE\tFILENAME\n", mem_block_type_names[0]);
+#else
 	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tLINE\tFILENAME\n", mem_block_type_names[0]);
+#endif
 	writeFile(os, f, buf);
 }
 
 void OSHeapManager::writeSmallBlock(OS * os, OS::FileHandle * f, SmallBlock * block)
 {
 	char buf[256];
+#ifdef OS_DEBUG
+	OS_SNPRINTF(buf, sizeof(buf)-1, "%d\t%d\t%d\t%s\n", block->getDataSize(), block->id, block->line, block->filename);
+#else
 	OS_SNPRINTF(buf, sizeof(buf)-1, "%d\t%d\t%s\n", block->getDataSize(), block->line, block->filename);
+#endif
 	writeFile(os, f, buf);
 }
 
@@ -1187,7 +1205,7 @@ void OSHeapManager::writeBlockHeader(OS * os, OS::FileHandle * f, int type)
 {
 	char buf[256];
 #ifdef OS_DEBUG
-	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tPAGE\tLINE\tFILENAME\n", mem_block_type_names[type]);
+	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tID\tPAGE\tLINE\tFILENAME\n", mem_block_type_names[type]);
 #else
 	OS_SNPRINTF(buf, sizeof(buf)-1, "== BLOCKS TYPE: %s ===============================================================\nSIZE\tPAGE\n", mem_block_type_names[type]);
 #endif
@@ -1198,7 +1216,7 @@ void OSHeapManager::writeBlock(OS * os, OS::FileHandle * f, Block * block)
 {
 	char buf[256];
 #ifdef OS_DEBUG
-	OS_SNPRINTF(buf, sizeof(buf)-1, "%d\t%d\t%d\t%s\n", block->getDataSize(), block->page, block->line, block->filename);
+	OS_SNPRINTF(buf, sizeof(buf)-1, "%d\t%d\t%d\t%d\t%s\n", block->getDataSize(), block->id, block->page, block->line, block->filename);
 #else
 	OS_SNPRINTF(buf, sizeof(buf)-1, "%d\t%d\n", block->getDataSize(), block->page);
 #endif

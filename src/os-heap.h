@@ -189,6 +189,7 @@ protected:
 
 		const char * filename;
 		int line;
+		int id;
 
 		void resetLink();
 		void removeLink();
@@ -227,6 +228,7 @@ protected:
 
 #ifdef OS_DEBUG
 	SmallBlock dummy_small_block;
+	int cur_id;
 #endif
 
 	SimpleStats small_stats;
@@ -244,6 +246,7 @@ protected:
 #ifdef OS_DEBUG
 		const OS_CHAR * filename;
 		int line;
+		int id;
 #endif
 
 		OS_U32 size;
