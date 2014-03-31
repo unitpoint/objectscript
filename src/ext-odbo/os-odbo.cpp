@@ -4,6 +4,7 @@
 
 #include <soci.h>
 #include <soci-mysql.h>
+#include <soci-odbc.h>
 #include <soci-simple.h>
 
 namespace ObjectScript {
@@ -830,6 +831,7 @@ int ODBO_OS::ODBO::query(OS * os, int params, int, int, void * user_param)
 void ODBO_OS::initExtension(OS* os)
 {
 	soci::register_factory_mysql();
+	soci::register_factory_odbc();
 	{
 		OS::FuncDef funcs[] = {
 			{OS_TEXT("__construct"), ODBO::__construct},

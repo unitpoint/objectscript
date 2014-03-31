@@ -68,7 +68,7 @@ IF (FORCE32)
 				   -DWITH_BOOST=OFF 
 				   -DWITH_MYSQL=ON 
 				   -DSOCI_STATIC=OFF 
-				   -DWITH_ODBC=OFF 
+				   -DWITH_ODBC=ON 
 				   -DWITHSQLITE3=OFF 
 				   -DWITHORACLE=OFF 
 				   -DWITHDB2=OFF
@@ -110,7 +110,7 @@ ELSE()
 		CMAKE_ARGS -DWITH_BOOST=OFF 
 			   -DWITH_MYSQL=ON 
 			   -DSOCI_STATIC=OFF 
-			   -DWITH_ODBC=OFF 
+			   -DWITH_ODBC=ON 
 			   -DWITH_FIREBIRD=OFF 
 			   -DWITH_POSTGRESQL=OFF 
 		BUILD_COMMAND make -j8
@@ -179,12 +179,14 @@ IF (NOT FORCE32)
         if(SOCI_FOUND)
             include_directories(${SOCI_INCLUDE_DIR})
             include_directories(${SOCI_INCLUDE_DIR}/mysql)
+            include_directories(${SOCI_INCLUDE_DIR}/odbc)
         else()
             message(FATAL_ERROR "[ERROR]: Couldn't find Soci include files and/or library.")
         endif()
     ELSE()
         include_directories(/usr/local/include/soci)
         include_directories(/usr/local/include/soci/mysql)
+        include_directories(/usr/local/include/soci/odbc)
         if (${CMAKE_SIZEOF_VOID_P} EQUAL 8)
             set(SOCI_LIBRARY /usr/local/lib64/libsoci_core.so)
             set(SOCI_mysql_PLUGIN /usr/local/lib64/libsoci_mysql.so)
@@ -196,8 +198,10 @@ IF (NOT FORCE32)
 ELSE()
     include_directories(${INSTALL_DIR}/include/soci)
     include_directories(${INSTALL_DIR}/include/soci/mysql)
+    include_directories(${INSTALL_DIR}/include/soci/odbc)
     set(SOCI_LIBRARY ${INSTALL_DIR}/lib/libsoci_core.so)
     set(SOCI_mysql_PLUGIN ${INSTALL_DIR}/lib/libsoci_mysql.so)
+    set(SOCI_odbc_PLUGIN ${INSTALL_DIR}/lib/libsoci_odbc.so)
 ENDIF()
 
 IF (NOT FORCE32)
@@ -545,10 +549,10 @@ if(NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 endif()
 
 add_executable(${target} os-fcgi.cpp ${SOURCES} ${HEADERS})
-target_link_libraries(${target} ${CMAKE_THREAD_LIBS_INIT} ${CURL_LIBRARIES} ${PCRE_LIBRARIES} ${MYSQL_LIBRARIES} ${SOCI_LIBRARY} ${SOCI_mysql_PLUGIN} dl)
+target_link_libraries(${target} ${CMAKE_THREAD_LIBS_INIT} ${CURL_LIBRARIES} ${PCRE_LIBRARIES} ${MYSQL_LIBRARIES} ${SOCI_LIBRARY} ${SOCI_mysql_PLUGIN} ${SOCI_odbc_PLUGIN} dl)
 
 add_executable(os os.cpp ${SOURCES} ${HEADERS})
-target_link_libraries(os ${CMAKE_THREAD_LIBS_INIT} ${CURL_LIBRARIES} ${PCRE_LIBRARIES} ${MYSQL_LIBRARIES} ${SOCI_LIBRARY} ${SOCI_mysql_PLUGIN} dl)
+target_link_libraries(os ${CMAKE_THREAD_LIBS_INIT} ${CURL_LIBRARIES} ${PCRE_LIBRARIES} ${MYSQL_LIBRARIES} ${SOCI_LIBRARY} ${SOCI_mysql_PLUGIN} ${SOCI_odbc_PLUGIN} dl)
 
 IF (FORCE32)
     add_dependencies(mysql ncurses)
