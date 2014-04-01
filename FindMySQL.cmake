@@ -13,12 +13,13 @@ ENDIF (MYSQL_INCLUDE_DIR)
 FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
   /usr/local/include/mysql
   /usr/include/mysql
+  /opt/local/include/mysql5/mysql
 )
 
 SET(MYSQL_NAMES mysqlclient_r)
 FIND_LIBRARY(MYSQL_LIBRARY
   NAMES ${MYSQL_NAMES}
-  PATHS /usr/lib /usr/lib/i386-linux-gnu /usr/lib32
+  PATHS /opt/local/lib/mysql5/mysql /usr/lib /usr/lib/i386-linux-gnu /usr/lib32
 )
 
 IF (MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
