@@ -125,25 +125,36 @@ public:
 			return isOpen();
 		}
 
+		bool open(const soci::connection_parameters& p)
+		{
+			close();
+			try {
+				handle = new soci::session(p);
+			}catch(std::exception& e){
+				triggerError(os, e.what()); // soci_session_error_message(handle));
+			}
+			return isOpen();
+		}
+
 		bool findStatement(ODBOStatement * stmt);
 		void addStatement(ODBOStatement * stmt);
 		void removeStatement(ODBOStatement * stmt);
 
 		ODBOStatement * prepare(const OS::Core::String& sql);
 
-		static bool isValidOption(const char * s, int len)
+		static bool isValidOption(const char * s, int len, bool odbc)
 		{
 			for(int i = 0; i < len; i++){
-				if(!s[i] || s[i] <= ' ' || s[i] == '='){
+				if(!s[i] || (odbc ? s[i] == ';' : s[i] <= ' ') || s[i] == '='){
 					return false;
 				}
 			}
 			return true;
 		}
 
-		static bool isValidOption(const OS::String& s)
+		static bool isValidOption(const OS::String& s, bool odbc)
 		{
-			return isValidOption(s, s.getLen());
+			return isValidOption(s, s.getLen(), odbc);
 		}
 
 		static int __construct(OS * os, int params, int, int, void * user_param)
@@ -154,9 +165,13 @@ public:
 			}
 			ODBO * self = new (os->malloc(sizeof(ODBO) OS_DBG_FILEPOS)) ODBO(os);
 			if(params >= 2 && os->isObject(-params+1)){
+				self->type = os->toString(-params+0);
+				bool odbc = self->type == "odbc";
+				bool odbc_driver_complete = false;
+				
 				OS::Core::Buffer connection_str(os);
-				connection_str.append(self->type = os->toString(-params+0));
-				connection_str.append("://");
+				// connection_str.append(self->type = os->toString(-params+0));
+				// connection_str.append("://");
 				if(params > 2){
 					os->pop(params-2);
 				}
@@ -164,13 +179,13 @@ public:
 					OS::String key = os->toString(-2);
 					OS::String value = os->toString(-1);
 
-					if(!isValidOption(key) || !isValidOption(value)){
+					if(!isValidOption(key, odbc) || !isValidOption(value, odbc)){
 						triggerError(os, OS::String::format(os, "invalid char of option '%s=%s'", key.toChar(), value.toChar()));
 						self->close();
 						break;
 					}
 					if(i > 0){
-						connection_str.append(" ");
+						connection_str.append(odbc ? ";" : " ");
 					}
 					connection_str.append(key);
 					connection_str.append("=");
@@ -178,7 +193,11 @@ public:
 
 					os->pop(2);
 				}
-				self->open(connection_str.toString());
+				if(!os->isExceptionSet()){
+					soci::connection_parameters parameters(self->type.toChar(), connection_str.toString().toChar());
+					parameters.set_option(soci::odbc_option_driver_complete, odbc_driver_complete ? "1" : "0" /* SQL_DRIVER_NOPROMPT */);
+					self->open(parameters);
+				}
 			}else{
 				self->open(os->toString(-params+0));
 			}
