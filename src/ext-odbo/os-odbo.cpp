@@ -1,3 +1,6 @@
+#ifndef WIN32
+#include "os.config.h"
+#endif
 #include "os-odbo.h"
 #include "../objectscript.h"
 #include "../os-binder.h"
@@ -850,7 +853,13 @@ int ODBO_OS::ODBO::query(OS * os, int params, int, int, void * user_param)
 void ODBO_OS::initExtension(OS* os)
 {
 	soci::register_factory_mysql();
+#ifdef WIN32
+        soci::register_factory_odbc();
+#else
+#if(SOCI_ODBC_FOUND)
 	soci::register_factory_odbc();
+#endif
+#endif
 	{
 		OS::FuncDef funcs[] = {
 			{OS_TEXT("__construct"), ODBO::__construct},
