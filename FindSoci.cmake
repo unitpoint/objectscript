@@ -71,10 +71,10 @@ IF(SOCI_INCLUDE_DIR AND SOCI_LIBRARY)
 
         IF(SOCI_${plugin}_PLUGIN)
             MESSAGE(STATUS "    * Plugin ${plugin} found ${SOCI_${plugin}_PLUGIN}.")
-            SET(SOCI_${plugin}_FOUND True)
+            SET(SOCI_${plugin}_FOUND 1)
         ELSE()
             MESSAGE(STATUS "    * Plugin ${plugin} not found.")
-            SET(SOCI_${plugin}_FOUND False)
+            SET(SOCI_${plugin}_FOUND 0)
         ENDIF()
 
     ENDFOREACH()
