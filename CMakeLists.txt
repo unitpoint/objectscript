@@ -77,7 +77,7 @@ IF (FORCE32)
 				   -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}
 		BUILD_COMMAND make -j8 lib
 	)
-
+        set(SOCI_odbc_FOUND 1)
 	ExternalProject_Add(curl
 		SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/curl-7.32.0
 		CMAKE_ARGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -m32 
@@ -589,4 +589,11 @@ install(CODE "
 IF (FORCE32)
     install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${INSTALL_DIR}/lib ${CMAKE_INSTALL_PREFIX}/usr/lib32)")
 ENDIF()
+
+
+configure_file (
+        "${PROJECT_SOURCE_DIR}/os.config.h.in"
+        "${PROJECT_BINARY_DIR}/os.config.h"
+)
+include_directories("${PROJECT_BINARY_DIR}")
 
