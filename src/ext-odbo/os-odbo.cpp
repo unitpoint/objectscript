@@ -198,7 +198,9 @@ public:
 				}
 				if(!os->isExceptionSet()){
 					soci::connection_parameters parameters(self->type.toChar(), connection_str.toString().toChar());
-					parameters.set_option(soci::odbc_option_driver_complete, odbc_driver_complete ? "1" : "0" /* SQL_DRIVER_NOPROMPT */);
+					if(odbc){
+						parameters.set_option(soci::odbc_option_driver_complete, odbc_driver_complete ? "1" : "0" /* SQL_DRIVER_NOPROMPT */);
+					}
 					self->open(parameters);
 				}
 			}else{
