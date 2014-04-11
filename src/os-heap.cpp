@@ -1,6 +1,10 @@
 #include "os-heap.h"
 
+#ifndef __APPLE__
 #include <malloc.h>
+#else
+#include <malloc/malloc.h>
+#endif
 #include <string.h>
 
 using namespace ObjectScript;
