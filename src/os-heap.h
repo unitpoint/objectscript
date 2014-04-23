@@ -102,7 +102,7 @@ namespace ObjectScript {
 
 #define OS_HEAP_SIZE_ALIGN(size) (((int)(size)+(OS_HEAP_ALIGN-1))&~(OS_HEAP_ALIGN-1))
 #define OS_SIZEOF_INT OS_HEAP_SIZE_ALIGN(sizeof(int))
-#define OS_STRUCT_OFFS(s, offs) (OS_BYTE*)((int)(intptr_t)(s) + OS_HEAP_SIZE_ALIGN(sizeof(*s))*(offs))
+#define OS_STRUCT_OFFS(s, offs) (OS_BYTE*)((intptr_t)(s) + OS_HEAP_SIZE_ALIGN(sizeof(*s))*(offs))
 
 #ifdef OS_DEBUG
 #define OS_DUMMY_ID_SIZE (OS_SIZEOF_INT*2)
