@@ -24970,8 +24970,10 @@ void OS::initFunctionClass()
 					Core::Value value;
 					Core::GCValue * table_value = OS_VALUE_VARIANT(params_var).value;
 					for(int i = Core::PRE_VARS; i < num_params; i++){ // skip func & this
-						os->core->getPropertyValue(value, table_value, func_decl->locals[i].name, true);
-						os->core->pushValue(value);
+						if(os->core->getPropertyValue(value, table_value, func_decl->locals[i].name, true))
+							os->core->pushValue(value);
+						else
+							os->core->pushNull();
 					}
 					os->call(num_params - Core::PRE_VARS, need_ret_values, OS_CALLTYPE_FUNC);
 					return need_ret_values;
