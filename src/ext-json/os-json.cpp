@@ -177,8 +177,8 @@ static const int state_transition_table[NR_STATES][NR_CLASSES] = {
 	space |  {  }  [  ]  :  ,  "  \  /  +  -  .  0  |  a  b  c  d  e  f  l  n  r  s  t  u  |  E  |*/
 	/*start  GO*/ {GO,GO,-6,__,-5,__,__,__,ST,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*ok     OK*/ {OK,OK,__,-8,__,-7,__,-3,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
-	/*object OB*/ {OB,OB,__,-9,__,__,__,__,ST,__,__,__,__,__,__,IN,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
-	/*key    KE*/ {KE,KE,__,__,__,__,__,__,ST,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
+	/*object OB*/ {OB,OB,__,-9,__,__,__,__,ST,__,__,__,__,__,IN,IN,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
+	/*key    KE*/ {KE,KE,__,__,__,__,__,__,ST,__,__,__,__,__,IN,IN,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*colon  CO*/ {CO,CO,__,__,__,__,-2,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*value  VA*/ {VA,VA,-6,__,-5,__,__,__,ST,__,__,__,MI,__,ZE,IN,__,__,__,__,__,F1,__,N1,__,__,T1,__,__,__,__},
 	/*array  AR*/ {AR,AR,-6,__,-5,-7,__,__,ST,__,__,__,MI,__,ZE,IN,__,__,__,__,__,F1,__,N1,__,__,T1,__,__,__,__},
@@ -413,7 +413,7 @@ public:
 		// releaseValue(os, child);
 	}
 
-	static void attachValue(JSON_parser jp, int up, int cur, Core::Buffer& key, bool assoc)
+	static void attachValue(JSON_parser jp, int up, int cur, Core::Buffer& key, int key_type, bool assoc)
 	{
 		int root = jp->the_zstack[up];
 		int child =  jp->the_zstack[cur];
@@ -427,7 +427,9 @@ public:
 		else if (up_mode == MODE_OBJECT)
 		{
 			Core::String str = key.toString();
-			if (!assoc)
+			if(key_type == IS_NUMBER)
+				addValue(jp->os, root, Utils::strToFloat(str.toChar()));
+			else if (!assoc)
 			{
 				addPropertyValue(jp->os, root, str.isEmpty() ? "_empty_" : str.toChar());
 				// releaseValue(jp->os, child);
@@ -640,7 +642,7 @@ public:
 						jp->the_zstack[jp->top] = obj;
 
 						if (jp->top > 1) {
-							attachValue(jp, jp->top - 1, jp->top, key, assoc);
+							attachValue(jp, jp->top - 1, jp->top, key, key_type, assoc);
 						}
 
 						JSON_RESET_TYPE();
@@ -678,7 +680,7 @@ public:
 						jp->the_zstack[jp->top] = arr;
 
 						if (jp->top > 1) {
-							attachValue(jp, jp->top - 1, jp->top, key, assoc);
+							attachValue(jp, jp->top - 1, jp->top, key, key_type, assoc);
 						}
 
 						JSON_RESET_TYPE();
@@ -735,7 +737,9 @@ public:
 							if (pop(jp, MODE_OBJECT, false) && push(jp, MODE_KEY)) {
 								if (type != -1) {
 									Core::String str = key.toString();
-									if (!assoc) {
+									if(key_type == IS_NUMBER)
+										addValue(jp->os, jp->the_zstack[jp->top], Utils::strToFloat(str.toChar()));
+									else if (!assoc) {
 										addPropertyValue(jp->os, jp->the_zstack[jp->top], str.isEmpty() ? "_empty_" : str.toChar());
 										// releaseValue(jp->os, mval);
 									} else {
