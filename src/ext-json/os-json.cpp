@@ -177,7 +177,7 @@ static const int state_transition_table[NR_STATES][NR_CLASSES] = {
 	space |  {  }  [  ]  :  ,  "  \  /  +  -  .  0  |  a  b  c  d  e  f  l  n  r  s  t  u  |  E  |*/
 	/*start  GO*/ {GO,GO,-6,__,-5,__,__,__,ST,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*ok     OK*/ {OK,OK,__,-8,__,-7,__,-3,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
-	/*object OB*/ {OB,OB,__,-9,__,__,__,__,ST,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
+	/*object OB*/ {OB,OB,__,-9,__,__,__,__,ST,__,__,__,__,__,__,IN,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*key    KE*/ {KE,KE,__,__,__,__,__,__,ST,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*colon  CO*/ {CO,CO,__,__,__,__,-2,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*value  VA*/ {VA,VA,-6,__,-5,__,__,__,ST,__,__,__,MI,__,ZE,IN,__,__,__,__,__,F1,__,N1,__,__,T1,__,__,__,__},
@@ -190,8 +190,8 @@ static const int state_transition_table[NR_STATES][NR_CLASSES] = {
 	/*u4     U4*/ {__,__,__,__,__,__,__,__,__,__,__,__,__,__,ST,ST,ST,ST,ST,ST,ST,ST,__,__,__,__,__,__,ST,ST,__},
 	/*minus  MI*/ {__,__,__,__,__,__,__,__,__,__,__,__,__,__,ZE,IN,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*zero   ZE*/ {OK,OK,__,-8,__,-7,__,-3,__,__,__,__,__,FR,__,__,__,__,__,__,E1,__,__,__,__,__,__,__,__,E1,__},
-	/*int    IN*/ {OK,OK,__,-8,__,-7,__,-3,__,__,__,__,__,FR,IN,IN,__,__,__,__,E1,__,__,__,__,__,__,__,__,E1,__},
-	/*frac   FR*/ {OK,OK,__,-8,__,-7,__,-3,__,__,__,__,__,__,FR,FR,__,__,__,__,E1,__,__,__,__,__,__,__,__,E1,__},
+	/*int    IN*/ {OK,OK,__,-8,__,-7,-10,-3,__,__,__,__,__,FR,IN,IN,__,__,__,__,E1,__,__,__,__,__,__,__,__,E1,__},
+	/*frac   FR*/ {OK,OK,__,-8,__,-7,-10,-3,__,__,__,__,__,__,FR,FR,__,__,__,__,E1,__,__,__,__,__,__,__,__,E1,__},
 	/*e      E1*/ {__,__,__,__,__,__,__,__,__,__,__,E2,E2,__,E3,E3,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*ex     E2*/ {__,__,__,__,__,__,__,__,__,__,__,__,__,__,E3,E3,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
 	/*exp    E3*/ {OK,OK,__,-8,__,-7,__,-3,__,__,__,__,__,__,E3,E3,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__},
@@ -399,6 +399,14 @@ public:
 		os->setProperty(key, false);
 	}
 
+	static void addValue(OS * os, int root, OS_NUMBER key)
+	{
+		os->pushValueById(root);
+		os->pushNumber(key);
+		os->pushStackValue(-3);
+		os->setProperty(false);
+	}
+
 	static void addAssocValue(OS * os, int root, const char * key)
 	{
 		addPropertyValue(os, root, key);
@@ -435,7 +443,7 @@ public:
 
 #define FREE_BUFFERS() buf.clear(); key.clear();
 #define SWAP_BUFFERS(from, to) from.swap(to)
-#define JSON_RESET_TYPE() type = -1;
+#define JSON_RESET_TYPE() type = -1; key_type = IS_STRING;
 
 	/*
 	The JSON_parser takes a UTF-16 encoded string and determines if it is a
@@ -456,7 +464,7 @@ public:
 		Core::Buffer key(jp->os);
 
 		unsigned short utf16 = 0;
-		int type;
+		int type = -1, key_type = IS_STRING;
 
 		JSON_RESET_TYPE();
 
@@ -554,7 +562,9 @@ public:
 					{
 						pushValue(jp->os, buf, type, options);
 						Core::String str = key.toString();
-						if (!assoc) {
+						if(key_type == IS_NUMBER)
+							addValue(jp->os, jp->the_zstack[jp->top], Utils::strToFloat(str.toChar()));
+						else if(!assoc){
 							addPropertyValue(jp->os, jp->the_zstack[jp->top], str.isEmpty() ? "_empty_" : str.toChar());
 							// releaseValue(jp->os, mval);
 						} else {
@@ -755,6 +765,23 @@ public:
 						JSON_RESET_TYPE();
 					}
 					break;
+
+				case -10: /* : after numeric key */
+					switch (jp->stack[jp->top]) {
+					case MODE_KEY:
+						// jp->state = CO;
+						SWAP_BUFFERS(buf, key);
+						JSON_RESET_TYPE();
+						key_type = IS_NUMBER;
+						break;
+
+					default:
+						FREE_BUFFERS();
+						jp->error_code = OS_JSON_ERROR_SYNTAX;
+						return false;
+					}
+					// no break
+
 					/* : */
 				case -2:
 					if (pop(jp, MODE_KEY, false) && push(jp, MODE_OBJECT)) {
