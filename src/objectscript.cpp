@@ -21853,7 +21853,12 @@ void OS::initObjectClass()
 
 		static int getValueName(OS * os, int params, int, int, void*)
 		{
-			os->pushString(os->getValueName(-params-1));
+			Core::Value val = os->core->getStackValue(-params-1);
+			if(OS_IS_VALUE_GC(val) && OS_VALUE_VARIANT(val).value->name){
+				os->core->pushValue(OS_VALUE_VARIANT(val).value->name);
+				return 1;
+			}
+			os->pushNull(); // String(os->getValueName(-params-1));
 			return 1;
 		}
 
