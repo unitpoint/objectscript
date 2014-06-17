@@ -10,7 +10,7 @@
 #include "3rdparty/MPFDParser-1.0/Parser.h"
 #include <stdlib.h>
 
-#define OS_FCGI_VERSION	OS_TEXT("1.1.3")
+#define OS_FCGI_VERSION	OS_TEXT("1.2")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -74,6 +74,7 @@ char init_cache_path[128] =
 #endif
 ;
 int listen_socket = 0;
+int post_max_size = 0;
 
 #include <cstdio>
 
@@ -374,7 +375,7 @@ public:
 		getProperty("CONTENT_LENGTH");
 		int content_length = popInt();
 
-		int post_max_size = 1024*1024*8;
+		// int post_max_size = 1024*1024*8;
 		if(content_length > post_max_size){
 			FCGX_FPrintF(request->out, "POST Content-Length of %d bytes exceeds the limit of %d bytes", content_length, post_max_size);
 			return;
@@ -769,8 +770,9 @@ int main(int argc, char * argv[])
 		const char * config_flename = "/etc/os-fcgi/conf.os";
 #endif
 		os->require(config_flename, false, 1);
-		threads =			(os->getProperty(-1, "threads"),	os->popInt());
-		OS::String listen = (os->getProperty(-1, "listen"),		os->popString(":9000"));
+		threads			  =	(os->getProperty(-1, "threads"),		os->popInt());
+		OS::String listen = (os->getProperty(-1, "listen"),			os->popString(":9000"));
+		post_max_size	  =	(os->getProperty(-1, "post_max_size"),	os->popInt(1024*1024*8));
 		os->release();
 
 		int listen_queue_backlog = 400;
@@ -793,6 +795,7 @@ int main(int argc, char * argv[])
 		threads = MAX_THREAD_COUNT;
 	}
 	printf("threads: %d\n", threads);
+	printf("post_max_size: %.1f Mb\n", (float)post_max_size / (1024.0f * 1024.0f));
 	demonize();
 	
 	pthread_t id[MAX_THREAD_COUNT];
@@ -802,6 +805,7 @@ int main(int argc, char * argv[])
 #else
 	threads = 1;
 	printf("threads: %d\n", threads);
+	printf("post_max_size: %.1f Mb\n", (float)post_max_size / (1024.0f * 1024.0f));
 #endif
 	doit(NULL);
 
