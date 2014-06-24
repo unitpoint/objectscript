@@ -355,10 +355,10 @@ public:
 
 		int step(EStepType type)
 		{
-			OS_ASSERT(owner && stmt);
+			OS_ASSERT(owner && (stmt || step_code == STEP_DONE));
 			OS * os = owner->os;
 			try{
-				if(step_code == STEP_DONE){
+				if(step_code == STEP_DONE || !stmt){
 					return 0;
 				}
 				if(step_code == STEP_OK){
@@ -370,6 +370,8 @@ public:
 					stmt->define_and_bind();
 					stmt->execute();
 					if(type == EXECUTE){
+						step_code = STEP_DONE;
+						close();
 						os->pushBool(true);
 						return 1;
 					}
@@ -426,6 +428,10 @@ public:
 					}
 					return type == ITERATE ? 3 : 1;
 				}
+				if(step_code == STEP_DONE){
+					close();
+					return 0;
+				}
 				/* if(step_code != SQLITE_DONE){
 					checkError(step_code);
 				} */
@@ -437,15 +443,16 @@ public:
 
 		int getColumnCount()
 		{
-			OS_ASSERT(owner && stmt);
-			// OS_ASSERT(false);
-			return row.size(); // sqlite3_column_count(stmt);
+			OS_ASSERT(owner);
+			return stmt ? row.size() : 0; // sqlite3_column_count(stmt);
 		}
 
 		int getColumnType(int col)
 		{
-			OS_ASSERT(owner && stmt);
-			// OS_ASSERT(false);
+			OS_ASSERT(owner);
+			if(!stmt){
+				return 0;
+			}
 			const soci::column_properties& props = row.get_properties(col);
 			return props.get_data_type(); // sqlite3_column_type(stmt, col);
 		}
@@ -497,7 +504,7 @@ template <> struct UserDataDestructor<ODBO_OS::ODBOStatement>
 
 bool ODBO_OS::ODBO::findStatement(ODBOStatement * stmt)
 {
-	OS_ASSERT(stmt->owner == this);
+	OS_ASSERT(stmt && stmt->owner == this);
 	for(ODBOStatement * cur = list; cur; cur = cur->next){
 		if(cur == stmt){
 			return true;
@@ -508,14 +515,14 @@ bool ODBO_OS::ODBO::findStatement(ODBOStatement * stmt)
 
 void ODBO_OS::ODBO::addStatement(ODBOStatement * stmt)
 {
-	OS_ASSERT(!stmt->next && !findStatement(stmt));
+	OS_ASSERT(stmt && !stmt->next && !findStatement(stmt));
 	stmt->next = list;
 	list = stmt;
 }
 
 void ODBO_OS::ODBO::removeStatement(ODBOStatement * stmt)
 {
-	OS_ASSERT(stmt->owner == this);
+	OS_ASSERT(stmt && stmt->owner == this);
 	for(ODBOStatement * cur = list, * prev = NULL; cur; prev = cur, cur = cur->next){
 		if(cur == stmt){
 			if(prev){
@@ -560,10 +567,14 @@ int ODBO_OS::ODBOStatement::getParamIndex(const OS::String& name)
 
 void ODBO_OS::ODBOStatement::bindParams()
 {
-	OS_ASSERT(owner && stmt);
+	OS_ASSERT(owner);
 	OS * os = owner->os;
 
 	if(os->isNull()){
+		return;
+	}
+	if(!stmt){
+		triggerError(os, OS_TEXT("statement closed"));
 		return;
 	}
 
