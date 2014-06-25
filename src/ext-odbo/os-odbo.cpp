@@ -160,7 +160,7 @@ public:
 			return isValidOption(s, s.getLen(), odbc);
 		}
 
-		static int __construct(OS * os, int params, int, int, void * user_param)
+		static int __newinstance(OS * os, int params, int, int, void * user_param)
 		{
 			if(params < 1){
 				triggerError(os, OS_TEXT("driver parameter requied"));
@@ -460,11 +460,11 @@ public:
 		// int getParamIndex(const OS::String& name);
 		void bindParams();
 
-		static int __construct(OS * os, int params, int, int, void * user_param)
+		/* static int __construct(OS * os, int params, int, int, void * user_param)
 		{
 			triggerError(os, OS_TEXT("you should not create new instance of ODBOStatement"));
 			return 0;
-		}
+		} */
 
 		static int __iter(OS * os, int params, int, int, void * user_param);
 		static int bind(OS * os, int params, int, int, void * user_param);
@@ -875,7 +875,7 @@ void ODBO_OS::initExtension(OS* os)
 #endif
 	{
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), ODBO::__construct},
+			{OS_TEXT("__newinstance"), ODBO::__newinstance},
 			{OS_TEXT("query"), ODBO::query},
 			{OS_TEXT("__get@lastInsertId"), ODBO::getLastInsertId},
 			{OS_TEXT("getLastInsertId"), ODBO::getLastInsertId},
@@ -890,14 +890,14 @@ void ODBO_OS::initExtension(OS* os)
 	}
 	{
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), ODBOStatement::__construct},
+			// {OS_TEXT("__construct"), ODBOStatement::__construct},
 			{OS_TEXT("__iter"), ODBOStatement::__iter},
 			{OS_TEXT("bind"), ODBOStatement::bind},
 			{OS_TEXT("execute"), ODBOStatement::execute},
 			{OS_TEXT("fetch"), ODBOStatement::fetch},
 			{}
 		};
-		registerUserClass<ODBOStatement>(os, funcs);
+		registerUserClass<ODBOStatement>(os, funcs, NULL, false);
 	}
 #define OS_AUTO_TEXT(...) OS_TEXT(#__VA_ARGS__)
 	os->eval(OS_AUTO_TEXT(

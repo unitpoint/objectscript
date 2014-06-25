@@ -14547,6 +14547,8 @@ OS::Core::Strings::Strings(OS * allocator)
 	:
 	__construct(allocator, OS_TEXT("__construct")),
 	__destruct(allocator, OS_TEXT("__destruct")),
+	__instantiable(allocator, OS_TEXT("__instantiable")),
+	__newinstance(allocator, OS_TEXT("__newinstance")),
 	__object(allocator, OS_TEXT("__object")),
 	__get(allocator, OS_TEXT("__get")),
 	__set(allocator, OS_TEXT("__set")),
@@ -15160,6 +15162,9 @@ bool OS::Core::init()
 	setGlobalValue(OS_TEXT("Function"), Value(prototypes[PROTOTYPE_FUNCTION]), false);
 	setGlobalValue(OS_TEXT("Userdata"), Value(prototypes[PROTOTYPE_USERDATA]), false);
 
+	for(i = 0; i < PROTOTYPE_COUNT; i++){
+		setPropertyValue(prototypes[i], strings->__instantiable, true, false);
+	}
 	/*
 		SAFE usage of user function arguments 
 		so user can use os->toNumber(-params+3) and so on
@@ -21552,11 +21557,19 @@ void OS::initCoreFunctions()
 
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
-				// OS_ASSERT(OS_VALUE_VARIANT(right_value).value->prototype && OS_VALUE_VARIANT(right_value).value->prototype->ref_count > 0);
-				// OS_VALUE_VARIANT(right_value).value->prototype->ref_count--;
-				os->core->setValue(OS_VALUE_VARIANT(right_value).value->prototype, os->core->getStackValue(-params).getGCValue());
-				// OS_VALUE_VARIANT(right_value).value->prototype->ref_count++;
-				break;
+				{
+					Core::Value class_value = os->core->getStackValue(-params);
+					// OS_ASSERT(OS_VALUE_VARIANT(right_value).value->prototype && OS_VALUE_VARIANT(right_value).value->prototype->ref_count > 0);
+					// OS_VALUE_VARIANT(right_value).value->prototype->ref_count--;
+					os->core->setValue(OS_VALUE_VARIANT(right_value).value->prototype, class_value.getGCValue());
+					// OS_VALUE_VARIANT(right_value).value->prototype->ref_count++;
+					Core::Value instantiable;
+					bool prototype_enabled = false;
+					if(os->core->getPropertyValue(instantiable, class_value, os->core->strings->__instantiable, prototype_enabled)){
+						os->core->setPropertyValue(right_value, os->core->strings->__instantiable, instantiable, false);
+					}
+					break;
+				}
 
 			case OS_VALUE_TYPE_USERDATA:
 			case OS_VALUE_TYPE_USERPTR:
@@ -22787,6 +22800,14 @@ dump_object:
 			}
 			return 0;
 		}
+
+		static int initNewInstance(OS * os, int params, int, int, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params-1);
+			os->core->initNewInstance(self_var.getGCValue());
+			os->core->pushValue(self_var);
+			return 1;
+		}
 	};
 	FuncDef list[] = {
 		// {core->strings->__cmp, Object::cmp},
@@ -22836,6 +22857,7 @@ dump_object:
 		{OS_TEXT("setLast"), Object::setLast},
 		{OS_TEXT("__del@last"), Object::deleteLast},
 		{OS_TEXT("deleteLast"), Object::deleteLast},
+		{OS_TEXT("initNewInstance"), Object::initNewInstance},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_OBJECT]);
@@ -23329,7 +23351,7 @@ void OS::initBufferClass()
 {
 	struct Lib
 	{
-		static int __construct(OS * os, int params, int, int, void * user_param)
+		static int __newinstance(OS * os, int params, int, int, void * user_param)
 		{
 			Core::Buffer * self = new (os->malloc(sizeof(Core::Buffer) OS_DBG_FILEPOS)) Core::Buffer(os);
 			for(int i = 0; i < params; i++){
@@ -23382,7 +23404,7 @@ void OS::initBufferClass()
 	};
 
 	OS::FuncDef funcs[] = {
-		{OS_TEXT("__construct"), Lib::__construct},
+		{core->strings->__newinstance, Lib::__newinstance},
 		{OS_TEXT("append"), Lib::append},
 		{OS_TEXT("clear"), Lib::clear},
 		{core->strings->func_valueOf, Lib::valueOf},
@@ -24825,7 +24847,7 @@ void OS::initFileClass()
 {
 	struct Lib
 	{
-		static int __construct(OS * os, int params, int, int, void * user_param)
+		static int __newinstance(OS * os, int params, int, int, void * user_param)
 		{
 			Core::File * self = new (os->malloc(sizeof(Core::File) OS_DBG_FILEPOS)) Core::File(os);
 			if(params >= 2 && !os->isNull(-params+1)){
@@ -24882,7 +24904,7 @@ void OS::initFileClass()
 	};
 
 	OS::FuncDef funcs[] = {
-		{OS_TEXT("__construct"), Lib::__construct},
+		{core->strings->__newinstance, Lib::__newinstance},
 		{OS_TEXT("open"), Lib::open},
 		def(OS_TEXT("close"), &Core::File::close),
 		{OS_TEXT("read"), Lib::read},
@@ -24925,6 +24947,10 @@ void OS::initExceptionClass()
 	
 	newObject();
 	setFuncs(funcs);
+
+	pushBool(true);
+	setProperty(-2, core->strings->__instantiable, false);
+
 	setGlobal(OS_TEXT("Exception"));
 }
 
@@ -25810,9 +25836,48 @@ void OS::initPreScript()
 		}
 
 		function __new(func){
-			var obj = extends func {}
+			var obj = {}
+			obj.prototype = func
 			;(functionOf(func) || throw "function required").apply(obj, ...)
 			return obj
+		}
+
+		function Object.__newinstance(){
+			var r = {}
+			if(this === Object){
+				for(var i, arg in arguments){
+					r[i] = arg
+				}
+				return r
+			}
+			r.prototype = this
+			Object.initNewInstance.call(r)
+			r.__construct.apply(r, arguments)
+			return r
+		}
+
+		function Array.__newinstance(){
+			return arguments
+		}
+
+		function Function.__newinstance(a){
+			return functionOf(a) || compileText(a)
+		}
+
+		function Number.__newinstance(a){
+			return toNumber(a)
+		}
+
+		function String.__newinstance(a){
+			return toString(a)
+		}
+
+		function Boolean.__newinstance(a){
+			return !!a
+		}
+
+		function Userdata.__newinstance(){
+			throw "method __newinstance is not implemented in ${@classname}"
 		}
 	));
 }
@@ -25831,21 +25896,26 @@ void OS::initPostScript()
 	));
 }
 
-OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
+OS::Core::GCValue * OS::Core::initNewInstance(GCValue * object)
 {
-	OS_ASSERT(!object->table || !object->table->count);
-	struct InitObject
+	struct InitNewInstance
 	{
 		Core * core;
-		GCObjectValue * object;
+		GCValue * object;
 		Value value;
 
-		InitObject(Core * p_core, GCObjectValue * p_object)
+		InitNewInstance(Core * p_core, GCValue * p_object)
 		{
 			core = p_core;
 			object = p_object;
-			setProperties_r(object->prototype);
-			cloneProperties();
+			if(object){
+				if(!object->table || !object->table->count){
+					setProperties_r(object->prototype);
+					cloneProperties();
+				}else{
+					setAndCloneProperties_r(object->prototype);
+				}
+			}
 		}
 
 		void setProperties_r(GCValue * prototype)
@@ -25864,6 +25934,24 @@ OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
 			}
 		}
 
+		void setAndCloneProperties_r(GCValue * prototype)
+		{
+			if(prototype){
+				setProperties_r(prototype->prototype);
+				if(core->getPropertyValue(value, prototype, core->strings->__object, false)){
+					GCValue * object_props = value.getGCValue();
+					if(object_props && object_props->table){
+						Property * prop = object_props->table->first;
+						for(; prop; prop = prop->next){
+							core->pushCloneValue(prop->value);
+							core->setPropertyValue(object, prop->index, core->stack_values.lastElement(), false);
+							core->pop();
+						}
+					}
+				}
+			}
+		}
+
 		void cloneProperties()
 		{
 			if(object->table){
@@ -25876,7 +25964,7 @@ OS::Core::GCObjectValue * OS::Core::initObjectInstance(GCObjectValue * object)
 			}
 		}
 	};
-	InitObject(this, object);
+	InitNewInstance(this, object);
 	return object;
 }
 
@@ -26151,43 +26239,28 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 		}
 
 	case OS_VALUE_TYPE_OBJECT:
-		if(call_type == OS_CALLTYPE_FUNC){
-			allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
-		}else{
-			Value class_value = func; // we should create stack value here because of stack could be resized
-			GCValue * object = initObjectInstance(pushObjectValue(OS_VALUE_VARIANT(class_value).value));
-			// object->is_object_instance = true;
-			object->external_ref_count++;
-
-			bool prototype_enabled = true;
-			if(getPropertyValue(stack_values.buf[start_pos], class_value, strings->__construct, prototype_enabled)){
-				stack_values.buf[start_pos + 1] = object;
-				call(start_pos, call_params, 0, NULL, false, OS_CALLTYPE_FUNC);
-			}
-			OS_ASSERT(start_pos + ret_values <= stack_values.count);
-			if(ret_values > 0){
-				stack_values.buf[start_pos] = object;
-				if(ret_values > 1){					
-					OS_SET_NULL_VALUES(stack_values.buf + start_pos + 1, ret_values - 1);
-				}
-			}
-			object->external_ref_count--;
-			return;
-		}
-
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		if(call_type == OS_CALLTYPE_FUNC){
 			allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
 		}else{
-			Value ctor;
-			Value class_value = func; // we should create stack value here because of stack could be resized
-			bool prototype_enabled = true;
-			if(getPropertyValue(ctor, class_value, strings->__construct, prototype_enabled)){
-				stack_values.buf[start_pos + 0] = ctor;
-				stack_values.buf[start_pos + 1] = class_value;
-				call(start_pos, call_params, ret_values, NULL, false, OS_CALLTYPE_FUNC);
-				return;
+			Value value;
+			Value class_value = func; // we should create stack value here because of call stack could be resized
+			bool prototype_enabled = false;
+			if(getPropertyValue(value, class_value, strings->__instantiable, prototype_enabled) && valueToBool(value)){
+				prototype_enabled = true;
+				if(getPropertyValue(value, class_value, strings->__newinstance, prototype_enabled)){
+					stack_values.buf[start_pos + 0] = value;
+					stack_values.buf[start_pos + 1] = class_value;
+					call(start_pos, call_params, ret_values, NULL, false, OS_CALLTYPE_FUNC);
+					return;
+				}else{
+					allocator->setException(String::format(allocator, OS_TEXT("method %s is not implemented in %s"), 
+						strings->__newinstance.toChar(), getValueClassname(class_value).toChar()));
+				}
+			}else{
+				allocator->setException(String::format(allocator, OS_TEXT("%s is not instantiable"), 
+					getValueClassname(class_value).toChar()));
 			}
 			break;
 		}

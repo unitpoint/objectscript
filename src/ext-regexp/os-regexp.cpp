@@ -1300,27 +1300,14 @@ RegexpOS::RegexpCache * RegexpOS::toRegexpCache(OS * os)
 
 void RegexpOS::RegexpCache::initExtension(OS * os)
 {
-	struct Lib
-	{
-		static void construct(OS * os)
-		{
-			triggerError(os, OS_TEXT("you should not create new instance of RegexpCache"));
-		}
-	};
-
-	OS::FuncDef funcs[] = {
-		def(OS_TEXT("__construct"), Lib::construct),
-		{}
-	};
-
-	registerUserClass<RegexpCache>(os, funcs);
+	registerUserClass<RegexpCache>(os, NULL, NULL, false);
 }
 
 void RegexpOS::Regexp::initExtension(OS * os)
 {
 	struct Lib
 	{
-		static Regexp * construct(OS * os, const OS::String& pattern)
+		static Regexp * __newinstance(OS * os, const OS::String& pattern)
 		{
 			RegexpCache * cache = getRegexpCache(os, pattern);
 			if(!cache){
@@ -1411,7 +1398,7 @@ void RegexpOS::Regexp::initExtension(OS * os)
 	};
 
 	OS::FuncDef funcs[] = {
-		def(OS_TEXT("__construct"), Lib::construct),
+		def(OS_TEXT("__newinstance"), Lib::__newinstance),
 		{OS_TEXT("exec"), Lib::exec},
 		{OS_TEXT("test"), Lib::test},
 		{OS_TEXT("replace"), Lib::replace},

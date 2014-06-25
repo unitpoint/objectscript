@@ -105,7 +105,7 @@ public:
 
 		SqliteStatement * prepare(const OS::String& sql);
 
-		static int __construct(OS * os, int params, int, int, void * user_param)
+		static int __newinstance(OS * os, int params, int, int, void * user_param)
 		{
 			if(params < 1){
 				triggerError(os, OS_TEXT("filename requied"));
@@ -290,11 +290,11 @@ public:
 		int getParamIndex(const OS::String& name);
 		void bindParams();
 
-		static int __construct(OS * os, int params, int, int, void * user_param)
+		/* static int __construct(OS * os, int params, int, int, void * user_param)
 		{
 			triggerError(os, OS_TEXT("you should not create new instance of SqliteStatement"));
 			return 0;
-		}
+		} */
 
 		static int __iter(OS * os, int params, int, int, void * user_param);
 		static int bind(OS * os, int params, int, int, void * user_param);
@@ -568,7 +568,7 @@ void SqliteOS::initExtension(OS * os)
 {
 	{
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), Sqlite::__construct},
+			{OS_TEXT("__newinstance"), Sqlite::__newinstance},
 			{OS_TEXT("query"), Sqlite::query},
 			{OS_TEXT("__get@lastInsertId"), Sqlite::getLastInsertId},
 			{OS_TEXT("getLastInsertId"), Sqlite::getLastInsertId},
@@ -579,7 +579,7 @@ void SqliteOS::initExtension(OS * os)
 	}
 	{
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), SqliteStatement::__construct},
+			// {OS_TEXT("__construct"), SqliteStatement::__construct},
 			{OS_TEXT("__iter"), SqliteStatement::__iter},
 			{OS_TEXT("bind"), SqliteStatement::bind},
 			{OS_TEXT("execute"), SqliteStatement::execute},
@@ -587,7 +587,7 @@ void SqliteOS::initExtension(OS * os)
 			{}
 		};
 
-		registerUserClass<SqliteStatement>(os, funcs);
+		registerUserClass<SqliteStatement>(os, funcs, NULL, false);
 	}
 	Sqlite::initScript(os);
 }

@@ -1654,7 +1654,7 @@ file_option:
 	{
 		struct Lib
 		{
-			static int __construct(OS * os, int params, int, int, void * user_param)
+			static int __newinstance(OS * os, int params, int, int, void * user_param)
 			{
 				Curl * self = new (os->malloc(sizeof(Curl) OS_DBG_FILEPOS)) Curl(os);
 				if (!self->init()) {
@@ -2229,7 +2229,7 @@ file_option:
 		};
 
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), Lib::__construct},
+			{OS_TEXT("__newinstance"), Lib::__newinstance},
 			{OS_TEXT("clone"), Lib::clone},
 			def(OS_TEXT("close"), &CurlOS::Curl::close),
 			def(OS_TEXT("reset"), &CurlOS::Curl::reset),

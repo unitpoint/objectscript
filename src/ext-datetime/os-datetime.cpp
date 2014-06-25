@@ -1924,7 +1924,7 @@ public:
 				(t0 < t1) ? -1 : (t0 > t1) ? 1 : 0;
 		}
 
-		static int __construct(OS * os, int params, int, int, void * user_param);
+		static int __newinstance(OS * os, int params, int, int, void * user_param);
 		static int now(OS * os, int params, int, int, void * user_param);
 	};
 
@@ -2033,7 +2033,7 @@ int DateTimeOS::DateTime::now(OS * os, int params, int, int, void * user_param)
 	return 1;
 }
 
-int DateTimeOS::DateTime::__construct(OS * os, int params, int, int, void * user_param)
+int DateTimeOS::DateTime::__newinstance(OS * os, int params, int, int, void * user_param)
 {
 	if(params < 1){
 		DateTime * dt = new (os->malloc(sizeof(DateTime) OS_DBG_FILEPOS)) DateTime(os);
@@ -2101,7 +2101,7 @@ void DateTimeOS::initExtension(OS * os)
 	}
 	{
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), DateTime::__construct},
+			{OS_TEXT("__newinstance"), DateTime::__newinstance},
 			{OS_TEXT("now"), DateTime::now},
 			def(OS_TEXT("clone"), &DateTime::clone),
 			def(OS_TEXT("valueOf"), &DateTime::toString),
