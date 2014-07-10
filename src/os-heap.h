@@ -197,9 +197,8 @@ protected:
 		void insertBefore(SmallBlock * block);
 #endif
 		OS_BYTE size_slot;
-		OS_BYTE pad0;
-		OS_BYTE pad1;
-		OS_BYTE pad2; // for type
+		OS_BYTE pad[sizeof(void*)-1];
+		// last byte for type
 
 		OS_U32 getSize() const;
 		OS_U32 getDataSize() const;
