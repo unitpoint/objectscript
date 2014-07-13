@@ -730,6 +730,7 @@ OS_FLOAT OS::Utils::strToFloat(const OS_CHAR* str)
 int OS::Utils::keyToHash(const void * p_buf, int size)
 {
 	OS_ASSERT(size >= 0);
+	if(size < 0) size = 0;
 	int step = (size >> OS_STR_HASH_LIMIT_SHIFT) + 1;
 	const OS_BYTE * buf = (const OS_BYTE*)p_buf;
 	const OS_BYTE * end = buf + size;
@@ -743,6 +744,8 @@ int OS::Utils::keyToHash(const void * p_buf, int size)
 int OS::Utils::keyToHash(const void * buf1, int size1, const void * buf2, int size2)
 {
 	OS_ASSERT(size1 >= 0 && size2 >= 0);
+	if(size1 < 0) size1 = 0;
+	if(size2 < 0) size2 = 0;
 	if(size2 > 0){
 		int size = size1 + size2;
 		int step = (size >> OS_STR_HASH_LIMIT_SHIFT) + 1;
@@ -12736,6 +12739,7 @@ OS::Core::GCStringValue::~GCStringValue()
 OS::Core::GCStringValue * OS::Core::GCStringValue::allocAndPush(OS * allocator, int p_hash, const void * buf, int data_size OS_DBG_FILEPOS_DECL)
 {
 	OS_ASSERT(data_size >= 0);
+	if(data_size < 0) data_size = 0;
 	int alloc_size = data_size + sizeof(GCStringValue) + sizeof(wchar_t) + sizeof(wchar_t)/2;
 	GCStringValue * string = new (allocator->malloc(alloc_size OS_DBG_FILEPOS_PARAM)) GCStringValue(data_size);
 	string->type = OS_VALUE_TYPE_STRING;
@@ -12761,6 +12765,8 @@ OS::Core::GCStringValue * OS::Core::GCStringValue::allocAndPush(OS * allocator, 
 OS::Core::GCStringValue * OS::Core::GCStringValue::allocAndPush(OS * allocator, int p_hash, const void * buf1, int len1, const void * buf2, int len2 OS_DBG_FILEPOS_DECL)
 {
 	OS_ASSERT(len1 >= 0 && len2 >= 0);
+	if(len1 < 0) len1 = 0;
+	if(len2 < 0) len2 = 0;
 	int alloc_size = len1 + len2 + sizeof(GCStringValue) + sizeof(wchar_t) + sizeof(wchar_t)/2;
 	GCStringValue * string = new (allocator->malloc(alloc_size OS_DBG_FILEPOS_PARAM)) GCStringValue(len1 + len2);
 	string->type = OS_VALUE_TYPE_STRING;

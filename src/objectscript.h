@@ -61,13 +61,19 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.0.1-rc") OS_PLATFORM_BITS_VERSION
-#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
-#define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
-
 #if defined _DEBUG && !defined OS_RELEASE && !defined OS_DEBUG
 #define OS_DEBUG
 #endif
+
+#ifdef OS_DEBUG
+#define OS_DEBUG_VERSION OS_TEXT("-d")
+#else
+#define OS_DEBUG_VERSION
+#endif
+
+#define OS_VERSION		OS_TEXT("2.0.2-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
+#define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
 // select ObjectScript number type here
 #ifndef OS_NUMBER
