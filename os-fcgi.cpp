@@ -10,7 +10,7 @@
 #include "3rdparty/MPFDParser-1.0/Parser.h"
 #include <stdlib.h>
 
-#define OS_FCGI_VERSION	OS_TEXT("1.2")
+#define OS_FCGI_VERSION	OS_TEXT("1.3")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -472,7 +472,7 @@ public:
 					// pushCFunction(urlDecode);
 					pushNull();
 					char * value_str = assign+1;
-					char * end_str = strchr(form, '&');
+					char * end_str = strchr(value_str, '&');
 					if(end_str){
 						pushString(value_str, end_str - value_str);
 						form = end_str+1;
