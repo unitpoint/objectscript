@@ -18657,7 +18657,13 @@ OS::String OS::getValueName(int offs)
 OS::Core::String OS::Core::getValueClassname(GCValue * value)
 {
 	OS_ASSERT(value);
-	for(GCValue * cur = value->prototype; cur; cur = cur->prototype){
+	GCValue * cur = value;
+	Value temp;
+	bool prototype_enabled = false;
+	if(!getPropertyValue(temp, value, strings->__instantiable, prototype_enabled) || !valueToBool(temp)){
+		cur = cur->prototype;
+	}
+	for(; cur; cur = cur->prototype){
 		if(cur->name){
 			return OS::Core::String(allocator, cur->name);
 		}
@@ -18681,7 +18687,8 @@ OS::Core::String OS::Core::getValueClassname(GCValue * value)
 		return OS::Core::String(allocator, OS_TEXT("Function"));
 	}
 	OS_ASSERT(false);
-	return OS::Core::String(allocator);
+	// return OS::Core::String(allocator);
+	return OS::Core::String(allocator, OS_TEXT("Null"));
 }
 
 OS::Core::String OS::Core::getValueClassname(const Value& val)
@@ -18691,8 +18698,12 @@ OS::Core::String OS::Core::getValueClassname(const Value& val)
 		return getValueClassname(value);
 	}
 	switch(OS_VALUE_TYPE(val)){
+	default:
+		OS_ASSERT(false);
+		// no break
+
 	case OS_VALUE_TYPE_NULL:
-		return OS::Core::String(allocator, OS_TEXT("Null"));
+		break;
 
 	case OS_VALUE_TYPE_NUMBER:
 		return OS::Core::String(allocator, OS_TEXT("Number"));
@@ -18700,8 +18711,7 @@ OS::Core::String OS::Core::getValueClassname(const Value& val)
 	case OS_VALUE_TYPE_BOOL:
 		return OS::Core::String(allocator, OS_TEXT("Boolean"));
 	}
-	OS_ASSERT(false);
-	return OS::Core::String(allocator);
+	return OS::Core::String(allocator, OS_TEXT("Null"));
 }
 
 OS::String OS::getValueClassname(int offs)
@@ -21886,13 +21896,11 @@ void OS::initObjectClass()
 				os->core->pushValue(OS_VALUE_VARIANT(val).value->name);
 				return 1;
 			}
-			os->pushNull(); // String(os->getValueName(-params-1));
-			return 1;
+			return 0;
 		}
 
 		static int getValueClassname(OS * os, int params, int, int, void*)
 		{
-			// os->pushString(os->getValueClassname(-params-1));
 			os->pushString(os->core->getValueClassname(os->core->getStackValue(-params-1)));
 			return 1;
 		}
@@ -22823,9 +22831,15 @@ dump_object:
 			os->core->pushValue(self_var);
 			return 1;
 		}
+
+		static int __construct(OS * os, int params, int, int, void*)
+		{
+			// it should be exist to prevent getter while __construct call
+			return 0;
+		}
 	};
 	FuncDef list[] = {
-		// {core->strings->__cmp, Object::cmp},
+		{core->strings->__construct, Object::__construct},
 		{OS_TEXT("getProperty"), Object::getProperty},
 		{OS_TEXT("setProperty"), Object::setProperty},
 		{OS_TEXT("setSmartProperty"), Object::setSmartProperty},
