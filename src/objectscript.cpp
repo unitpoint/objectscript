@@ -21024,11 +21024,20 @@ bool OS::nextIteratorStep(int results, const Core::String& iter_func)
 	case OS_VALUE_TYPE_OBJECT:
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
-		pushStackValue();
-		getProperty(iter_func);
-		pushStackValue(-2);
-		call(0, 1, OS_CALLTYPE_FUNC);
-		break;
+		{
+			Core::Value func;
+			bool prototype_enabled = true;
+			if(core->getPropertyValueByPrototype(func, core->stack_values.lastElement(), iter_func, prototype_enabled)){
+				core->pushValue(func);
+			}else{
+				pushNull();
+			}
+			// pushStackValue();
+			// getProperty(iter_func);
+			pushStackValue(-2);
+			call(0, 1, OS_CALLTYPE_FUNC);
+			break;
+		}
 
 	case OS_VALUE_TYPE_FUNCTION:
 	case OS_VALUE_TYPE_CFUNCTION:
