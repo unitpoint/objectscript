@@ -420,7 +420,7 @@ public:
 	{
 		Core::Buffer buf(this);
 		if(i < argc){
-			char c = argv[i][0] == '\'' ? '\'' : argv[i][0] == '"' ? '"' : '\0';
+			char c = argv[i][0] == '\'' ? '\'' : argv[i][0] == '"' ? '"' : argv[i][0] == '`' ? '`' : '\0';
 			if(!c){
 				buf.append(argv[i]);
 			}else{
