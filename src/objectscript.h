@@ -71,7 +71,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.1-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.1.1-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -2861,6 +2861,12 @@ namespace ObjectScript
 			String getValueClassname(const Value& val);
 			String getValueClassname(GCValue * val);
 
+			String getValueName(const Value& val);
+			String getValueName(GCValue * val);
+
+			String getValueNameOrClassname(const Value& val);
+			String getValueNameOrClassname(GCValue * val);
+
 			bool valueToBool(const Value& val);
 			OS_INT valueToInt(const Value& val, bool valueof_enabled = false);
 			OS_NUMBER valueToNumber(const Value& val, bool valueof_enabled = false);
@@ -3126,6 +3132,7 @@ namespace ObjectScript
 		int getValueId(int offs = -1);
 		String getValueName(int offs = -1);
 		String getValueClassname(int offs = -1);
+		String getValueNameOrClassname(int offs = -1);
 
 		void pushNull();
 		template<class T> void pushNumber(const T& val){ core->pushNumber(val); }

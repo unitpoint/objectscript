@@ -18643,15 +18643,38 @@ int OS::getValueId(int offs)
 	return 0;
 }
 
-OS::String OS::getValueName(int offs)
+OS::Core::String OS::Core::getValueNameOrClassname(const Value& val)
 {
-	Core::Value val = core->getStackValue(offs);
-	if(OS_IS_VALUE_GC(val)){
-		if(OS_VALUE_VARIANT(val).value->name){
-			return OS::String(this, OS_VALUE_VARIANT(val).value->name);
-		}
+	OS::Core::String name = getValueName(val);
+	if(name.isEmpty()){
+		return getValueClassname(val);
 	}
-	return OS::String(this);
+	return name;
+}
+
+OS::Core::String OS::Core::getValueNameOrClassname(GCValue * val)
+{
+	OS::Core::String name = getValueName(val);
+	if(name.isEmpty()){
+		return getValueClassname(val);
+	}
+	return name;
+}
+
+OS::Core::String OS::Core::getValueName(GCValue * value)
+{
+	if(value->name){
+		return OS::Core::String(allocator, value->name);
+	}
+	return OS::Core::String(allocator);
+}
+
+OS::Core::String OS::Core::getValueName(const Value& val)
+{
+	if(OS_IS_VALUE_GC(val)){
+		return getValueName(OS_VALUE_VARIANT(val).value);
+	}
+	return OS::Core::String(allocator);
 }
 
 OS::Core::String OS::Core::getValueClassname(GCValue * value)
@@ -18714,9 +18737,19 @@ OS::Core::String OS::Core::getValueClassname(const Value& val)
 	return OS::Core::String(allocator, OS_TEXT("Null"));
 }
 
+OS::String OS::getValueName(int offs)
+{
+	return core->getValueName(core->getStackValue(offs));
+}
+
 OS::String OS::getValueClassname(int offs)
 {
 	return core->getValueClassname(core->getStackValue(offs));
+}
+
+OS::String OS::getValueNameOrClassname(int offs)
+{
+	return core->getValueNameOrClassname(core->getStackValue(offs));
 }
 
 #define OS_GET_PROP_VALUE_PTR(_result_bool, _result_value, _table_value, _index, prototype_enabled) \
@@ -26288,8 +26321,7 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 						strings->__newinstance.toChar(), getValueClassname(class_value).toChar()));
 				}
 			}else{
-				allocator->setException(String::format(allocator, OS_TEXT("%s is not instantiable"), 
-					getValueClassname(class_value).toChar()));
+				allocator->setException(String::format(allocator, OS_TEXT("%s is not instantiable"), getValueNameOrClassname(class_value).toChar()));
 			}
 			break;
 		}
