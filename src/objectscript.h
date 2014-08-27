@@ -71,7 +71,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.1.1-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.2-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -241,7 +241,7 @@ namespace ObjectScript
 
 	enum OS_EValueType
 	{
-		OS_VALUE_TYPE_UNKNOWN,
+		// OS_VALUE_TYPE_UNKNOWN,
 		OS_VALUE_TYPE_NULL,
 		OS_VALUE_TYPE_BOOL,
 		OS_VALUE_TYPE_NUMBER,

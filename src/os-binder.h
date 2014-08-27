@@ -234,11 +234,11 @@ OS_DECL_CTYPE_NUMBER(unsigned long long);
 
 // =====================================================================
 
-template <class T> void pushCtypeValue(ObjectScript::OS * os, T obj)
+template <class T> void pushCtypeValue(ObjectScript::OS * os, const T& obj)
 {
 	typedef typename RemoveConst<T>::type type;
 	// CtypeValue<type>::push(os, CtypeValue<type>::to(obj));
-	CtypeValue<type>::push(os, (type)obj);
+	CtypeValue<type>::push(os, (const type&)obj);
 }
 
 // =====================================================================

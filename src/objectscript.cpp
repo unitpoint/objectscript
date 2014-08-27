@@ -6534,6 +6534,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 			break;
 		
 		default:
+			// EXP_TYPE_GET_PROPERTY is not implemented yet
 			setError(ERROR_SYNTAX, exp1->token);
 			// allocator->deleteObj(exp);
 			return exp;
@@ -12716,7 +12717,8 @@ OS::Core::GCValue::~GCValue()
 {
 	value_id = 0;
 
-	OS_ASSERT(type == OS_VALUE_TYPE_UNKNOWN);
+	// OS_ASSERT(type == OS_VALUE_TYPE_UNKNOWN);
+	OS_ASSERT(type == OS_VALUE_TYPE_NULL);
 	OS_ASSERT(!table && !name);
 	OS_ASSERT(!hash_next);
 	OS_ASSERT(!prototype);
@@ -12847,6 +12849,7 @@ void OS::Core::GCStringValue::calcHash()
 bool OS::Core::valueToBool(const Value& val)
 {
 	switch(OS_VALUE_TYPE(val)){
+	// case OS_VALUE_TYPE_UNKNOWN:
 	case OS_VALUE_TYPE_NULL:
 		return false;
 
@@ -15253,9 +15256,11 @@ void OS::Core::shutdown()
 	gc_fix_in_progress = false;
 
 	if(values.count > 0){
+		OS_ASSERT(false);
 		int i = 0;
 	}
 	if(values.heads){
+		OS_ASSERT(values.count == 0);
 		free(values.heads);
 		values.heads = NULL;
 		values.head_mask = 0;
@@ -15263,6 +15268,7 @@ void OS::Core::shutdown()
 		values.count = 0;
 	}
 	if(gc_candidate_values.heads){
+		OS_ASSERT(gc_candidate_values.count == 0);
 		free(gc_candidate_values.heads);
 		gc_candidate_values.heads = NULL;
 		gc_candidate_values.head_mask = 0;
@@ -15613,7 +15619,10 @@ void OS::Core::clearValue(GCValue * val)
 {
 	OS_ASSERT(val->value_id);
 	switch(val->type){
+	// case OS_VALUE_TYPE_UNKNOWN:
 	case OS_VALUE_TYPE_NULL:
+		return;
+
 	case OS_VALUE_TYPE_BOOL:
 	case OS_VALUE_TYPE_NUMBER:
 	default:
@@ -15697,7 +15706,8 @@ void OS::Core::clearValue(GCValue * val)
 	}
 	releaseValueAndClear(val->name);
 	releaseValueAndClear(val->prototype);
-	val->type = OS_VALUE_TYPE_UNKNOWN;
+	// val->type = OS_VALUE_TYPE_UNKNOWN;
+	val->type = OS_VALUE_TYPE_NULL;
 }
 
 #if defined OS_DEBUG && 1
@@ -16080,7 +16090,8 @@ void OS::Core::deleteValue(GCValue * val)
 {
 	OS_ASSERT(val);
 	OS_ASSERT(!gc_candidate_values.get(val->value_id));
-	OS_ASSERT(val->type == OS_VALUE_TYPE_UNKNOWN);
+	// OS_ASSERT(val->type == OS_VALUE_TYPE_UNKNOWN);
+	OS_ASSERT(val->type == OS_VALUE_TYPE_NULL);
 	// OS_ASSERT(val->value_id);
 	// clearValue(val);
 	// OS_ASSERT(!val->hash_next);
@@ -16458,13 +16469,13 @@ void OS::Core::pushPrototypeValue(const Value& val)
 void OS::Core::setPrototypeValue(const Value& val, const Value& proto)
 {
 	switch(OS_VALUE_TYPE(val)){
-	// case OS_VALUE_TYPE_USERDATA:
-	// case OS_VALUE_TYPE_USERPTR:
+	case OS_VALUE_TYPE_USERDATA:
+	case OS_VALUE_TYPE_USERPTR:
 	// case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
-	// case OS_VALUE_TYPE_FUNCTION:
-	// case OS_VALUE_TYPE_CFUNCTION:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
 		// OS_ASSERT(OS_VALUE_VARIANT(val).value->prototype && OS_VALUE_VARIANT(val).value->prototype->ref_count > 0);
 		// OS_VALUE_VARIANT(val).value->prototype->ref_count--;
 		setValue(OS_VALUE_VARIANT(val).value->prototype, proto.getGCValue());
@@ -16486,8 +16497,8 @@ void OS::Core::setPrototypeValue(const Value& val, const Value& proto, int userd
 	// case OS_VALUE_TYPE_STRING:
 	case OS_VALUE_TYPE_ARRAY:
 	case OS_VALUE_TYPE_OBJECT:
-	// case OS_VALUE_TYPE_FUNCTION:
-	// case OS_VALUE_TYPE_CFUNCTION:
+	case OS_VALUE_TYPE_FUNCTION:
+	case OS_VALUE_TYPE_CFUNCTION:
 		// OS_ASSERT(OS_VALUE_VARIANT(val).value->prototype && OS_VALUE_VARIANT(val).value->prototype->ref_count > 0);
 		// OS_VALUE_VARIANT(val).value->prototype->ref_count--;
 		setValue(OS_VALUE_VARIANT(val).value->prototype, proto.getGCValue());
@@ -18178,7 +18189,7 @@ void OS::clearUserdata(int crc, int offs, int prototype_crc)
 	case OS_VALUE_TYPE_USERDATA:
 	case OS_VALUE_TYPE_USERPTR:
 		if(OS_VALUE_VARIANT(val).userdata->crc == crc){ // && val.v.userdata->ptr){
-			core->triggerValueDestructor(OS_VALUE_VARIANT(val).value);
+			// core->triggerValueDestructor(OS_VALUE_VARIANT(val).value);
 			core->clearValue(OS_VALUE_VARIANT(val).value);
 			// val.v.userdata->ptr = NULL;
 			return;
@@ -18186,7 +18197,7 @@ void OS::clearUserdata(int crc, int offs, int prototype_crc)
 		if(prototype_crc && OS_VALUE_VARIANT(val).userdata->prototype 
 			&& core->isValueOfUserdata(OS_VALUE_VARIANT(val).userdata->prototype, prototype_crc))
 		{
-			core->triggerValueDestructor(OS_VALUE_VARIANT(val).value);
+			// core->triggerValueDestructor(OS_VALUE_VARIANT(val).value);
 			core->clearValue(OS_VALUE_VARIANT(val).value);
 			return;
 		}
@@ -21615,7 +21626,8 @@ void OS::initCoreFunctions()
 
 			case OS_VALUE_TYPE_ARRAY:
 			case OS_VALUE_TYPE_OBJECT:
-				{
+			case OS_VALUE_TYPE_USERDATA:
+			case OS_VALUE_TYPE_USERPTR:				{
 					Core::Value class_value = os->core->getStackValue(-params);
 					// OS_ASSERT(OS_VALUE_VARIANT(right_value).value->prototype && OS_VALUE_VARIANT(right_value).value->prototype->ref_count > 0);
 					// OS_VALUE_VARIANT(right_value).value->prototype->ref_count--;
@@ -21628,11 +21640,6 @@ void OS::initCoreFunctions()
 					}
 					break;
 				}
-
-			case OS_VALUE_TYPE_USERDATA:
-			case OS_VALUE_TYPE_USERPTR:
-				// TODO: throw exception???
-				break;
 			}
 			os->core->pushValue(right_value);
 			return 1;
@@ -21777,6 +21784,14 @@ void OS::initCoreFunctions()
 			os->setException(String::format(os, OS_TEXT("you can't create instance of module %s"), os->getValueClassname(-params-1).toChar()));
 			return 0;
 		}
+
+		static int initNewInstance(OS * os, int params, int, int, void*)
+		{
+			Core::Value self_var = os->core->getStackValue(-params+0);
+			os->core->initNewInstance(self_var.getGCValue());
+			// os->core->pushValue(self_var);
+			return 0;
+		}
 	};
 	FuncDef list[] = {
 		{core->strings->__construct, Lib::construct},
@@ -21812,6 +21827,7 @@ void OS::initCoreFunctions()
 		// {OS_TEXT("resolvePath"), Lib::resolvePath},
 		{OS_TEXT("debugBackTrace"), Lib::debugBackTrace},
 		{OS_TEXT("terminate"), Lib::terminate},
+		{OS_TEXT("__initnewinstance"), Lib::initNewInstance},
 		{}
 	};
 	NumberDef numbers[] = {
@@ -22857,14 +22873,6 @@ dump_object:
 			return 0;
 		}
 
-		static int initNewInstance(OS * os, int params, int, int, void*)
-		{
-			Core::Value self_var = os->core->getStackValue(-params-1);
-			os->core->initNewInstance(self_var.getGCValue());
-			os->core->pushValue(self_var);
-			return 1;
-		}
-
 		static int __construct(OS * os, int params, int, int, void*)
 		{
 			// it should be exist to prevent getter while __construct call
@@ -22919,7 +22927,6 @@ dump_object:
 		{OS_TEXT("setLast"), Object::setLast},
 		{OS_TEXT("__del@last"), Object::deleteLast},
 		{OS_TEXT("deleteLast"), Object::deleteLast},
-		{OS_TEXT("initNewInstance"), Object::initNewInstance},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_OBJECT]);
@@ -25906,18 +25913,18 @@ void OS::initPreScript()
 
 		function Object.__newinstance(){
 			var r = {}
-			if(this === Object){
+			/* if(this === Object){
 				for(var i, arg in arguments){
 					r[i] = arg
 				}
 				return r
-			}
+			} */
 			r.prototype = this
-			Object.initNewInstance.call(r)
+			__initnewinstance(r)
 			r.__construct.apply(r, arguments)
 			return r
 		}
-
+		
 		function Array.__newinstance(){
 			return arguments
 		}
