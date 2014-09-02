@@ -1110,6 +1110,16 @@ public:
 			return comdate;
 		}
 
+		void setCOMTime(double value)
+		{
+			setCOMDate(value / SECONDS_PER_DAY);
+		}
+
+		double getCOMTime()
+		{
+			return comdate * SECONDS_PER_DAY;
+		}
+
 		/* Creates a new DateTime instance using datetime as basis by adding
 		the given offsets to the value of datetime and then re-normalizing
 		them.
@@ -2126,6 +2136,9 @@ void DateTimeOS::initExtension(OS * os)
 
 			def(OS_TEXT("__get@comdate"), &DateTime::getCOMDate),
 			def(OS_TEXT("__set@comdate"), &DateTime::setCOMDate),
+
+			def(OS_TEXT("__get@comtime"), &DateTime::getCOMTime),
+			def(OS_TEXT("__set@comtime"), &DateTime::setCOMTime),
 
 			def(OS_TEXT("setAbsDateTime"), &DateTime::setAbsDateTime),
 			def(OS_TEXT("setDateAndTime"), &DateTime::setDateAndTime),
