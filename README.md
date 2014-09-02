@@ -78,7 +78,7 @@ Apache config example (for __os-fcgi__)
 * [objectscript.org](https://github.com/unitpoint/objectscript.org) is ObjectScript language site
 * [Programming in ObjectScript](https://github.com/unitpoint/objectscript/wiki/Programming-in-ObjectScript)
 * [ObjectScript Reference](https://github.com/unitpoint/objectscript/wiki/ObjectScript-Reference)
-* [cocos2d-os](https://github.com/unitpoint/cocos2d-os) is a game framework made with ObjectScript
+* [os2d](https://github.com/unitpoint/os2d) is ObjectScript engine for 2d games
 * [ObjectScript C++ binder generator](https://github.com/unitpoint/objectscript/blob/master/src/os-binder-generator.os)
 
 P.S. old files of this repo have been moved to https://github.com/unitpoint/objectscript-old
