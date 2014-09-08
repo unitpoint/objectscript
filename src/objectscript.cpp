@@ -15088,6 +15088,7 @@ bool OS::init(MemoryManager * p_manager)
 
 	if(core->init()){
 #if 1
+		initSettings();
 		initPreScript();
 		initCoreFunctions();
 		/*
@@ -15516,6 +15517,7 @@ OS::String OS::resolvePath(const String& filename)
 	}
 	String resolved_path = resolvePath(filename, cur_path);
 	if(resolved_path.isEmpty()){
+		bool empty_path = cur_path.isEmpty();
 		getGlobal(core->strings->func_require);
 		getProperty(OS_TEXT("paths"));
 		while(nextIteratorStep()){
@@ -15526,6 +15528,7 @@ OS::String OS::resolvePath(const String& filename)
 					pop(2);
 					return resolved_path;
 				}
+				empty_path = empty_path || cur_path.isEmpty();
 			}
 			pop(2);
 		}
@@ -15546,6 +15549,13 @@ OS::String OS::resolvePath(const String& filename)
 			}
 		} */
 		pop();
+
+		if(!empty_path){
+			resolved_path = resolvePath(filename, String(this));
+			if(!resolved_path.isEmpty()){
+				return resolved_path;
+			}
+		}
 
 		String ext = getFilenameExt(filename);
 		if(((ext.isEmpty() || ext == OS_EXT_TEMPLATE) && !core->settings.sourcecode_must_exist) || ext == OS_EXT_COMPILED){
@@ -19130,6 +19140,7 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 		Value local3_index = local3_index_ref; \
 		const bool local3_getter_enabled = (_getter_enabled); \
 		if(local3_getter_enabled /*&& !hasSpecialPrefix(local3_index)*/){ \
+			Value local3_this = (_this); \
 			if(OS_VALUE_TYPE(local3_index) == OS_VALUE_TYPE_STRING){ \
 				const void * buf1 = strings->__getAt.toChar(); \
 				int size1 = strings->__getAt.getDataSize(); \
@@ -19150,7 +19161,7 @@ bool OS::Core::hasProperty(GCValue * table_value, Value index, bool getter_enabl
 			if(local3_result_bool){ \
 				if(pushGetRecursion(local3_table_value, local3_index)){ \
 					pushValue(local3_result); \
-					pushValue(_this); \
+					pushValue(local3_this); \
 					pushValue(local3_index); \
 					call(1, 1, OS_CALLTYPE_FUNC); \
 					local3_result = stack_values.buf[--stack_values.count]; \
@@ -25260,6 +25271,26 @@ double OS::Core::getRand(double min, double max)
 #define OS_MATH_PI 3.1415926535897932384626433832795
 #define OS_RADIANS_PER_DEGREE (OS_MATH_PI/180.0)
 
+template <class T> struct FloatEpsilon
+{
+	static T getEpsilon(){ return 0; }
+};
+
+template <> struct FloatEpsilon<float>
+{
+	static float getEpsilon(){ return FLT_EPSILON; }
+};
+
+template <> struct FloatEpsilon<double>
+{
+	static double getEpsilon(){ return DBL_EPSILON; }
+};
+
+template <> struct FloatEpsilon<long double>
+{
+	static long double getEpsilon(){ return LDBL_EPSILON; }
+};
+
 void OS::initMathModule()
 {
 	struct Math
@@ -25526,6 +25557,7 @@ void OS::initMathModule()
 	NumberDef numbers[] = {
 		{OS_TEXT("PI"), (OS_NUMBER)OS_MATH_PI},
 		{OS_TEXT("MAX_NUMBER"), OS_MAX_NUMBER},
+		{OS_TEXT("NUM_EPSILON"), FloatEpsilon<OS_NUMBER>::getEpsilon()},
 		{}
 	};
 
@@ -25862,6 +25894,10 @@ void OS::initLangTokenizerModule()
 	setFuncs(list);
 	setNumbers(numbers);
 	pop();
+}
+
+void OS::initSettings()
+{
 }
 
 // #define OS_AUTO_TEXT(exp) OS_TEXT(#exp)
