@@ -44,7 +44,7 @@ public:
 			int size = str.getDataSize();
 			
 			Core::Buffer buf(os);
-			buf.reserveCapacity(size/2 + 7);
+			buf.reserveCapacity(size + 7);
 			
 			base64_decodestate state;
 			base64_init_decodestate(&state);
