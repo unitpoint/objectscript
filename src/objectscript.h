@@ -71,7 +71,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.3.1-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.3.2-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -1881,8 +1881,9 @@ namespace ObjectScript
 
 					struct SwitchCaseLabel
 					{
-						TokenData  * key; // token pointer is used as key to search label
+						TokenData * key; // used as key to search label
 						Expression * exp;
+						Expression * jump_exp;
 						int to_pos;
 						int from_pos;
 					};
@@ -1920,13 +1921,13 @@ namespace ObjectScript
 
 					Scope * findLoopScope();
 
-					bool addCaseLabel(TokenData * key);
+					bool addCaseLabel(TokenData  * key, Expression * exp);
 					// set address of JUMP opcode
-					bool setCaseLabelJump(TokenData * key, int pos, Compiler* cmp);
+					bool setCaseLabelJump(TokenData  * key, int pos, Compiler* cmp);
 					// set address of target opcode
-					bool setCaseLabelPos(TokenData * key, int pos, Compiler* cmp);
+					bool setCaseLabelPos(TokenData  * key, int pos, Compiler* cmp);
 					// set expression to evaluate to jump to label ("default" element has no expression)
-					bool setCaseLabelExp(TokenData * key, Expression * exp);
+					// bool setCaseLabelExp(TokenData * key, Expression * exp);
 					// returns parent Scope object if it has type EXP_TY_SWITCH_SCOPE
 					Scope* getSwitchScope();
 					// finds EXP_TY_SWITCH_SCOPE in parent's scopes

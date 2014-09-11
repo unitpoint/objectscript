@@ -3716,8 +3716,7 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 			}
 			// look for "default" jumper & if it is not completely initialized
 			// (from/to values are empty) - set "to" value to end of block
-			for(int i = 0; i < scope->case_labels.count; i++)
-			{
+			for(int i = 0; i < scope->case_labels.count; i++){
 				Scope::SwitchCaseLabel& label = scope->case_labels[i];
 				if(!label.exp && !label.to_pos)
 					scope->setCaseLabelPos(label.key, getOpcodePos(), this);
@@ -3735,11 +3734,10 @@ bool OS::Core::Compiler::writeOpcodes(Scope * scope, Expression * exp)
 		}
 	case EXP_TYPE_CASE_JUMP:
 		{
-			if(scope->type == EXP_TYPE_SWITCH_SCOPE) // CASE_JUMP expression must be in SWITCH scope
-			{
-				writeJumpOpcode(0); // save address of JUMP instruction
+			if(scope->type == EXP_TYPE_SWITCH_SCOPE){ // CASE_JUMP expression must be in SWITCH scope
 				int pos = getOpcodePos();
-				scope->setCaseLabelJump(exp->token, pos - 1, this);
+				writeJumpOpcode(0); // save address of JUMP instruction
+				scope->setCaseLabelJump(exp->token, pos, this);
 			}
 			break;
 		}
@@ -3813,14 +3811,21 @@ bool OS::Core::Compiler::Scope::addLoopBreak(int pos, ELoopBreakType type)
 	return true;
 }
 
-bool OS::Core::Compiler::Scope::addCaseLabel(TokenData * key)
+bool OS::Core::Compiler::Scope::addCaseLabel(TokenData * key, Expression * exp)
 {
+	OS_ASSERT(!exp || exp->token == key);
 	Scope * scope = this;
-	if(scope && type == EXP_TYPE_SWITCH_SCOPE)
-	{
+	if(scope && type == EXP_TYPE_SWITCH_SCOPE){
+#ifdef OS_DEBUG
+		for(int i = 0; i < case_labels.count; i++)
+			if(case_labels[i].key == key){
+				OS_ASSERT(false);
+			}
+#endif
 		SwitchCaseLabel label;
 		label.key = key;
-		label.exp = 0;
+		label.exp = exp;
+		label.jump_exp = NULL;
 		label.from_pos = 0;
 		label.to_pos = 0;
 		getAllocator()->vectorAddItem(scope->case_labels, label OS_DBG_FILEPOS);
@@ -3830,7 +3835,7 @@ bool OS::Core::Compiler::Scope::addCaseLabel(TokenData * key)
 	return false;
 }
 
-bool OS::Core::Compiler::Scope::setCaseLabelExp(TokenData * key, Expression * exp)
+/* bool OS::Core::Compiler::Scope::setCaseLabelExp(TokenData * key, Expression * exp)
 {
 	for(int i = 0; i < case_labels.count; i++)
 		if(case_labels[i].key == key)
@@ -3839,20 +3844,17 @@ bool OS::Core::Compiler::Scope::setCaseLabelExp(TokenData * key, Expression * ex
 			return true;
 		}
 	return false;
-}
+} */
 
 bool OS::Core::Compiler::Scope::setCaseLabelPos(TokenData * key, int pos, Compiler* cmp)
 {
-	for(int i = 0; i < case_labels.count; i++)
-	{
+	for(int i = 0; i < case_labels.count; i++){
 		SwitchCaseLabel& sw = case_labels[i];
-		if(sw.key == key)
-		{
+		if(sw.key == key){
 			sw.to_pos = pos;
-
-			if(sw.to_pos && sw.from_pos && cmp)
+			if(sw.to_pos && sw.from_pos){
 				cmp->fixJumpOpcode(sw.to_pos - sw.from_pos - 1, sw.from_pos);
-
+			}
 			return true;
 		}
 	}
@@ -3861,16 +3863,13 @@ bool OS::Core::Compiler::Scope::setCaseLabelPos(TokenData * key, int pos, Compil
 
 bool OS::Core::Compiler::Scope::setCaseLabelJump(TokenData * key, int pos, Compiler* cmp)
 {
-	for(int i = 0; i < case_labels.count; i++)
-	{
+	for(int i = 0; i < case_labels.count; i++){
 		SwitchCaseLabel& sw = case_labels[i];
-		if(sw.key == key)
-		{
+		if(sw.key == key){
 			sw.from_pos = pos;
-
-			if(sw.to_pos && sw.from_pos && cmp)
+			if(sw.to_pos && sw.from_pos){
 				cmp->fixJumpOpcode(sw.to_pos - sw.from_pos - 1, sw.from_pos);
-
+			}
 			return true;
 		}
 	}
@@ -8220,10 +8219,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSwitchExpression(Scop
 	if(!body_exp){
 		// free case_labels expressions
 		for(int i = 0; i < scope->case_labels.count; i++)
-			if(scope->case_labels[i].exp)
-			{
+			if(scope->case_labels[i].exp){
 				allocator->deleteObj(scope->case_labels[i].exp);
-				scope->case_labels[i].exp = 0;
+				scope->case_labels[i].exp = NULL;
 			}
 
 		allocator->deleteObj(scope);
@@ -8251,15 +8249,14 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSwitchExpression(Scop
 
 	OS_ASSERT(switch_scope->case_labels.count);
 
-	TokenData * _default = 0; // flag if default value exists
-
-	for(int i = 0; i < switch_scope->case_labels.count; i++)
-	{
-		Expression * exp = switch_scope->case_labels[i].exp;
-		OS_ASSERT(!exp || exp->ret_values == 1);
-
-		if(exp)
-		{
+	Scope::SwitchCaseLabel * default_label = NULL; // flag if default value exists
+	for(int i = 0; i < switch_scope->case_labels.count; i++){
+		Scope::SwitchCaseLabel& case_label = switch_scope->case_labels[i];
+		Expression * exp = case_label.exp;
+		if(exp){
+			OS_ASSERT(exp->ret_values == 1);
+			OS_ASSERT(exp->token == case_label.key);
+			OS_ASSERT(!case_label.jump_exp);
 			Expression * temp_var = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_GET_LOCAL_VAR, temp_var_token);
 			temp_var->ret_values = 1;
 
@@ -8267,36 +8264,35 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectSwitchExpression(Scop
 			equ_exp->ret_values = 1;
 
 			// EXP_TYPE_CASE_JUMP expression used because during compilation it record "from" position to case_label element
-			Expression * jump_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CASE_JUMP, exp->token);
-			Expression * if_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_IF, switch_exp->token, equ_exp, jump_exp OS_DBG_FILEPOS);
+			case_label.jump_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CASE_JUMP, case_label.key);
+			Expression * if_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_IF, switch_exp->token, equ_exp, case_label.jump_exp OS_DBG_FILEPOS);
 			switch_scope->list.add(if_exp OS_DBG_FILEPOS);
-		}
-		else
-		{
-			if(_default)
-			{ // TODO: process error: only one default label allowed
+		}else{
+			if(default_label){ // TODO: process error: only one default label allowed
+				setError(ERROR_SYNTAX, case_label.key);
 				temp_var_token->release();
 				allocator->deleteObj(scope);
 				allocator->deleteObj(switch_exp);
 				allocator->deleteObj(switch_scope);
 				return NULL;
 			}
-
-			_default = switch_scope->case_labels[i].key;
+			default_label = &case_label;
 		}
 	}
 
-	if(!_default)
-	{ // create default entry of case elements
-		switch_scope->addCaseLabel(switch_exp->token); // save label to "switch" scope
+	if(!default_label){
+		// create default entry of case elements
+		switch_scope->addCaseLabel(switch_exp->token, NULL); // save label to "switch" scope
+		Scope::SwitchCaseLabel& case_label = switch_scope->case_labels.lastElement();
+		OS_ASSERT(case_label.key == switch_exp->token && !case_label.exp);
 		// write jump expression for default value
-		Expression * def_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CASE_JUMP, recent_token);
-		switch_scope->list.add(def_exp OS_DBG_FILEPOS);
-	}
-	else
-	{ // set default jump
-		Expression * def_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CASE_JUMP, _default);
-		switch_scope->list.add(def_exp OS_DBG_FILEPOS);
+		case_label.jump_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CASE_JUMP, case_label.key);
+		switch_scope->list.add(case_label.jump_exp OS_DBG_FILEPOS);
+	}else{ // set default jump
+		Scope::SwitchCaseLabel& case_label = *default_label;
+		OS_ASSERT(!case_label.exp);
+		case_label.jump_exp = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CASE_JUMP, case_label.key);
+		switch_scope->list.add(case_label.jump_exp OS_DBG_FILEPOS);
 	}
 
 	temp_var_token->release();
@@ -8312,7 +8308,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectCaseExpression(Scope 
 			 (recent_token->str == allocator->core->strings->syntax_case ||
 			  recent_token->str == allocator->core->strings->syntax_default));
 
-	bool _default = recent_token->str == allocator->core->strings->syntax_default;
+	bool is_default = recent_token->str == allocator->core->strings->syntax_default;
 
 	if(!parent || !parent->getSwitchScope())
 	{
@@ -8328,9 +8324,9 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectCaseExpression(Scope 
 
 	Scope * scope = parent;
 	Expression * case_exp = 0;
-	TokenData* current_token = recent_token;
+	TokenData * current_token = recent_token;
 
-	if(!_default)
+	if(!is_default)
 	{
 		case_exp = expectSingleExpression(scope, Params().setAllowAutoCall(true).setAllowCall(true).setAllowBinaryOperator(true));
 		if(!case_exp){
@@ -8347,23 +8343,19 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::expectCaseExpression(Scope 
 	// check for next token is ":"
 	if(!recent_token || recent_token->type != Tokenizer::OPERATOR_COLON){
 		setError(Tokenizer::OPERATOR_COLON, recent_token);
-		if(case_exp)
-			allocator->deleteObj(case_exp);
+		allocator->deleteObj(case_exp);
 		return NULL;
 	}
 	readToken();
 
-	if(!_default)
-	{
+	if(!is_default){
 		Expression * case_expression = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CASE, case_exp->token);
-		scope->getSwitchScope()->addCaseLabel(case_expression->token); // save label to "switch" scope
-		scope->getSwitchScope()->setCaseLabelExp(case_expression->token, case_exp); // save expression to evaluate in switch head
+		scope->getSwitchScope()->addCaseLabel(case_expression->token, case_exp); // save label to "switch" scope
+		// scope->getSwitchScope()->setCaseLabelExp(case_expression->token, case_exp); // save expression to evaluate in switch head
 		return case_expression;
-	}
-	else
-	{ // create expression for "default" case. this element doesn't include expression to evaluate
+	}else{ // create expression for "default" case. this element doesn't include expression to evaluate
 		Expression * case_expression = new (malloc(sizeof(Expression) OS_DBG_FILEPOS)) Expression(EXP_TYPE_CASE_DEFAULT, current_token);
-		scope->getSwitchScope()->addCaseLabel(case_expression->token); // save label to "switch" scope
+		scope->getSwitchScope()->addCaseLabel(case_expression->token, NULL); // save label to "switch" scope
 		return case_expression;
 	}
 }
