@@ -337,10 +337,8 @@ void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * 
 	os->pushUserdata(CtypeId<T>::getId(), 0, NULL, NULL);
 	os->setFuncs(list);
 	os->setNumbers(numbers);
-	if(instantiable){
-		os->pushBool(true);
-		os->setProperty(-2, OS_TEXT("__instantiable"), false);
-	}
+	os->pushBool(instantiable);
+	os->setProperty(-2, OS_TEXT("__instantiable"), false);
 	os->setProperty();
 }
 
@@ -352,10 +350,8 @@ void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * 
 	os->pushUserdata(CtypeId<T>::getId(), 0, NULL, NULL);
 	os->setFuncs(list);
 	os->setNumbers(numbers);
-	if(instantiable){
-		os->pushBool(true);
-		os->setProperty(-2, OS_TEXT("__instantiable"), false);
-	}
+	os->pushBool(instantiable);
+	os->setProperty(-2, OS_TEXT("__instantiable"), false);
 	os->pushStackValue();
 	os->getGlobal(CtypeName<Prototype>::getName());
 	os->setPrototype(CtypeId<T>::getId());

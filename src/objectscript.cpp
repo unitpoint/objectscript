@@ -5355,7 +5355,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompilePass3(Scope * sc
 	struct Lib {
 		static Expression * processList(Compiler * compiler, Scope * scope, Expression * exp)
 		{
-			for(int i = 0; i < exp->list.count; i++){
+			for(int i = 0; i < exp->list.count && !compiler->isError(); i++){
 				exp->list[i] = compiler->postCompilePass3(scope, exp->list[i]);
 			}
 			return exp;
@@ -5515,7 +5515,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 	struct Lib {
 		static Expression * processList(Compiler * compiler, Scope * scope, Expression * exp)
 		{
-			for(int i = 0; i < exp->list.count; i++){
+			for(int i = 0; i < exp->list.count && !compiler->isError(); i++){
 				exp->list[i] = compiler->postCompileNewVM(scope, exp->list[i]);
 			}
 			return exp;
@@ -5729,10 +5729,10 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		}
 		scope->popTempVar();
 		exp->list[1] = exp1 = postCompileNewVM(scope, exp->list[1]);
-		OS_ASSERT(stack_pos == scope->function->stack_cur_size);
+		OS_ASSERT(stack_pos == scope->function->stack_cur_size || isError());
 		if(exp->list.count == 3){
 			exp->list[2] = exp1 = postCompileNewVM(scope, exp->list[2]);
-			OS_ASSERT(stack_pos == scope->function->stack_cur_size);
+			OS_ASSERT(stack_pos == scope->function->stack_cur_size || isError());
 		}
 		return exp;
 
@@ -14261,7 +14261,7 @@ void OS::Core::dumpValues(Buffer& out)
 			
 			case OS_VALUE_TYPE_STRING:
 				OS_VALUE_VARIANT(cur).string->gc_step_type = core->gc_step_type;
-				appendString(format(OS_TEXT("<string:%d> "), OS_VALUE_VARIANT(cur).string->value_id));
+				appendString(format(OS_TEXT("<string#%d> "), OS_VALUE_VARIANT(cur).string->value_id));
 				appendQuotedString(String(core->allocator, OS_VALUE_VARIANT(cur).string));
 				break;
 			
@@ -14278,32 +14278,32 @@ void OS::Core::dumpValues(Buffer& out)
 				switch(value->type){
 				case OS_VALUE_TYPE_STRING:
 					OS_ASSERT(dynamic_cast<GCStringValue*>(value));
-					appendString(format(OS_TEXT("<string:%d> "), value->value_id));
+					appendString(format(OS_TEXT("<string#%d> "), value->value_id));
 					appendQuotedString(String(core->allocator, (GCStringValue*)value));
 					return;
 			
 				case OS_VALUE_TYPE_ARRAY:
-					appendString(format(OS_TEXT("<array:%d> {{RECURSION}}"), value->value_id));
+					appendString(format(OS_TEXT("<array#%d> {{RECURSION}}"), value->value_id));
 					return;
 
 				case OS_VALUE_TYPE_OBJECT:
-					appendString(format(OS_TEXT("<object:%d:classname=%s> {{RECURSION}}"), value->value_id, core->getValueClassname(value).toChar()));
+					appendString(format(OS_TEXT("<object#%d:classname=%s> {{RECURSION}}"), value->value_id, core->getValueClassname(value).toChar()));
 					return;
 
 				case OS_VALUE_TYPE_USERDATA:
-					appendString(format(OS_TEXT("<userdata:%d:classname=%s> {{RECURSION}}"), value->value_id, core->getValueClassname(value).toChar()));
+					appendString(format(OS_TEXT("<userdata#%d:classname=%s> {{RECURSION}}"), value->value_id, core->getValueClassname(value).toChar()));
 					return;
 
 				case OS_VALUE_TYPE_USERPTR:
-					appendString(format(OS_TEXT("<userptr:%d:classname=%s> {{RECURSION}}"), value->value_id, core->getValueClassname(value).toChar()));
+					appendString(format(OS_TEXT("<userptr#%d:classname=%s> {{RECURSION}}"), value->value_id, core->getValueClassname(value).toChar()));
 					return;
 
 				case OS_VALUE_TYPE_FUNCTION:
-					appendString(format(OS_TEXT("<function:%d> {{RECURSION}}"), value->value_id));
+					appendString(format(OS_TEXT("<function#%d> {{RECURSION}}"), value->value_id));
 					return;
 
 				case OS_VALUE_TYPE_CFUNCTION:
-					appendString(format(OS_TEXT("<cfunction:%d> {{RECURSION}}"), value->value_id));
+					appendString(format(OS_TEXT("<cfunction#%d> {{RECURSION}}"), value->value_id));
 					return;
 
 				default:
@@ -14318,7 +14318,7 @@ void OS::Core::dumpValues(Buffer& out)
 			switch(value->type){
 			case OS_VALUE_TYPE_STRING:
 				OS_ASSERT(dynamic_cast<GCStringValue*>(value));
-				appendString(format(OS_TEXT("<string:%d> "), value->value_id));
+				appendString(format(OS_TEXT("<string#%d> "), value->value_id));
 				appendQuotedString(String(core->allocator, (GCStringValue*)value));
 				return;
 			
@@ -14327,7 +14327,7 @@ void OS::Core::dumpValues(Buffer& out)
 					OS_ASSERT(dynamic_cast<Core::GCArrayValue*>(value));
 					Core::GCArrayValue * arr = (Core::GCArrayValue*)value;
 					// appendDepthSpaces(depth);
-					appendString(format(OS_TEXT("<array:%d> [\n"), value->value_id));
+					appendString(format(OS_TEXT("<array#%d> [\n"), value->value_id));
 					for(int i = 0; i < arr->values.count; i++){
 						appendDepthSpaces(depth + 1);
 						appendString(format(OS_TEXT("%d: "), i));
@@ -14347,7 +14347,7 @@ void OS::Core::dumpValues(Buffer& out)
 
 			case OS_VALUE_TYPE_OBJECT:
 				{
-					appendString(format(OS_TEXT("<object:%d:classname=%s> {\n"), value->value_id, core->getValueClassname(value).toChar()));
+					appendString(format(OS_TEXT("<object#%d:classname=%s> {\n"), value->value_id, core->getValueClassname(value).toChar()));
 dump_object:
 					if(!value->table){
 						appendDepthSpaces(depth);
@@ -14368,11 +14368,11 @@ dump_object:
 				}
 
 			case OS_VALUE_TYPE_USERDATA:
-				appendString(format(OS_TEXT("<userdata:%d:classname=%s> {\n"), value->value_id, core->getValueClassname(value).toChar()));
+				appendString(format(OS_TEXT("<userdata#%d:classname=%s> {\n"), value->value_id, core->getValueClassname(value).toChar()));
 				goto dump_object;
 
 			case OS_VALUE_TYPE_USERPTR:
-				appendString(format(OS_TEXT("<userptr:%d:classname=%s> {\n"), value->value_id, core->getValueClassname(value).toChar()));
+				appendString(format(OS_TEXT("<userptr#%d:classname=%s> {\n"), value->value_id, core->getValueClassname(value).toChar()));
 				goto dump_object;
 
 			case OS_VALUE_TYPE_FUNCTION:
@@ -14380,7 +14380,7 @@ dump_object:
 					OS_ASSERT(dynamic_cast<GCFunctionValue*>(value));
 					GCFunctionValue * func_value = (GCFunctionValue*)value;
 					
-					appendString(format(OS_TEXT("<function:%d> {\n"), func_value->value_id));
+					appendString(format(OS_TEXT("<function#%d> {\n"), func_value->value_id));
 				
 					appendDepthSpaces(depth + 1);
 					appendString(OS_TEXT("env: "));
@@ -14400,7 +14400,7 @@ dump_object:
 					OS_ASSERT(dynamic_cast<GCCFunctionValue*>(value));
 					GCCFunctionValue * func_value = (GCCFunctionValue*)value;
 					
-					appendString(format(OS_TEXT("<cfunction:%d> {\n"), func_value->value_id));
+					appendString(format(OS_TEXT("<cfunction#%d> {\n"), func_value->value_id));
 					
 					Value * closure_values = (Value*)(func_value + 1);
 					for(int i = 0; i < func_value->num_closure_values; i++){
@@ -14553,6 +14553,7 @@ OS::Core::Strings::Strings(OS * allocator)
 	__destruct(allocator, OS_TEXT("__destruct")),
 	__instantiable(allocator, OS_TEXT("__instantiable")),
 	__newinstance(allocator, OS_TEXT("__newinstance")),
+	__callinstance(allocator, OS_TEXT("__callinstance")),
 	__object(allocator, OS_TEXT("__object")),
 	__get(allocator, OS_TEXT("__get")),
 	__set(allocator, OS_TEXT("__set")),
@@ -20226,6 +20227,7 @@ corrupted:
 				prog = stack_func->func->prog;
 				OS_ASSERT(b > 0 && b < prog->num_functions);
 				FunctionDecl * func_decl = prog->functions + b;
+				allocator->vectorReserveCapacity(stack_func->sub_funcs, b+1 OS_DBG_FILEPOS);
 				while(stack_func->sub_funcs.count <= b){
 					allocator->vectorAddItem(stack_func->sub_funcs, (GCFunctionValue*)NULL OS_DBG_FILEPOS);
 				}
@@ -21793,7 +21795,7 @@ void OS::initCoreFunctions()
 		static int construct(OS * os, int params, int, int, void*)
 		{
 			// TODO: correct?
-			os->setException(String::format(os, OS_TEXT("you can't create instance of module %s"), os->getValueClassname(-params-1).toChar()));
+			os->setException(String::format(os, OS_TEXT("you can't create instance of module %s"), os->getValueNameOrClassname(-params-1).toChar()));
 			return 0;
 		}
 
@@ -22296,8 +22298,10 @@ void OS::initObjectClass()
 			case OS_VALUE_TYPE_USERPTR:
 				buf += OS_TEXT("<");
 				buf += os->core->strings->typeof_userdata;
-				buf += OS_TEXT(":");
+				buf += OS_TEXT("#");
 				buf += Core::String(os, (OS_INT)self->value_id);
+				buf += OS_TEXT(":classname=");
+				buf += os->core->getValueClassname(self);
 				buf += OS_TEXT(">");
 				if(!self->table || !self->table->count){
 					os->pushString(buf);
@@ -22310,7 +22314,7 @@ void OS::initObjectClass()
 			case OS_VALUE_TYPE_CFUNCTION:
 				buf += OS_TEXT("<");
 				buf += os->core->strings->typeof_function;
-				buf += OS_TEXT(":");
+				buf += OS_TEXT("#");
 				buf += Core::String(os, (OS_INT)self->value_id);
 				buf += OS_TEXT(">");
 				if(!self->table || !self->table->count){
@@ -22324,6 +22328,15 @@ void OS::initObjectClass()
 				if(!self->table || !self->table->count){
 					os->pushString(OS_TEXT("{}"));
 					return 1;
+				}
+				if(self->prototype != os->core->prototypes[Core::PROTOTYPE_OBJECT]){
+					buf += OS_TEXT("<");
+					buf += os->core->strings->typeof_object;
+					buf += OS_TEXT("#");
+					buf += Core::String(os, (OS_INT)self->value_id);
+					buf += OS_TEXT(":classname=");
+					buf += os->core->getValueClassname(self);
+					buf += OS_TEXT(">");
 				}
 				{
 dump_object:
@@ -22432,7 +22445,7 @@ dump_object:
 		{
 			// there is no unshift method for object
 			// which key should be user for key??
-			os->setException(String::format(os, OS_TEXT("unshift is not supported for %s"), os->getValueClassname(-params-1).toChar()));
+			os->setException(String::format(os, OS_TEXT("unshift is not supported for %s"), os->getValueNameOrClassname(-params-1).toChar()));
 			return 0;
 		}
 
@@ -25958,6 +25971,10 @@ void OS::initPreScript()
 			return obj
 		}
 
+		function Object.__callinstance(){
+			throw "attempt to call instance of ${@classname}"
+		}
+
 		function Object.__newinstance(){
 			var r = {}
 			/* if(this === Object){
@@ -26002,6 +26019,22 @@ void OS::initPostScript()
 {
 	eval(OS_AUTO_TEXT(
 		// it's ObjectScript code here
+		var originExtends = __extends
+		function __extends(proto, newClass){
+			newClass = originExtends(proto, newClass)
+			if(typeOf(proto) === "userdata" && !newClass.getProperty("__newinstance")){
+				function newClass.__newinstance(){
+					var obj = proto.__newinstance()
+					obj.prototype = this
+					__initnewinstance(obj)
+					obj.__construct.apply(obj, arguments)
+					return obj
+				}
+			}
+			// print "extends: ${newClass} from ${newClass.prototype}"
+			return newClass
+		}
+
 		path.resolve = require.resolve
 		
 		function Buffer.printf(){
@@ -26372,10 +26405,22 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 					return;
 				}else{
 					allocator->setException(String::format(allocator, OS_TEXT("method %s is not implemented in %s"), 
-						strings->__newinstance.toChar(), getValueClassname(class_value).toChar()));
+						strings->__newinstance.toChar(), getValueNameOrClassname(class_value).toChar()));
 				}
 			}else{
-				allocator->setException(String::format(allocator, OS_TEXT("%s is not instantiable"), getValueNameOrClassname(class_value).toChar()));
+				if(value.isNull()){
+					prototype_enabled = true;
+					if(getPropertyValue(value, class_value, strings->__callinstance, prototype_enabled)){
+						stack_values.buf[start_pos + 0] = value;
+						stack_values.buf[start_pos + 1] = class_value;
+						call(start_pos, call_params, ret_values, NULL, false, OS_CALLTYPE_FUNC);
+						return;
+					}else{
+						allocator->setException(String::format(allocator, OS_TEXT("attempt to call instance of %s"), getValueNameOrClassname(class_value).toChar()));
+					}
+				}else{
+					allocator->setException(String::format(allocator, OS_TEXT("%s is not instantiable"), getValueNameOrClassname(class_value).toChar()));
+				}
 			}
 			break;
 		}
