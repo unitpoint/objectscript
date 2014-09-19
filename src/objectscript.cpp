@@ -26468,7 +26468,6 @@ void OS::Core::call(int params, int ret_values, GCValue * self_for_proto, bool a
 	params += 2;
 	int start_pos = stack_values.count - params;
 	call(start_pos, params, ret_values, self_for_proto, allow_only_enter_func, call_type);
-	OS_ASSERT(stack_values.count == start_pos + ret_values);
 	stack_values.count = start_pos + ret_values;
 }
 
@@ -26479,7 +26478,6 @@ void OS::Core::call(int params, int ret_values, OS_ECallType call_type)
 	GCValue * self_for_proto = NULL;
 	bool allow_only_enter_func = false; 
 	call(start_pos, params, ret_values, self_for_proto, allow_only_enter_func, call_type);
-	OS_ASSERT(stack_values.count == start_pos + ret_values);
 	stack_values.count = start_pos + ret_values;
 }
 
@@ -26491,7 +26489,6 @@ void OS::Core::callTF(int params, int ret_values, OS_ECallType call_type)
 	bool allow_only_enter_func = false; 
 	exchangeStackValues(start_pos);
 	call(start_pos, params, ret_values, self_for_proto, allow_only_enter_func, call_type);
-	OS_ASSERT(stack_values.count == start_pos + ret_values);
 	stack_values.count = start_pos + ret_values;
 }
 
