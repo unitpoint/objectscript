@@ -71,7 +71,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.3.4-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.3.5-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -2840,6 +2840,7 @@ namespace ObjectScript
 			void pop(int count = 1);
 			void moveStackValues(int offs, int count, int new_offs);
 			void moveStackValue(int offs, int new_offs);
+			void exchangeStackValues(int offs);
 
 			void registerStringRef(GCStringValue*);
 			void unregisterStringRef(GCStringValue*);
@@ -2948,11 +2949,10 @@ namespace ObjectScript
 			void execute();
 			void reloadStackFunctionCache();
 
-			void call(int params, int ret_values, GCValue * self_for_proto, 
-				bool allow_only_enter_func, OS_ECallType call_type);
+			void call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func, OS_ECallType call_type);
+			void call(int params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func, OS_ECallType call_type);
 			void call(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
-			void call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, 
-				bool allow_only_enter_func, OS_ECallType call_type);
+			void callTF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
 
 			Core(OS*);
 			~Core();
@@ -3168,11 +3168,13 @@ namespace ObjectScript
 
 		int getStackSize();
 		int getAbsoluteOffs(int offs);
+		
 		void remove(int start_offs = -1, int count = 1);
-		void removeAll();
+		// void removeAll(); it's not safe to remove all
 		void pop(int count = 1);
 		void move(int start_offs, int count, int new_offs);
 		void move(int offs, int new_offs);
+		void exchange(int offs = -2); // var temp = stack[absolute(offs)]; stack[absolute(offs)] = stack[absolute(offs)+1]; stack[absolute(offs)+1] = temp
 
 		void runOp(OS_EOpcode opcode);
 
@@ -3238,7 +3240,9 @@ namespace ObjectScript
 		bool compile(const String& str, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 		bool compile(OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
-		void call(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);
+		void call(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);	// stack: func, this, params
+		void callFT(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);	// stack: func, this, params
+		void callTF(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO); // stack: this, func, params
 		
 		void eval(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 		void eval(const String& str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
