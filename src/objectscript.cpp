@@ -23208,7 +23208,7 @@ void OS::initArrayClass()
 				Core::GCArrayValue * arr = OS_VALUE_VARIANT(self_var).arr;
 				int count = arr->values.count;
 				int i = params >= 2 ? os->toInt(-params+1) : 0;
-				if(i < 0 || (i += count) < 0){
+				if(i < 0 && (i += count) < 0){
 					i = 0;
 				}
 				for(; i < count; i++){
@@ -23231,7 +23231,7 @@ void OS::initArrayClass()
 				Core::GCArrayValue * arr = OS_VALUE_VARIANT(self_var).arr;
 				int count = arr->values.count;
 				int i = params >= 2 ? os->toInt(-params+1) : count-1;
-				if(i < 0 || (i += count) < 0){
+				if(i < 0 && (i += count) < 0){
 					i = 0;
 				}else if(i > count-1){
 					i = count-1;
@@ -25974,7 +25974,7 @@ void OS::initPreScript()
 			for(var i, t in e.trace){
 				printf("#${i} ${t.file}%s: %s, args: ${t.arguments}\n",
 					t.line > 0 ? "(${t.line},${t.pos})" : "",
-					t.object && t.object !== _G ? "{${typeOf(t.object)}#${t.object.__id}}.${t.func.__name}" : t.func.__name)
+					t.object && t.object !== _G ? "<${typeOf(t.object)}#${t.object.__id}:classname=${t.object.classname}>.${t.func.__name}" : t.func.__name)
 			}
 		}
 
@@ -26260,7 +26260,7 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func, OS_ECallType call_type)
 {
 	OS_ASSERT(start_pos >= OS_TOP_STACK_NULL_VALUES && call_params >= 2 && start_pos + call_params <= stack_values.count);
-	Value& func = stack_values[start_pos];
+	Value& func = stack_values[start_pos + PRE_VAR_FUNC];
 	switch(OS_VALUE_TYPE(func)){
 	case OS_VALUE_TYPE_FUNCTION:
 		{
