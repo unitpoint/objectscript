@@ -71,7 +71,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.3.6-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.3.7-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -2953,6 +2953,9 @@ namespace ObjectScript
 			void call(int params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func, OS_ECallType call_type);
 			void call(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
 			void callTF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
+
+			static int prototypeFunctionApply(OS * os, int params, int, int need_ret_values, void*);
+			static int prototypeFunctionCall(OS * os, int params, int, int need_ret_values, void*);
 
 			Core(OS*);
 			~Core();

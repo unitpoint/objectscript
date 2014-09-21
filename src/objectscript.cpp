@@ -22977,11 +22977,75 @@ dump_object:
 		{OS_TEXT("setLast"), Object::setLast},
 		{OS_TEXT("__del@last"), Object::deleteLast},
 		{OS_TEXT("deleteLast"), Object::deleteLast},
+		{OS_TEXT("apply"), Core::prototypeFunctionApply},
+		{OS_TEXT("call"), Core::prototypeFunctionCall},
 		{}
 	};
 	core->pushValue(core->prototypes[Core::PROTOTYPE_OBJECT]);
 	setFuncs(list);
 	pop();
+}
+
+int OS::Core::prototypeFunctionApply(OS * os, int params, int, int need_ret_values, void*)
+{
+	int offs = os->getAbsoluteOffs(-params);
+	os->pushStackValue(offs-1); // self as func
+	if(params < 1){
+		os->pushNull();
+		os->call(0, need_ret_values, OS_CALLTYPE_AUTO);
+		return need_ret_values;
+	}
+	os->pushStackValue(offs); // first param - new this
+
+	Core::Value params_var = os->core->getStackValue(offs+1);
+	if(OS_VALUE_TYPE(params_var) == OS_VALUE_TYPE_ARRAY){
+		int count = OS_VALUE_VARIANT(params_var).arr->values.count;
+		for(int i = 0; i < count; i++){
+			os->core->pushValue(OS_VALUE_VARIANT(params_var).arr->values[i]);
+		}
+		os->call(count, need_ret_values, OS_CALLTYPE_AUTO);
+		return need_ret_values;
+	}
+	if(OS_VALUE_TYPE(params_var) == OS_VALUE_TYPE_OBJECT){ // && OS_VALUE_VARIANT(params_var).object->table){
+		int func_type = os->getType(offs-1);
+		Core::GCFunctionValue * func = NULL;
+		switch(func_type){
+		case OS_VALUE_TYPE_FUNCTION:
+			OS_ASSERT(dynamic_cast<Core::GCFunctionValue*>(OS_VALUE_VARIANT(os->core->getStackValue(offs-1)).func));
+			func = OS_VALUE_VARIANT(os->core->getStackValue(offs-1)).func;
+			break;
+
+		case OS_VALUE_TYPE_CFUNCTION:
+			os->setException(OS_TEXT("apply named arguments is not supported for external function"));
+			return 0;
+
+		default:
+			os->setException(String::format(os, OS_TEXT("apply named arguments is not supported for %s"), os->getTypeStr(offs-1).toChar()));
+			return 0;
+		}
+		if(func){
+			Core::FunctionDecl * func_decl = func->func_decl;
+			int num_params = func_decl->num_params;
+			Core::Value value;
+			Core::GCValue * table_value = OS_VALUE_VARIANT(params_var).value;
+			for(int i = Core::PRE_VARS; i < num_params; i++){ // skip func & this
+				if(os->core->getPropertyValue(value, table_value, func_decl->locals[i].name, true))
+					os->core->pushValue(value);
+				else
+					os->core->pushNull();
+			}
+			os->call(num_params - Core::PRE_VARS, need_ret_values, OS_CALLTYPE_AUTO);
+			return need_ret_values;
+		}
+	}
+	os->call(0, need_ret_values, OS_CALLTYPE_AUTO);
+	return need_ret_values;
+}
+
+int OS::Core::prototypeFunctionCall(OS * os, int params, int, int need_ret_values, void*)
+{
+	os->call(params-1, need_ret_values, OS_CALLTYPE_AUTO);
+	return need_ret_values;
 }
 
 void OS::initArrayClass()
@@ -25089,68 +25153,12 @@ void OS::initFunctionClass()
 {
 	struct Function
 	{
-		static int apply(OS * os, int params, int, int need_ret_values, void*)
+		/* static int construct(OS * os, int params, int, int, void*)
 		{
-			int offs = os->getAbsoluteOffs(-params);
-			os->pushStackValue(offs-1); // self as func
-			if(params < 1){
-				os->pushNull();
-				os->call(0, need_ret_values, OS_CALLTYPE_FUNC);
-				return need_ret_values;
-			}
-			os->pushStackValue(offs); // first param - new this
-
-			Core::Value params_var = os->core->getStackValue(offs+1);
-			if(OS_VALUE_TYPE(params_var) == OS_VALUE_TYPE_ARRAY){
-				int count = OS_VALUE_VARIANT(params_var).arr->values.count;
-				for(int i = 0; i < count; i++){
-					os->core->pushValue(OS_VALUE_VARIANT(params_var).arr->values[i]);
-				}
-				os->call(count, need_ret_values, OS_CALLTYPE_FUNC);
-				return need_ret_values;
-			}
-			if(OS_VALUE_TYPE(params_var) == OS_VALUE_TYPE_OBJECT){ // && OS_VALUE_VARIANT(params_var).object->table){
-				int func_type = os->getType(offs-1);
-				Core::GCFunctionValue * func = NULL;
-				switch(func_type){
-				case OS_VALUE_TYPE_FUNCTION:
-					OS_ASSERT(dynamic_cast<Core::GCFunctionValue*>(OS_VALUE_VARIANT(os->core->getStackValue(offs-1)).func));
-					func = OS_VALUE_VARIANT(os->core->getStackValue(offs-1)).func;
-					break;
-
-				case OS_VALUE_TYPE_CFUNCTION:
-					os->setException(OS_TEXT("apply named arguments is not supported for external function"));
-					return 0;
-
-				default:
-					os->setException(String::format(os, OS_TEXT("apply named arguments is not supported for %s"), os->getTypeStr(offs-1).toChar()));
-					return 0;
-				}
-				if(func){
-					Core::FunctionDecl * func_decl = func->func_decl;
-					int num_params = func_decl->num_params;
-					Core::Value value;
-					Core::GCValue * table_value = OS_VALUE_VARIANT(params_var).value;
-					for(int i = Core::PRE_VARS; i < num_params; i++){ // skip func & this
-						if(os->core->getPropertyValue(value, table_value, func_decl->locals[i].name, true))
-							os->core->pushValue(value);
-						else
-							os->core->pushNull();
-					}
-					os->call(num_params - Core::PRE_VARS, need_ret_values, OS_CALLTYPE_FUNC);
-					return need_ret_values;
-				}
-			}
-			os->call(0, need_ret_values, OS_CALLTYPE_FUNC);
-			return need_ret_values;
-		}
-
-		static int call(OS * os, int params, int, int need_ret_values, void*)
-		{
-			os->call(params-1, need_ret_values, OS_CALLTYPE_FUNC);
-			return need_ret_values;
-		}
-
+			// TODO: correct?
+			os->setException(OS_TEXT("you should not create function using Function() syntax"));
+			return 0;
+		} */
 		static int applyEnv(OS * os, int params, int, int need_ret_values, void *)
 		{
 			Core::Value save_env;
@@ -25160,7 +25168,7 @@ void OS::initFunctionClass()
 				OS_VALUE_VARIANT(func).func->env = os->core->getStackValue(-params).getGCValue();
 			}
 			os->remove(-params);
-			int r = apply(os, params-1, 0, need_ret_values, NULL);
+			int r = Core::prototypeFunctionApply(os, params-1, 0, need_ret_values, NULL);
 			if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_FUNCTION){
 				OS_VALUE_VARIANT(func).func->env = save_env;
 			}
@@ -25176,25 +25184,16 @@ void OS::initFunctionClass()
 				OS_VALUE_VARIANT(func).func->env = os->core->getStackValue(-params).getGCValue();
 			}
 			os->remove(-params);
-			int r = call(os, params-1, 0, need_ret_values, NULL);
+			int r = Core::prototypeFunctionCall(os, params-1, 0, need_ret_values, NULL);
 			if(OS_VALUE_TYPE(func) == OS_VALUE_TYPE_FUNCTION){
 				OS_VALUE_VARIANT(func).func->env = save_env;
 			}
 			return r;
 		}
-		
-		static int construct(OS * os, int params, int, int, void*)
-		{
-			// TODO: correct?
-			os->setException(OS_TEXT("you should not create function using Function() syntax"));
-			return 0;
-		}
 	};
 	FuncDef list[] = {
-		{core->strings->__construct, Function::construct},
-		{OS_TEXT("apply"), Function::apply},
+		// {core->strings->__construct, Function::construct},
 		{OS_TEXT("applyEnv"), Function::applyEnv},
-		{OS_TEXT("call"), Function::call},
 		{OS_TEXT("callEnv"), Function::callEnv},
 		{}
 	};
@@ -26421,7 +26420,7 @@ void OS::Core::call(int start_pos, int call_params, int ret_values, GCValue * se
 			allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
 		}else{
 			Value value;
-			Value class_value = func; // we should create stack value here because of call stack could be resized
+			Value class_value = func; // we should create stack value here because of stack could be resized
 			bool prototype_enabled = false;
 			if(getPropertyValue(value, class_value, strings->__instantiable, prototype_enabled) && valueToBool(value)){
 				prototype_enabled = true;
