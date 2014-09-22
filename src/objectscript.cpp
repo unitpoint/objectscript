@@ -5578,7 +5578,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		return exp;
 	}
 	Expression * exp1, * exp2, * exp_xconst;
-	int stack_pos, b;
+	int stack_pos, b, ret_slot;
 	bool no_pop;
 	ExpressionType exp_type;
 	switch(exp->type){
@@ -6296,6 +6296,8 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		exp2->ret_values = 1;
 		exp->list.add(exp2 OS_DBG_FILEPOS);
 
+		ret_slot = exp1->slots.a;
+
 		switch(exp1->type){
 		case EXP_TYPE_MOVE:
 			if(exp1->slots.b >= scope->function->num_locals){
@@ -6345,6 +6347,7 @@ OS::Core::Compiler::Expression * OS::Core::Compiler::postCompileNewVM(Scope * sc
 		scope->function->stack_cur_size = stack_pos + exp->ret_values;
 		OS_ASSERT(scope->function->stack_cur_size >= scope->function->num_locals && scope->function->stack_cur_size <= scope->function->stack_size);
 
+		exp->slots.a = ret_slot;
 		exp->slots.b = 0;
 		exp->type = EXP_TYPE_CODE_LIST;
 
