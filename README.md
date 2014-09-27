@@ -79,6 +79,8 @@ Apache config example (for __os-fcgi__)
 * [OS2D binaries](https://github.com/unitpoint/os2d-bin-win) is OS2D binaries and executables examples for Windows
 * [CastleMonster](https://github.com/unitpoint/CastleMonster) is opensource old school battle mobile game made with OS2D
 * [CastleMonster binaries](https://github.com/unitpoint/CastleMonster-bin-win) is CastleMonster binaries and executables files for Windows
+* [eXeXeXeX](https://github.com/unitpoint/eXeXeXeX) is opensource is a 4X genre of strategy-based video game made with OS2D
+* [eXeXeXeX binaries](https://github.com/unitpoint/eXeXeXeX-bin-win) is eXeXeXeX binaries and executables files for Windows
 * [ObjectScript](https://github.com/unitpoint/objectscript) is ObjectScript language repository of full opensource code
 * [ObjectScript binaries](https://github.com/unitpoint/objectscript-bin-win) is ObjectScript binaries and executables files for Windows (os.exe & os-fcgi.exe included)
 * [objectscript.org](http://objectscript.org) is ObjectScript site
