@@ -4114,7 +4114,32 @@ bool OS::Core::Compiler::compile()
 		break;
 
 	case ERROR_SYNTAX:
-		dump += OS_TEXT(" SYNTAX");
+		if(tokenizer->isError()){
+			OS_ASSERT(!error_token);
+			switch(tokenizer->getErrorCode()){
+			case Tokenizer::ERROR_MULTI_LINE_COMMENT:	// multi line comment not end
+				dump += OS_TEXT(" TOKENIZER_MULTI_LINE_COMMENT");
+				break;
+
+			case Tokenizer::ERROR_CONST_STRING:			// string not end
+				dump += OS_TEXT(" TOKENIZER_CONST_STRING");
+				break;
+
+			case Tokenizer::ERROR_CONST_STRING_ESCAPE_CHAR:	// string escape error
+				dump += OS_TEXT(" TOKENIZER_CONST_STRING_ESCAPE_CHAR");
+				break;
+
+			default:
+				OS_ASSERT(false);
+				// no break
+
+			case Tokenizer::ERROR_SYNTAX:
+				dump += OS_TEXT(" TOKENIZER_SYNTAX");
+				break;
+			}
+		}else{
+			dump += OS_TEXT(" SYNTAX");
+		}
 		break;
 
 	case ERROR_NESTED_ROOT_BLOCK:
