@@ -83,8 +83,10 @@ using namespace ObjectScript;
 #define has_v		1	/* -v */
 #define has_e		2	/* -e */
 #define has_E		3	/* -E */
+#define has_cache	4	/* -cache */
+#define has_debug	5	/* -debug */
 
-#define NUM_HAS		4	/* number of 'has_*' */
+#define NUM_HAS		6	/* number of 'has_*' */
 
 #ifndef OS_PROMPT
 #define OS_PROMPT	"> "
@@ -106,17 +108,24 @@ char init_cache_path[128] =
 #endif
 ;
 
+bool use_cache = false;
 time_t start_time = 0;
+
+void createCacheDir()
+{
+#ifdef _MSC_VER
+	_mkdir(init_cache_path);
+#else
+	mkdir(init_cache_path, 0755);
+#endif
+}
 
 void initStartTime()
 {
+	createCacheDir();
+
 	char touch_filename[256];
 	strcpy(touch_filename, init_cache_path);
-#ifdef _MSC_VER
-	_mkdir(touch_filename);
-#else
-	mkdir(touch_filename, 0755);
-#endif
 	strcat(touch_filename, "/os-cache-touch");
 	std::remove(touch_filename);
 
@@ -210,21 +219,21 @@ public:
 		header_sent = false;
 	}
 
-	void initPreScript()
+	void initSettings()
 	{
+		OS::initSettings();
+
 #if defined _MSC_VER && defined OS_DEBUG
 		setSetting(OS_SETTING_CREATE_TEXT_EVAL_OPCODES, false);
-		setSetting(OS_SETTING_CREATE_TEXT_OPCODES, true);
+		setSetting(OS_SETTING_CREATE_TEXT_OPCODES, false);
 #else
 		setSetting(OS_SETTING_CREATE_TEXT_EVAL_OPCODES, false);
 		setSetting(OS_SETTING_CREATE_TEXT_OPCODES, false);
 #endif
 		setSetting(OS_SETTING_CREATE_DEBUG_INFO, true);
-		setSetting(OS_SETTING_CREATE_COMPILED_FILE, true);
+		setSetting(OS_SETTING_CREATE_COMPILED_FILE, false);
 
 		setSetting(OS_SETTING_SOURCECODE_MUST_EXIST, true);
-
-		OS::initPreScript();
 	}
 
 	void initEnv(const char * var_name, char ** envp)
@@ -285,6 +294,9 @@ public:
 
 	OS_EFileUseType checkFileUsage(const String& sourcecode_filename, const String& compiled_filename)
 	{
+		if(!use_cache){
+			return COMPILE_SOURCECODE_FILE;
+		}
 		struct stat sourcecode_st, compiled_st;
 		stat(sourcecode_filename, &sourcecode_st);
 		stat(compiled_filename, &compiled_st);
@@ -397,6 +409,8 @@ public:
 			"  -l name  require library 'name'\n"
 			"  -v       show version information\n"
 			"  -E       ignore environment variables\n"
+			"  -cache   use cache of compiled files\n"
+			"  -debug   create debug human readable text files\n"
 			"  --       stop handling options\n"
 			"  -        stop handling options and execute stdin\n"
 			"examples:\n"
@@ -455,8 +469,17 @@ public:
 	int collectArgs(int argc, char **argv, int *args)
 	{
 		for(int i = 1; i < argc && argv[i] != NULL; i++){
-			if (argv[i][0] != '-')  /* not an option? */
+			if (argv[i][0] != '-'){ /* not an option? */
 				return i;
+			}
+			if(strcmp(argv[i]+1, "cache") == 0){
+				args[has_cache] = 1;
+				continue;
+			}
+			if(strcmp(argv[i]+1, "debug") == 0){
+				args[has_debug] = 1;
+				continue;
+			}
 			switch (argv[i][1]) {  /* option */
 			case '-':
 				noextrachars(argv[i]);
@@ -490,7 +513,8 @@ public:
 						return -(i - 1);  /* no next argument or it is another option */
 				}
 				break;
-			default:  /* invalid option; return its index... */
+			default:  
+				/* invalid option; return its index... */
 				return -i;  /* ...as a negative value */
 			}
 		}
@@ -680,7 +704,7 @@ public:
 			return;
 		}
 		int args[NUM_HAS];
-		args[has_i] = args[has_v] = args[has_e] = args[has_E] = 0;
+		OS_MEMSET(&args, 0, sizeof(args));
 		int script = collectArgs(argc, argv, args);
 		// pushStackValue(OS_REGISTER_USERPOOL);
 		if(script < 0){
@@ -695,6 +719,15 @@ public:
 		}else{
 			extern char **environ;
 			initEnv("_ENV", environ);
+		}
+		if(args[has_cache]){
+			use_cache = true;
+			initStartTime();
+			setSetting(OS_SETTING_CREATE_COMPILED_FILE, true);
+		}
+		if(args[has_debug]){
+			createCacheDir();
+			setSetting(OS_SETTING_CREATE_TEXT_OPCODES, true);
 		}
 		
 		getGlobal("process");
@@ -863,8 +896,6 @@ int _tmain(int argc, _TCHAR* _argv[])
 int main(int argc, char * argv[])
 {
 #endif
-
-	initStartTime();
 
 #if 1
 	ConsoleOS * os = OS::create(new ConsoleOS());
