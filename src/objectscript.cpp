@@ -4271,27 +4271,30 @@ void OS::Core::Compiler::resetError()
 
 void OS::Core::Compiler::setError(ErrorType value, TokenData * error_token)
 {
-	OS_ASSERT(!isError());
-	error = value;
-	this->error_token = error_token;
-	expect_token_type = Tokenizer::NOTHING;
+	if(!isError()){
+		error = value;
+		this->error_token = error_token;
+		expect_token_type = Tokenizer::NOTHING;
+	}
 }
 
 void OS::Core::Compiler::setError(TokenType expect_token_type, TokenData * error_token)
 {
-	OS_ASSERT(!isError());
-	error = ERROR_EXPECT_TOKEN_TYPE;
-	this->error_token = error_token;
-	this->expect_token_type = expect_token_type;
+	if(!isError()){
+		error = ERROR_EXPECT_TOKEN_TYPE;
+		this->error_token = error_token;
+		this->expect_token_type = expect_token_type;
+	}
 }
 
 void OS::Core::Compiler::setError(const String& str, TokenData * error_token)
 {
-	OS_ASSERT(!isError());
-	error = ERROR_EXPECT_TOKEN_STR;
-	this->error_token = error_token;
-	expect_token_type = Tokenizer::NOTHING;
-	expect_token = str;
+	if(!isError()){
+		error = ERROR_EXPECT_TOKEN_STR;
+		this->error_token = error_token;
+		expect_token_type = Tokenizer::NOTHING;
+		expect_token = str;
+	}
 }
 
 bool OS::Core::Compiler::isError()
