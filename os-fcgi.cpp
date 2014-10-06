@@ -227,11 +227,10 @@ public:
 	String md5(const String& buf)
 	{
 		getGlobal(OS_TEXT("hashlib"));
-		getProperty(OS_TEXT("md5"));
+		getProperty(-1, OS_TEXT("md5"));
 		OS_ASSERT(isFunction());
-		pushNull();
 		pushString(buf);
-		call(1, 1);
+		callTF(1, 1);
 		OS_ASSERT(isString());
 		return popString();
 	}
@@ -311,7 +310,7 @@ public:
 		getGlobal("triggerShutdownFunctions");
 		OS_ASSERT(isFunction() || isNull());
 		pushGlobals();
-		call();
+		callFT();
 	}
 
 	void triggerCleanupFunctions()
@@ -320,7 +319,7 @@ public:
 		getGlobal("triggerCleanupFunctions");
 		OS_ASSERT(isFunction() || isNull());
 		pushGlobals();
-		call();
+		callFT();
 	}
 
 	void initGlobalFunctions()
@@ -458,19 +457,15 @@ public:
 				char * assign = strchr(form, '=');
 				if(assign){
 					getGlobal("url");
-					getProperty("decode");
+					getProperty(-1, "decode");
 					OS_ASSERT(isFunction());
-					// pushCFunction(urlDecode);
-					pushNull();
 					pushString(form, assign - form);
-					call(1, 1);
+					callTF(1, 1);
 					String name = popString();
 
 					getGlobal("url");
-					getProperty("decode");
+					getProperty(-1, "decode");
 					OS_ASSERT(isFunction());
-					// pushCFunction(urlDecode);
-					pushNull();
 					char * value_str = assign+1;
 					char * end_str = strchr(value_str, '&');
 					if(end_str){
@@ -480,7 +475,7 @@ public:
 						pushString(value_str);
 						form = NULL;
 					}
-					call(1, 1);
+					callTF(1, 1);
 					String value = popString();
 					
 					getGlobal("_POST");

@@ -256,11 +256,10 @@ public:
 	String md5(const String& buf)
 	{
 		getGlobal(OS_TEXT("hashlib"));
-		getProperty(OS_TEXT("md5"));
+		getProperty(-1, OS_TEXT("md5"));
 		OS_ASSERT(isFunction());
-		pushNull();
 		pushString(buf);
-		call(1, 1);
+		callTF(1, 1);
 		OS_ASSERT(isString());
 		return popString();
 	}
@@ -330,7 +329,7 @@ public:
 		getGlobal("triggerShutdownFunctions");
 		OS_ASSERT(isFunction() || isNull());
 		pushGlobals();
-		call();
+		callFT();
 	}
 
 	void triggerCleanupFunctions()
@@ -339,7 +338,7 @@ public:
 		getGlobal("triggerCleanupFunctions");
 		OS_ASSERT(isFunction() || isNull());
 		pushGlobals();
-		call();
+		callFT();
 	}
 
 	void initGlobalFunctions()
@@ -661,7 +660,7 @@ public:
 			int offs = getAbsoluteOffs(-1);
 			pushNull();
 			int res_count = 10; // getAbsoluteOffs(-1) - offs;
-			call(0, res_count);
+			callFT(0, res_count);
 			ok = !isExceptionSet();
 			if(!ok){
 				handleException();
@@ -681,10 +680,10 @@ public:
 						pushStackValue(offs + i);
 						// pushString("\n");
 					}
-					call(count * 1, 0);
+					callFT(count * 1, 0);
 				}else{
 					// pop(2);
-					call(0, 0);
+					callFT(0, 0);
 				}
 				pop(res_count);
 			}
