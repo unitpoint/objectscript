@@ -74,7 +74,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.3.13-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.4-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -325,6 +325,18 @@ namespace ObjectScript
 	{
 		OS_CALLTYPE_AUTO,
 		OS_CALLTYPE_FUNC
+	};
+
+	enum OS_ECallEnter
+	{
+		OS_CALLENTER_ALLOW_ONLY_ENTER,
+		OS_CALLENTER_EXECUTE_AND_RETURN,
+	};
+
+	enum OS_CallThisUsage
+	{
+		OS_CALLTHIS_FUNCTION_OVERWRITE,
+		OS_CALLTHIS_KEEP_STACK_VALUE,
 	};
 
 	class OS
@@ -1374,8 +1386,8 @@ namespace ObjectScript
 #define OS_SET_VALUE_NUMBER(a, n)	((OS_VALUE_NUMBER(a) = (OS_NUMBER)(n)), OS_SET_VALUE_TYPE(a, OS_VALUE_TYPE_NUMBER))
 #define OS_SET_VALUE_TYPE(a, t)		(OS_VALUE_TAGGED_TYPE(a) = OS_MAKE_VALUE_TAGGED_TYPE(t))
 #define OS_SET_VALUE_TYPE_GC(a, t)	do{ OS_ASSERT((t) >= OS_VALUE_MIN_GC_TYPE); (OS_VALUE_TAGGED_TYPE(a) = (t) | OS_VALUE_MARK_GC_TYPE); }while(false)
-#define OS_SET_VALUE_NULL(a) (OS_VALUE_VARIANT(a).value = NULL, OS_SET_VALUE_TYPE((a), OS_VALUE_TYPE_NULL))
-#define OS_SET_NULL_VALUES(a, c) do{ Value * v = a; for(int count = c; count > 0; --count, ++v) OS_SET_VALUE_NULL(*v); }while(false)
+#define OS_SET_VALUE_NULL(a) do{ Value& local_value_7 = (a); OS_VALUE_VARIANT(local_value_7).value = NULL; OS_SET_VALUE_TYPE(local_value_7, OS_VALUE_TYPE_NULL); }while(false)
+#define OS_SET_NULL_VALUES(a, c) do{ Value * local_value_9 = (a); for(int count = c; count > 0; --count, ++local_value_9) OS_SET_VALUE_NULL(*local_value_9); }while(false)
 
 #elif !defined(OS_NUMBER_IEEEENDIAN)
 #error option 'OS_NUMBER_NAN_TRICK' needs 'OS_NUMBER_IEEEENDIAN'
@@ -1397,8 +1409,8 @@ namespace ObjectScript
 // #define OS_SET_VALUE_OBJECT(a, v)	(OS_VALUE_VARIANT(a) = (v))
 #define OS_SET_VALUE_TYPE(a, t)		(OS_VALUE_TAGGED_TYPE(a) = OS_MAKE_VALUE_TAGGED_TYPE(t))
 #define OS_SET_VALUE_TYPE_GC(a, t)	do{ OS_ASSERT((t) >= OS_VALUE_MIN_GC_TYPE); (OS_VALUE_TAGGED_TYPE(a) = (t) | OS_NUMBER_NAN_MARK | OS_VALUE_MARK_GC_TYPE); OS_ASSERT(OS_VALUE_TYPE(a) == (t)); }while(false)
-#define OS_SET_VALUE_NULL(a) (OS_VALUE_VARIANT(a).value = NULL, OS_SET_VALUE_TYPE((a), OS_VALUE_TYPE_NULL))
-#define OS_SET_NULL_VALUES(a, c) do{ Value * v = (a); for(int count = c; count > 0; --count, ++v) OS_SET_VALUE_NULL(*v); }while(false)
+#define OS_SET_VALUE_NULL(a) do{ Value& local_value_7 = (a); OS_VALUE_VARIANT(local_value_7).value = NULL; OS_SET_VALUE_TYPE(local_value_7, OS_VALUE_TYPE_NULL); }while(false)
+#define OS_SET_NULL_VALUES(a, c) do{ Value * local_value_9 = (a); for(int count = c; count > 0; --count, ++local_value_9) OS_SET_VALUE_NULL(*local_value_9); }while(false)
 
 #if OS_NUMBER_IEEEENDIAN == 0
 				union {
@@ -1465,6 +1477,7 @@ namespace ObjectScript
 				Program * prog; // retained
 				FunctionDecl * func_decl;
 				Value env;
+				Value self;
 				Locals * locals; // retained
 
 				GCFunctionValue();
@@ -2736,7 +2749,7 @@ namespace ObjectScript
 			bool isValueExist(GCValue*);
 #endif
 
-			GCFunctionValue * pushFunctionValue(StackFunction*, Program*, FunctionDecl*, Value env);
+			GCFunctionValue * pushFunctionValue(StackFunction*, Program*, FunctionDecl*, Value env, Value self);
 			void clearFunctionValue(GCFunctionValue*);
 
 			void releaseLocals(Locals*);
@@ -2953,10 +2966,12 @@ namespace ObjectScript
 			void execute();
 			void reloadStackFunctionCache();
 
-			void call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func, OS_ECallType call_type);
-			void call(int params, int ret_values, GCValue * self_for_proto, bool allow_only_enter_func, OS_ECallType call_type);
-			void call(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
-			void callTF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
+			void callFT(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_CallThisUsage call_this_usage);
+			void callFT(int params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_CallThisUsage call_this_usage);
+			
+			void callFT(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+			void callTF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+			void callF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
 
 			static int prototypeFunctionApply(OS * os, int params, int, int need_ret_values, void*);
 			static int prototypeFunctionCall(OS * os, int params, int, int need_ret_values, void*);
@@ -3247,10 +3262,18 @@ namespace ObjectScript
 		bool compile(const String& str, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 		bool compile(OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
-		void call(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);	// stack: func, this, params
-		void callFT(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);	// stack: func, this, params
-		void callTF(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO); // stack: this, func, params
+		// deprecated, use callFT, callTF or callF
+		// void call(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
 		
+		// stack: func + this + params
+		void callFT(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+
+		// stack: this + func + params
+		void callTF(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+		
+		// stack: func + params, it uses function's this
+		void callF(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);
+
 		void eval(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 		void eval(const String& str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 
