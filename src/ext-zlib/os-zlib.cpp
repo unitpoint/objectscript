@@ -26,7 +26,7 @@ public:
 		os->getGlobal(OS_TEXT("Exception"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -35,7 +35,7 @@ public:
 		os->getGlobal(OS_TEXT("Exception"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 

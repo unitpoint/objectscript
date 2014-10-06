@@ -21,7 +21,7 @@ public:
 		os->getGlobal(OS_TEXT("ODBOException"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -30,7 +30,7 @@ public:
 		os->getGlobal(OS_TEXT("ODBOException"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -315,14 +315,14 @@ public:
 			OS * os = owner->os;
 			
 			os->pushValueById(owner->dateTimeId);
-			os->pushNull();
+			os->pushGlobals();
 			os->pushNumber(date.tm_year + 1900);
 			os->pushNumber(date.tm_mon + 1);
 			os->pushNumber(date.tm_mday);
 			os->pushNumber(date.tm_hour);
 			os->pushNumber(date.tm_min);
 			os->pushNumber(date.tm_sec);
-			os->call(6, 1);
+			os->callFT(6, 1);
 
 			/*
 			char value[32];

@@ -16,7 +16,7 @@ public:
 		os->pushGlobals();
 		os->pushString(sqlite3_errstr(code));
 		os->pushNumber(code);
-		os->call(2, 1);
+		os->callFT(2, 1);
 		os->setException();
 	}
 
@@ -25,7 +25,7 @@ public:
 		os->getGlobal(OS_TEXT("SqliteException"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 

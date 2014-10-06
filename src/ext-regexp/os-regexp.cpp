@@ -24,7 +24,7 @@ public:
 		os->getGlobal(OS_TEXT("RegexpException"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -810,8 +810,7 @@ public:
 
 			os->pushValueById(function_id);
 			OS_ASSERT(os->isFunction());
-			os->pushNull(); // this for function
-
+			
 			os->newObject();
 			for (int i = 0; i < count; i++) {
 				if (subpat_names[i]) {
@@ -820,7 +819,7 @@ public:
 				addNextString(&subject[offsets[i<<1]], offsets[(i<<1)+1] - offsets[i<<1]);
 			}
 			os->pushString(subject_str);
-			os->call(2, 1);
+			os->callF(2, 1);
 			return os->popString();
 		}
 

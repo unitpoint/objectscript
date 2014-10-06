@@ -76,7 +76,7 @@ public:
 		os->newObject();
 		os->pushNumber(time);
 		os->setProperty(-2, OS_TEXT("ticks"));
-		os->call(1, 1);
+		os->callFT(1, 1);
 	}
 				
 	static int statFunc(OS * os, int params, int, int, void*)
