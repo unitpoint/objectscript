@@ -2189,6 +2189,11 @@ void initDateTimeExtension(OS* os)
 	DateTimeOS::initExtension(os);
 }
 
+double getTimeSec()
+{
+	return DateTimeOS::currentTime();
+}
+
 bool timelib_is_leap(timelib_sll year)
 {
 	return DateTimeOS::isLeapyear((long)year, CALENDAR_GREGORIAN);

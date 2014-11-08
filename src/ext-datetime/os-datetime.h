@@ -38,6 +38,12 @@ namespace ObjectScript {
 	*/
 	void initDateTimeExtension(OS* os);
 
+	/* 
+		Returns the current time in Unix ticks.
+		The function tries to use the most accurate API available on the system.
+	*/
+	double getTimeSec();
+
 };
 
 #endif // __OS_EXT_DATETIME_H__
