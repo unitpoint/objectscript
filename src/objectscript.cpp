@@ -128,12 +128,10 @@ static void checkFlagClear(int instruction, int flag)
 #else // OS_MAX_GENERIC_CONST_INDEX == 0
 
 #define OS_GETARG_B_VALUE() ((instruction) & OS_OPCODE_CONST_B ? \
-	(stack_func_prog_values[b]) \
-	: (stack_func_locals[b]))
+	(stack_func_prog_values[b]) : (stack_func_locals[b]))
 
 #define OS_GETARG_C_VALUE() ((instruction) & OS_OPCODE_CONST_C ? \
-	(stack_func_prog_values[c]) \
-	: (stack_func_locals[c]))
+	(stack_func_prog_values[c]) : (stack_func_locals[c]))
 
 #endif // OS_MAX_GENERIC_CONST_INDEX == 0
 
@@ -215,12 +213,10 @@ static void checkFlagClear(int instruction, int flag)
 #define OS_MAX_GENERIC_CONST_INDEX ((1<<(OS_SIZE_B-1))-1)
 
 #define OS_GETARG_B_VALUE() ((instruction) & OS_OPCODE_CONST_B ? \
-	(stack_func_prog_values[b]) \
-	: (stack_func_locals[b]))
+	(stack_func_prog_values[b]) : (stack_func_locals[b]))
 
 #define OS_GETARG_C_VALUE() ((instruction) & OS_OPCODE_CONST_C ? \
-	(stack_func_prog_values[c]) \
-	: (stack_func_locals[c]))
+	(stack_func_prog_values[c]) : (stack_func_locals[c]))
 
 #define OS_CASE_OPCODE_ALL(opcode) case ((opcode)<<2): case (((opcode)<<2)|OS_OPCODE_CONST_B): case (((opcode)<<2)|OS_OPCODE_CONST_C): case (((opcode)<<2)|OS_OPCODE_CONST_B|OS_OPCODE_CONST_C)
 #define OS_CASE_OPCODE(opcode) case ((opcode)<<2)
@@ -687,6 +683,25 @@ OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a)
 	/* %G already handles removing trailing zeros from the fractional part */ 
 	OS_SNPRINTF(dst, sizeof(OS_CHAR)*127, FloatFormatStr<OS_NUMBER>::autoFmt(), a < 1e10 ? 15 : 30, a);
 	return dst;
+}
+
+double OS::Utils::round(double a, int precision)
+{
+	if(precision <= 0){
+		if(precision < 0){
+			double p = 10.0;
+			for(int i = -precision-1; i > 0; i--){
+				p *= 10.0;
+			}
+			return ::floor(a / p + 0.5) * p;
+		}
+		return ::floor(a + 0.5);
+	}
+	double p = 10.0;
+	for(int i = precision-1; i > 0; i--){
+		p *= 10.0;
+	}
+	return ::floor(a * p + 0.5) / p;
 }
 
 OS_CHAR * OS::Utils::numToStr(OS_CHAR * dst, OS_FLOAT a, int precision)
@@ -14956,6 +14971,16 @@ void OS::setMemBreakpointId(int id)
 	memory_manager->setBreakpointId(id);
 }
 
+int OS::getMaxCallStack()
+{
+	return core->max_call_stack;
+}
+
+void OS::setMaxCallStack(int value)
+{
+	core->max_call_stack = value;
+}
+
 bool OS::isTerminated()
 {
 	return core->terminated;
@@ -14968,6 +14993,7 @@ int OS::getTerminatedCode()
 
 void OS::setTerminated(bool terminated, int code)
 {
+	core->call_stack_overflow = false;
 	core->terminated = terminated;
 	core->terminated_code = code;
 	core->setValue(core->terminated_exception, Core::Value());
@@ -14976,6 +15002,7 @@ void OS::setTerminated(bool terminated, int code)
 void OS::resetTerminated()
 {
 	if(core->terminated){
+		core->call_stack_overflow = false;
 		core->terminated = false;
 		core->terminated_code = 0;
 		core->setValue(core->terminated_exception, Core::Value());
@@ -15024,6 +15051,8 @@ void OS::Core::setExceptionValue(Value val)
 			return;
 		}
 	}
+	OS_ASSERT(!call_stack_overflow);
+	call_stack_overflow = false;
 	terminated = false;
 	terminated_code = 0;
 	setValue(terminated_exception, Value());
@@ -15071,6 +15100,7 @@ OS::Core::Core(OS * p_allocator)
 	num_created_values = 0;
 	num_destroyed_values = 0;
 
+	max_call_stack = 80;
 	stack_func = NULL;
 	stack_func_locals = NULL;
 	stack_func_env_index = 0;
@@ -15097,6 +15127,7 @@ OS::Core::Core(OS * p_allocator)
 	rand_seed = 0;
 	rand_left = 0;
 
+	call_stack_overflow = false;
 	terminated = false;
 	terminated_code = 0;
 }
@@ -17315,6 +17346,7 @@ bool OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 	int left_type = OS_VALUE_TYPE(left_value);
 	int right_type = OS_VALUE_TYPE(right_value);
 	bool exist = left_type != OS_VALUE_TYPE_NULL && right_type != OS_VALUE_TYPE_NULL;
+	Value * tempValue;
 
 	switch(left_type){
 	case OS_VALUE_TYPE_NULL:
@@ -17484,7 +17516,14 @@ bool OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			}
 			if(exist){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
-				stack_values.lastElement() = valueToNumber(stack_values.lastElement()) == (OS_NUMBER)0.0;
+				switch(OS_VALUE_TYPE(*(tempValue = &stack_values.lastElement()))){
+				case OS_VALUE_TYPE_NUMBER:
+					stack_values.lastElement() = OS_VALUE_NUMBER(*tempValue) == (OS_NUMBER)0.0;
+					break;
+
+				default:
+					stack_values.lastElement() = false;
+				}
 			}else{
 				pushBool(false);
 			}
@@ -17502,7 +17541,15 @@ bool OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			}
 			if(exist){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
-				stack_values.lastElement() = valueToNumber(stack_values.lastElement()) >= (OS_NUMBER)0.0;
+				// stack_values.lastElement() = valueToNumber(stack_values.lastElement()) >= (OS_NUMBER)0.0;
+				switch(OS_VALUE_TYPE(*(tempValue = &stack_values.lastElement()))){
+				case OS_VALUE_TYPE_NUMBER:
+					stack_values.lastElement() = OS_VALUE_NUMBER(*tempValue) >= (OS_NUMBER)0.0;
+					break;
+
+				default:
+					stack_values.lastElement() = exist = false;
+				}
 			}else{
 				pushBool(false);
 			}
@@ -17520,7 +17567,15 @@ bool OS::Core::pushOpResultValue(OpcodeType opcode, const Value& left_value, con
 			}
 			if(exist){
 				Lib::pushObjectMethodOpcodeValue(this, strings->__cmp, strings->__rcmp, left_value, right_value);
-				stack_values.lastElement() = valueToNumber(stack_values.lastElement()) > (OS_NUMBER)0.0;
+				// stack_values.lastElement() = valueToNumber(stack_values.lastElement()) > (OS_NUMBER)0.0;
+				switch(OS_VALUE_TYPE(*(tempValue = &stack_values.lastElement()))){
+				case OS_VALUE_TYPE_NUMBER:
+					stack_values.lastElement() = OS_VALUE_NUMBER(*tempValue) > (OS_NUMBER)0.0;
+					break;
+
+				default:
+					stack_values.lastElement() = exist = false;
+				}
 			}else{
 				pushBool(false);
 			}
@@ -19475,7 +19530,7 @@ void OS::Core::execute()
 		}
 #endif
 		if(terminated){
-			if(!terminated_exception.isNull()){
+			if(!terminated_exception.isNull() && !call_stack_overflow){
 				for(;;){
 					stack_func = this->stack_func;
 					FunctionDecl * func_decl = stack_func->func->func_decl;
@@ -25310,9 +25365,14 @@ It's port from PHP framework.
 #define OS_RAND_GENERATE_SEED() (((long) (time(0))) ^ ((long) (1000000.0)))
 #endif 
 
-void OS::Core::randInitialize(OS_U32 seed)
+int OS::Core::getRandSeed()
 {
-	rand_seed = seed;
+	return rand_seed;
+}
+
+void OS::Core::setRandSeed(int seed)
+{
+	rand_seed = (OS_U32)seed;
 
 	OS_U32 * s = rand_state;
 	OS_U32 * r = s;
@@ -25353,7 +25413,7 @@ double OS::Core::getRand()
 
 	if(!rand_left){
 		if(!rand_next){
-			randInitialize(OS_RAND_GENERATE_SEED());
+			setRandSeed(OS_RAND_GENERATE_SEED());
 		}else{
 			randReload();
 		}
@@ -25375,6 +25435,36 @@ double OS::Core::getRand(double up)
 double OS::Core::getRand(double min, double max)
 {
 	return getRand() * (max - min) + min;
+}
+
+int OS::getRandSeed()
+{
+	return core->getRandSeed();
+}
+
+void OS::setRandSeed(int seed)
+{
+	core->setRandSeed(seed);
+}
+
+/* void OS::randReload()
+{
+	core->randReload();
+} */
+
+double OS::getRand()
+{
+	return core->getRand();
+}
+
+double OS::getRand(double up)
+{
+	return core->getRand(up);
+}
+
+double OS::getRand(double min, double max)
+{
+	return core->getRand(min, max);
 }
 
 #define OS_MATH_PI 3.1415926535897932384626433832795
@@ -25449,25 +25539,6 @@ void OS::initMathModule()
 		static double floor(double p)
 		{
 			return ::floor(p);
-		}
-
-		static double round(double a, int precision)
-		{
-			if(precision <= 0){
-				if(precision < 0){
-					double p = 10.0;
-					for(int i = -precision-1; i > 0; i--){
-						p *= 10.0;
-					}
-					return ::floor(a / p + 0.5) * p;
-				}
-				return ::floor(a + 0.5);
-			}
-			double p = 10.0;
-			for(int i = precision-1; i > 0; i--){
-				p *= 10.0;
-			}
-			return ::floor(a * p + 0.5) / p;
 		}
 
 		static double sin(double p)
@@ -25566,14 +25637,14 @@ void OS::initMathModule()
 
 		static int getRandomSeed(OS * os, int params, int, int, void*)
 		{
-			os->pushNumber((OS_NUMBER)os->core->rand_seed);
+			os->pushNumber((OS_NUMBER)os->core->getRandSeed());
 			return 1;
 		}
 
 		static int setRandomSeed(OS * os, int params, int, int, void*)
 		{
 			if(params > 0){
-				os->core->randInitialize((OS_U32)os->toNumber(-params));
+				os->core->setRandSeed((int)os->toNumber(-params));
 			}
 			return 0;
 		}
@@ -25636,7 +25707,7 @@ void OS::initMathModule()
 		def(OS_TEXT("abs"), Math::abs),
 		def(OS_TEXT("ceil"), Math::ceil),
 		def(OS_TEXT("floor"), Math::floor),
-		def(OS_TEXT("round"), Math::round),
+		def(OS_TEXT("round"), Utils::round),
 		def(OS_TEXT("sin"), Math::sin),
 		def(OS_TEXT("sinh"), Math::sinh),
 		def(OS_TEXT("cos"), Math::cos),
@@ -26338,208 +26409,218 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 void OS::Core::callFT(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_CallThisUsage call_this_usage)
 {
 	OS_ASSERT(start_pos >= OS_TOP_STACK_NULL_VALUES && call_params >= 2 && start_pos + call_params <= stack_values.count);
-	Value& func = stack_values[start_pos + PRE_VAR_FUNC];
-	switch(OS_VALUE_TYPE(func)){
-	case OS_VALUE_TYPE_FUNCTION:
-		{
-			OS_ASSERT(dynamic_cast<GCFunctionValue*>(OS_VALUE_VARIANT(func).func));
-			GCFunctionValue * func_value = OS_VALUE_VARIANT(func).func;
-			FunctionDecl * func_decl = func_value->func_decl;
+	if(!terminated){
+		Value& func = stack_values[start_pos + PRE_VAR_FUNC];
+		switch(OS_VALUE_TYPE(func)){
+		case OS_VALUE_TYPE_FUNCTION:
+			{
+				OS_ASSERT(dynamic_cast<GCFunctionValue*>(OS_VALUE_VARIANT(func).func));
+				GCFunctionValue * func_value = OS_VALUE_VARIANT(func).func;
+				FunctionDecl * func_decl = func_value->func_decl;
 
-			reserveStackValues(start_pos + (func_decl->stack_size > ret_values ? func_decl->stack_size : ret_values));
+				reserveStackValues(start_pos + (func_decl->stack_size > ret_values ? func_decl->stack_size : ret_values));
 			
-			if(call_stack_funcs.capacity < call_stack_funcs.count+1){
-				call_stack_funcs.capacity = call_stack_funcs.capacity > 0 ? call_stack_funcs.capacity*2 : 8;
-				OS_ASSERT(call_stack_funcs.capacity >= call_stack_funcs.count+1);
-
-				StackFunction * new_buf = (StackFunction*)malloc(sizeof(StackFunction)*call_stack_funcs.capacity OS_DBG_FILEPOS);
-				OS_MEMCPY(new_buf, call_stack_funcs.buf, sizeof(StackFunction) * call_stack_funcs.count);
-				free(call_stack_funcs.buf);
-				call_stack_funcs.buf = new_buf;
-			}
-
-			// it should be here before call_stack_funcs.count++ !!! don't move it
-			GCArrayValue * rest_arguments;
-			if(call_params > func_decl->num_params){
-				int num_extra_params = call_params - func_decl->num_params;
-				retainValue(rest_arguments = pushArrayValue(num_extra_params)); pop();
-				OS_MEMCPY(rest_arguments->values.buf, stack_values.buf + start_pos + func_decl->num_params, sizeof(Value) * num_extra_params);
-				retainValues(rest_arguments->values.buf, num_extra_params);
-				rest_arguments->values.count = num_extra_params;
-				call_params = func_decl->num_params;
-			}else{
-				rest_arguments = NULL;
-			}
-
-			StackFunction * stack_func = call_stack_funcs.buf + call_stack_funcs.count++;
-			stack_func->func = func_value;
-
-			stack_func->rest_arguments = rest_arguments;
-			stack_func->arguments = NULL;
-
-			stack_func->locals_stack_pos = start_pos;
-			stack_func->num_params = call_params;
-			
-			Locals * func_locals = (Locals*)(malloc(sizeof(Locals) + sizeof(Locals*) * func_decl->func_depth OS_DBG_FILEPOS));
-			func_locals->prog = func_value->prog->retain();
-			func_locals->func_decl = func_decl;
-			func_locals->values = stack_values.buf + stack_func->locals_stack_pos;
-			func_locals->is_stack_locals = true;
-			// func_locals->num_parents = func_decl->func_depth;
-			func_locals->ref_count = 1;
-			func_locals->gc_step_type = 0;
-			if(func_decl->func_depth > 0){
-				OS_ASSERT(func_value->locals && func_value->locals->func_decl->func_depth == func_decl->func_depth-1);
-				Locals ** parents = func_locals->getParents();
-				parents[0] = func_value->locals->retain();
-				if(func_decl->func_depth > 1){
-					OS_MEMCPY(parents+1, func_value->locals->getParents(), sizeof(Locals*) * (func_decl->func_depth-1));
-				}
-			}
-			stack_func->locals = func_locals;
-
-			int clear_values = func_decl->stack_size - call_params;
-			if(clear_values > 0){
-				OS_SET_NULL_VALUES(func_locals->values + call_params, clear_values); 
-			}
-
-			stack_func->need_ret_values = ret_values;
-			stack_func->opcodes = func_value->prog->opcodes.buf + func_decl->opcodes_pos;
-
-			if(self_for_proto){
-				retainValue(stack_func->self_for_proto = self_for_proto);
-			}else if(!(stack_func->self_for_proto = func_locals->values[PRE_VAR_THIS].getGCValue())){
-				switch(OS_VALUE_TYPE(func_locals->values[PRE_VAR_THIS])){
-				case OS_VALUE_TYPE_BOOL:
-					retainValue(stack_func->self_for_proto = prototypes[PROTOTYPE_BOOL]);
-					break;
-
-				case OS_VALUE_TYPE_NUMBER:
-					retainValue(stack_func->self_for_proto = prototypes[PROTOTYPE_NUMBER]);
-					break;
-
-				case OS_VALUE_TYPE_STRING:
-					retainValue(stack_func->self_for_proto = prototypes[PROTOTYPE_STRING]);
+				if(call_stack_funcs.count >= max_call_stack && !call_stack_overflow){
+					call_stack_overflow = true;
+					allocator->setException("call stack overflow");
 					break;
 				}
-			}else{
-				retainValue(stack_func->self_for_proto);
-			}
+				if(call_stack_funcs.capacity < call_stack_funcs.count+1){
+					call_stack_funcs.capacity = call_stack_funcs.capacity > 0 ? call_stack_funcs.capacity*2 : 8;
+					OS_ASSERT(call_stack_funcs.capacity >= call_stack_funcs.count+1);
 
-			stack_func->caller_stack_size = stack_values.count;
+					StackFunction * new_buf = (StackFunction*)malloc(sizeof(StackFunction)*call_stack_funcs.capacity OS_DBG_FILEPOS);
+					OS_MEMCPY(new_buf, call_stack_funcs.buf, sizeof(StackFunction) * call_stack_funcs.count);
+					free(call_stack_funcs.buf);
+					call_stack_funcs.buf = new_buf;
+				}
+
+				// it should be here before call_stack_funcs.count++ !!! don't move it
+				GCArrayValue * rest_arguments;
+				if(call_params > func_decl->num_params){
+					int num_extra_params = call_params - func_decl->num_params;
+					retainValue(rest_arguments = pushArrayValue(num_extra_params)); pop();
+					OS_MEMCPY(rest_arguments->values.buf, stack_values.buf + start_pos + func_decl->num_params, sizeof(Value) * num_extra_params);
+					retainValues(rest_arguments->values.buf, num_extra_params);
+					rest_arguments->values.count = num_extra_params;
+					call_params = func_decl->num_params;
+				}else{
+					rest_arguments = NULL;
+				}
+
+				StackFunction * stack_func = call_stack_funcs.buf + call_stack_funcs.count++;
+				stack_func->func = func_value;
+
+				stack_func->rest_arguments = rest_arguments;
+				stack_func->arguments = NULL;
+
+				stack_func->locals_stack_pos = start_pos;
+				stack_func->num_params = call_params;
 			
-			OS_ASSERT(stack_func->locals_stack_pos + func_decl->stack_size <= stack_values.capacity);
-			stack_values.count = stack_func->locals_stack_pos + func_decl->stack_size;
+				Locals * func_locals = (Locals*)(malloc(sizeof(Locals) + sizeof(Locals*) * func_decl->func_depth OS_DBG_FILEPOS));
+				func_locals->prog = func_value->prog->retain();
+				func_locals->func_decl = func_decl;
+				func_locals->values = stack_values.buf + stack_func->locals_stack_pos;
+				func_locals->is_stack_locals = true;
+				// func_locals->num_parents = func_decl->func_depth;
+				func_locals->ref_count = 1;
+				func_locals->gc_step_type = 0;
+				if(func_decl->func_depth > 0){
+					OS_ASSERT(func_value->locals && func_value->locals->func_decl->func_depth == func_decl->func_depth-1);
+					Locals ** parents = func_locals->getParents();
+					parents[0] = func_value->locals->retain();
+					if(func_decl->func_depth > 1){
+						OS_MEMCPY(parents+1, func_value->locals->getParents(), sizeof(Locals*) * (func_decl->func_depth-1));
+					}
+				}
+				stack_func->locals = func_locals;
 
-			if(call_this_usage == OS_CALLTHIS_FUNCTION_OVERWRITE){
-				func_locals->values[PRE_VAR_THIS] = func_value->self;
+				int clear_values = func_decl->stack_size - call_params;
+				if(clear_values > 0){
+					OS_SET_NULL_VALUES(func_locals->values + call_params, clear_values); 
+				}
+
+				stack_func->need_ret_values = ret_values;
+				stack_func->opcodes = func_value->prog->opcodes.buf + func_decl->opcodes_pos;
+
+				if(self_for_proto){
+					retainValue(stack_func->self_for_proto = self_for_proto);
+				}else if(!(stack_func->self_for_proto = func_locals->values[PRE_VAR_THIS].getGCValue())){
+					switch(OS_VALUE_TYPE(func_locals->values[PRE_VAR_THIS])){
+					case OS_VALUE_TYPE_BOOL:
+						retainValue(stack_func->self_for_proto = prototypes[PROTOTYPE_BOOL]);
+						break;
+
+					case OS_VALUE_TYPE_NUMBER:
+						retainValue(stack_func->self_for_proto = prototypes[PROTOTYPE_NUMBER]);
+						break;
+
+					case OS_VALUE_TYPE_STRING:
+						retainValue(stack_func->self_for_proto = prototypes[PROTOTYPE_STRING]);
+						break;
+					}
+				}else{
+					retainValue(stack_func->self_for_proto);
+				}
+
+				stack_func->caller_stack_size = stack_values.count;
+			
+				OS_ASSERT(stack_func->locals_stack_pos + func_decl->stack_size <= stack_values.capacity);
+				stack_values.count = stack_func->locals_stack_pos + func_decl->stack_size;
+
+				if(call_this_usage == OS_CALLTHIS_FUNCTION_OVERWRITE){
+					func_locals->values[PRE_VAR_THIS] = func_value->self;
+				}
+
+				func_locals->values[func_decl->num_params + POST_VAR_ENV] = func_value->env;
+				func_locals->values[func_decl->num_params + POST_VAR_GLOBALS] = global_vars;
+
+				reloadStackFunctionCache();
+
+				if(call_enter == OS_CALLENTER_ALLOW_ONLY_ENTER){
+					return;
+				}
+				return execute();
 			}
 
-			func_locals->values[func_decl->num_params + POST_VAR_ENV] = func_value->env;
-			func_locals->values[func_decl->num_params + POST_VAR_GLOBALS] = global_vars;
-
-			reloadStackFunctionCache();
-
-			if(call_enter == OS_CALLENTER_ALLOW_ONLY_ENTER){
+		case OS_VALUE_TYPE_CFUNCTION:
+			{
+				OS_ASSERT(dynamic_cast<GCCFunctionValue*>(OS_VALUE_VARIANT(func).cfunc));
+				OS_ASSERT(start_pos + call_params <= stack_values.count);
+				int save_stack_size = stack_values.count;
+				GCCFunctionValue * cfunc_value = OS_VALUE_VARIANT(func).cfunc;
+				if(cfunc_value->num_closure_values > 0){
+					reserveStackValues(start_pos + call_params + cfunc_value->num_closure_values);
+					Value * closure_values = (Value*)(cfunc_value + 1);
+					OS_MEMCPY(stack_values.buf + start_pos + call_params, closure_values, sizeof(Value)*cfunc_value->num_closure_values);
+				}
+				stack_values.count = start_pos + call_params + cfunc_value->num_closure_values;
+				int cur_ret_values;
+				try{
+					cur_ret_values = cfunc_value->func(allocator, call_params - 2, cfunc_value->num_closure_values, ret_values, cfunc_value->user_param);
+				}catch(...){
+					cur_ret_values = 0;
+					allocator->setException(OS_TEXT("internal error"));
+				}
+	#if 0		// does store closure values back?
+				if(cfunc_value->num_closure_values > 0){
+					Value * closure_values = (Value*)(cfunc_value + 1);
+					OS_MEMCPY(closure_values, stack_values.buf + start_pos + call_params, sizeof(Value)*cfunc_value->num_closure_values);
+				}
+	#endif
+				if(ret_values == 1){
+					if(cur_ret_values > 0){
+						stack_values.buf[start_pos] = stack_values.buf[stack_values.count - cur_ret_values];
+					}else{
+						OS_SET_VALUE_NULL(stack_values.buf[start_pos]);
+					}
+				}else if(ret_values > 0){
+					Value * stack_func_locals = stack_values.buf + stack_values.count - cur_ret_values;
+					if(ret_values <= cur_ret_values){
+						OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * ret_values);
+					}else{
+						if(cur_ret_values > 0){
+							OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * cur_ret_values);
+						}
+						OS_SET_NULL_VALUES(stack_values.buf + start_pos + cur_ret_values, ret_values - cur_ret_values);
+					}
+				}
+				if(save_stack_size > stack_values.count){
+					OS_ASSERT(save_stack_size <= stack_values.capacity);
+					OS_SET_NULL_VALUES(stack_values.buf + stack_values.count, save_stack_size - stack_values.count);
+				}
+				stack_values.count = save_stack_size;
 				return;
 			}
-			return execute();
-		}
 
-	case OS_VALUE_TYPE_CFUNCTION:
-		{
-			OS_ASSERT(dynamic_cast<GCCFunctionValue*>(OS_VALUE_VARIANT(func).cfunc));
-			OS_ASSERT(start_pos + call_params <= stack_values.count);
-			int save_stack_size = stack_values.count;
-			GCCFunctionValue * cfunc_value = OS_VALUE_VARIANT(func).cfunc;
-			if(cfunc_value->num_closure_values > 0){
-				reserveStackValues(start_pos + call_params + cfunc_value->num_closure_values);
-				Value * closure_values = (Value*)(cfunc_value + 1);
-				OS_MEMCPY(stack_values.buf + start_pos + call_params, closure_values, sizeof(Value)*cfunc_value->num_closure_values);
-			}
-			stack_values.count = start_pos + call_params + cfunc_value->num_closure_values;
-			int cur_ret_values;
-			try{
-				cur_ret_values = cfunc_value->func(allocator, call_params - 2, cfunc_value->num_closure_values, ret_values, cfunc_value->user_param);
-			}catch(...){
-				cur_ret_values = 0;
-				allocator->setException(OS_TEXT("internal error"));
-			}
-#if 0		// does store closure values back?
-			if(cfunc_value->num_closure_values > 0){
-				Value * closure_values = (Value*)(cfunc_value + 1);
-				OS_MEMCPY(closure_values, stack_values.buf + start_pos + call_params, sizeof(Value)*cfunc_value->num_closure_values);
-			}
-#endif
-			if(ret_values == 1){
-				if(cur_ret_values > 0){
-					stack_values.buf[start_pos] = stack_values.buf[stack_values.count - cur_ret_values];
-				}else{
-					OS_SET_VALUE_NULL(stack_values.buf[start_pos]);
-				}
-			}else if(ret_values > 0){
-				Value * stack_func_locals = stack_values.buf + stack_values.count - cur_ret_values;
-				if(ret_values <= cur_ret_values){
-					OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * ret_values);
-				}else{
-					if(cur_ret_values > 0){
-						OS_MEMMOVE(stack_values.buf + start_pos, stack_func_locals, sizeof(Value) * cur_ret_values);
-					}
-					OS_SET_NULL_VALUES(stack_values.buf + start_pos + cur_ret_values, ret_values - cur_ret_values);
-				}
-			}
-			if(save_stack_size > stack_values.count){
-				OS_ASSERT(save_stack_size <= stack_values.capacity);
-				OS_SET_NULL_VALUES(stack_values.buf + stack_values.count, save_stack_size - stack_values.count);
-			}
-			stack_values.count = save_stack_size;
-			return;
-		}
-
-	case OS_VALUE_TYPE_OBJECT:
-	case OS_VALUE_TYPE_USERDATA:
-	case OS_VALUE_TYPE_USERPTR:
-		if(call_type == OS_CALLTYPE_FUNC){
-			allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
-		}else{
-			Value value;
-			Value class_value = func; // we should create stack value here because of stack_values could be resized
-			bool prototype_enabled = false;
-			if(getPropertyValue(value, class_value, strings->__instantiable, prototype_enabled) && valueToBool(value)){
-				prototype_enabled = true;
-				if(getPropertyValue(value, class_value, strings->__newinstance, prototype_enabled)){
-					stack_values.buf[start_pos + 0] = value;
-					stack_values.buf[start_pos + 1] = class_value;
-					callFT(start_pos, call_params, ret_values, NULL, OS_CALLENTER_EXECUTE_AND_RETURN, OS_CALLTYPE_FUNC, OS_CALLTHIS_KEEP_STACK_VALUE);
-					return;
-				}else{
-					allocator->setException(String::format(allocator, OS_TEXT("method %s is not implemented in %s"), 
-						strings->__newinstance.toChar(), getValueNameOrClassname(class_value).toChar()));
-				}
+		case OS_VALUE_TYPE_OBJECT:
+		case OS_VALUE_TYPE_USERDATA:
+		case OS_VALUE_TYPE_USERPTR:
+			if(call_type == OS_CALLTYPE_FUNC){
+				allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
 			}else{
-				if(value.isNull()){
+				Value value;
+				Value class_value = func; // we should create stack value here because of stack_values could be resized
+				bool prototype_enabled = false;
+				if(getPropertyValue(value, class_value, strings->__instantiable, prototype_enabled) && valueToBool(value)){
 					prototype_enabled = true;
-					if(getPropertyValue(value, class_value, strings->__callinstance, prototype_enabled)){
+					if(getPropertyValue(value, class_value, strings->__newinstance, prototype_enabled)){
 						stack_values.buf[start_pos + 0] = value;
 						stack_values.buf[start_pos + 1] = class_value;
 						callFT(start_pos, call_params, ret_values, NULL, OS_CALLENTER_EXECUTE_AND_RETURN, OS_CALLTYPE_FUNC, OS_CALLTHIS_KEEP_STACK_VALUE);
 						return;
 					}else{
-						allocator->setException(String::format(allocator, OS_TEXT("attempt to call instance of %s"), getValueNameOrClassname(class_value).toChar()));
+						allocator->setException(String::format(allocator, OS_TEXT("method %s is not implemented in %s"), 
+							strings->__newinstance.toChar(), getValueNameOrClassname(class_value).toChar()));
 					}
 				}else{
-					allocator->setException(String::format(allocator, OS_TEXT("%s is not instantiable"), getValueNameOrClassname(class_value).toChar()));
+					if(value.isNull()){
+						prototype_enabled = true;
+						if(getPropertyValue(value, class_value, strings->__callinstance, prototype_enabled)){
+							stack_values.buf[start_pos + 0] = value;
+							stack_values.buf[start_pos + 1] = class_value;
+							callFT(start_pos, call_params, ret_values, NULL, OS_CALLENTER_EXECUTE_AND_RETURN, OS_CALLTYPE_FUNC, OS_CALLTHIS_KEEP_STACK_VALUE);
+							return;
+						}else{
+							allocator->setException(String::format(allocator, OS_TEXT("attempt to call instance of %s"), getValueNameOrClassname(class_value).toChar()));
+						}
+					}else{
+						allocator->setException(String::format(allocator, OS_TEXT("%s is not instantiable"), getValueNameOrClassname(class_value).toChar()));
+					}
 				}
+				break;
 			}
+
+		case OS_VALUE_TYPE_NULL:
+			break;
+
+		default:
+			allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
 			break;
 		}
-
-	case OS_VALUE_TYPE_NULL:
-		break;
-
-	default:
-		allocator->setException(String::format(allocator, OS_TEXT("attempt to call not function: %s"), getTypeStr(func).toChar()));
-		break;
+	}else{
+		// terminated
+		int i = 0;
 	}
 	reserveStackValues(start_pos + ret_values);
 	OS_SET_NULL_VALUES(stack_values.buf + start_pos, ret_values);
@@ -26574,10 +26655,34 @@ void OS::Core::callTF(int params, int ret_values, OS_ECallType call_type, OS_Cal
 
 void OS::Core::callF(int params, int ret_values, OS_ECallType call_type)
 {
+	 // insert null as 'this' value to get stack values properly
 	if(params > 0){
-		insertValue(Value(), -params); // insert null as 'this' value to get stack values properly
+#if 1
+		int offs = stack_values.count - params;
+
+		// reserveStackValues(stack_values.count+1);
+		int new_count = stack_values.count + 1;
+		if(stack_values.capacity < new_count){
+			growStackValues(new_count);
+		}
+		stack_values.count = new_count;
+		/* if(offs < 0){
+			OS_ASSERT(false);
+			return;
+		} */
+		int count = stack_values.count - offs - 1;
+		OS_ASSERT(count > 0);
+		if(count == 1){
+			stack_values[offs+1] = stack_values[offs];
+		}else{
+			OS_MEMMOVE(stack_values.buf + offs+1, stack_values.buf + offs, sizeof(Value) * count);
+		}
+		OS_SET_VALUE_NULL(stack_values[offs]);
+#else
+		insertValue(Value(), -params);
+#endif
 	}else{
-		pushNull(); // insert null as 'this' value to get stack values properly
+		pushNull();
 	}
 	params += 2;
 	int start_pos = stack_values.count - params;
