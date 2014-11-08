@@ -257,6 +257,8 @@ list(APPEND HEADERS src/ext-json/os-json.h)
 # begin hashlib
 list(APPEND SOURCES src/ext-hashlib/os-hashlib.cpp)
 list(APPEND HEADERS src/ext-hashlib/os-hashlib.h)
+list(APPEND SOURCES src/ext-hashlib/crc32/os-crc32.c)
+list(APPEND HEADERS src/ext-hashlib/crc32/os-crc32.h)
 list(APPEND SOURCES src/ext-hashlib/des/des.cpp)
 list(APPEND SOURCES src/ext-hashlib/md5/md5.cpp)
 list(APPEND HEADERS src/ext-hashlib/md5/md5.h)
