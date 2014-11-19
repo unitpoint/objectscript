@@ -409,6 +409,41 @@ static inline void parseSpaces(const OS_CHAR *& str)
 }
 
 template <class T>
+static bool parseSimpleRadix(const OS_CHAR *& p_str, T& p_val, int radix)
+{
+	T val = 0, prev_val = 0;
+	const OS_CHAR * str = p_str;
+	const OS_CHAR * start = str;
+	for(int cur;; str++){
+		if(*str >= OS_TEXT('0') && *str <= OS_TEXT('9')){
+			cur = (int)(*str - OS_TEXT('0'));
+		}else if(*str >= OS_TEXT('a') && *str <= (OS_TEXT('z'))){
+			cur = 10 + (int)(*str - OS_TEXT('a'));
+		}else if(*str >= OS_TEXT('A') && *str <= OS_TEXT('Z')){
+			cur = 10 + (int)(*str - OS_TEXT('A'));
+		}else{
+			break;
+		}
+		if(cur > radix){
+			/* p_str = start;
+			p_val = 0;
+			return false; */
+			break;
+		}
+		val = val * radix + (T)cur;
+		if(prev_val > val){
+			p_str = start;
+			p_val = 0;
+			return false;
+		}
+		prev_val = val;
+	}
+	p_val = val;
+	p_str = str;
+	return str > start;
+}
+
+template <class T>
 static bool parseSimpleHex(const OS_CHAR *& p_str, T& p_val)
 {
 	T val = 0, prev_val = 0;
@@ -516,7 +551,7 @@ static bool isValidCharAfterNumber(const OS_CHAR * str)
 	return !*str || OS_IS_SPACE(*str) || OS_STRCHR(OS_TEXT("!@#$%^&*()-+={}[]\\|;:'\",<.>/?`~"), *str);
 }
 
-bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
+bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result, ENumberParseType parse_type, int int_radix)
 {
 	const OS_CHAR * start_str = str;
 	int sign = 1;
@@ -529,13 +564,28 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 		start_str++;
 	}
 
-	if(str[0] == OS_TEXT('0') && str[1] != OS_TEXT('.')){
+	OS_UINT uint_val;
+	if(parse_type == PARSE_INT){
+		bool is_valid = parseSimpleRadix(str, uint_val, int_radix);
+		if(!is_valid){
+			result = 0;
+			return false;
+		}
+		result = (OS_FLOAT)uint_val;
+		if((OS_UINT)result != uint_val){ // number overflow
+			result = 0;
+			return false;
+		}
+		if(sign < 0){
+			result = -result;
+		};
+		return true;
+	}else if(parse_type == PARSE_TOKEN && str[0] == OS_TEXT('0') && str[1] != OS_TEXT('.')){
 		bool is_valid, is_octal = false;
-		OS_UINT uint_val;
 		if(str[1] == OS_TEXT('x')){ // || str[1] == OS_TEXT('X')){ // parse hex
 			str += 2;
 			is_valid = parseSimpleHex(str, uint_val);
-		}else if(str[1] == OS_TEXT('b')){ // || str[1] == OS_TEXT('B')){ // parse hex
+		}else if(str[1] == OS_TEXT('b')){ // || str[1] == OS_TEXT('B')){ // parse bin
 			str += 2;
 			is_valid = parseSimpleBin(str, uint_val);
 		}else{ // parse octal
@@ -547,7 +597,7 @@ bool OS::Utils::parseFloat(const OS_CHAR *& str, OS_FLOAT& result)
 			return false;
 		}
 		result = (OS_FLOAT)uint_val;
-		if((OS_UINT)result != uint_val){
+		if((OS_UINT)result != uint_val){ // number overflow
 			result = 0;
 			return false;
 		}
@@ -730,7 +780,7 @@ OS_INT OS::Utils::strToInt(const OS_CHAR * str)
 OS_FLOAT OS::Utils::strToFloat(const OS_CHAR* str)
 {
 	OS_FLOAT fval;
-	if(parseFloat(str, fval) && (!*str || (*str==OS_TEXT('f') && !str[1]))){
+	if(parseFloat(str, fval, PARSE_FLOAT) && (!*str || (*str==OS_TEXT('f') && !str[1]))){
 		return fval;
 	}
 	return 0;
@@ -1127,9 +1177,9 @@ int OS::Core::String::getHash() const
 	return string->hash;
 }
 
-OS_NUMBER OS::Core::String::toNumber() const
+OS_NUMBER OS::Core::String::toNumber(int radix) const
 {
-	return string->toNumber();
+	return string->toNumber(radix);
 }
 
 // =====================================================================
@@ -1837,7 +1887,7 @@ OS::Core::Tokenizer::TokenData * OS::Core::Tokenizer::addToken(const String& str
 bool OS::Core::Tokenizer::parseFloat(const OS_CHAR *& str, OS_FLOAT& fval, bool parse_end_spaces)
 {
 	const OS_CHAR * start = str;
-	if(Utils::parseFloat(str, fval)){
+	if(Utils::parseFloat(str, fval, Utils::PARSE_TOKEN)){
 		if(isValidCharAfterNumber(str)){
 			if(parse_end_spaces){
 				parseSpaces(str);
@@ -10309,7 +10359,11 @@ void OS::Core::Compiler::debugPrintSourceLine(Buffer& out, TokenData * token)
 	if(recent_printed_line != token->line && token->line >= 0){
 		recent_printed_line = token->line;
 		String line(allocator, token->text_data->lines[token->line], true, true);
-		out += String::format(allocator, OS_TEXT("\n[%d] %s\n\n"), token->line+1, line.toChar());
+		// line could be very long so DON'T use format because of the format uses temp buffer of 10 Kb
+		// out += String::format(allocator, OS_TEXT("\n[%d] %s\n\n"), token->line+1, line.toChar());
+		out += String::format(allocator, OS_TEXT("\n[%d] "), token->line+1);
+		out += line;
+		out += OS_TEXT("\n\n");
 	}
 	else if(filePrinted){
 		out += String::format(allocator, OS_TEXT("\n"));
@@ -12853,12 +12907,17 @@ OS::Core::GCStringValue * OS::Core::GCStringValue::allocAndPush(OS * allocator, 
 	return allocAndPush(allocator, 0, a->toMemory(), a->data_size, b->toMemory(), b->data_size OS_DBG_FILEPOS_PARAM);
 }
 
-bool OS::Core::GCStringValue::isNumber(OS_NUMBER* p_val) const
+bool OS::Core::GCStringValue::isNumber(int radix, OS_NUMBER* p_val) const
 {
 	const OS_CHAR * str = toChar();
 	const OS_CHAR * end = str + getLen();
 	OS_FLOAT val;
-	if(Utils::parseFloat(str, val) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
+	if(radix > 0){
+		if(Utils::parseFloat(str, val, Utils::PARSE_INT, radix) && str == end){
+			if(p_val) *p_val = (OS_NUMBER)val;
+			return true;
+		}
+	}else if(Utils::parseFloat(str, val, Utils::PARSE_FLOAT) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
 		if(p_val) *p_val = (OS_NUMBER)val;
 		return true;
 	}
@@ -12866,12 +12925,16 @@ bool OS::Core::GCStringValue::isNumber(OS_NUMBER* p_val) const
 	return false;
 }
 
-OS_NUMBER OS::Core::GCStringValue::toNumber() const
+OS_NUMBER OS::Core::GCStringValue::toNumber(int radix) const
 {
 	const OS_CHAR * str = toChar();
 	const OS_CHAR * end = str + getLen();
 	OS_FLOAT val;
-	if(Utils::parseFloat(str, val) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
+	if(radix > 0){
+		if(Utils::parseFloat(str, val, Utils::PARSE_INT, radix) && str == end){
+			return (OS_NUMBER)val;
+		}
+	}else if(Utils::parseFloat(str, val, Utils::PARSE_FLOAT) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
 		return (OS_NUMBER)val;
 	}
 	return 0;
@@ -12921,9 +12984,9 @@ bool OS::Core::valueToBool(const Value& val)
 	return true;
 }
 
-OS_INT OS::Core::valueToInt(const Value& val, bool valueof_enabled)
+OS_INT OS::Core::valueToInt(const Value& val, int radix, bool valueof_enabled)
 {
-	return (OS_INT)valueToNumber(val, valueof_enabled);
+	return (OS_INT)valueToNumberRadix(val, radix, valueof_enabled);
 }
 
 OS_INT OS::Core::Compiler::Expression::toInt()
@@ -12938,7 +13001,7 @@ OS_NUMBER OS::Core::Compiler::Expression::toNumber()
 		return 0;
 
 	case EXP_TYPE_CONST_STRING:
-		return token->str.toNumber();
+		return token->str.toNumber(0);
 
 	case EXP_TYPE_CONST_NUMBER:
 		return (OS_NUMBER)token->getFloat();
@@ -12950,6 +13013,29 @@ OS_NUMBER OS::Core::Compiler::Expression::toNumber()
 		return 0;
 	}
 	OS_ASSERT(false);
+	return 0;
+}
+
+OS_NUMBER OS::Core::valueToNumberRadix(const Value& val, int radix, bool valueof_enabled)
+{
+	switch(OS_VALUE_TYPE(val)){
+	case OS_VALUE_TYPE_NULL:
+		return 0; // nan_float;
+
+	case OS_VALUE_TYPE_BOOL:
+		return (OS_NUMBER)OS_VALUE_VARIANT(val).boolean;
+
+	case OS_VALUE_TYPE_NUMBER:
+		return OS_VALUE_NUMBER(val);
+
+	case OS_VALUE_TYPE_STRING:
+		return OS_VALUE_VARIANT(val).string->toNumber(radix);
+	}
+	if(valueof_enabled){
+		pushValueOf(val);
+		struct Pop { Core * core; ~Pop(){ core->pop(); } } pop = {this}; (void)pop;
+		return valueToNumberRadix(stack_values.lastElement(), radix, false);
+	}
 	return 0;
 }
 
@@ -12966,7 +13052,7 @@ OS_NUMBER OS::Core::valueToNumber(const Value& val, bool valueof_enabled)
 		return OS_VALUE_NUMBER(val);
 
 	case OS_VALUE_TYPE_STRING:
-		return OS_VALUE_VARIANT(val).string->toNumber();
+		return OS_VALUE_VARIANT(val).string->toNumber(0);
 	}
 	if(valueof_enabled){
 		pushValueOf(val);
@@ -12979,11 +13065,11 @@ OS_NUMBER OS::Core::valueToNumber(const Value& val, bool valueof_enabled)
 bool OS::Core::isValueNumber(const Value& val, OS_NUMBER * out)
 {
 	switch(OS_VALUE_TYPE(val)){
-	case OS_VALUE_TYPE_BOOL:
+	/* case OS_VALUE_TYPE_BOOL:
 		if(out){
 			*out = (OS_NUMBER)OS_VALUE_VARIANT(val).boolean;
 		}
-		return true;
+		return true; */
 
 	case OS_VALUE_TYPE_NUMBER:
 		if(out){
@@ -12991,9 +13077,9 @@ bool OS::Core::isValueNumber(const Value& val, OS_NUMBER * out)
 		}
 		return true;
 
-	case OS_VALUE_TYPE_STRING:
+	/* case OS_VALUE_TYPE_STRING:
 		OS_ASSERT(dynamic_cast<GCStringValue*>(OS_VALUE_VARIANT(val).string));
-		return OS_VALUE_VARIANT(val).string->isNumber(out);
+		return OS_VALUE_VARIANT(val).string->isNumber(radix, out); */
 	}
 	if(out){
 		*out = 0;
@@ -13079,6 +13165,7 @@ OS::String OS::Core::valueToStringOS(const Value& val, bool valueof_enabled)
 bool OS::Core::isValueString(const Value& val, String * out)
 {
 	switch(OS_VALUE_TYPE(val)){
+	/*
 	case OS_VALUE_TYPE_NULL:
 		if(out){
 			// *out = String(allocator);
@@ -13098,6 +13185,7 @@ bool OS::Core::isValueString(const Value& val, String * out)
 			*out = String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val));
 		}
 		return true;
+	*/
 
 	case OS_VALUE_TYPE_STRING:
 		if(out){
@@ -13115,6 +13203,7 @@ bool OS::Core::isValueString(const Value& val, String * out)
 bool OS::Core::isValueStringOS(const Value& val, OS::String * out)
 {
 	switch(OS_VALUE_TYPE(val)){
+	/*
 	case OS_VALUE_TYPE_NULL:
 		if(out){
 			// *out = String(allocator);
@@ -13134,6 +13223,7 @@ bool OS::Core::isValueStringOS(const Value& val, OS::String * out)
 			*out = OS::String(allocator, (OS_FLOAT)OS_VALUE_NUMBER(val));
 		}
 		return true;
+	*/
 
 	case OS_VALUE_TYPE_STRING:
 		if(out){
@@ -17049,9 +17139,9 @@ bool OS::Core::pushBoolOf(const Value& val)
 		pushValue(val);
 		return true;
 
-	case OS_VALUE_TYPE_NUMBER:
+	/* case OS_VALUE_TYPE_NUMBER:
 		pushBool(OS_VALUE_NUMBER(val) != 0);
-		return true;
+		return true; */
 	}
 	pushNull();
 	return false;
@@ -17063,11 +17153,11 @@ bool OS::Core::pushNumberOf(const Value& val)
 		pushValue(val);
 		return true;
 	}
-	OS_NUMBER number;
+	/* OS_NUMBER number;
 	if(isValueNumber(val, &number)){
 		pushNumber(number);
 		return true;
-	}
+	} */
 	pushNull();
 	return false;
 }
@@ -17078,11 +17168,11 @@ bool OS::Core::pushStringOf(const Value& val)
 		pushValue(val);
 		return true;
 	}
-	String str(allocator);
+	/* String str(allocator);
 	if(isValueString(val, &str)){
 		pushStringValue(str);
 		return true;
-	}
+	} */
 	pushNull();
 	return false;
 }
@@ -18115,14 +18205,17 @@ double OS::toDouble(int offs, double def, bool valueof_enabled)
 	return (double)toNumber(offs, (OS_NUMBER)def, valueof_enabled);
 }
 
-int OS::toInt(int offs, bool valueof_enabled)
+int OS::toInt(int offs, int radix, bool valueof_enabled)
 {
-	return (int)toNumber(offs, valueof_enabled);
+	return (int)core->valueToInt(core->getStackValue(offs), radix, valueof_enabled);
+	// return (int)toNumber(offs, valueof_enabled);
 }
 
-int OS::toInt(int offs, int def, bool valueof_enabled)
+int OS::toInt(int offs, int def, int radix, bool valueof_enabled)
 {
-	return (int)toNumber(offs, (OS_NUMBER)def, valueof_enabled);
+	Core::Value value = core->getStackValue(offs);
+	return value.isNull() ? def : (int)core->valueToInt(value, radix, valueof_enabled);
+	// return (int)toNumber(offs, (OS_NUMBER)def, valueof_enabled);
 }
 
 bool OS::isNumber(int offs, OS_NUMBER * out)
@@ -18200,16 +18293,16 @@ double OS::popDouble(double def, bool valueof_enabled)
 	return toDouble(-1, def, valueof_enabled);
 }
 
-int OS::popInt(bool valueof_enabled)
+int OS::popInt(int radix, bool valueof_enabled)
 {
 	Pop pop(this); (void)pop;
-	return toInt(-1, valueof_enabled);
+	return toInt(-1, radix, valueof_enabled);
 }
 
-int OS::popInt(int def, bool valueof_enabled)
+int OS::popInt(int def, int radix, bool valueof_enabled)
 {
 	Pop pop(this); (void)pop;
-	return toInt(-1, def, valueof_enabled);
+	return toInt(-1, def, radix, valueof_enabled);
 }
 
 OS::String OS::popString(bool valueof_enabled)
@@ -21909,10 +22002,59 @@ void OS::initCoreFunctions()
 			return 1;
 		}
 
+		static int parseInt(OS * os, int params, int, int, void*)
+		{
+			if(params > 0){
+				OS::String buf = os->toString(-params+0);
+				int radix = params > 1 ? os->toInt(-params+1) : 10;
+				const OS_CHAR * str = buf.toChar();
+				const OS_CHAR * end = str + buf.getLen();
+				OS_FLOAT val;
+				for(; str < end && OS_IS_SPACE(*str); str++);
+				if(Utils::parseFloat(str, val, Utils::PARSE_INT, radix)){
+					os->pushNumber(val);
+					os->pushBool(str == end);
+					os->pushNumber(str - buf.toChar());
+					return 3;
+				}
+			}
+			return 0;
+		}
+
+		static int parseFloat(OS * os, int params, int, int, void*)
+		{
+			if(params > 0){
+				OS::String buf = os->toString(-params+0);
+				const OS_CHAR * str = buf.toChar();
+				const OS_CHAR * end = str + buf.getLen();
+				OS_FLOAT val;
+				for(; str < end && OS_IS_SPACE(*str); str++);
+				if(Utils::parseFloat(str, val, Utils::PARSE_FLOAT)){
+					os->pushNumber(val);
+					os->pushBool(str == end);
+					os->pushNumber(str - buf.toChar());
+					return 3;
+				}
+			}
+			return 0;
+		}
+
 		static int toNumber(OS * os, int params, int, int, void*)
 		{
-			if(params < 1) return 0;
-			os->pushNumber(os->toNumber(-params, params < 2 || os->toBool(-params+1)));
+			if(params >= 3){
+				int radix = os->toInt(-params+1);
+				bool valueof_enabled = os->toBool(-params+2);
+				os->pushNumber(os->toInt(-params+0, radix, valueof_enabled));
+			}else if(params >= 2){
+				int radix = os->toInt(-params+1);
+				bool valueof_enabled = true;
+				os->pushNumber(os->toInt(-params+0, radix, valueof_enabled));
+			}else if(params >= 1){
+				bool valueof_enabled = true;
+				os->pushNumber(os->toNumber(-params+0, valueof_enabled));
+			}else{
+				return 0;
+			}
 			return 1;
 		}
 
@@ -21991,6 +22133,8 @@ void OS::initCoreFunctions()
 		{OS_TEXT("toBoolean"), Lib::toBoolean},
 		{OS_TEXT("toNumber"), Lib::toNumber},
 		{OS_TEXT("toString"), Lib::toString},
+		{OS_TEXT("parseInt"), Lib::parseInt},
+		{OS_TEXT("parseFloat"), Lib::parseFloat},
 		{OS_TEXT("print"), Lib::print},
 		{OS_TEXT("echo"), Lib::echo},
 		{OS_TEXT("sprintf"), Format::sprintf},

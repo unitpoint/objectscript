@@ -159,6 +159,11 @@ public:
 			OS_ASSERT(cache);
 			OS * os = cache->os;
 			os->pushStackValue();
+#ifndef OS_REGEXP_EMPTY_AS_STRING
+			if(len < 1)
+				os->pushNull();
+			else
+#endif
 			os->pushString(str, len);
 			os->addProperty(false);
 		}
@@ -179,6 +184,11 @@ public:
 			os->newArray();
 
 			/* Add (match, offset) to the return value */
+#ifndef OS_REGEXP_EMPTY_AS_STRING
+			if(len < 1)
+				os->pushNull();
+			else
+#endif
 			addNextString(str, len);
 			addNextNumber(offset);
 
@@ -199,6 +209,11 @@ public:
 			OS_ASSERT(cache);
 			OS * os = cache->os;
 			os->pushStackValue();
+#ifndef OS_REGEXP_EMPTY_AS_STRING
+			if(len < 1)
+				os->pushNull();
+			else
+#endif
 			os->pushString(str, len);
 			os->setProperty(name, false);
 		}
@@ -663,7 +678,11 @@ public:
 								if (count < num_subpats) {
 									for (; i < num_subpats; i++) {
 										os->pushValueById(match_sets.sets[i]);
+#ifdef OS_REGEXP_EMPTY_AS_STRING
 										os->pushString("");
+#else
+										os->pushNull();
+#endif
 										os->addProperty(false);
 										// addNextString("", 0);
 										// os->pop();

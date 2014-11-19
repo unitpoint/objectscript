@@ -74,7 +74,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.5-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.6-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -373,7 +373,14 @@ namespace ObjectScript
 
 		struct Utils
 		{
-			static bool parseFloat(const OS_CHAR *& str, OS_FLOAT& val);
+			enum ENumberParseType
+			{
+				PARSE_TOKEN, // 0x - hex, 0b - bin, 0 - octal, else - dec
+				PARSE_INT,
+				PARSE_FLOAT,
+			};
+
+			static bool parseFloat(const OS_CHAR *& str, OS_FLOAT& val, ENumberParseType parse_type, int int_radix = 10);
 
 			static OS_CHAR * numToStr(OS_CHAR*, OS_INT32 value);
 			static OS_CHAR * numToStr(OS_CHAR*, OS_INT64 value);
@@ -875,7 +882,7 @@ namespace ObjectScript
 				int cmp(const OS_CHAR*) const;
 				int getHash() const;
 
-				OS_NUMBER toNumber() const;
+				OS_NUMBER toNumber(int radix) const;
 			};
 
 			class Buffer: public MemStreamWriter
@@ -1278,8 +1285,8 @@ namespace ObjectScript
 				static GCStringValue * allocAndPush(OS*, int hash, const void * buf1, int len1, const void * buf2, int len2 OS_DBG_FILEPOS_DECL);
 				static GCStringValue * allocAndPush(OS*, GCStringValue * a, GCStringValue * b OS_DBG_FILEPOS_DECL);
 
-				bool isNumber(OS_NUMBER*) const;
-				OS_NUMBER toNumber() const;
+				bool isNumber(int radix, OS_NUMBER*) const;
+				OS_NUMBER toNumber(int radix) const;
 
 				int cmp(GCStringValue*) const;
 				int cmp(const OS_CHAR*) const;
@@ -2894,7 +2901,8 @@ namespace ObjectScript
 			String getValueNameOrClassname(GCValue * val);
 
 			bool valueToBool(const Value& val);
-			OS_INT valueToInt(const Value& val, bool valueof_enabled = false);
+			OS_INT valueToInt(const Value& val, int radix = 0, bool valueof_enabled = false);
+			OS_NUMBER valueToNumberRadix(const Value& val, int radix, bool valueof_enabled);
 			OS_NUMBER valueToNumber(const Value& val, bool valueof_enabled = false);
 			String valueToString(const Value& val, bool valueof_enabled = false);
 			OS::String valueToStringOS(const Value& val, bool valueof_enabled = false);
@@ -3237,14 +3245,14 @@ namespace ObjectScript
 		OS_NUMBER	toNumber(int offs = -1, bool valueof_enabled = true);
 		float		toFloat(int offs = -1, bool valueof_enabled = true);
 		double		toDouble(int offs = -1, bool valueof_enabled = true);
-		int			toInt(int offs = -1, bool valueof_enabled = true);
+		int			toInt(int offs = -1, int radix = 10, bool valueof_enabled = true);
 		String		toString(int offs = -1, bool valueof_enabled = true);
 		
 		bool		toBool(int offs, bool def);
 		OS_NUMBER	toNumber(int offs, OS_NUMBER def, bool valueof_enabled = true);
 		float		toFloat(int offs, float def, bool valueof_enabled = true);
 		double		toDouble(int offs, double def, bool valueof_enabled = true);
-		int			toInt(int offs, int def, bool valueof_enabled = true);
+		int			toInt(int offs, int def, int radix, bool valueof_enabled = true);
 		String		toString(int offs, const String& def, bool valueof_enabled = true);
 		String		toString(int offs, const OS_CHAR * def, bool valueof_enabled = true);
 
@@ -3252,14 +3260,14 @@ namespace ObjectScript
 		OS_NUMBER	popNumber(bool valueof_enabled = true);
 		float		popFloat(bool valueof_enabled = true);
 		double		popDouble(bool valueof_enabled = true);
-		int			popInt(bool valueof_enabled = true);
+		int			popInt(int radix = 0, bool valueof_enabled = true);
 		String		popString(bool valueof_enabled = true);
 
 		bool		popBool(bool def);
 		OS_NUMBER	popNumber(OS_NUMBER def, bool valueof_enabled = true);
 		float		popFloat(float def, bool valueof_enabled = true);
 		double		popDouble(double def, bool valueof_enabled = true);
-		int			popInt(int def, bool valueof_enabled = true);
+		int			popInt(int def, int radix, bool valueof_enabled = true);
 		String		popString(const String& def, bool valueof_enabled = true);
 		String		popString(const OS_CHAR * def, bool valueof_enabled = true);
 

@@ -129,9 +129,6 @@
     <ClCompile Include="..\..\src\ext-regexp\os-regexp.cpp">
       <Filter>ext\regexp</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ext-sqlite3\os-sqlite3.cpp">
-      <Filter>ext\sqlite3</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\ext-sqlite3\sqlite3.c">
       <Filter>ext\sqlite3</Filter>
     </ClCompile>
@@ -191,6 +188,9 @@
     </ClCompile>
     <ClCompile Include="..\..\src\os-heap.cpp">
       <Filter>objectscript</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-sqlite3\os-sqlite3.cpp">
+      <Filter>ext\sqlite3</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -1189,7 +1189,7 @@ public:
 			}
 
 			OS_FLOAT d;
-			if(Utils::parseFloat(str, d) && !*str){
+			if(Utils::parseFloat(str, d, Utils::PARSE_FLOAT) && !*str){
 				os->pushNumber(d);
 				return 1;
 			}
