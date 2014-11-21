@@ -89,7 +89,7 @@ public:
 
 			if (Z_STREAM_END == status) {
 				/* size buffer down to actual length */
-				OS_ASSERT(Z.total_out <= out.buffer.capacity);
+				OS_ASSERT((int)Z.total_out <= out.buffer.capacity);
 				out.buffer.count = Z.total_out;
 				os->pushString(out);
 				return 1;
