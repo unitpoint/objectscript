@@ -10,7 +10,7 @@
 #include "3rdparty/MPFDParser-1.0/Parser.h"
 #include <stdlib.h>
 
-#define OS_FCGI_VERSION	OS_TEXT("1.3")
+#define OS_FCGI_VERSION	OS_TEXT("1.3.1")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -492,7 +492,24 @@ public:
 		
 		getGlobal("_SERVER");
 		getProperty("SCRIPT_FILENAME");
-		String script_filename = popString();
+		if(isNull()){
+			pop();
+			getGlobal("_SERVER");
+			
+			getProperty(-1, "DOCUMENT_ROOT");
+			String document_root = popString("");
+			
+			getProperty(-1, "SCRIPT_NAME");
+			String script_name = popString("");
+
+			pushString(document_root + script_name);
+			setProperty("SCRIPT_FILENAME");
+
+			getGlobal("_SERVER");
+			getProperty("SCRIPT_FILENAME");
+			OS_ASSERT(isString());
+		}
+		String script_filename = popString("");
 #if defined _MSC_VER && 0
 		fprintf(stderr, "%s\n", script_filename.toChar());
 #endif
