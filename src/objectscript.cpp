@@ -1024,52 +1024,52 @@ struct OS_VaListDtor
 
 OS::Core::String OS::Core::String::format(OS * allocator, int temp_buf_len, const OS_CHAR * fmt, ...)
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
 	GCStringValue * string = allocator->core->pushStringValueVa(temp_buf_len, fmt, va);
-	Pop pop(allocator); (void)pop;
 	return String(allocator, string);
 }
 
 OS::Core::String OS::Core::String::formatVa(OS * allocator, int temp_buf_len, const OS_CHAR * fmt, va_list va)
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	GCStringValue * string = allocator->core->pushStringValueVa(temp_buf_len, fmt, va);
-	Pop pop(allocator); (void)pop;
 	return String(allocator, string);
 }
 
 OS::Core::String OS::Core::String::format(OS * allocator, const OS_CHAR * fmt, ...)
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
 	GCStringValue * string = allocator->core->pushStringValueVa(OS_DEF_FMT_BUF_LEN, fmt, va);
-	Pop pop(allocator); (void)pop;
 	return String(allocator, string);
 }
 
 OS::Core::String OS::Core::String::formatVa(OS * allocator, const OS_CHAR * fmt, va_list va)
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	GCStringValue * string = allocator->core->pushStringValueVa(OS_DEF_FMT_BUF_LEN, fmt, va);
-	Pop pop(allocator); (void)pop;
 	return String(allocator, string);
 }
 
 OS::String OS::String::format(OS * allocator, const OS_CHAR * fmt, ...)
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	va_list va;
 	va_start(va, fmt);
 	OS_VaListDtor va_dtor(&va);
 	Core::GCStringValue * string = allocator->core->pushStringValueVa(OS_DEF_FMT_BUF_LEN, fmt, va);
-	Pop pop(allocator); (void)pop;
 	return String(allocator, string);
 }
 
 OS::String OS::String::formatVa(OS * allocator, const OS_CHAR * fmt, va_list va)
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	Core::GCStringValue * string = allocator->core->pushStringValueVa(OS_DEF_FMT_BUF_LEN, fmt, va);
-	Pop pop(allocator); (void)pop;
 	return String(allocator, string);
 }
 
@@ -1405,36 +1405,36 @@ OS::String& OS::String::operator=(const Core::String& str)
 
 OS::String& OS::String::operator+=(const Core::String& str)
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	Core::GCStringValue * string = allocator->core->pushStringValue(*this, str);
-	Pop pop(allocator); (void)pop;
 	return *this = String(allocator, string);
 }
 
 OS::String& OS::String::operator+=(const OS_CHAR * str)
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	Core::GCStringValue * string = allocator->core->pushStringValue(toChar(), getDataSize(), str, (int)OS_STRLEN(str)*sizeof(OS_CHAR));
-	Pop pop(allocator); (void)pop;
 	return *this = String(allocator, string);
 }
 
 OS::String OS::String::operator+(const Core::String& str) const
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	Core::GCStringValue * string = allocator->core->pushStringValue(*this, str);
-	Pop pop(allocator); (void)pop;
 	return String(allocator, string);
 }
 
 OS::String OS::String::operator+(const OS_CHAR * str) const
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	Core::GCStringValue * string = allocator->core->pushStringValue(toChar(), getDataSize(), str, (int)OS_STRLEN(str)*sizeof(OS_CHAR));
-	Pop pop(allocator); (void)pop;
 	return String(allocator, string);
 }
 
 OS::String OS::String::trim(bool trim_left, bool trim_right) const
 {
+	SaveStackSize saveStackSize(allocator); (void)saveStackSize;
 	Core::GCStringValue * string = allocator->core->pushStringValue(*this, trim_left, trim_right);
-	Pop pop(allocator); (void)pop;
 	return String(allocator, string);
 }
 
@@ -10359,7 +10359,7 @@ void OS::Core::Compiler::debugPrintSourceLine(Buffer& out, TokenData * token)
 	if(recent_printed_line != token->line && token->line >= 0){
 		recent_printed_line = token->line;
 		String line(allocator, token->text_data->lines[token->line], true, true);
-		// line could be very long so DON'T use format because of the format uses temp buffer of 10 Kb
+		// line could be very long so DON'T use format because of the format uses temp buffer of 10 Kb only
 		// out += String::format(allocator, OS_TEXT("\n[%d] %s\n\n"), token->line+1, line.toChar());
 		out += String::format(allocator, OS_TEXT("\n[%d] "), token->line+1);
 		out += line;
@@ -15190,7 +15190,7 @@ OS::Core::Core(OS * p_allocator)
 	num_created_values = 0;
 	num_destroyed_values = 0;
 
-	max_call_stack = 80;
+	max_call_stack = OS_DEF_MAX_CALL_STACK_SIZE;
 	stack_func = NULL;
 	stack_func_locals = NULL;
 	stack_func_env_index = 0;
@@ -26550,7 +26550,7 @@ void OS::Core::pushBackTrace(int skip_funcs, int max_trace_funcs)
 	}
 }
 
-void OS::Core::callFT(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_CallThisUsage call_this_usage)
+void OS::Core::callFT(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_ECallThisUsage call_this_usage)
 {
 	OS_ASSERT(start_pos >= OS_TOP_STACK_NULL_VALUES && call_params >= 2 && start_pos + call_params <= stack_values.count);
 	if(!terminated){
@@ -26770,7 +26770,7 @@ void OS::Core::callFT(int start_pos, int call_params, int ret_values, GCValue * 
 	OS_SET_NULL_VALUES(stack_values.buf + start_pos, ret_values);
 }
 
-void OS::Core::callFT(int params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_CallThisUsage call_this_usage)
+void OS::Core::callFT(int params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_ECallThisUsage call_this_usage)
 {
 	params += 2;
 	int start_pos = stack_values.count - params;
@@ -26778,7 +26778,7 @@ void OS::Core::callFT(int params, int ret_values, GCValue * self_for_proto, OS_E
 	stack_values.count = start_pos + ret_values;
 }
 
-void OS::Core::callFT(int params, int ret_values, OS_ECallType call_type, OS_CallThisUsage call_this_usage)
+void OS::Core::callFT(int params, int ret_values, OS_ECallType call_type, OS_ECallThisUsage call_this_usage)
 {
 	params += 2;
 	int start_pos = stack_values.count - params;
@@ -26787,7 +26787,7 @@ void OS::Core::callFT(int params, int ret_values, OS_ECallType call_type, OS_Cal
 	stack_values.count = start_pos + ret_values;
 }
 
-void OS::Core::callTF(int params, int ret_values, OS_ECallType call_type, OS_CallThisUsage call_this_usage)
+void OS::Core::callTF(int params, int ret_values, OS_ECallType call_type, OS_ECallThisUsage call_this_usage)
 {
 	params += 2;
 	int start_pos = stack_values.count - params;
@@ -26946,17 +26946,17 @@ bool OS::compile(OS_ESourceCodeType source_code_type, bool check_utf8_bom)
 	return compile(popString(), source_code_type, check_utf8_bom);
 }
 
-/* void OS::call(int params, int ret_values, OS_ECallType call_type, OS_CallThisUsage call_this_usage)
+/* void OS::call(int params, int ret_values, OS_ECallType call_type, OS_ECallThisUsage call_this_usage)
 {
 	core->call(params, ret_values, call_type, call_this_usage);
 } */
 
-void OS::callFT(int params, int ret_values, OS_ECallType call_type, OS_CallThisUsage call_this_usage)
+void OS::callFT(int params, int ret_values, OS_ECallType call_type, OS_ECallThisUsage call_this_usage)
 {
 	core->callFT(params, ret_values, call_type, call_this_usage);
 }
 
-void OS::callTF(int params, int ret_values, OS_ECallType call_type, OS_CallThisUsage call_this_usage)
+void OS::callTF(int params, int ret_values, OS_ECallType call_type, OS_ECallThisUsage call_this_usage)
 {
 	core->callTF(params, ret_values, call_type, call_this_usage);
 }

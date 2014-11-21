@@ -74,7 +74,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.6-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.6.1-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -164,7 +164,11 @@ inline void operator delete(void *, void *){}
 // uncomment it if need
 // #define OS_INFINITE_LOOP_OPCODES 100000000
 
-// #define OS_CALL_STACK_MAX_SIZE 200
+#ifdef OS_DEBUG
+#define OS_DEF_MAX_CALL_STACK_SIZE 80
+#else
+#define OS_DEF_MAX_CALL_STACK_SIZE 200
+#endif
 
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -333,7 +337,7 @@ namespace ObjectScript
 		OS_CALLENTER_EXECUTE_AND_RETURN,
 	};
 
-	enum OS_CallThisUsage
+	enum OS_ECallThisUsage
 	{
 		OS_CALLTHIS_FUNCTION_OVERWRITE,
 		OS_CALLTHIS_KEEP_STACK_VALUE,
@@ -2980,11 +2984,11 @@ namespace ObjectScript
 			void execute();
 			void reloadStackFunctionCache();
 
-			void callFT(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_CallThisUsage call_this_usage);
-			void callFT(int params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_CallThisUsage call_this_usage);
+			void callFT(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_ECallThisUsage call_this_usage);
+			void callFT(int params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_ECallThisUsage call_this_usage);
 			
-			void callFT(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
-			void callTF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+			void callFT(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+			void callTF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
 			void callF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
 
 			static int prototypeFunctionApply(OS * os, int params, int, int need_ret_values, void*);
@@ -3280,13 +3284,13 @@ namespace ObjectScript
 		bool compile(OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
 		// deprecated, use callFT, callTF or callF
-		// void call(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+		// void call(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
 		
 		// stack: func + this + params
-		void callFT(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+		void callFT(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
 
 		// stack: this + func + params
-		void callTF(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_CallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+		void callTF(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
 		
 		// stack: func + params, it uses function's this
 		void callF(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);
@@ -3333,6 +3337,24 @@ namespace ObjectScript
 			OS * os; 
 			Pop(OS * p_os): os(p_os){}
 			~Pop(){ os->pop(); }
+		};
+
+		struct SaveStackSize
+		{
+			OS * os;
+			int stackSize;
+
+			SaveStackSize(OS * _os)
+			{
+				os = _os;
+				stackSize = _os->getStackSize();
+			}
+
+			~SaveStackSize()
+			{
+				OS_ASSERT(os->getStackSize() >= stackSize);
+				os->pop(os->getStackSize() - stackSize);
+			}
 		};
 
 		void setFuncs(const FuncDef * list, bool setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
