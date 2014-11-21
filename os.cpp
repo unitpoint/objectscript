@@ -225,7 +225,7 @@ public:
 
 #if defined _MSC_VER && defined OS_DEBUG
 		setSetting(OS_SETTING_CREATE_TEXT_EVAL_OPCODES, false);
-		setSetting(OS_SETTING_CREATE_TEXT_OPCODES, false);
+		setSetting(OS_SETTING_CREATE_TEXT_OPCODES, true);
 #else
 		setSetting(OS_SETTING_CREATE_TEXT_EVAL_OPCODES, false);
 		setSetting(OS_SETTING_CREATE_TEXT_OPCODES, false);
@@ -868,7 +868,7 @@ void OS_release()
 
 #else // #ifdef OS_EMSCRIPTEN
 
-#ifdef _MSC_VER
+#if defined _MSC_VER && 0
 int _tmain(int argc, _TCHAR* _argv[])
 {
 	char ** argv = new char*[argc];
