@@ -171,8 +171,10 @@ public:
 		headers_sent = false;
 	}
 
-	void initPreScript()
+	void initSettings()
 	{
+		OS::initSettings();
+
 #if defined _MSC_VER && defined OS_DEBUG
 		setSetting(OS_SETTING_CREATE_TEXT_EVAL_OPCODES, false);
 		setSetting(OS_SETTING_CREATE_TEXT_OPCODES, true);
@@ -184,8 +186,6 @@ public:
 		setSetting(OS_SETTING_CREATE_COMPILED_FILE, true);
 
 		setSetting(OS_SETTING_SOURCECODE_MUST_EXIST, true);
-
-		OS::initPreScript();
 	}
 
 	void initEnv(const char * var_name, char ** envp)
@@ -750,12 +750,48 @@ void demonize()
 }
 #endif
 
-#ifdef _MSC_VER
-int _tmain(int argc, _TCHAR* argv[])
+#define OS_FCGI_PROC "os-fcgi"
+
+void usage(const char * error = NULL)
+{
+	if(error){
+		printf("%s\n", error);
+	}
+	printf("\n");
+	printf("Usage: %s [args...]\n", OS_FCGI_PROC);
+	printf(" -c <file> Config file name\n");
+	printf(" -h        This help\n");
+	printf("\n");
+	exit(1);
+}
+
+#if defined _MSC_VER && 0
+int _tmain(int argc, _TCHAR* _argv[])
+{
+	char ** argv = new char*[argc];
+	{ 
+		for(int i = 0; i < argc; i++){
+			int len = 0; for(; _argv[i][len]; len++);
+			argv[i] = new char[len+1];
+			for(int j = 0; j <= len; j++){
+				argv[i][j] = (char)_argv[i][j];
+			}
+		}
+	}
+	struct ArgvFinalizer {
+		int argc;
+		char ** argv;
+		~ArgvFinalizer(){
+			for(int i = 0; i < argc; i++){
+				delete [] argv[i];
+			}
+			delete [] argv;
+		}
+	} __argv_finalizer__ = {argc, argv};
 #else
 int main(int argc, char * argv[])
-#endif
 {
+#endif
 	initStartTime();
 
 	printf("ObjectScript FastCGI Process Manager %s\n", OS_FCGI_VERSION);
@@ -763,15 +799,18 @@ int main(int argc, char * argv[])
 	printf("%s\n", OS_OPENSOURCE);
 
 	if(FCGX_Init()){
-// #ifdef _MSC_VER
-		printf("Error: initialization is failed\n");
-// #endif
-		exit(1); 
+		usage("Error: FCGX initialization is failed\n");
 	}
 
 	int threads;
 	{
 		OS * os = OS::create();
+
+		os->setSetting(OS_SETTING_CREATE_TEXT_EVAL_OPCODES, false);
+		os->setSetting(OS_SETTING_CREATE_TEXT_OPCODES, false);
+		os->setSetting(OS_SETTING_CREATE_COMPILED_FILE, false);
+		os->setSetting(OS_SETTING_SOURCECODE_MUST_EXIST, true);
+
 #ifdef _MSC_VER
 		const char * config_flename = "conf\\etc\\os-fcgi\\conf.os";
 		if(!os->isFileExist(config_flename)){
@@ -781,8 +820,33 @@ int main(int argc, char * argv[])
 #else
 		const char * config_flename = "/etc/os-fcgi/conf.os";
 #endif
-		os->require(config_flename, false, 1);
-		threads			  =	(os->getProperty(-1, "threads"),		os->popInt());
+		for(int i = 1; i < argc; i++){
+			if(strcmp(argv[i], "-c") == 0){
+				if(i+1 < argc){
+					config_flename = argv[++i];
+				}else{
+					usage("Error: no argument for option c\n");
+				}
+				continue;
+			}
+			if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-?") == 0){
+				usage();
+				continue;
+			}
+		}
+		
+		os->require(config_flename, false, 1, OS_SOURCECODE_AUTO, true, false);
+		if(os->isExceptionSet()){
+			printf("\nError in config file: %s\n", config_flename);
+			os->handleException();
+			usage();
+		}
+#ifdef _MSC_VER
+#define DEF_NUM_THREADS 1
+#else
+#define DEF_NUM_THREADS 8
+#endif
+		threads			  =	(os->getProperty(-1, "threads"),		os->popInt(DEF_NUM_THREADS));
 		OS::String listen = (os->getProperty(-1, "listen"),			os->popString(":9000"));
 		post_max_size	  =	(os->getProperty(-1, "post_max_size"),	os->popInt(1024*1024*8));
 		os->release();
@@ -791,8 +855,7 @@ int main(int argc, char * argv[])
 		listen_socket = FCGX_OpenSocket(listen, listen_queue_backlog);
 		if(listen_socket < 0){
 			printf("Error: listen address is incorrect %s\n", listen.toChar());
-			// log("listen_socket < 0 \n");
-			exit(1);
+			usage();
 		}
 // #ifdef _MSC_VER
 		printf("listen: %s\n", listen.toChar());
@@ -803,10 +866,13 @@ int main(int argc, char * argv[])
 	const int MAX_THREAD_COUNT = 64;
 	if(threads < 1){
 		threads = 1;
+		printf("threads number should be in range 1 .. %d, use threads: %d\n", MAX_THREAD_COUNT, threads);
 	}else if(threads > MAX_THREAD_COUNT){ 
 		threads = MAX_THREAD_COUNT;
+		printf("threads number should be in range 1 .. %d, use threads: %d\n", MAX_THREAD_COUNT, threads);
+	}else{
+		printf("threads: %d\n", threads);
 	}
-	printf("threads: %d\n", threads);
 	printf("post_max_size: %.1f Mb\n", (float)post_max_size / (1024.0f * 1024.0f));
 	demonize();
 	
@@ -815,8 +881,12 @@ int main(int argc, char * argv[])
         pthread_create(&id[i], NULL, doit, NULL);
 	}
 #else
-	threads = 1;
-	printf("threads: %d\n", threads);
+	if(threads != 1){
+		threads = 1;
+		printf("threads: %d (only one thread is supported for windows at the moment)\n", threads);
+	}else{
+		printf("threads: %d\n", threads);
+	}
 	printf("post_max_size: %.1f Mb\n", (float)post_max_size / (1024.0f * 1024.0f));
 #endif
 	doit(NULL);
