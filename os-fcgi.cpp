@@ -102,13 +102,17 @@ void initStartTime()
 	}
 }
 
-void dolog(const char * msg)
+void dolog(const char * format, ...)
 {
-	FILE * f = fopen("/tmp/os-fcgi.log", "wt");
+	va_list va;
+	va_start(va, format);
+	FILE * f = fopen("/tmp/os-fcgi.log", "at");
 	if(f){
-		fwrite(msg, strlen(msg), 1, f);
+		vfprintf(f, format, va);
+		// fwrite(msg, strlen(msg), 1, f);
 		fclose(f);
 	}
+	va_end(va);
 }
 
 class FCGX_OS: public OS
@@ -839,6 +843,7 @@ int main(int argc, char * argv[])
 			}
 		}
 		
+		printf("config: %s\n", config_flename);
 		os->require(config_flename, false, 1, OS_SOURCECODE_AUTO, true, false);
 		if(os->isExceptionSet()){
 			printf("\nError in config file: %s\n", config_flename);

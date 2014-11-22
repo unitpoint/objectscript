@@ -18205,17 +18205,27 @@ double OS::toDouble(int offs, double def, bool valueof_enabled)
 	return (double)toNumber(offs, (OS_NUMBER)def, valueof_enabled);
 }
 
-int OS::toInt(int offs, int radix, bool valueof_enabled)
+int OS::toInt(int offs, bool valueof_enabled)
+{
+	// return (int)core->valueToInt(core->getStackValue(offs), radix, valueof_enabled);
+	return (int)toNumber(offs, valueof_enabled);
+}
+
+int OS::toIntRadix(int offs, int radix, bool valueof_enabled)
 {
 	return (int)core->valueToInt(core->getStackValue(offs), radix, valueof_enabled);
 	// return (int)toNumber(offs, valueof_enabled);
 }
 
-int OS::toInt(int offs, int def, int radix, bool valueof_enabled)
+int OS::toInt(int offs, int def, bool valueof_enabled)
+{
+	return (int)toNumber(offs, (OS_NUMBER)def, valueof_enabled);
+}
+
+int OS::toIntRadix(int offs, int def, int radix, bool valueof_enabled)
 {
 	Core::Value value = core->getStackValue(offs);
 	return value.isNull() ? def : (int)core->valueToInt(value, radix, valueof_enabled);
-	// return (int)toNumber(offs, (OS_NUMBER)def, valueof_enabled);
 }
 
 bool OS::isNumber(int offs, OS_NUMBER * out)
@@ -18293,16 +18303,28 @@ double OS::popDouble(double def, bool valueof_enabled)
 	return toDouble(-1, def, valueof_enabled);
 }
 
-int OS::popInt(int radix, bool valueof_enabled)
+int OS::popInt(bool valueof_enabled)
+{
+	Pop pop(this); (void)pop;
+	return toInt(-1, valueof_enabled);
+}
+
+int OS::popIntRadix(int radix, bool valueof_enabled)
 {
 	Pop pop(this); (void)pop;
 	return toInt(-1, radix, valueof_enabled);
 }
 
-int OS::popInt(int def, int radix, bool valueof_enabled)
+int OS::popInt(int def, bool valueof_enabled)
 {
 	Pop pop(this); (void)pop;
-	return toInt(-1, def, radix, valueof_enabled);
+	return toInt(-1, def, valueof_enabled);
+}
+
+int OS::popIntRadix(int def, int radix, bool valueof_enabled)
+{
+	Pop pop(this); (void)pop;
+	return toIntRadix(-1, def, radix, valueof_enabled);
 }
 
 OS::String OS::popString(bool valueof_enabled)

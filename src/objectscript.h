@@ -74,7 +74,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.6.1-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.6.2-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -3249,14 +3249,16 @@ namespace ObjectScript
 		OS_NUMBER	toNumber(int offs = -1, bool valueof_enabled = true);
 		float		toFloat(int offs = -1, bool valueof_enabled = true);
 		double		toDouble(int offs = -1, bool valueof_enabled = true);
-		int			toInt(int offs = -1, int radix = 10, bool valueof_enabled = true);
+		int			toInt(int offs = -1, bool valueof_enabled = true);
+		int			toIntRadix(int offs = -1, int radix = 10, bool valueof_enabled = true);
 		String		toString(int offs = -1, bool valueof_enabled = true);
 		
 		bool		toBool(int offs, bool def);
 		OS_NUMBER	toNumber(int offs, OS_NUMBER def, bool valueof_enabled = true);
 		float		toFloat(int offs, float def, bool valueof_enabled = true);
 		double		toDouble(int offs, double def, bool valueof_enabled = true);
-		int			toInt(int offs, int def, int radix, bool valueof_enabled = true);
+		int			toInt(int offs, int def, bool valueof_enabled = true);
+		int			toIntRadix(int offs, int def, int radix, bool valueof_enabled = true);
 		String		toString(int offs, const String& def, bool valueof_enabled = true);
 		String		toString(int offs, const OS_CHAR * def, bool valueof_enabled = true);
 
@@ -3264,14 +3266,16 @@ namespace ObjectScript
 		OS_NUMBER	popNumber(bool valueof_enabled = true);
 		float		popFloat(bool valueof_enabled = true);
 		double		popDouble(bool valueof_enabled = true);
-		int			popInt(int radix = 0, bool valueof_enabled = true);
+		int			popInt(bool valueof_enabled = true);
+		int			popIntRadix(int radix = 0, bool valueof_enabled = true);
 		String		popString(bool valueof_enabled = true);
 
 		bool		popBool(bool def);
 		OS_NUMBER	popNumber(OS_NUMBER def, bool valueof_enabled = true);
 		float		popFloat(float def, bool valueof_enabled = true);
 		double		popDouble(double def, bool valueof_enabled = true);
-		int			popInt(int def, int radix, bool valueof_enabled = true);
+		int			popInt(int def, bool valueof_enabled = true);
+		int			popIntRadix(int def, int radix, bool valueof_enabled = true);
 		String		popString(const String& def, bool valueof_enabled = true);
 		String		popString(const OS_CHAR * def, bool valueof_enabled = true);
 
