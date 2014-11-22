@@ -102,6 +102,15 @@ void initStartTime()
 	}
 }
 
+void dolog(const char * msg)
+{
+	FILE * f = fopen("/tmp/os-fcgi.log", "wt");
+	if(f){
+		fwrite(msg, strlen(msg), 1, f);
+		fclose(f);
+	}
+}
+
 class FCGX_OS: public OS
 {
 protected:
@@ -392,6 +401,7 @@ public:
 
 		MPFD::Parser POSTParser = MPFD::Parser();
 		if(content_length > 0 && content_type.getLen() > 0 && strncmp(content_type.toChar(), multipart_form_data, multipart_form_data_len) == 0){
+			// dolog("begin multipart_form_data");
 			POSTParser.SetTempDirForFileUpload("/tmp");
 			// POSTParser.SetMaxCollectedDataLength(20*1024);
 			POSTParser.SetContentType(content_type.toChar());
@@ -441,7 +451,9 @@ public:
 					setSmartProperty(it->first.c_str());
 				}
 			}
+			// dolog("end multipart_form_data");
 		}else if(content_length > 0 && strncmp(content_type.toChar(), form_urlencoded, form_urlencoded_len) == 0){
+			// dolog("begin form_urlencoded");
 			Core::Buffer buf(this);
 			buf.reserveCapacity(content_length+4);
 			for(int cur_len; (cur_len = FCGX_GetStr((char*)buf.buffer.buf, content_length, request->in)) > 0;){
@@ -485,6 +497,7 @@ public:
 					break;
 				}
 			}
+			// dolog("end form_urlencoded");
 		}
 		
 		extern char **environ;
@@ -646,15 +659,6 @@ public:
 		return "application/octet-stream";
 	}
 };
-
-void log(const char * msg)
-{
-	FILE * f = fopen("/tmp/os-fcgi.log", "wt");
-	if(f){
-		fwrite(msg, strlen(msg), 1, f);
-		fclose(f);
-	}
-}
 
 void * doit(void * a)
 {
