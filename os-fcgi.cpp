@@ -10,7 +10,7 @@
 #include "3rdparty/MPFDParser-1.0/Parser.h"
 #include <stdlib.h>
 
-#define OS_FCGI_VERSION	OS_TEXT("1.3.1")
+#define OS_FCGI_VERSION	OS_TEXT("1.3.2")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -403,59 +403,71 @@ public:
 		const char * form_urlencoded = "application/x-www-form-urlencoded";
 		int form_urlencoded_len = (int)strlen(form_urlencoded);
 
+		bool is_valid_headers = true;
+
 		MPFD::Parser POSTParser = MPFD::Parser();
 		if(content_length > 0 && content_type.getLen() > 0 && strncmp(content_type.toChar(), multipart_form_data, multipart_form_data_len) == 0){
-			// dolog("begin multipart_form_data");
-			POSTParser.SetTempDirForFileUpload("/tmp");
-			// POSTParser.SetMaxCollectedDataLength(20*1024);
-			POSTParser.SetContentType(content_type.toChar());
+			char * temp_buf = NULL;
+			try{
+				// dolog("begin multipart_form_data");
+				POSTParser.SetTempDirForFileUpload("/tmp");
+				// POSTParser.SetMaxCollectedDataLength(20*1024);
+				POSTParser.SetContentType(content_type.toChar());
 
-			int max_temp_buf_size = (int)(1024*1024*0.1);
-			int temp_buf_size = content_length < max_temp_buf_size ? content_length : max_temp_buf_size;
-			char * temp_buf = (char*)malloc(temp_buf_size + 1 OS_DBG_FILEPOS); // new char[temp_buf_size + 1];
-			for(int cur_len; (cur_len = FCGX_GetStr(temp_buf, temp_buf_size, request->in)) > 0;){
-				POSTParser.AcceptSomeData(temp_buf, cur_len);
-			}
-			free(temp_buf); // delete [] temp_buf;
-			temp_buf = NULL;
-			
-			// POSTParser.SetExternalDataBuffer(buf, len);
-			POSTParser.FinishData();
-
-			std::map<std::string, MPFD::Field *> fields = POSTParser.GetFieldsMap();
-			// FCGX_FPrintF(request->out, "Have %d fields<p>\n", fields.size());
-
-			std::map<std::string, MPFD::Field *>::iterator it;
-			for(it = fields.begin(); it != fields.end(); it++){
-				MPFD::Field * field = fields[it->first];
-				if(field->GetType() == MPFD::Field::TextType){
-					getGlobal("_POST");
-					pushString(field->GetTextTypeContent().c_str());
-					setSmartProperty(it->first.c_str());
-				}else{
-					getGlobal("_FILES");
-					newObject();
-					{
-						pushStackValue();
-						pushString(field->GetFileName().c_str());
-						setProperty("name");
-						
-						pushStackValue();
-						pushString(field->GetFileMimeType().c_str());
-						setProperty("type");
-						
-						pushStackValue();
-						pushString(field->GetTempFileNameEx().c_str());
-						setProperty("temp");
-						
-						pushStackValue();
-						pushNumber(getFileSize(field->GetTempFileNameEx().c_str()));
-						setProperty("size");
-					}
-					setSmartProperty(it->first.c_str());
+				int max_temp_buf_size = (int)(1024*1024*0.1);
+				int temp_buf_size = content_length < max_temp_buf_size ? content_length : max_temp_buf_size;
+				temp_buf = (char*)malloc(temp_buf_size + 1 OS_DBG_FILEPOS); // new char[temp_buf_size + 1];
+				for(int cur_len; (cur_len = FCGX_GetStr(temp_buf, temp_buf_size, request->in)) > 0;){
+					POSTParser.AcceptSomeData(temp_buf, cur_len);
 				}
+				free(temp_buf); // delete [] temp_buf;
+				temp_buf = NULL;
+			
+				// POSTParser.SetExternalDataBuffer(buf, len);
+				POSTParser.FinishData();
+			}catch(MPFD::Exception& e){
+				is_valid_headers = false;
+				free(temp_buf);
+#if defined _MSC_VER && 1
+				fprintf(stderr, "error post data: %s\n", e.GetError().c_str());
+#endif
 			}
-			// dolog("end multipart_form_data");
+			if(is_valid_headers){
+				std::map<std::string, MPFD::Field *> fields = POSTParser.GetFieldsMap();
+				// FCGX_FPrintF(request->out, "Have %d fields<p>\n", fields.size());
+
+				std::map<std::string, MPFD::Field *>::iterator it;
+				for(it = fields.begin(); it != fields.end(); it++){
+					MPFD::Field * field = fields[it->first];
+					if(field->GetType() == MPFD::Field::TextType){
+						getGlobal("_POST");
+						pushString(field->GetTextTypeContent().c_str());
+						setSmartProperty(it->first.c_str());
+					}else{
+						getGlobal("_FILES");
+						newObject();
+						{
+							pushStackValue();
+							pushString(field->GetFileName().c_str());
+							setProperty("name");
+						
+							pushStackValue();
+							pushString(field->GetFileMimeType().c_str());
+							setProperty("type");
+						
+							pushStackValue();
+							pushString(field->GetTempFileNameEx().c_str());
+							setProperty("temp");
+						
+							pushStackValue();
+							pushNumber(getFileSize(field->GetTempFileNameEx().c_str()));
+							setProperty("size");
+						}
+						setSmartProperty(it->first.c_str());
+					}
+				}
+				// dolog("end multipart_form_data");
+			}
 		}else if(content_length > 0 && strncmp(content_type.toChar(), form_urlencoded, form_urlencoded_len) == 0){
 			// dolog("begin form_urlencoded");
 			Core::Buffer buf(this);
@@ -550,7 +562,7 @@ public:
 					OS_OPENSOURCE
 				"</center></body></html>";
 
-			if(script_filename.isEmpty()){
+			if(script_filename.isEmpty() || !is_valid_headers){
 				if(!headers_sent){
 					headers_sent = true;
 					FCGX_PutS(just_ready, request->out);
