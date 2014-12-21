@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 2.8.12)
 project(ObjectScript)
 
 # This is the base of ObjectScript.
@@ -101,7 +101,7 @@ IF(FORCE32)
     set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 ELSE()
     # We build for 64 bit just as we should.
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 endif()
 
 find_package(Threads)
@@ -139,7 +139,6 @@ endif()
 
 # SoCi
 # SoCi is required and can additionally be built.
-include(FindSoci.cmake)
 if(NOT BUILD_SOCI)
     find_package(Soci)
     if(SOCI_FOUND)
@@ -198,7 +197,7 @@ endif()
 if(USE_ZLIB)
     list(APPEND EXT_SRC src/ext-zlib/os-zlib.cpp)
     list(APPEND EXT_SRC src/ext-zlib/os-zlib.h)
-    find_package(zlib)
+    find_package(ZLIB)
     if(ZLIB_FOUND)
         include_directories(${SQLITE3_INCLUDE_DIR})
     else()
