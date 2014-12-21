@@ -7,7 +7,9 @@
 
 #include <soci.h>
 #include <soci-mysql.h>
+#if SOCI_ODBC_FOUND != 0
 #include <soci-odbc.h>
+#endif
 #include <soci-simple.h>
 
 namespace ObjectScript {
@@ -199,7 +201,9 @@ public:
 				if(!os->isExceptionSet()){
 					soci::connection_parameters parameters(self->type.toChar(), connection_str.toString().toChar());
 					if(odbc){
+						#if SOCI_ODBC_FOUND != 0
 						parameters.set_option(soci::odbc_option_driver_complete, odbc_driver_complete ? "1" : "0" /* SQL_DRIVER_NOPROMPT */);
+						#endif
 					}
 					self->open(parameters);
 				}
