@@ -2,7 +2,10 @@
 #define __OS_EXT_DATETIME_H__
 
 /******************************************************************************
-* Copyright (C) 2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+* Copyright (C) 2012-2014 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+*
+* Please feel free to contact me at anytime, 
+* my email is evgeniy.golovin@unitpoint.ru, skype: egolovin
 *
 * Latest source code: https://github.com/unitpoint/objectscript
 *
@@ -34,6 +37,12 @@ namespace ObjectScript {
 		ObjectScript DateTime extension
 	*/
 	void initDateTimeExtension(OS* os);
+
+	/* 
+		Returns the current time in Unix ticks.
+		The function tries to use the most accurate API available on the system.
+	*/
+	double getTimeSec();
 
 };
 

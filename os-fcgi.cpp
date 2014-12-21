@@ -10,7 +10,7 @@
 #include "3rdparty/MPFDParser-1.0/Parser.h"
 #include <stdlib.h>
 
-#define OS_FCGI_VERSION	OS_TEXT("1.1.3")
+#define OS_FCGI_VERSION	OS_TEXT("1.3.2")
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -74,6 +74,7 @@ char init_cache_path[128] =
 #endif
 ;
 int listen_socket = 0;
+int post_max_size = 0;
 
 #include <cstdio>
 
@@ -99,6 +100,19 @@ void initStartTime()
 		stat(touch_filename, &filename_st);
 		start_time = filename_st.st_mtime;
 	}
+}
+
+void dolog(const char * format, ...)
+{
+	va_list va;
+	va_start(va, format);
+	FILE * f = fopen("/tmp/os-fcgi.log", "at");
+	if(f){
+		vfprintf(f, format, va);
+		// fwrite(msg, strlen(msg), 1, f);
+		fclose(f);
+	}
+	va_end(va);
 }
 
 class FCGX_OS: public OS
@@ -170,8 +184,10 @@ public:
 		headers_sent = false;
 	}
 
-	void initPreScript()
+	void initSettings()
 	{
+		OS::initSettings();
+
 #if defined _MSC_VER && defined OS_DEBUG
 		setSetting(OS_SETTING_CREATE_TEXT_EVAL_OPCODES, false);
 		setSetting(OS_SETTING_CREATE_TEXT_OPCODES, true);
@@ -183,8 +199,6 @@ public:
 		setSetting(OS_SETTING_CREATE_COMPILED_FILE, true);
 
 		setSetting(OS_SETTING_SOURCECODE_MUST_EXIST, true);
-
-		OS::initPreScript();
 	}
 
 	void initEnv(const char * var_name, char ** envp)
@@ -226,11 +240,10 @@ public:
 	String md5(const String& buf)
 	{
 		getGlobal(OS_TEXT("hashlib"));
-		getProperty(OS_TEXT("md5"));
+		getProperty(-1, OS_TEXT("md5"));
 		OS_ASSERT(isFunction());
-		pushNull();
 		pushString(buf);
-		call(1, 1);
+		callTF(1, 1);
 		OS_ASSERT(isString());
 		return popString();
 	}
@@ -310,7 +323,7 @@ public:
 		getGlobal("triggerShutdownFunctions");
 		OS_ASSERT(isFunction() || isNull());
 		pushGlobals();
-		call();
+		callFT();
 	}
 
 	void triggerCleanupFunctions()
@@ -319,7 +332,7 @@ public:
 		getGlobal("triggerCleanupFunctions");
 		OS_ASSERT(isFunction() || isNull());
 		pushGlobals();
-		call();
+		callFT();
 	}
 
 	void initGlobalFunctions()
@@ -374,7 +387,7 @@ public:
 		getProperty("CONTENT_LENGTH");
 		int content_length = popInt();
 
-		int post_max_size = 1024*1024*8;
+		// int post_max_size = 1024*1024*8;
 		if(content_length > post_max_size){
 			FCGX_FPrintF(request->out, "POST Content-Length of %d bytes exceeds the limit of %d bytes", content_length, post_max_size);
 			return;
@@ -390,58 +403,73 @@ public:
 		const char * form_urlencoded = "application/x-www-form-urlencoded";
 		int form_urlencoded_len = (int)strlen(form_urlencoded);
 
+		bool is_valid_headers = true;
+
 		MPFD::Parser POSTParser = MPFD::Parser();
 		if(content_length > 0 && content_type.getLen() > 0 && strncmp(content_type.toChar(), multipart_form_data, multipart_form_data_len) == 0){
-			POSTParser.SetTempDirForFileUpload("/tmp");
-			// POSTParser.SetMaxCollectedDataLength(20*1024);
-			POSTParser.SetContentType(content_type.toChar());
+			char * temp_buf = NULL;
+			try{
+				// dolog("begin multipart_form_data");
+				POSTParser.SetTempDirForFileUpload("/tmp");
+				// POSTParser.SetMaxCollectedDataLength(20*1024);
+				POSTParser.SetContentType(content_type.toChar());
 
-			int max_temp_buf_size = (int)(1024*1024*0.1);
-			int temp_buf_size = content_length < max_temp_buf_size ? content_length : max_temp_buf_size;
-			char * temp_buf = (char*)malloc(temp_buf_size + 1 OS_DBG_FILEPOS); // new char[temp_buf_size + 1];
-			for(int cur_len; (cur_len = FCGX_GetStr(temp_buf, temp_buf_size, request->in)) > 0;){
-				POSTParser.AcceptSomeData(temp_buf, cur_len);
-			}
-			free(temp_buf); // delete [] temp_buf;
-			temp_buf = NULL;
-			
-			// POSTParser.SetExternalDataBuffer(buf, len);
-			POSTParser.FinishData();
-
-			std::map<std::string, MPFD::Field *> fields = POSTParser.GetFieldsMap();
-			// FCGX_FPrintF(request->out, "Have %d fields<p>\n", fields.size());
-
-			std::map<std::string, MPFD::Field *>::iterator it;
-			for(it = fields.begin(); it != fields.end(); it++){
-				MPFD::Field * field = fields[it->first];
-				if(field->GetType() == MPFD::Field::TextType){
-					getGlobal("_POST");
-					pushString(field->GetTextTypeContent().c_str());
-					setSmartProperty(it->first.c_str());
-				}else{
-					getGlobal("_FILES");
-					newObject();
-					{
-						pushStackValue();
-						pushString(field->GetFileName().c_str());
-						setProperty("name");
-						
-						pushStackValue();
-						pushString(field->GetFileMimeType().c_str());
-						setProperty("type");
-						
-						pushStackValue();
-						pushString(field->GetTempFileNameEx().c_str());
-						setProperty("temp");
-						
-						pushStackValue();
-						pushNumber(getFileSize(field->GetTempFileNameEx().c_str()));
-						setProperty("size");
-					}
-					setSmartProperty(it->first.c_str());
+				int max_temp_buf_size = (int)(1024*1024*0.1);
+				int temp_buf_size = content_length < max_temp_buf_size ? content_length : max_temp_buf_size;
+				temp_buf = (char*)malloc(temp_buf_size + 1 OS_DBG_FILEPOS); // new char[temp_buf_size + 1];
+				for(int cur_len; (cur_len = FCGX_GetStr(temp_buf, temp_buf_size, request->in)) > 0;){
+					POSTParser.AcceptSomeData(temp_buf, cur_len);
 				}
+				free(temp_buf); // delete [] temp_buf;
+				temp_buf = NULL;
+			
+				// POSTParser.SetExternalDataBuffer(buf, len);
+				POSTParser.FinishData();
+			}catch(MPFD::Exception& e){
+				is_valid_headers = false;
+				free(temp_buf);
+#if defined _MSC_VER && 1
+				fprintf(stderr, "error post data: %s\n", e.GetError().c_str());
+#endif
+			}
+			if(is_valid_headers){
+				std::map<std::string, MPFD::Field *> fields = POSTParser.GetFieldsMap();
+				// FCGX_FPrintF(request->out, "Have %d fields<p>\n", fields.size());
+
+				std::map<std::string, MPFD::Field *>::iterator it;
+				for(it = fields.begin(); it != fields.end(); it++){
+					MPFD::Field * field = fields[it->first];
+					if(field->GetType() == MPFD::Field::TextType){
+						getGlobal("_POST");
+						pushString(field->GetTextTypeContent().c_str());
+						setSmartProperty(it->first.c_str());
+					}else{
+						getGlobal("_FILES");
+						newObject();
+						{
+							pushStackValue();
+							pushString(field->GetFileName().c_str());
+							setProperty("name");
+						
+							pushStackValue();
+							pushString(field->GetFileMimeType().c_str());
+							setProperty("type");
+						
+							pushStackValue();
+							pushString(field->GetTempFileNameEx().c_str());
+							setProperty("temp");
+						
+							pushStackValue();
+							pushNumber(getFileSize(field->GetTempFileNameEx().c_str()));
+							setProperty("size");
+						}
+						setSmartProperty(it->first.c_str());
+					}
+				}
+				// dolog("end multipart_form_data");
 			}
 		}else if(content_length > 0 && strncmp(content_type.toChar(), form_urlencoded, form_urlencoded_len) == 0){
+			// dolog("begin form_urlencoded");
 			Core::Buffer buf(this);
 			buf.reserveCapacity(content_length+4);
 			for(int cur_len; (cur_len = FCGX_GetStr((char*)buf.buffer.buf, content_length, request->in)) > 0;){
@@ -457,21 +485,17 @@ public:
 				char * assign = strchr(form, '=');
 				if(assign){
 					getGlobal("url");
-					getProperty("decode");
+					getProperty(-1, "decode");
 					OS_ASSERT(isFunction());
-					// pushCFunction(urlDecode);
-					pushNull();
 					pushString(form, assign - form);
-					call(1, 1);
+					callTF(1, 1);
 					String name = popString();
 
 					getGlobal("url");
-					getProperty("decode");
+					getProperty(-1, "decode");
 					OS_ASSERT(isFunction());
-					// pushCFunction(urlDecode);
-					pushNull();
 					char * value_str = assign+1;
-					char * end_str = strchr(form, '&');
+					char * end_str = strchr(value_str, '&');
 					if(end_str){
 						pushString(value_str, end_str - value_str);
 						form = end_str+1;
@@ -479,7 +503,7 @@ public:
 						pushString(value_str);
 						form = NULL;
 					}
-					call(1, 1);
+					callTF(1, 1);
 					String value = popString();
 					
 					getGlobal("_POST");
@@ -489,6 +513,7 @@ public:
 					break;
 				}
 			}
+			// dolog("end form_urlencoded");
 		}
 		
 		extern char **environ;
@@ -496,7 +521,24 @@ public:
 		
 		getGlobal("_SERVER");
 		getProperty("SCRIPT_FILENAME");
-		String script_filename = popString();
+		if(isNull()){
+			pop();
+			getGlobal("_SERVER");
+			
+			getProperty(-1, "DOCUMENT_ROOT");
+			String document_root = popString("");
+			
+			getProperty(-1, "SCRIPT_NAME");
+			String script_name = popString("");
+
+			pushString(document_root + script_name);
+			setProperty("SCRIPT_FILENAME");
+
+			getGlobal("_SERVER");
+			getProperty("SCRIPT_FILENAME");
+			OS_ASSERT(isString());
+		}
+		String script_filename = popString("");
 #if defined _MSC_VER && 0
 		fprintf(stderr, "%s\n", script_filename.toChar());
 #endif
@@ -520,7 +562,7 @@ public:
 					OS_OPENSOURCE
 				"</center></body></html>";
 
-			if(script_filename.isEmpty()){
+			if(script_filename.isEmpty() || !is_valid_headers){
 				if(!headers_sent){
 					headers_sent = true;
 					FCGX_PutS(just_ready, request->out);
@@ -634,15 +676,6 @@ public:
 	}
 };
 
-void log(const char * msg)
-{
-	FILE * f = fopen("/tmp/os-fcgi.log", "wt");
-	if(f){
-		fwrite(msg, strlen(msg), 1, f);
-		fclose(f);
-	}
-}
-
 void * doit(void * a)
 {
     // int listen_socket = (int)(ptrdiff_t)a;
@@ -737,12 +770,48 @@ void demonize()
 }
 #endif
 
-#ifdef _MSC_VER
-int _tmain(int argc, _TCHAR* argv[])
+#define OS_FCGI_PROC "os-fcgi"
+
+void usage(const char * error = NULL)
+{
+	if(error){
+		printf("%s\n", error);
+	}
+	printf("\n");
+	printf("Usage: %s [args...]\n", OS_FCGI_PROC);
+	printf(" -c <file> Config file name\n");
+	printf(" -h        This help\n");
+	printf("\n");
+	exit(1);
+}
+
+#if defined _MSC_VER && 0
+int _tmain(int argc, _TCHAR* _argv[])
+{
+	char ** argv = new char*[argc];
+	{ 
+		for(int i = 0; i < argc; i++){
+			int len = 0; for(; _argv[i][len]; len++);
+			argv[i] = new char[len+1];
+			for(int j = 0; j <= len; j++){
+				argv[i][j] = (char)_argv[i][j];
+			}
+		}
+	}
+	struct ArgvFinalizer {
+		int argc;
+		char ** argv;
+		~ArgvFinalizer(){
+			for(int i = 0; i < argc; i++){
+				delete [] argv[i];
+			}
+			delete [] argv;
+		}
+	} __argv_finalizer__ = {argc, argv};
 #else
 int main(int argc, char * argv[])
-#endif
 {
+#endif
 	initStartTime();
 
 	printf("ObjectScript FastCGI Process Manager %s\n", OS_FCGI_VERSION);
@@ -750,15 +819,18 @@ int main(int argc, char * argv[])
 	printf("%s\n", OS_OPENSOURCE);
 
 	if(FCGX_Init()){
-// #ifdef _MSC_VER
-		printf("Error: initialization is failed\n");
-// #endif
-		exit(1); 
+		usage("Error: FCGX initialization is failed\n");
 	}
 
 	int threads;
 	{
 		OS * os = OS::create();
+
+		os->setSetting(OS_SETTING_CREATE_TEXT_EVAL_OPCODES, false);
+		os->setSetting(OS_SETTING_CREATE_TEXT_OPCODES, false);
+		os->setSetting(OS_SETTING_CREATE_COMPILED_FILE, false);
+		os->setSetting(OS_SETTING_SOURCECODE_MUST_EXIST, true);
+
 #ifdef _MSC_VER
 		const char * config_flename = "conf\\etc\\os-fcgi\\conf.os";
 		if(!os->isFileExist(config_flename)){
@@ -768,17 +840,43 @@ int main(int argc, char * argv[])
 #else
 		const char * config_flename = "/etc/os-fcgi/conf.os";
 #endif
-		os->require(config_flename, false, 1);
-		threads =			(os->getProperty(-1, "threads"),	os->popInt());
-		OS::String listen = (os->getProperty(-1, "listen"),		os->popString(":9000"));
+		for(int i = 1; i < argc; i++){
+			if(strcmp(argv[i], "-c") == 0){
+				if(i+1 < argc){
+					config_flename = argv[++i];
+				}else{
+					usage("Error: no argument for option c\n");
+				}
+				continue;
+			}
+			if(strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-?") == 0){
+				usage();
+				continue;
+			}
+		}
+		
+		printf("config: %s\n", config_flename);
+		os->require(config_flename, false, 1, OS_SOURCECODE_AUTO, true, false);
+		if(os->isExceptionSet()){
+			printf("\nError in config file: %s\n", config_flename);
+			os->handleException();
+			usage();
+		}
+#ifdef _MSC_VER
+#define DEF_NUM_THREADS 1
+#else
+#define DEF_NUM_THREADS 8
+#endif
+		threads			  =	(os->getProperty(-1, "threads"),		os->popInt(DEF_NUM_THREADS));
+		OS::String listen = (os->getProperty(-1, "listen"),			os->popString(":9000"));
+		post_max_size	  =	(os->getProperty(-1, "post_max_size"),	os->popInt(1024*1024*8));
 		os->release();
 
 		int listen_queue_backlog = 400;
 		listen_socket = FCGX_OpenSocket(listen, listen_queue_backlog);
 		if(listen_socket < 0){
 			printf("Error: listen address is incorrect %s\n", listen.toChar());
-			// log("listen_socket < 0 \n");
-			exit(1);
+			usage();
 		}
 // #ifdef _MSC_VER
 		printf("listen: %s\n", listen.toChar());
@@ -789,10 +887,14 @@ int main(int argc, char * argv[])
 	const int MAX_THREAD_COUNT = 64;
 	if(threads < 1){
 		threads = 1;
+		printf("threads number should be in range 1 .. %d, use threads: %d\n", MAX_THREAD_COUNT, threads);
 	}else if(threads > MAX_THREAD_COUNT){ 
 		threads = MAX_THREAD_COUNT;
+		printf("threads number should be in range 1 .. %d, use threads: %d\n", MAX_THREAD_COUNT, threads);
+	}else{
+		printf("threads: %d\n", threads);
 	}
-	printf("threads: %d\n", threads);
+	printf("post_max_size: %.1f Mb\n", (float)post_max_size / (1024.0f * 1024.0f));
 	demonize();
 	
 	pthread_t id[MAX_THREAD_COUNT];
@@ -800,8 +902,13 @@ int main(int argc, char * argv[])
         pthread_create(&id[i], NULL, doit, NULL);
 	}
 #else
-	threads = 1;
-	printf("threads: %d\n", threads);
+	if(threads != 1){
+		threads = 1;
+		printf("threads: %d (only one thread is supported for windows at the moment)\n", threads);
+	}else{
+		printf("threads: %d\n", threads);
+	}
+	printf("post_max_size: %.1f Mb\n", (float)post_max_size / (1024.0f * 1024.0f));
 #endif
 	doit(NULL);
 

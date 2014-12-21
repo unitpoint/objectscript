@@ -1,14 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Файлы исходного кода">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Файлы ресурсов">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="3rdparty">
       <UniqueIdentifier>{f339d7fa-31e5-4183-9d69-81084e24ff88}</UniqueIdentifier>
     </Filter>
@@ -21,84 +13,56 @@
     <Filter Include="3rdparty\pcre">
       <UniqueIdentifier>{4077ae1f-1331-4bb2-874d-345c51a78c2a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="3rdparty\sqlite3">
-      <UniqueIdentifier>{be52041e-c889-4cdf-ac05-d6e582c4ecef}</UniqueIdentifier>
-    </Filter>
     <Filter Include="3rdparty\libiconv">
       <UniqueIdentifier>{47a88e3a-0b27-4373-abd7-838f5e4ae774}</UniqueIdentifier>
     </Filter>
-    <Filter Include="3rdparty\zlib">
-      <UniqueIdentifier>{c70ef11b-418f-4f6e-83be-71b3e9a0e0e2}</UniqueIdentifier>
+    <Filter Include="ext">
+      <UniqueIdentifier>{1520ee0c-29be-4394-afcd-57cb6d6a318e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="3rdparty\hashlib">
-      <UniqueIdentifier>{4b17efa7-d12e-4a35-aff2-5cf89ab50686}</UniqueIdentifier>
+    <Filter Include="ext\base64">
+      <UniqueIdentifier>{e481e676-3172-4b99-a227-81cbc62d46a8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="3rdparty\hashlib\md5">
-      <UniqueIdentifier>{593a715d-a696-49db-afc1-3b75b1d6579e}</UniqueIdentifier>
+    <Filter Include="ext\curl">
+      <UniqueIdentifier>{14ebdfd2-66d5-4bcd-b0a3-191c2a936e75}</UniqueIdentifier>
     </Filter>
-    <Filter Include="3rdparty\hashlib\des">
-      <UniqueIdentifier>{cafdcd6e-2d38-4d22-b8d5-8e6347e64c5f}</UniqueIdentifier>
+    <Filter Include="ext\datetime">
+      <UniqueIdentifier>{c837dbec-9a01-40b7-ad6e-7386a2be75c4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="3rdparty\hashlib\sha">
-      <UniqueIdentifier>{e8c0acc0-b3da-4936-99d8-a46f4b9ab728}</UniqueIdentifier>
+    <Filter Include="ext\filesystem">
+      <UniqueIdentifier>{0ea11c3e-503f-48d9-bab4-f05d5abed349}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Файлы исходного кода\Заголовочные файлы">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    <Filter Include="ext\hashlib">
+      <UniqueIdentifier>{4cc354de-c003-4268-8b2d-5bbb00253e93}</UniqueIdentifier>
     </Filter>
-    <Filter Include="3rdparty\websocket">
-      <UniqueIdentifier>{a7bfe2cc-65d7-4c87-879e-da17a821abdf}</UniqueIdentifier>
+    <Filter Include="ext\iconv">
+      <UniqueIdentifier>{10f25f6e-3138-4e87-a08a-813569b30178}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ext\json">
+      <UniqueIdentifier>{fcb8d6d6-6dfa-4022-b01d-e5e56d417cd5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ext\odbo">
+      <UniqueIdentifier>{6d5d372a-a727-48a2-badf-e9485bb5d04f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ext\process">
+      <UniqueIdentifier>{93e06ff7-db4b-4eed-ba93-0ab5a50ce3d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ext\regexp">
+      <UniqueIdentifier>{bc755965-e2be-486c-9f37-d1c146258eb3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ext\sqlite3">
+      <UniqueIdentifier>{9fc7e74b-5a15-4913-b5be-7e6850dbb97d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ext\url">
+      <UniqueIdentifier>{78a3dd09-5b4c-401b-9202-437511b701e9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ext\zlib">
+      <UniqueIdentifier>{a54d81a8-27fd-49ec-a139-fb4e58d12265}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="objectscript">
+      <UniqueIdentifier>{60bf5bf1-b332-47bd-8acc-b98878dd2d53}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="stdafx.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fastcgi.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgiapp.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgimisc.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgio.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgios.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgi_config.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgi_config_x86.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgi_stdio.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Exception.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Field.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Parser.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\pcrelib\config.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\3rdparty\pcrelib\pcre.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\3rdparty\libiconv-1.14\lib\aliases.h">
       <Filter>3rdparty\libiconv</Filter>
     </ClInclude>
@@ -747,62 +711,146 @@
     <ClInclude Include="..\..\3rdparty\libiconv-1.14\lib\viscii.h">
       <Filter>3rdparty\libiconv</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ext-base64\cdecode.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+    <ClInclude Include="..\..\src\ext-base64\os-base64.h">
+      <Filter>ext\base64</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\ext-base64\cencode.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+      <Filter>ext\base64</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ext-base64\os-base64.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+    <ClInclude Include="..\..\src\ext-base64\cdecode.h">
+      <Filter>ext\base64</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\ext-curl\os-curl.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+      <Filter>ext\curl</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\ext-datetime\os-datetime.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+      <Filter>ext\datetime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-filesystem\os-filesystem.h">
+      <Filter>ext\filesystem</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\ext-hashlib\os-hashlib.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+      <Filter>ext\hashlib</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ext-hashlib\sha\sha-private.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+    <ClInclude Include="..\..\src\ext-hashlib\crc32\os-crc32.h">
+      <Filter>ext\hashlib</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\ext-hashlib\sha\sha.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+      <Filter>ext\hashlib</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ext-odbo\os-odbo.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+    <ClInclude Include="..\..\src\ext-hashlib\sha\sha-private.h">
+      <Filter>ext\hashlib</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ext-regexp\os-regexp.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
+    <ClInclude Include="..\..\src\ext-hashlib\md5\md5.h">
+      <Filter>ext\hashlib</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\ext-sqlite3\os-sqlite3.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\ext-sqlite3\sqlite3.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\ext-url\os-url.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\ext-zlib\os-zlib.h">
-      <Filter>Файлы исходного кода\Заголовочные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\objectscript.h">
-      <Filter>Файлы исходного кода</Filter>
+    <ClInclude Include="..\..\src\ext-iconv\os-iconv.h">
+      <Filter>ext\iconv</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\ext-json\os-json.h">
-      <Filter>Файлы исходного кода</Filter>
+      <Filter>ext\json</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-odbo\os-odbo.h">
+      <Filter>ext\odbo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-process\os-process.h">
+      <Filter>ext\process</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-regexp\os-regexp.h">
+      <Filter>ext\regexp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-sqlite3\os-sqlite3.h">
+      <Filter>ext\sqlite3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-sqlite3\sqlite3.h">
+      <Filter>ext\sqlite3</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-url\os-url.h">
+      <Filter>ext\url</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\os-zlib.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\crc32.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\deflate.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\gzguts.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\inffast.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\inffixed.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\inflate.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\inftrees.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\trees.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\zconf.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\zlib.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ext-zlib\zlib\zutil.h">
+      <Filter>ext\zlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\pcrelib\config.h">
+      <Filter>3rdparty\pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Exception.h">
+      <Filter>3rdparty\MPFDParser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fastcgi.h">
+      <Filter>3rdparty\fcgi-lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgios.h">
+      <Filter>3rdparty\fcgi-lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgi_config.h">
+      <Filter>3rdparty\fcgi-lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgi_config_x86.h">
+      <Filter>3rdparty\fcgi-lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgi_stdio.h">
+      <Filter>3rdparty\fcgi-lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgiapp.h">
+      <Filter>3rdparty\fcgi-lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgimisc.h">
+      <Filter>3rdparty\fcgi-lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\fcgi-2.4.1\include\fcgio.h">
+      <Filter>3rdparty\fcgi-lib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Field.h">
+      <Filter>3rdparty\MPFDParser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Parser.h">
+      <Filter>3rdparty\MPFDParser</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\pcrelib\pcre.h">
+      <Filter>3rdparty\pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\objectscript.h">
+      <Filter>objectscript</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\os-heap.h">
+      <Filter>objectscript</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="stdafx.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\os-fcgi.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\3rdparty\pcrelib\pcre_chartables.c">
       <Filter>3rdparty\pcre</Filter>
     </ClCompile>
@@ -887,125 +935,130 @@
     <ClCompile Include="..\..\3rdparty\libiconv-1.14\lib\iconv.c">
       <Filter>3rdparty\libiconv</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\ext-base64\cdecode.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\ext-base64\cencode.cpp">
-      <Filter>Файлы исходного кода</Filter>
+      <Filter>ext\base64</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-base64\cdecode.cpp">
+      <Filter>ext\base64</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ext-base64\os-base64.cpp">
-      <Filter>Файлы исходного кода</Filter>
+      <Filter>ext\base64</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ext-curl\os-curl.cpp">
-      <Filter>Файлы исходного кода</Filter>
+      <Filter>ext\curl</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ext-datetime\os-datetime.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-hashlib\des\des.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-hashlib\md5\md5.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-hashlib\os-hashlib.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-hashlib\sha\hmac.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-hashlib\sha\sha1.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-hashlib\sha\sha224-256.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-hashlib\sha\sha384-512.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-hashlib\sha\usha.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-iconv\os-iconv.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-odbo\os-odbo.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-regexp\os-regexp.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-sqlite3\os-sqlite3.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-sqlite3\sqlite3.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-url\os-url.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\os-zlib.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\adler32.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\compress.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\crc32.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\deflate.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\gzclose.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\gzlib.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\gzread.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\gzwrite.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\infback.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\inffast.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\inflate.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\inftrees.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\trees.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\uncompr.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-zlib\zlib\zutil.c">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\objectscript.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\os-heap.cpp">
-      <Filter>Файлы исходного кода</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\ext-process\os-process.cpp">
-      <Filter>Файлы исходного кода</Filter>
+      <Filter>ext\datetime</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ext-filesystem\os-filesystem.cpp">
-      <Filter>Файлы исходного кода</Filter>
+      <Filter>ext\filesystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-hashlib\md5\md5.cpp">
+      <Filter>ext\hashlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-hashlib\os-hashlib.cpp">
+      <Filter>ext\hashlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-hashlib\sha\sha1.cpp">
+      <Filter>ext\hashlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-hashlib\sha\sha224-256.cpp">
+      <Filter>ext\hashlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-hashlib\sha\sha384-512.cpp">
+      <Filter>ext\hashlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-hashlib\crc32\os-crc32.c">
+      <Filter>ext\hashlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-hashlib\des\des.cpp">
+      <Filter>ext\hashlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-hashlib\sha\hmac.cpp">
+      <Filter>ext\hashlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-hashlib\sha\usha.cpp">
+      <Filter>ext\hashlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-iconv\os-iconv.cpp">
+      <Filter>ext\iconv</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\ext-json\os-json.cpp">
-      <Filter>Файлы исходного кода</Filter>
+      <Filter>ext\json</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\ext-odbo\os-odbo.cpp">
+      <Filter>ext\odbo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-process\os-process.cpp">
+      <Filter>ext\process</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-regexp\os-regexp.cpp">
+      <Filter>ext\regexp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-sqlite3\os-sqlite3.cpp">
+      <Filter>ext\sqlite3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-sqlite3\sqlite3.c">
+      <Filter>ext\sqlite3</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-url\os-url.cpp">
+      <Filter>ext\url</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\os-zlib.cpp">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\adler32.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\inftrees.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\compress.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\crc32.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\deflate.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\gzclose.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\gzlib.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\gzread.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\gzwrite.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\infback.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\inffast.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\inflate.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\trees.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\zutil.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ext-zlib\zlib\uncompr.c">
+      <Filter>ext\zlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\objectscript.cpp">
+      <Filter>objectscript</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\os-heap.cpp">
+      <Filter>objectscript</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\os-fcgi.cpp" />
+    <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
 </Project>

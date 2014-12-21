@@ -26,7 +26,7 @@ public:
 		os->getGlobal(OS_TEXT("Exception"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -35,7 +35,7 @@ public:
 		os->getGlobal(OS_TEXT("Exception"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -89,6 +89,8 @@ public:
 
 			if (Z_STREAM_END == status) {
 				/* size buffer down to actual length */
+				OS_ASSERT((int)Z.total_out <= out.buffer.capacity);
+				out.buffer.count = Z.total_out;
 				os->pushString(out);
 				return 1;
 			} else {

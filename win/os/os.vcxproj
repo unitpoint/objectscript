@@ -442,24 +442,39 @@
     <ClInclude Include="..\..\3rdparty\libiconv-1.14\lib\utf8.h" />
     <ClInclude Include="..\..\3rdparty\libiconv-1.14\lib\vietcomb.h" />
     <ClInclude Include="..\..\3rdparty\libiconv-1.14\lib\viscii.h" />
-    <ClInclude Include="..\..\3rdparty\md5\md5.h" />
     <ClInclude Include="..\..\src\ext-base64\cdecode.h" />
     <ClInclude Include="..\..\src\ext-base64\cencode.h" />
+    <ClInclude Include="..\..\src\ext-base64\os-base64.h" />
     <ClInclude Include="..\..\src\ext-curl\os-curl.h" />
     <ClInclude Include="..\..\src\ext-datetime\os-datetime.h" />
+    <ClInclude Include="..\..\src\ext-filesystem\os-filesystem.h" />
+    <ClInclude Include="..\..\src\ext-hashlib\crc32\os-crc32.h" />
+    <ClInclude Include="..\..\src\ext-hashlib\md5\md5.h" />
     <ClInclude Include="..\..\src\ext-hashlib\sha\sha-private.h" />
     <ClInclude Include="..\..\src\ext-hashlib\sha\sha.h" />
+    <ClInclude Include="..\..\src\ext-iconv\os-iconv.h" />
     <ClInclude Include="..\..\src\ext-json\os-json.h" />
     <ClInclude Include="..\..\src\ext-odbo\os-odbo.h" />
+    <ClInclude Include="..\..\src\ext-process\os-process.h" />
     <ClInclude Include="..\..\src\ext-regexp\os-regexp.h" />
     <ClInclude Include="..\..\src\ext-sqlite3\os-sqlite3.h" />
     <ClInclude Include="..\..\src\ext-sqlite3\sqlite3.h" />
     <ClInclude Include="..\..\3rdparty\pcrelib\pcre.h" />
+    <ClInclude Include="..\..\src\ext-url\os-url.h" />
     <ClInclude Include="..\..\src\ext-zlib\os-zlib.h" />
-    <ClInclude Include="..\..\src\os-heap-old.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\crc32.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\deflate.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\gzguts.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\inffast.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\inffixed.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\inflate.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\inftrees.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\trees.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\zconf.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\zlib.h" />
+    <ClInclude Include="..\..\src\ext-zlib\zlib\zutil.h" />
+    <ClInclude Include="..\..\src\objectscript.h" />
     <ClInclude Include="..\..\src\os-heap.h" />
-    <ClInclude Include="stdafx.h" />
-    <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\3rdparty\libiconv-1.14\libcharset\lib\localcharset.c" />
@@ -474,6 +489,7 @@
       <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'">true</ShowIncludes>
     </ClCompile>
     <ClCompile Include="..\..\src\ext-filesystem\os-filesystem.cpp" />
+    <ClCompile Include="..\..\src\ext-hashlib\crc32\os-crc32.c" />
     <ClCompile Include="..\..\src\ext-hashlib\des\des.cpp" />
     <ClCompile Include="..\..\src\ext-hashlib\md5\md5.cpp" />
     <ClCompile Include="..\..\src\ext-hashlib\os-hashlib.cpp" />
@@ -529,7 +545,6 @@
     <ClCompile Include="..\..\3rdparty\pcrelib\pcre_valid_utf8.c" />
     <ClCompile Include="..\..\3rdparty\pcrelib\pcre_version.c" />
     <ClCompile Include="..\..\3rdparty\pcrelib\pcre_xclass.c" />
-    <ClCompile Include="..\..\src\os-heap-old.cpp" />
     <ClCompile Include="..\..\src\os-heap.cpp">
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'">NoListing</AssemblerOutput>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">All</AssemblerOutput>

@@ -232,7 +232,7 @@ public:
 		os->getGlobal(OS_TEXT("Exception"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -241,7 +241,7 @@ public:
 		os->getGlobal(OS_TEXT("Exception"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -1110,6 +1110,16 @@ public:
 			return comdate;
 		}
 
+		void setCOMTime(double value)
+		{
+			setCOMDate(value / SECONDS_PER_DAY);
+		}
+
+		double getCOMTime()
+		{
+			return comdate * SECONDS_PER_DAY;
+		}
+
 		/* Creates a new DateTime instance using datetime as basis by adding
 		the given offsets to the value of datetime and then re-normalizing
 		them.
@@ -1924,7 +1934,7 @@ public:
 				(t0 < t1) ? -1 : (t0 > t1) ? 1 : 0;
 		}
 
-		static int __construct(OS * os, int params, int, int, void * user_param);
+		static int __newinstance(OS * os, int params, int, int, void * user_param);
 		static int now(OS * os, int params, int, int, void * user_param);
 	};
 
@@ -2033,7 +2043,7 @@ int DateTimeOS::DateTime::now(OS * os, int params, int, int, void * user_param)
 	return 1;
 }
 
-int DateTimeOS::DateTime::__construct(OS * os, int params, int, int, void * user_param)
+int DateTimeOS::DateTime::__newinstance(OS * os, int params, int, int, void * user_param)
 {
 	if(params < 1){
 		DateTime * dt = new (os->malloc(sizeof(DateTime) OS_DBG_FILEPOS)) DateTime(os);
@@ -2101,7 +2111,7 @@ void DateTimeOS::initExtension(OS * os)
 	}
 	{
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), DateTime::__construct},
+			{OS_TEXT("__newinstance"), DateTime::__newinstance},
 			{OS_TEXT("now"), DateTime::now},
 			def(OS_TEXT("clone"), &DateTime::clone),
 			def(OS_TEXT("valueOf"), &DateTime::toString),
@@ -2126,6 +2136,9 @@ void DateTimeOS::initExtension(OS * os)
 
 			def(OS_TEXT("__get@comdate"), &DateTime::getCOMDate),
 			def(OS_TEXT("__set@comdate"), &DateTime::setCOMDate),
+
+			def(OS_TEXT("__get@comtime"), &DateTime::getCOMTime),
+			def(OS_TEXT("__set@comtime"), &DateTime::setCOMTime),
 
 			def(OS_TEXT("setAbsDateTime"), &DateTime::setAbsDateTime),
 			def(OS_TEXT("setDateAndTime"), &DateTime::setDateAndTime),
@@ -2174,6 +2187,11 @@ void DateTimeOS::initExtension(OS * os)
 void initDateTimeExtension(OS* os)
 {
 	DateTimeOS::initExtension(os);
+}
+
+double getTimeSec()
+{
+	return DateTimeOS::currentTime();
 }
 
 bool timelib_is_leap(timelib_sll year)

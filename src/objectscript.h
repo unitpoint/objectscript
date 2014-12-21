@@ -2,7 +2,10 @@
 #define __OBJECT_SCRIPT_H__
 
 /******************************************************************************
-* Copyright (C) 2012-2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+* Copyright (C) 2012-2014 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+*
+* Please feel free to contact me at anytime, 
+* my email is evgeniy.golovin@unitpoint.ru, skype: egolovin
 *
 * Latest source code: https://github.com/unitpoint/objectscript
 *
@@ -61,13 +64,19 @@ inline void operator delete(void *, void *){}
 #define OS_PLATFORM_BITS_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("1.19-rc") OS_PLATFORM_BITS_VERSION
-#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
-#define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
-
 #if defined _DEBUG && !defined OS_RELEASE && !defined OS_DEBUG
 #define OS_DEBUG
 #endif
+
+#ifdef OS_DEBUG
+#define OS_DEBUG_VERSION OS_TEXT("-d")
+#else
+#define OS_DEBUG_VERSION
+#endif
+
+#define OS_VERSION		OS_TEXT("2.6.3.1-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
+#define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
 // select ObjectScript number type here
 #ifndef OS_NUMBER
@@ -155,7 +164,11 @@ inline void operator delete(void *, void *){}
 // uncomment it if need
 // #define OS_INFINITE_LOOP_OPCODES 100000000
 
-#define OS_CALL_STACK_MAX_SIZE 200
+#ifdef OS_DEBUG
+#define OS_DEF_MAX_CALL_STACK_SIZE 80
+#else
+#define OS_DEF_MAX_CALL_STACK_SIZE 200
+#endif
 
 #define OS_COMPILED_HEADER OS_TEXT("OBJECTSCRIPT")
 #define OS_EXT_SOURCECODE OS_TEXT(".os")
@@ -235,7 +248,7 @@ namespace ObjectScript
 
 	enum OS_EValueType
 	{
-		OS_VALUE_TYPE_UNKNOWN,
+		// OS_VALUE_TYPE_UNKNOWN,
 		OS_VALUE_TYPE_NULL,
 		OS_VALUE_TYPE_BOOL,
 		OS_VALUE_TYPE_NUMBER,
@@ -318,6 +331,18 @@ namespace ObjectScript
 		OS_CALLTYPE_FUNC
 	};
 
+	enum OS_ECallEnter
+	{
+		OS_CALLENTER_ALLOW_ONLY_ENTER,
+		OS_CALLENTER_EXECUTE_AND_RETURN,
+	};
+
+	enum OS_ECallThisUsage
+	{
+		OS_CALLTHIS_FUNCTION_OVERWRITE,
+		OS_CALLTHIS_KEEP_STACK_VALUE,
+	};
+
 	class OS
 #ifdef OBJECT_SCRIPT_EXTENDS_CLASS
 		: public OBJECT_SCRIPT_EXTENDS_CLASS
@@ -352,7 +377,14 @@ namespace ObjectScript
 
 		struct Utils
 		{
-			static bool parseFloat(const OS_CHAR *& str, OS_FLOAT& val);
+			enum ENumberParseType
+			{
+				PARSE_TOKEN, // 0x - hex, 0b - bin, 0 - octal, else - dec
+				PARSE_INT,
+				PARSE_FLOAT,
+			};
+
+			static bool parseFloat(const OS_CHAR *& str, OS_FLOAT& val, ENumberParseType parse_type, int int_radix = 10);
 
 			static OS_CHAR * numToStr(OS_CHAR*, OS_INT32 value);
 			static OS_CHAR * numToStr(OS_CHAR*, OS_INT64 value);
@@ -366,6 +398,8 @@ namespace ObjectScript
 			static int keyToHash(const void * buf1, int size1, const void * buf2, int size2);
 
 			static int cmp(const void * buf1, int len1, const void * buf2, int len2);
+
+			static double round(double a, int precision = 0);
 		};
 
 		class String;
@@ -852,7 +886,7 @@ namespace ObjectScript
 				int cmp(const OS_CHAR*) const;
 				int getHash() const;
 
-				OS_NUMBER toNumber() const;
+				OS_NUMBER toNumber(int radix) const;
 			};
 
 			class Buffer: public MemStreamWriter
@@ -1190,7 +1224,8 @@ namespace ObjectScript
 				Table();    
 				~Table();
 
-				Property * get(const Value& index);
+				// Property * get(const Value& index);
+				Property * get(const Value& index, int index_type);
 
 				bool containsIterator(IteratorState*);
 				void addIterator(IteratorState*);
@@ -1254,8 +1289,8 @@ namespace ObjectScript
 				static GCStringValue * allocAndPush(OS*, int hash, const void * buf1, int len1, const void * buf2, int len2 OS_DBG_FILEPOS_DECL);
 				static GCStringValue * allocAndPush(OS*, GCStringValue * a, GCStringValue * b OS_DBG_FILEPOS_DECL);
 
-				bool isNumber(OS_NUMBER*) const;
-				OS_NUMBER toNumber() const;
+				bool isNumber(int radix, OS_NUMBER*) const;
+				OS_NUMBER toNumber(int radix) const;
 
 				int cmp(GCStringValue*) const;
 				int cmp(const OS_CHAR*) const;
@@ -1364,8 +1399,8 @@ namespace ObjectScript
 #define OS_SET_VALUE_NUMBER(a, n)	((OS_VALUE_NUMBER(a) = (OS_NUMBER)(n)), OS_SET_VALUE_TYPE(a, OS_VALUE_TYPE_NUMBER))
 #define OS_SET_VALUE_TYPE(a, t)		(OS_VALUE_TAGGED_TYPE(a) = OS_MAKE_VALUE_TAGGED_TYPE(t))
 #define OS_SET_VALUE_TYPE_GC(a, t)	do{ OS_ASSERT((t) >= OS_VALUE_MIN_GC_TYPE); (OS_VALUE_TAGGED_TYPE(a) = (t) | OS_VALUE_MARK_GC_TYPE); }while(false)
-#define OS_SET_VALUE_NULL(a) (OS_VALUE_VARIANT(a).value = NULL, OS_SET_VALUE_TYPE((a), OS_VALUE_TYPE_NULL))
-#define OS_SET_NULL_VALUES(a, c) do{ Value * v = a; for(int count = c; count > 0; --count, ++v) OS_SET_VALUE_NULL(*v); }while(false)
+#define OS_SET_VALUE_NULL(a) do{ Value& local_value_7 = (a); OS_VALUE_VARIANT(local_value_7).value = NULL; OS_SET_VALUE_TYPE(local_value_7, OS_VALUE_TYPE_NULL); }while(false)
+#define OS_SET_NULL_VALUES(a, c) do{ Value * local_value_9 = (a); for(int count = c; count > 0; --count, ++local_value_9) OS_SET_VALUE_NULL(*local_value_9); }while(false)
 
 #elif !defined(OS_NUMBER_IEEEENDIAN)
 #error option 'OS_NUMBER_NAN_TRICK' needs 'OS_NUMBER_IEEEENDIAN'
@@ -1387,8 +1422,8 @@ namespace ObjectScript
 // #define OS_SET_VALUE_OBJECT(a, v)	(OS_VALUE_VARIANT(a) = (v))
 #define OS_SET_VALUE_TYPE(a, t)		(OS_VALUE_TAGGED_TYPE(a) = OS_MAKE_VALUE_TAGGED_TYPE(t))
 #define OS_SET_VALUE_TYPE_GC(a, t)	do{ OS_ASSERT((t) >= OS_VALUE_MIN_GC_TYPE); (OS_VALUE_TAGGED_TYPE(a) = (t) | OS_NUMBER_NAN_MARK | OS_VALUE_MARK_GC_TYPE); OS_ASSERT(OS_VALUE_TYPE(a) == (t)); }while(false)
-#define OS_SET_VALUE_NULL(a) (OS_VALUE_VARIANT(a).value = NULL, OS_SET_VALUE_TYPE((a), OS_VALUE_TYPE_NULL))
-#define OS_SET_NULL_VALUES(a, c) do{ Value * v = (a); for(int count = c; count > 0; --count, ++v) OS_SET_VALUE_NULL(*v); }while(false)
+#define OS_SET_VALUE_NULL(a) do{ Value& local_value_7 = (a); OS_VALUE_VARIANT(local_value_7).value = NULL; OS_SET_VALUE_TYPE(local_value_7, OS_VALUE_TYPE_NULL); }while(false)
+#define OS_SET_NULL_VALUES(a, c) do{ Value * local_value_9 = (a); for(int count = c; count > 0; --count, ++local_value_9) OS_SET_VALUE_NULL(*local_value_9); }while(false)
 
 #if OS_NUMBER_IEEEENDIAN == 0
 				union {
@@ -1455,6 +1490,7 @@ namespace ObjectScript
 				Program * prog; // retained
 				FunctionDecl * func_decl;
 				Value env;
+				Value self;
 				Locals * locals; // retained
 
 				GCFunctionValue();
@@ -1463,7 +1499,7 @@ namespace ObjectScript
 
 			static bool isEqual(const Value& index, int hash, const void * b, int size);
 			static bool isEqual(const Value& index, int hash, const void * buf1, int size1, const void * buf2, int size2) ;
-			static int getValueHash(const Value& index);
+			static int getValueHash(const Value& index, int index_type);
 
 			struct Property
 			{
@@ -1875,8 +1911,9 @@ namespace ObjectScript
 
 					struct SwitchCaseLabel
 					{
-						TokenData  * key; // token pointer is used as key to search label
+						TokenData * key; // used as key to search label
 						Expression * exp;
+						Expression * jump_exp;
 						int to_pos;
 						int from_pos;
 					};
@@ -1914,13 +1951,13 @@ namespace ObjectScript
 
 					Scope * findLoopScope();
 
-					bool addCaseLabel(TokenData * key);
+					bool addCaseLabel(TokenData  * key, Expression * exp);
 					// set address of JUMP opcode
-					bool setCaseLabelJump(TokenData * key, int pos, Compiler* cmp);
+					bool setCaseLabelJump(TokenData  * key, int pos, Compiler* cmp);
 					// set address of target opcode
-					bool setCaseLabelPos(TokenData * key, int pos, Compiler* cmp);
+					bool setCaseLabelPos(TokenData  * key, int pos, Compiler* cmp);
 					// set expression to evaluate to jump to label ("default" element has no expression)
-					bool setCaseLabelExp(TokenData * key, Expression * exp);
+					// bool setCaseLabelExp(TokenData * key, Expression * exp);
 					// returns parent Scope object if it has type EXP_TY_SWITCH_SCOPE
 					Scope* getSwitchScope();
 					// finds EXP_TY_SWITCH_SCOPE in parent's scopes
@@ -2388,6 +2425,9 @@ namespace ObjectScript
 			{
 				String __construct;
 				String __destruct;
+				String __instantiable;
+				String __newinstance;
+				String __callinstance;
 				String __object;
 				String __get;
 				String __set;
@@ -2578,6 +2618,8 @@ namespace ObjectScript
 			void growStackValues(int new_capacity);
 
 			Vector<StackFunction> call_stack_funcs;
+			int max_call_stack;
+
 			StackFunction * stack_func;
 			Value * stack_func_locals;
 			int stack_func_env_index;
@@ -2633,10 +2675,12 @@ namespace ObjectScript
 			int rand_left;
 
 			bool terminated;
+			bool call_stack_overflow;
 			int terminated_code;
 			Value terminated_exception;
 
-			void randInitialize(OS_U32 seed);
+			int getRandSeed();
+			void setRandSeed(int seed);
 			void randReload();
 			double getRand();
 			double getRand(double up);
@@ -2722,7 +2766,7 @@ namespace ObjectScript
 			bool isValueExist(GCValue*);
 #endif
 
-			GCFunctionValue * pushFunctionValue(StackFunction*, Program*, FunctionDecl*, Value env);
+			GCFunctionValue * pushFunctionValue(StackFunction*, Program*, FunctionDecl*, Value env, Value self);
 			void clearFunctionValue(GCFunctionValue*);
 
 			void releaseLocals(Locals*);
@@ -2768,7 +2812,7 @@ namespace ObjectScript
 			GCObjectValue * pushObjectValue(GCValue * prototype);
 			GCArrayValue * pushArrayValue(int initial_capacity = 0);
 
-			GCObjectValue * initObjectInstance(GCObjectValue*);
+			GCValue * initNewInstance(GCValue*);
 
 			template<class T> T * pushValue(T * val){ pushValue(Value(val)); return val; }
 
@@ -2830,6 +2874,7 @@ namespace ObjectScript
 			void pop(int count = 1);
 			void moveStackValues(int offs, int count, int new_offs);
 			void moveStackValue(int offs, int new_offs);
+			void exchangeStackValues(int offs);
 
 			void registerStringRef(GCStringValue*);
 			void unregisterStringRef(GCStringValue*);
@@ -2853,8 +2898,15 @@ namespace ObjectScript
 			String getValueClassname(const Value& val);
 			String getValueClassname(GCValue * val);
 
+			String getValueName(const Value& val);
+			String getValueName(GCValue * val);
+
+			String getValueNameOrClassname(const Value& val);
+			String getValueNameOrClassname(GCValue * val);
+
 			bool valueToBool(const Value& val);
-			OS_INT valueToInt(const Value& val, bool valueof_enabled = false);
+			OS_INT valueToInt(const Value& val, int radix = 0, bool valueof_enabled = false);
+			OS_NUMBER valueToNumberRadix(const Value& val, int radix, bool valueof_enabled);
 			OS_NUMBER valueToNumber(const Value& val, bool valueof_enabled = false);
 			String valueToString(const Value& val, bool valueof_enabled = false);
 			OS::String valueToStringOS(const Value& val, bool valueof_enabled = false);
@@ -2932,11 +2984,15 @@ namespace ObjectScript
 			void execute();
 			void reloadStackFunctionCache();
 
-			void call(int params, int ret_values, GCValue * self_for_proto, 
-				bool allow_only_enter_func, OS_ECallType call_type);
-			void call(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
-			void call(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, 
-				bool allow_only_enter_func, OS_ECallType call_type);
+			void callFT(int start_pos, int call_params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_ECallThisUsage call_this_usage);
+			void callFT(int params, int ret_values, GCValue * self_for_proto, OS_ECallEnter call_enter, OS_ECallType call_type, OS_ECallThisUsage call_this_usage);
+			
+			void callFT(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+			void callTF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+			void callF(int params, int ret_values, OS_ECallType call_type = OS_CALLTYPE_AUTO);
+
+			static int prototypeFunctionApply(OS * os, int params, int, int need_ret_values, void*);
+			static int prototypeFunctionCall(OS * os, int params, int, int need_ret_values, void*);
 
 			Core(OS*);
 			~Core();
@@ -2978,6 +3034,7 @@ namespace ObjectScript
 		void initJsonModule();
 		void initGCModule();
 		void initLangTokenizerModule();
+		virtual void initSettings();
 		virtual void initPreScript();
 		virtual void initPostScript();
 
@@ -3058,6 +3115,9 @@ namespace ObjectScript
 
 		void setMemBreakpointId(int id);
 
+		int getMaxCallStack();
+		void setMaxCallStack(int);
+
 		bool isTerminated();
 		int getTerminatedCode();
 		void setTerminated(bool = true, int = 0);
@@ -3118,6 +3178,7 @@ namespace ObjectScript
 		int getValueId(int offs = -1);
 		String getValueName(int offs = -1);
 		String getValueClassname(int offs = -1);
+		String getValueNameOrClassname(int offs = -1);
 
 		void pushNull();
 		template<class T> void pushNumber(const T& val){ core->pushNumber(val); }
@@ -3150,11 +3211,13 @@ namespace ObjectScript
 
 		int getStackSize();
 		int getAbsoluteOffs(int offs);
+		
 		void remove(int start_offs = -1, int count = 1);
-		void removeAll();
+		// void removeAll(); it's not safe to remove all
 		void pop(int count = 1);
 		void move(int start_offs, int count, int new_offs);
 		void move(int offs, int new_offs);
+		void exchange(int offs = -2); // var temp = stack[absolute(offs)]; stack[absolute(offs)] = stack[absolute(offs)+1]; stack[absolute(offs)+1] = temp
 
 		void runOp(OS_EOpcode opcode);
 
@@ -3187,6 +3250,7 @@ namespace ObjectScript
 		float		toFloat(int offs = -1, bool valueof_enabled = true);
 		double		toDouble(int offs = -1, bool valueof_enabled = true);
 		int			toInt(int offs = -1, bool valueof_enabled = true);
+		int			toIntRadix(int offs = -1, int radix = 10, bool valueof_enabled = true);
 		String		toString(int offs = -1, bool valueof_enabled = true);
 		
 		bool		toBool(int offs, bool def);
@@ -3194,6 +3258,7 @@ namespace ObjectScript
 		float		toFloat(int offs, float def, bool valueof_enabled = true);
 		double		toDouble(int offs, double def, bool valueof_enabled = true);
 		int			toInt(int offs, int def, bool valueof_enabled = true);
+		int			toIntRadix(int offs, int def, int radix, bool valueof_enabled = true);
 		String		toString(int offs, const String& def, bool valueof_enabled = true);
 		String		toString(int offs, const OS_CHAR * def, bool valueof_enabled = true);
 
@@ -3202,6 +3267,7 @@ namespace ObjectScript
 		float		popFloat(bool valueof_enabled = true);
 		double		popDouble(bool valueof_enabled = true);
 		int			popInt(bool valueof_enabled = true);
+		int			popIntRadix(int radix = 0, bool valueof_enabled = true);
 		String		popString(bool valueof_enabled = true);
 
 		bool		popBool(bool def);
@@ -3209,6 +3275,7 @@ namespace ObjectScript
 		float		popFloat(float def, bool valueof_enabled = true);
 		double		popDouble(double def, bool valueof_enabled = true);
 		int			popInt(int def, bool valueof_enabled = true);
+		int			popIntRadix(int def, int radix, bool valueof_enabled = true);
 		String		popString(const String& def, bool valueof_enabled = true);
 		String		popString(const OS_CHAR * def, bool valueof_enabled = true);
 
@@ -3220,8 +3287,18 @@ namespace ObjectScript
 		bool compile(const String& str, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 		bool compile(OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true);
 
-		void call(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);
+		// deprecated, use callFT, callTF or callF
+		// void call(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
 		
+		// stack: func + this + params
+		void callFT(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+
+		// stack: this + func + params
+		void callTF(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO, OS_ECallThisUsage call_this_usage = OS_CALLTHIS_KEEP_STACK_VALUE);
+		
+		// stack: func + params, it uses function's this
+		void callF(int params = 0, int ret_values = 0, OS_ECallType call_type = OS_CALLTYPE_AUTO);
+
 		void eval(const OS_CHAR * str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 		void eval(const String& str, int params = 0, int ret_values = 0, OS_ESourceCodeType source_code_type = OS_SOURCECODE_AUTO, bool check_utf8_bom = true, bool handle_exception = true);
 
@@ -3264,6 +3341,24 @@ namespace ObjectScript
 			OS * os; 
 			Pop(OS * p_os): os(p_os){}
 			~Pop(){ os->pop(); }
+		};
+
+		struct SaveStackSize
+		{
+			OS * os;
+			int stackSize;
+
+			SaveStackSize(OS * _os)
+			{
+				os = _os;
+				stackSize = _os->getStackSize();
+			}
+
+			~SaveStackSize()
+			{
+				OS_ASSERT(os->getStackSize() >= stackSize);
+				os->pop(os->getStackSize() - stackSize);
+			}
 		};
 
 		void setFuncs(const FuncDef * list, bool setter_enabled = true, int closure_values = 0, void * user_param = NULL); // null terminated list
@@ -3322,6 +3417,13 @@ namespace ObjectScript
 		virtual void printf(const OS_CHAR * fmt, ...);
 
 		void appendQuotedString(Core::Buffer& buf, const Core::String& string);
+
+		int getRandSeed();
+		void setRandSeed(int seed);
+		// void randReload();
+		double getRand();
+		double getRand(double up);
+		double getRand(double min, double max);
 	};
 } // namespace ObjectScript
 

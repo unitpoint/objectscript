@@ -7,7 +7,10 @@ and must NOT have multiple-inclusion protection.
 */
 
 /******************************************************************************
-* Copyright (C) 2012-2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+* Copyright (C) 2012-2014 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+*
+* Please feel free to contact me at anytime, 
+* my email is evgeniy.golovin@unitpoint.ru, skype: egolovin
 *
 * Latest source code: https://github.com/unitpoint/objectscript
 *

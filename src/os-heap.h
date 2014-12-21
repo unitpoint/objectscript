@@ -2,7 +2,10 @@
 #define __OS_HEAP_MANAGER_H__
 
 /******************************************************************************
-* Copyright (C) 2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+* Copyright (C) 2012-2014 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+*
+* Please feel free to contact me at anytime, 
+* my email is evgeniy.golovin@unitpoint.ru, skype: egolovin
 *
 * Latest source code: https://github.com/unitpoint/objectscript
 *
@@ -102,7 +105,7 @@ namespace ObjectScript {
 
 #define OS_HEAP_SIZE_ALIGN(size) (((int)(size)+(OS_HEAP_ALIGN-1))&~(OS_HEAP_ALIGN-1))
 #define OS_SIZEOF_INT OS_HEAP_SIZE_ALIGN(sizeof(int))
-#define OS_STRUCT_OFFS(s, offs) (OS_BYTE*)((int)(intptr_t)(s) + OS_HEAP_SIZE_ALIGN(sizeof(*s))*(offs))
+#define OS_STRUCT_OFFS(s, offs) (OS_BYTE*)((intptr_t)(s) + OS_HEAP_SIZE_ALIGN(sizeof(*s))*(offs))
 
 #ifdef OS_DEBUG
 #define OS_DUMMY_ID_SIZE (OS_SIZEOF_INT*2)
@@ -197,9 +200,8 @@ protected:
 		void insertBefore(SmallBlock * block);
 #endif
 		OS_BYTE size_slot;
-		OS_BYTE pad0;
-		OS_BYTE pad1;
-		OS_BYTE pad2; // for type
+		OS_BYTE pad[sizeof(void*)-1];
+		// last byte for type
 
 		OS_U32 getSize() const;
 		OS_U32 getDataSize() const;

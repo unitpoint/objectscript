@@ -2,7 +2,10 @@
 #define __OS_BINDER_H__
 
 /******************************************************************************
-* Copyright (C) 2012-2013 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+* Copyright (C) 2012-2014 Evgeniy Golovin (evgeniy.golovin@unitpoint.ru)
+*
+* Please feel free to contact me at anytime, 
+* my email is evgeniy.golovin@unitpoint.ru, skype: egolovin
 *
 * Latest source code: https://github.com/unitpoint/objectscript
 *
@@ -234,11 +237,11 @@ OS_DECL_CTYPE_NUMBER(unsigned long long);
 
 // =====================================================================
 
-template <class T> void pushCtypeValue(ObjectScript::OS * os, T obj)
+template <class T> void pushCtypeValue(ObjectScript::OS * os, const T& obj)
 {
 	typedef typename RemoveConst<T>::type type;
 	// CtypeValue<type>::push(os, CtypeValue<type>::to(obj));
-	CtypeValue<type>::push(os, (type)obj);
+	CtypeValue<type>::push(os, (const type&)obj);
 }
 
 // =====================================================================
@@ -330,24 +333,28 @@ template <class T> struct CtypeUserClass<T*>
 // namespace ObjectScript {
 
 template <class T>
-void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * list, const ObjectScript::OS::NumberDef * numbers = NULL)
+void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * list, const ObjectScript::OS::NumberDef * numbers = NULL, bool instantiable = true)
 {
 	os->pushGlobals();
 	os->pushString(CtypeName<T>::getName());
 	os->pushUserdata(CtypeId<T>::getId(), 0, NULL, NULL);
 	os->setFuncs(list);
 	os->setNumbers(numbers);
+	os->pushBool(instantiable);
+	os->setProperty(-2, OS_TEXT("__instantiable"), false);
 	os->setProperty();
 }
 
 template <class T, class Prototype>
-void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * list, const ObjectScript::OS::NumberDef * numbers = NULL)
+void registerUserClass(ObjectScript::OS * os, const ObjectScript::OS::FuncDef * list, const ObjectScript::OS::NumberDef * numbers = NULL, bool instantiable = true)
 {
 	os->pushGlobals();
 	os->pushString(CtypeName<T>::getName());
 	os->pushUserdata(CtypeId<T>::getId(), 0, NULL, NULL);
 	os->setFuncs(list);
 	os->setNumbers(numbers);
+	os->pushBool(instantiable);
+	os->setProperty(-2, OS_TEXT("__instantiable"), false);
 	os->pushStackValue();
 	os->getGlobal(CtypeName<Prototype>::getName());
 	os->setPrototype(CtypeId<T>::getId());

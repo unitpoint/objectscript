@@ -13,6 +13,8 @@
 #define DEF_DESC_SALT "desHsy6aqJ7"
 extern unsigned char * deshash(unsigned char *dst, const unsigned char *key, const unsigned char *src);
 
+extern "C" unsigned long __crc32(unsigned long crc, const unsigned char * buf, unsigned int len);
+
 namespace ObjectScript {
 
 class HashlibOS: public OS
@@ -205,6 +207,18 @@ public:
 		}
 		return 0;
 	}
+
+	static int crc32(OS * os, int params, int, int, void * user_param)
+	{
+		if(params > 0){
+			String str = os->toString(-params+0);
+			unsigned long crc = __crc32(0L, NULL, 0);
+			crc = __crc32(crc, (const unsigned char*)str.toChar(), str.getDataSize());
+			os->pushNumber(crc);
+			return 1;
+		}
+		return 0;
+	}
 };
 
 void initHashExtension(OS * os)
@@ -219,6 +233,7 @@ void initHashExtension(OS * os)
 		{OS_TEXT("sha256"), &HashlibOS::sha256},
 		{OS_TEXT("sha384"), &HashlibOS::sha384},
 		{OS_TEXT("sha512"), &HashlibOS::sha512},
+		{OS_TEXT("crc32"), &HashlibOS::crc32},
 		{}
 	};
 	OS::NumberDef numbers[] = {

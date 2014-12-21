@@ -21,7 +21,7 @@ public:
 		os->getGlobal(OS_TEXT("ODBOException"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -30,7 +30,7 @@ public:
 		os->getGlobal(OS_TEXT("ODBOException"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -160,7 +160,7 @@ public:
 			return isValidOption(s, s.getLen(), odbc);
 		}
 
-		static int __construct(OS * os, int params, int, int, void * user_param)
+		static int __newinstance(OS * os, int params, int, int, void * user_param)
 		{
 			if(params < 1){
 				triggerError(os, OS_TEXT("driver parameter requied"));
@@ -315,14 +315,14 @@ public:
 			OS * os = owner->os;
 			
 			os->pushValueById(owner->dateTimeId);
-			os->pushNull();
+			os->pushGlobals();
 			os->pushNumber(date.tm_year + 1900);
 			os->pushNumber(date.tm_mon + 1);
 			os->pushNumber(date.tm_mday);
 			os->pushNumber(date.tm_hour);
 			os->pushNumber(date.tm_min);
 			os->pushNumber(date.tm_sec);
-			os->call(6, 1);
+			os->callFT(6, 1);
 
 			/*
 			char value[32];
@@ -355,10 +355,10 @@ public:
 
 		int step(EStepType type)
 		{
-			OS_ASSERT(owner && stmt);
+			OS_ASSERT(owner && (stmt || step_code == STEP_DONE));
 			OS * os = owner->os;
 			try{
-				if(step_code == STEP_DONE){
+				if(step_code == STEP_DONE || !stmt){
 					return 0;
 				}
 				if(step_code == STEP_OK){
@@ -370,6 +370,8 @@ public:
 					stmt->define_and_bind();
 					stmt->execute();
 					if(type == EXECUTE){
+						step_code = STEP_DONE;
+						close();
 						os->pushBool(true);
 						return 1;
 					}
@@ -426,6 +428,10 @@ public:
 					}
 					return type == ITERATE ? 3 : 1;
 				}
+				if(step_code == STEP_DONE){
+					close();
+					return 0;
+				}
 				/* if(step_code != SQLITE_DONE){
 					checkError(step_code);
 				} */
@@ -437,15 +443,16 @@ public:
 
 		int getColumnCount()
 		{
-			OS_ASSERT(owner && stmt);
-			// OS_ASSERT(false);
-			return row.size(); // sqlite3_column_count(stmt);
+			OS_ASSERT(owner);
+			return stmt ? row.size() : 0; // sqlite3_column_count(stmt);
 		}
 
 		int getColumnType(int col)
 		{
-			OS_ASSERT(owner && stmt);
-			// OS_ASSERT(false);
+			OS_ASSERT(owner);
+			if(!stmt){
+				return 0;
+			}
 			const soci::column_properties& props = row.get_properties(col);
 			return props.get_data_type(); // sqlite3_column_type(stmt, col);
 		}
@@ -453,11 +460,11 @@ public:
 		// int getParamIndex(const OS::String& name);
 		void bindParams();
 
-		static int __construct(OS * os, int params, int, int, void * user_param)
+		/* static int __construct(OS * os, int params, int, int, void * user_param)
 		{
 			triggerError(os, OS_TEXT("you should not create new instance of ODBOStatement"));
 			return 0;
-		}
+		} */
 
 		static int __iter(OS * os, int params, int, int, void * user_param);
 		static int bind(OS * os, int params, int, int, void * user_param);
@@ -497,7 +504,7 @@ template <> struct UserDataDestructor<ODBO_OS::ODBOStatement>
 
 bool ODBO_OS::ODBO::findStatement(ODBOStatement * stmt)
 {
-	OS_ASSERT(stmt->owner == this);
+	OS_ASSERT(stmt && stmt->owner == this);
 	for(ODBOStatement * cur = list; cur; cur = cur->next){
 		if(cur == stmt){
 			return true;
@@ -508,14 +515,14 @@ bool ODBO_OS::ODBO::findStatement(ODBOStatement * stmt)
 
 void ODBO_OS::ODBO::addStatement(ODBOStatement * stmt)
 {
-	OS_ASSERT(!stmt->next && !findStatement(stmt));
+	OS_ASSERT(stmt && !stmt->next && !findStatement(stmt));
 	stmt->next = list;
 	list = stmt;
 }
 
 void ODBO_OS::ODBO::removeStatement(ODBOStatement * stmt)
 {
-	OS_ASSERT(stmt->owner == this);
+	OS_ASSERT(stmt && stmt->owner == this);
 	for(ODBOStatement * cur = list, * prev = NULL; cur; prev = cur, cur = cur->next){
 		if(cur == stmt){
 			if(prev){
@@ -560,10 +567,14 @@ int ODBO_OS::ODBOStatement::getParamIndex(const OS::String& name)
 
 void ODBO_OS::ODBOStatement::bindParams()
 {
-	OS_ASSERT(owner && stmt);
+	OS_ASSERT(owner);
 	OS * os = owner->os;
 
 	if(os->isNull()){
+		return;
+	}
+	if(!stmt){
+		triggerError(os, OS_TEXT("statement closed"));
 		return;
 	}
 
@@ -864,7 +875,7 @@ void ODBO_OS::initExtension(OS* os)
 #endif
 	{
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), ODBO::__construct},
+			{OS_TEXT("__newinstance"), ODBO::__newinstance},
 			{OS_TEXT("query"), ODBO::query},
 			{OS_TEXT("__get@lastInsertId"), ODBO::getLastInsertId},
 			{OS_TEXT("getLastInsertId"), ODBO::getLastInsertId},
@@ -879,14 +890,14 @@ void ODBO_OS::initExtension(OS* os)
 	}
 	{
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), ODBOStatement::__construct},
+			// {OS_TEXT("__construct"), ODBOStatement::__construct},
 			{OS_TEXT("__iter"), ODBOStatement::__iter},
 			{OS_TEXT("bind"), ODBOStatement::bind},
 			{OS_TEXT("execute"), ODBOStatement::execute},
 			{OS_TEXT("fetch"), ODBOStatement::fetch},
 			{}
 		};
-		registerUserClass<ODBOStatement>(os, funcs);
+		registerUserClass<ODBOStatement>(os, funcs, NULL, false);
 	}
 #define OS_AUTO_TEXT(...) OS_TEXT(#__VA_ARGS__)
 	os->eval(OS_AUTO_TEXT(

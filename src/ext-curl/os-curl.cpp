@@ -396,10 +396,10 @@ namespace ObjectScript {
 				if(code != CURLE_OK){
 					os->pushString(getErrorStr());
 					os->pushNumber(code);
-					os->call(2, 1);
+					os->callFT(2, 1);
 				}else{
 					os->pushString(OS_TEXT("unexpected error"));
-					os->call(1, 1);
+					os->callFT(1, 1);
 				}
 				os->setException();
 				// close();
@@ -410,7 +410,7 @@ namespace ObjectScript {
 				os->getGlobal(OS_TEXT("CurlException"));
 				os->pushGlobals();
 				os->pushString(message);
-				os->call(1, 1);
+				os->callFT(1, 1);
 				os->setException();
 				// close();
 			}
@@ -1387,7 +1387,7 @@ file_option:
 			os->getGlobal(OS_TEXT("echo"));
 			os->pushGlobals();
 			os->pushString((void*)ptr, length);
-			os->call(1);
+			os->callFT(1);
 			break;
 
 		case BEHAVIOR_STDERR:
@@ -1396,10 +1396,10 @@ file_option:
 
 		case BEHAVIOR_FILE:
 			os->pushValueById(write->file_id);
-			os->getProperty("write");
+			os->getProperty(-1, "write");
 			os->pushValueById(write->file_id);
 			os->pushString((void*)ptr, length);
-			os->call(1);
+			os->callFT(1);
 			break;
 
 		case BEHAVIOR_RETURN:
@@ -1413,9 +1413,8 @@ file_option:
 
 		case BEHAVIOR_FUNC:
 			os->pushValueById(write->func_id);
-			os->pushNull();
 			os->pushString((void*)ptr, length);
-			os->call(1);
+			os->callF(1);
 			break;
 
 		case BEHAVIOR_IGNORE:
@@ -1444,7 +1443,7 @@ file_option:
 			os->getGlobal(OS_TEXT("echo"));
 			os->pushGlobals();
 			os->pushString((void*)ptr, length);
-			os->call(1);
+			os->callFT(1);
 			break;
 
 		case BEHAVIOR_STDERR:
@@ -1456,14 +1455,13 @@ file_option:
 			os->getProperty("write");
 			os->pushValueById(write_header->file_id);
 			os->pushString((void*)ptr, length);
-			os->call(1);
+			os->callFT(1);
 			break;
 
 		case BEHAVIOR_FUNC:
 			os->pushValueById(write_header->func_id);
-			os->pushNull();
 			os->pushString((void*)ptr, length);
-			os->call(1);
+			os->callF(1);
 			break;
 
 		case BEHAVIOR_RETURN:
@@ -1493,7 +1491,7 @@ file_option:
 			os->getProperty("read");
 			os->pushValueById(read->file_id);
 			os->pushNumber(size * nmemb);
-			os->call(1, 1);
+			os->callFT(1, 1);
 			OS::String ostr = os->popString();
 			length = ostr.getDataSize();
 			if(length > size * nmemb){
@@ -1506,9 +1504,8 @@ file_option:
 							}
 		case BEHAVIOR_FUNC: {
 			os->pushValueById(read->func_id);
-			os->pushNull();
 			os->pushNumber(size * nmemb);
-			os->call(1, 1);
+			os->callF(1, 1);
 			OS::String ostr = os->popString();
 			length = ostr.getDataSize();
 			if(length > size * nmemb){
@@ -1544,14 +1541,13 @@ file_option:
 		switch (progress->behavior) {
 		case BEHAVIOR_FUNC:
 			os->pushValueById(progress->func_id);
-			os->pushNull();
-
+			
 			os->pushNumber(dltotal);
 			os->pushNumber(dlnow);
 			os->pushNumber(ultotal);
 			os->pushNumber(ulnow);
 
-			os->call(4);
+			os->callF(4);
 			break;
 
 		case BEHAVIOR_STDOUT:
@@ -1580,10 +1576,9 @@ file_option:
 		switch (debug->behavior) {
 		case BEHAVIOR_FUNC:
 			os->pushValueById(debug->func_id);
-			os->pushNull();
 			os->pushNumber(type);
 			os->pushString((void*)buf, (int)buf_len);
-			os->call(2);
+			os->callF(2);
 			break;
 
 		case BEHAVIOR_STDOUT:
@@ -1613,9 +1608,8 @@ file_option:
 		switch (ioctl->behavior) {
 		case BEHAVIOR_FUNC:
 			os->pushValueById(ioctl->func_id);
-			os->pushNull();
 			os->pushNumber(cmd);
-			os->call(1, 1);
+			os->callF(1, 1);
 			ret = (curlioerr)os->popInt(CURLIOE_OK);
 			if (ret >= CURLIOE_LAST || ret < 0) {
 				curl->triggerError(OS_TEXT("ioctl callback returned invalid value"));
@@ -1654,7 +1648,7 @@ file_option:
 	{
 		struct Lib
 		{
-			static int __construct(OS * os, int params, int, int, void * user_param)
+			static int __newinstance(OS * os, int params, int, int, void * user_param)
 			{
 				Curl * self = new (os->malloc(sizeof(Curl) OS_DBG_FILEPOS)) Curl(os);
 				if (!self->init()) {
@@ -2229,7 +2223,7 @@ file_option:
 		};
 
 		OS::FuncDef funcs[] = {
-			{OS_TEXT("__construct"), Lib::__construct},
+			{OS_TEXT("__newinstance"), Lib::__newinstance},
 			{OS_TEXT("clone"), Lib::clone},
 			def(OS_TEXT("close"), &CurlOS::Curl::close),
 			def(OS_TEXT("reset"), &CurlOS::Curl::reset),

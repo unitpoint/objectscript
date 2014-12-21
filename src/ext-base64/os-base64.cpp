@@ -44,12 +44,11 @@ public:
 			int size = str.getDataSize();
 			
 			Core::Buffer buf(os);
-			buf.reserveCapacity(size/2 + 7);
+			buf.reserveCapacity(size + 7);
 			
 			base64_decodestate state;
 			base64_init_decodestate(&state);
 			int r1 = base64_decode_block(str.toChar(), size, (char*)buf.buffer.buf, &state);
-			base64_init_decodestate(&state);
 			buf.buffer.count = r1;    
 
 			os->pushString(buf.toString());

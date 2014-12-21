@@ -24,7 +24,7 @@ public:
 		os->getGlobal(OS_TEXT("RegexpException"));
 		os->pushGlobals();
 		os->pushString(msg);
-		os->call(1, 1);
+		os->callFT(1, 1);
 		os->setException();
 	}
 
@@ -159,6 +159,11 @@ public:
 			OS_ASSERT(cache);
 			OS * os = cache->os;
 			os->pushStackValue();
+#ifndef OS_REGEXP_EMPTY_AS_STRING
+			if(len < 1)
+				os->pushNull();
+			else
+#endif
 			os->pushString(str, len);
 			os->addProperty(false);
 		}
@@ -179,6 +184,11 @@ public:
 			os->newArray();
 
 			/* Add (match, offset) to the return value */
+#ifndef OS_REGEXP_EMPTY_AS_STRING
+			if(len < 1)
+				os->pushNull();
+			else
+#endif
 			addNextString(str, len);
 			addNextNumber(offset);
 
@@ -199,6 +209,11 @@ public:
 			OS_ASSERT(cache);
 			OS * os = cache->os;
 			os->pushStackValue();
+#ifndef OS_REGEXP_EMPTY_AS_STRING
+			if(len < 1)
+				os->pushNull();
+			else
+#endif
 			os->pushString(str, len);
 			os->setProperty(name, false);
 		}
@@ -663,7 +678,11 @@ public:
 								if (count < num_subpats) {
 									for (; i < num_subpats; i++) {
 										os->pushValueById(match_sets.sets[i]);
+#ifdef OS_REGEXP_EMPTY_AS_STRING
 										os->pushString("");
+#else
+										os->pushNull();
+#endif
 										os->addProperty(false);
 										// addNextString("", 0);
 										// os->pop();
@@ -810,8 +829,7 @@ public:
 
 			os->pushValueById(function_id);
 			OS_ASSERT(os->isFunction());
-			os->pushNull(); // this for function
-
+			
 			os->newObject();
 			for (int i = 0; i < count; i++) {
 				if (subpat_names[i]) {
@@ -820,7 +838,7 @@ public:
 				addNextString(&subject[offsets[i<<1]], offsets[(i<<1)+1] - offsets[i<<1]);
 			}
 			os->pushString(subject_str);
-			os->call(2, 1);
+			os->callF(2, 1);
 			return os->popString();
 		}
 
@@ -1300,27 +1318,14 @@ RegexpOS::RegexpCache * RegexpOS::toRegexpCache(OS * os)
 
 void RegexpOS::RegexpCache::initExtension(OS * os)
 {
-	struct Lib
-	{
-		static void construct(OS * os)
-		{
-			triggerError(os, OS_TEXT("you should not create new instance of RegexpCache"));
-		}
-	};
-
-	OS::FuncDef funcs[] = {
-		def(OS_TEXT("__construct"), Lib::construct),
-		{}
-	};
-
-	registerUserClass<RegexpCache>(os, funcs);
+	registerUserClass<RegexpCache>(os, NULL, NULL, false);
 }
 
 void RegexpOS::Regexp::initExtension(OS * os)
 {
 	struct Lib
 	{
-		static Regexp * construct(OS * os, const OS::String& pattern)
+		static Regexp * __newinstance(OS * os, const OS::String& pattern)
 		{
 			RegexpCache * cache = getRegexpCache(os, pattern);
 			if(!cache){
@@ -1411,7 +1416,7 @@ void RegexpOS::Regexp::initExtension(OS * os)
 	};
 
 	OS::FuncDef funcs[] = {
-		def(OS_TEXT("__construct"), Lib::construct),
+		def(OS_TEXT("__newinstance"), Lib::__newinstance),
 		{OS_TEXT("exec"), Lib::exec},
 		{OS_TEXT("test"), Lib::test},
 		{OS_TEXT("replace"), Lib::replace},
