@@ -274,3 +274,15 @@ configure_file (
         "${PROJECT_BINARY_DIR}/os.config.h"
 )
 include_directories("${PROJECT_BINARY_DIR}")
+
+
+# Installation
+# FIXME: Make it possible to install libobjectscript, libfcgi, libmpfd together and provide headers too.
+# That also implies a objectscript-config.cmake... Its a thing to work on.
+
+# Install `os` and `os-fcgi`:
+# Windows users must do this on their own.
+if(UNIX)
+    install(TARGETS os os-fcgi  DESTINATION bin)
+    install(DIRECTORY conf/etc/ DESTINATION etc)
+endif()
