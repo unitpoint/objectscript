@@ -1,6 +1,21 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(ObjectScript)
 
+# We want to build "as static as it gets"
+# http://stackoverflow.com/questions/3762057/cmake-how-to-produce-binaries-as-static-as-possible
+#set(OLD_FIND "${CMAKE_FIND_LIBRARY_SUFFIXES}")
+#macro(prefer_static)
+#    IF(WIN32)
+#        SET(CMAKE_FIND_LIBRARY_SUFFIXES .lib .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+#    ELSE(WIN32)
+#        SET(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+#    ENDIF(WIN32)
+#endmacro(prefer_static)
+#macro(reset_static)
+#    set(CMAKE_FIND_LIBRARY_SUFFIXES "${OLD_FIND}")
+#endmacro(reset_static)
+set(BUILD_SHARED OFF)
+
 # This is the base of ObjectScript.
 set(OSBASE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/objectscript.cpp
@@ -157,6 +172,7 @@ endif()
 # Database stuff.
 if(USE_ODBO)
     # MySQL
+    #prefer_static()
     find_package(MySQL)
     if(MYSQL_FOUND)
         include_directories(${MYSQL_INCLUDE_DIR})
@@ -165,21 +181,27 @@ if(USE_ODBO)
     else()
         message(FATAL_ERROR "[ERROR]: Couldn't find MySQL include files and/or library.")
     endif()
+    #reset_static()
 else()
     list(APPEND DEFLIST "OS_ODBO_DISABLED")
 endif()
 
 # Curl
 if(USE_CURL)
+    #prefer_static()
     find_package(CURL)
     if(CURL_FOUND)
 		include_directories(${CURL_INCLUDE_DIR})
 		list(APPEND EXT_SRC src/ext-curl/os-curl.cpp)
 		list(APPEND EXT_SRC src/ext-curl/os-curl.h)
+        # Because we are totally linking staticaly:
+        #execute_process(COMMAND curl-config --libs OUTPUT_VARIABLE CURL_STUFF)
+        #set(CMAKE_EXE_LINKER_FLAGS "${CURL_STUFF} ${CMAKE_EXE_LINKER_FLAGS}")
     else()
     	message(STATUS "[ WARNING ]: Could not find cURL")
         list(APPEND DEFLIST "OS_CURL_DISABLED")
     endif()
+    #reset_static()
 else()
     list(APPEND DEFLIST "OS_CURL_DISABLED")
 endif()
@@ -233,6 +255,7 @@ target_link_libraries(os-fcgi
     ${MYSQL_LIBRARIES}
     ${SOCI_LIBRARY}
     ${ZLIB_LIBRARY}
+    ${EXT_LIBS}
     dl
     mpfd
     fcgi
@@ -247,6 +270,7 @@ target_link_libraries(os
     ${MYSQL_LIBRARIES}
     ${SOCI_LIBRARY}
     ${ZLIB_LIBRARY}
+    ${EXT_LIBS}
     dl
     mpfd
     osbase
@@ -267,6 +291,34 @@ endif()
 set_target_properties(os PROPERTIES COMPILE_DEFINITIONS "${DEFLIST}")
 set_target_properties(os-fcgi PROPERTIES COMPILE_DEFINITIONS "${DEFLIST}")
 
+# A SoCi build will require this
+if(BUILD_SOCI)
+    # SoCi doesnt properly export its paths. So we hack it together.
+    target_link_libraries(os-fcgi soci_core)
+    target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/core")
+    add_dependencies(os-fcgi soci_core)
+    target_link_libraries(os soci_core)
+    target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/core")
+    add_dependencies(os soci_core)
+
+    # Backends
+    if(MYSQL_FOUND)
+        target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
+        target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
+        target_link_libraries(os soci_mysql)
+        target_link_libraries(os-fcgi soci_mysql)
+    endif()
+
+    if(ODBC_FOUND)
+        set(SOCI_odbc_FOUND 1)
+        target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
+        target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
+        target_link_libraries(os soci_odbc)
+        target_link_libraries(os-fcgi soci_odbc)
+    else()
+        set(SOCI_odbc_FOUND 0)
+    endif()
+endif()
 
 # Finish
 configure_file (

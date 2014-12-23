@@ -7,9 +7,11 @@
 
 #include <soci.h>
 #include <soci-mysql.h>
-#if SOCI_ODBC_FOUND != 0
+
+#if defined(SOCI_ODBC_FOUND) && SOCI_ODBC_FOUND != 0
 #include <soci-odbc.h>
 #endif
+
 #include <soci-simple.h>
 
 namespace ObjectScript {
@@ -51,11 +53,11 @@ public:
 			os = p_os;
 			handle = NULL;
 			list = NULL;
-			
+
 			/* os->getGlobal("ODBODateTime");
 			dateTimeId[0] = os->getValueId();
 			os->pop(); */
-			
+
 			os->getGlobal("DateTime");
 			dateTimeId = os->getValueId();
 			os->pop();
@@ -173,7 +175,7 @@ public:
 				self->type = os->toString(-params+0);
 				bool odbc = self->type == "odbc";
 				bool odbc_driver_complete = false;
-				
+
 				OS::Core::Buffer connection_str(os);
 				// connection_str.append(self->type = os->toString(-params+0));
 				// connection_str.append("://");
@@ -201,7 +203,7 @@ public:
 				if(!os->isExceptionSet()){
 					soci::connection_parameters parameters(self->type.toChar(), connection_str.toString().toChar());
 					if(odbc){
-						#if SOCI_ODBC_FOUND != 0
+						#if defined(SOCI_ODBC_FOUND) && SOCI_ODBC_FOUND != 0
 						parameters.set_option(soci::odbc_option_driver_complete, odbc_driver_complete ? "1" : "0" /* SQL_DRIVER_NOPROMPT */);
 						#endif
 					}
@@ -317,7 +319,7 @@ public:
 		{
 			OS_ASSERT(owner);
 			OS * os = owner->os;
-			
+
 			os->pushValueById(owner->dateTimeId);
 			os->pushGlobals();
 			os->pushNumber(date.tm_year + 1900);
@@ -330,7 +332,7 @@ public:
 
 			/*
 			char value[32];
-			sprintf(value, "%04d %02d %02d %02d %02d %02d", date.tm_year + 1900, date.tm_mon + 1, 
+			sprintf(value, "%04d %02d %02d %02d %02d %02d", date.tm_year + 1900, date.tm_mon + 1,
 				date.tm_mday, date.tm_hour, date.tm_min, date.tm_sec);
 			os->pushString(value);
 			*/
@@ -421,7 +423,7 @@ public:
 							addColumn(name, row.get<std::string>(i));
 							break;
 
-						case soci::dt_date: 
+						case soci::dt_date:
 							addColumn(name, row.get<std::tm>(i));
 							break;
 
@@ -830,12 +832,12 @@ int ODBO_OS::ODBO::getLastInsertId(OS * os, int params, int, int, void * user_pa
 
 	long value = -1;
 	if(self->type == "mysql"){
-		*self->handle << "select last_insert_id()", soci::into(value); 
+		*self->handle << "select last_insert_id()", soci::into(value);
 	}else if(self->type == "sqlite"){
-		*self->handle << "select last_insert_rowid()", soci::into(value); 
+		*self->handle << "select last_insert_rowid()", soci::into(value);
 	}else if(self->type == "mssql"){
 		std::string sequence_name = params > 0 ? os->toString(-params+0).toChar() : Lib::getTableName(self);
-		*self->handle << ("select ident_current('" + sequence_name + "')"), soci::into(value); 
+		*self->handle << ("select ident_current('" + sequence_name + "')"), soci::into(value);
 	}else{
 		std::string sequence_name = params > 0 ? os->toString(-params+0).toChar() : Lib::getTableName(self);
 		self->handle->get_last_insert_id(sequence_name, value);
@@ -873,7 +875,7 @@ void ODBO_OS::initExtension(OS* os)
 #ifdef WIN32
         soci::register_factory_odbc();
 #else
-#if(SOCI_ODBC_FOUND)
+#if defined(SOCI_ODBC_FOUND) && SOCI_ODBC_FOUND != 0
 	soci::register_factory_odbc();
 #endif
 #endif

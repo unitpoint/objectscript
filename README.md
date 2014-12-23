@@ -1,7 +1,7 @@
 ObjectScript
 ============
 
-The ObjectScript is a new embedded programing language that mixes benefits of JavaScript, Lua, Ruby, Python and PHP. 
+The ObjectScript is a new embedded programing language that mixes benefits of JavaScript, Lua, Ruby, Python and PHP.
 The ObjectScript has syntax from JavaScript, multiple results from Lua, sugar syntax from Ruby, magic methods from Python and much more.
 
 The ObjectScript is universal scripting language, there are no compromises any more.
@@ -9,13 +9,45 @@ The ObjectScript is universal scripting language, there are no compromises any m
 Compile and Install __os-fcgi__ and __os__
 =======
 
-Run following commands in a *root* shell
+Run the following commands after you have closned this repository:
 
 	mkdir build && cd build
-	cmake -DBUILD_SOCI=ON -DCMAKE_INSTALL_PREFIX=/ ..
+	cmake ..
 	make
 	make install
-	service os-fcgi restart 
+
+If you are on an operating system like Debian or Ubuntu, you can then start __os-fcgi__ by typing:
+
+    service os-fcgi start
+
+Installing the Database layer
+-------------------
+
+During the configuration, you may notice that a library named SoCi could not be found. This is the database abstraction which is used by ObjectScript's `ext-odbo` module. You can build SoCi alongside OS by using the following CMake command instead of the one given above:
+
+	cmake .. -DBUILD_SOCI=ON
+
+After that, you should be good to go.
+
+Special note for Apple Mac OS X builds
+-------------------
+Depending on how you have installed MySQL on your system, you may run into this error by running __os__ or __os-fcgi__ from the build directory or after you have installed it:
+
+```
+dyld: Library not loaded: libmysqlclient.18.dylib
+  Referenced from: /usr/local/bin/os
+  Reason: image not found
+```
+
+Or similar. To fix this, do as follows:
+
+```bash
+# Navigate back into your build folder if you have previously left it
+cd build
+../contrib/change_install_name.sh
+```
+
+This will update all the binaries within your build folder and make them find the library - hopefuly.
 
 Nginx config example (for __os-fcgi__)
 ====================
@@ -58,9 +90,9 @@ Apache config example (for __os-fcgi__)
 		ServerAdmin webmaster@mydomain.com
 		DocumentRoot "/home/myuser/mydomain.com/www"
 		ServerName mydomain.com
-		
+
 		FastCgiExternalServer "/home/myuser/mydomain.com/www" -host 127.0.0.1:9000
-		
+
 		<Directory "/home/myuser/mydomain.com/www">
 			# SetHandler fastcgi-script
 			AddHandler fastcgi-script .osh
@@ -71,8 +103,8 @@ Apache config example (for __os-fcgi__)
 			Deny from all
 			Allow from 127.0.0.1
 		</Directory>
-	</VirtualHost> 	
-	
+	</VirtualHost>
+
 ## Resources
 
 * [OS2D](https://github.com/unitpoint/os2d) is cross platform engine for 2d mobile games (examples included) made with ObjectScript and Oxygine
