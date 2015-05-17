@@ -5,14 +5,21 @@
 #include "../objectscript.h"
 #include "../os-binder.h"
 
-#include <soci.h>
-#include <soci-mysql.h>
+#include <soci/soci.h>
 
+#ifdef WIN32
+#include <soci/mysql/soci-mysql.h>
+#include <soci/odbc/soci-odbc.h>
+#else
+#if defined(SOCI_MYSQL_FOUND) && SOCI_MYSQL_FOUND != 0
+#include <soci/mysql/soci-mysql.h>
+#endif
 #if defined(SOCI_ODBC_FOUND) && SOCI_ODBC_FOUND != 0
-#include <soci-odbc.h>
+#include <soci/odbc/soci-odbc.h>
+#endif
 #endif
 
-#include <soci-simple.h>
+#include <soci/soci-simple.h>
 
 namespace ObjectScript {
 
@@ -201,13 +208,18 @@ public:
 					os->pop(2);
 				}
 				if(!os->isExceptionSet()){
-					soci::connection_parameters parameters(self->type.toChar(), connection_str.toString().toChar());
-					if(odbc){
-						#if defined(SOCI_ODBC_FOUND) && SOCI_ODBC_FOUND != 0
-						parameters.set_option(soci::odbc_option_driver_complete, odbc_driver_complete ? "1" : "0" /* SQL_DRIVER_NOPROMPT */);
-						#endif
+					try {
+						soci::connection_parameters parameters(self->type.toChar(), connection_str.toString().toChar());
+						if(odbc){
+#if defined(SOCI_ODBC_FOUND) && SOCI_ODBC_FOUND != 0
+							parameters.set_option(soci::odbc_option_driver_complete, odbc_driver_complete ? "1" : "0" /* SQL_DRIVER_NOPROMPT */);
+#endif
+						}
+						self->open(parameters);
 					}
-					self->open(parameters);
+					catch (std::exception& e){
+						triggerError(os, e.what()); // soci_session_error_message(handle));
+					}
 				}
 			}else{
 				self->open(os->toString(-params+0));
@@ -871,10 +883,13 @@ int ODBO_OS::ODBO::query(OS * os, int params, int, int, void * user_param)
 
 void ODBO_OS::initExtension(OS* os)
 {
-	soci::register_factory_mysql();
 #ifdef WIN32
-        soci::register_factory_odbc();
+	soci::register_factory_mysql();
+	soci::register_factory_odbc();
 #else
+#if defined(SOCI_MYSQL_FOUND) && SOCI_MYSQL_FOUND != 0
+	soci::register_factory_mysql();
+#endif
 #if defined(SOCI_ODBC_FOUND) && SOCI_ODBC_FOUND != 0
 	soci::register_factory_odbc();
 #endif
