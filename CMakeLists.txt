@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.8.9)
 project(ObjectScript)
 
 # We want to build "as static as it gets"
@@ -25,7 +25,8 @@ set(OSBASE_SRC
 )
 file(GLOB OSBASE_BINDER "${CMAKE_CURRENT_SOURCE_DIR}/src/os-binder*.h")
 add_library(osbase ${OSBASE_SRC} ${OSBASE_BINDER})
-target_include_directories(osbase PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# target_include_directories(osbase PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set_property(TARGET osbase APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Used later
 set(DEFLIST "")
@@ -75,11 +76,15 @@ else()
     list(APPEND FCGI_SRC 3rdparty/fcgi-2.4.1/libfcgi/os_unix.c)
 endif()
 add_library(fcgi ${FCGI_SRC})
-target_include_directories(fcgi PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/
-    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/libfcgi
-    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/include
-)
+#target_include_directories(fcgi PUBLIC
+#    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/
+#    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/libfcgi
+#    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/include
+#)
+set_property(TARGET fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/)
+set_property(TARGET fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/libfcgi)
+set_property(TARGET fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/include)
+
 
 # Other settings, mostly from original file
 OPTION(FORCE32 "Force a 32bit compile on 64bit" OFF)
@@ -295,31 +300,37 @@ set_target_properties(os-fcgi PROPERTIES COMPILE_DEFINITIONS "${DEFLIST}")
 if(BUILD_SOCI)
     # SoCi doesnt properly export its paths. So we hack it together.
     target_link_libraries(os-fcgi soci_core)
-    target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/core")
+    # target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/core")
+	set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/core")
     add_dependencies(os-fcgi soci_core)
     target_link_libraries(os soci_core)
-    target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/core")
+    # target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/core")
+	set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/core")
     add_dependencies(os soci_core)
 
     # Backends
     if(MYSQL_FOUND)
-        set(MK_SOCI_MYSQL_FOUND 1)
-        target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
-        target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
+        set(SOCI_mysql_FOUND 1)
+        # target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
+		set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/backends/mysql")
+        # target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
+		set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/backends/mysql")
         target_link_libraries(os soci_mysql)
         target_link_libraries(os-fcgi soci_mysql)
     else()
-        set(MK_SOCI_MYSQL_FOUND 0)
+        set(SOCI_mysql_FOUND 0)
     endif()
 
     if(ODBC_FOUND)
-        set(MK_SOCI_ODBC_FOUND 1)
-        target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
-        target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
+        set(SOCI_odbc_FOUND 1)
+        # target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
+		set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/backends/mysql")
+        # target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
+		set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/backends/odbc")
         target_link_libraries(os soci_odbc)
         target_link_libraries(os-fcgi soci_odbc)
     else()
-        set(MK_SOCI_ODBC_FOUND 0)
+        set(SOCI_odbc_FOUND 0)
     endif()
 endif()
 
