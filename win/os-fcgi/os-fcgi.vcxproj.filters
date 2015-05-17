@@ -804,9 +804,6 @@
     <ClInclude Include="..\..\src\ext-zlib\zlib\zutil.h">
       <Filter>ext\zlib</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\3rdparty\pcrelib\config.h">
-      <Filter>3rdparty\pcre</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Exception.h">
       <Filter>3rdparty\MPFDParser</Filter>
     </ClInclude>
@@ -840,77 +837,29 @@
     <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Parser.h">
       <Filter>3rdparty\MPFDParser</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\3rdparty\pcrelib\pcre.h">
-      <Filter>3rdparty\pcre</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\objectscript.h">
       <Filter>objectscript</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\os-heap.h">
       <Filter>objectscript</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\3rdparty\pcrelib\config.h">
+      <Filter>3rdparty\pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\pcrelib\pcre.h">
+      <Filter>3rdparty\pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\pcrelib\pcre_internal.h">
+      <Filter>3rdparty\pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\pcrelib\pcreposix.h">
+      <Filter>3rdparty\pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\3rdparty\pcrelib\ucp.h">
+      <Filter>3rdparty\pcre</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_chartables.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcreposix.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_compile.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_config.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_exec.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_fullinfo.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_get.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_globals.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_info.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_maketables.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_newline.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_ord2utf8.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_refcount.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_study.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_tables.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_try_flipped.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_ucd.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_valid_utf8.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_version.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_xclass.c">
-      <Filter>3rdparty\pcre</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\3rdparty\fcgi-2.4.1\libfcgi\fcgi_stdio.c">
       <Filter>3rdparty\fcgi-lib</Filter>
     </ClCompile>
@@ -1060,5 +1009,65 @@
     </ClCompile>
     <ClCompile Include="..\..\os-fcgi.cpp" />
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_chartables.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_compile.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_config.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_exec.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_fullinfo.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_get.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_globals.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_info.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_maketables.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_newline.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_ord2utf8.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_refcount.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_study.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_tables.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_try_flipped.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_ucd.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_valid_utf8.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_version.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_xclass.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcreposix.c">
+      <Filter>3rdparty\pcre</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

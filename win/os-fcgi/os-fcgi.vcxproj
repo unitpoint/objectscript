@@ -1,10 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="DebugPrice|Win32">
-      <Configuration>DebugPrice</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
@@ -32,16 +28,13 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugPrice|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -53,20 +46,19 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
@@ -84,14 +76,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>../../src;../../3rdparty/soci/include;../../3rdparty/mysql/include;../../3rdparty/soci/include/odbc;../../3rdparty/soci/include/mysql;../../3rdparty/fcgi-2.4.1/include;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc/include;../../3rdparty/pcrelib;../../3rdparty/libiconv-1.14/lib;../../3rdparty/libiconv-1.14/include;../../3rdparty/libiconv-1.14/libcharset/include;$(IncludePath)</IncludePath>
+    <IncludePath>../../src;../../3rdparty/soci/include;../../3rdparty/mysql/include;../../3rdparty/fcgi-2.4.1/include;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc/include;../../3rdparty/pcrelib;../../3rdparty/libiconv-1.14/lib;../../3rdparty/libiconv-1.14/include;../../3rdparty/libiconv-1.14/libcharset/include;$(IncludePath)</IncludePath>
     <LibraryPath>../../3rdparty/mysql/lib;../../3rdparty/soci/lib/Debug;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
-    <OutDir>$(SolutionDir)$(ProjectName)\bin-$(Configuration)\</OutDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'">
-    <LinkIncremental>true</LinkIncremental>
-    <IncludePath>../../3rdparty/soci/include;../../3rdparty/mysql/include;../../3rdparty/soci/include\mysql;..\..\3rdparty\fcgi-2.4.1\include;..\..\3rdparty\libcurl-7.19.3-win32-ssl-msvc\include;..\..\3rdparty\pcrelib;../;$(IncludePath)</IncludePath>
-    <LibraryPath>..\..\3rdparty\mysql\lib;..\..\3rdparty\soci\lib\Debug;..\..\3rdparty\libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(ProjectName)\bin-$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -106,7 +92,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>../../src;../../3rdparty/soci/include;../../3rdparty/mysql/include;../../3rdparty/soci/include/odbc;../../3rdparty/soci/include/mysql;../../3rdparty/fcgi-2.4.1/include;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc/include;../../3rdparty/pcrelib;../../3rdparty/libiconv-1.14/lib;../../3rdparty/libiconv-1.14/include;../../3rdparty/libiconv-1.14/libcharset/include;$(IncludePath)</IncludePath>
+    <IncludePath>../../src;../../3rdparty/soci/include;../../3rdparty/mysql/include;../../3rdparty/fcgi-2.4.1/include;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc/include;../../3rdparty/pcrelib;../../3rdparty/libiconv-1.14/lib;../../3rdparty/libiconv-1.14/include;../../3rdparty/libiconv-1.14/libcharset/include;$(IncludePath)</IncludePath>
     <LibraryPath>../../3rdparty/mysql/lib;../../3rdparty/soci/lib/Release;../../3rdparty/libcurl-7.19.3-win32-ssl-msvc;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)$(ProjectName)\bin-$(Configuration)\</OutDir>
   </PropertyGroup>
@@ -127,23 +113,6 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>libmysql.lib;mysqlclient.lib;libsoci_core_3_2.lib;libsoci_mysql_3_2.lib;libsoci_odbc_3_2.lib;libcurl_imp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-    <PostBuildEvent>
-      <Command>copydll.cmd $(OutDir)</Command>
-    </PostBuildEvent>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'">
-    <ClCompile>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;SUPPORT_UTF;_ITERATOR_DEBUG_LEVEL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link>
-      <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>libmysql.lib;mysqlclient.lib;libsoci_core_3_2.lib;libsoci_mysql_3_2.lib;libcurl_imp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copydll.cmd $(OutDir)</Command>
@@ -453,6 +422,11 @@
     <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Exception.h" />
     <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Field.h" />
     <ClInclude Include="..\..\3rdparty\MPFDParser-1.0\Parser.h" />
+    <ClInclude Include="..\..\3rdparty\pcrelib\config.h" />
+    <ClInclude Include="..\..\3rdparty\pcrelib\pcre.h" />
+    <ClInclude Include="..\..\3rdparty\pcrelib\pcreposix.h" />
+    <ClInclude Include="..\..\3rdparty\pcrelib\pcre_internal.h" />
+    <ClInclude Include="..\..\3rdparty\pcrelib\ucp.h" />
     <ClInclude Include="..\..\src\ext-base64\cdecode.h" />
     <ClInclude Include="..\..\src\ext-base64\cencode.h" />
     <ClInclude Include="..\..\src\ext-base64\os-base64.h" />
@@ -471,8 +445,6 @@
     <ClInclude Include="..\..\src\ext-regexp\os-regexp.h" />
     <ClInclude Include="..\..\src\ext-sqlite3\os-sqlite3.h" />
     <ClInclude Include="..\..\src\ext-sqlite3\sqlite3.h" />
-    <ClInclude Include="..\..\3rdparty\pcrelib\config.h" />
-    <ClInclude Include="..\..\3rdparty\pcrelib\pcre.h" />
     <ClInclude Include="..\..\src\ext-url\os-url.h" />
     <ClInclude Include="..\..\src\ext-zlib\os-zlib.h" />
     <ClInclude Include="..\..\src\ext-zlib\zlib\crc32.h" />
@@ -498,6 +470,26 @@
     <ClCompile Include="..\..\3rdparty\MPFDParser-1.0\Exception.cpp" />
     <ClCompile Include="..\..\3rdparty\MPFDParser-1.0\Field.cpp" />
     <ClCompile Include="..\..\3rdparty\MPFDParser-1.0\Parser.cpp" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcreposix.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_chartables.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_compile.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_config.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_exec.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_fullinfo.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_get.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_globals.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_info.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_maketables.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_newline.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_ord2utf8.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_refcount.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_study.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_tables.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_try_flipped.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_ucd.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_valid_utf8.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_version.c" />
+    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_xclass.c" />
     <ClCompile Include="..\..\os-fcgi.cpp" />
     <ClCompile Include="..\..\src\ext-base64\cdecode.cpp" />
     <ClCompile Include="..\..\src\ext-base64\cencode.cpp" />
@@ -505,7 +497,6 @@
     <ClCompile Include="..\..\src\ext-curl\os-curl.cpp" />
     <ClCompile Include="..\..\src\ext-datetime\os-datetime.cpp">
       <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ShowIncludes>
-      <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='DebugPrice|Win32'">true</ShowIncludes>
     </ClCompile>
     <ClCompile Include="..\..\src\ext-filesystem\os-filesystem.cpp" />
     <ClCompile Include="..\..\src\ext-hashlib\crc32\os-crc32.c" />
@@ -545,26 +536,6 @@
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">All</AssemblerOutput>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NoListing</AssemblerOutput>
     </ClCompile>
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcreposix.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_chartables.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_compile.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_config.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_exec.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_fullinfo.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_get.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_globals.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_info.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_maketables.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_newline.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_ord2utf8.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_refcount.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_study.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_tables.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_try_flipped.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_ucd.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_valid_utf8.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_version.c" />
-    <ClCompile Include="..\..\3rdparty\pcrelib\pcre_xclass.c" />
     <ClCompile Include="..\..\src\os-heap.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
