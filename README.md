@@ -1,15 +1,14 @@
 ObjectScript
 ============
 
-The ObjectScript is a new embedded programing language that mixes benefits of JavaScript, Lua, Ruby, Python and PHP.
-The ObjectScript has syntax from JavaScript, multiple results from Lua, sugar syntax from Ruby, magic methods from Python and much more.
+ObjectScript, OS for short, is a new programming language. It's free, cross-platform, lightweight, embeddable and open-source. It combines the benefits of multiple languages, including: JavaScript, Lua, Ruby, Python and PHP. OS features the syntax of Javascripts, the "multiple results" feature from lua, syntactic shugar from Ruby as well as magic methods from PHP and Ruby - and even more!
 
 The ObjectScript is universal scripting language, there are no compromises any more.
 
 Compile and Install __os-fcgi__ and __os__
 =======
 
-Run the following commands after you have closned this repository:
+Run the following commands after you have cloned this repository:
 
 	mkdir build && cd build
 	cmake ..
@@ -120,6 +119,7 @@ Apache config example (for __os-fcgi__)
 * [Programming in ObjectScript](https://github.com/unitpoint/objectscript/wiki/Programming-in-ObjectScript)
 * [ObjectScript Reference](https://github.com/unitpoint/objectscript/wiki/ObjectScript-Reference)
 * [ObjectScript C++ binder generator](https://github.com/unitpoint/objectscript/blob/master/src/os-binder-generator.os)
+* [IceTea](https://github.com/IngwiePhoenix/IceTea) is a next-generation build system - a replacement for Make and autotools that works across platforms and is based off ObjectScript.
 
 ##Contacts
 

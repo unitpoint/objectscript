@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.8.9)
 project(ObjectScript)
 
 # We want to build "as static as it gets"
@@ -25,7 +25,8 @@ set(OSBASE_SRC
 )
 file(GLOB OSBASE_BINDER "${CMAKE_CURRENT_SOURCE_DIR}/src/os-binder*.h")
 add_library(osbase ${OSBASE_SRC} ${OSBASE_BINDER})
-target_include_directories(osbase PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# target_include_directories(osbase PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set_property(TARGET osbase APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Used later
 set(DEFLIST "")
@@ -75,19 +76,15 @@ else()
     list(APPEND FCGI_SRC 3rdparty/fcgi-2.4.1/libfcgi/os_unix.c)
 endif()
 add_library(fcgi ${FCGI_SRC})
-target_include_directories(fcgi PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/
-    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/libfcgi
-    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/include
-)
+#target_include_directories(fcgi PUBLIC
+#    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/
+#    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/libfcgi
+#    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/include
+#)
+set_property(TARGET fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/)
+set_property(TARGET fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/libfcgi)
+set_property(TARGET fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/fcgi-2.4.1/include)
 
-# The RegExp library we have
-# We can not rely upon the system's pcrelib, because it will cause incompatibility...
-file(GLOB REGEXP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/pcrelib/*.c")
-add_library(pcre ${REGEXP_SRC})
-target_include_directories(pcre PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/pcrelib
-)
 
 # Other settings, mostly from original file
 OPTION(FORCE32 "Force a 32bit compile on 64bit" OFF)
@@ -134,9 +131,15 @@ endif()
 
 # PCRE
 if(USE_REGEXP)
-    # Due to OS X incompatibility, we have to provide our own.
-    list(APPEND EXT_SRC src/ext-regexp/os-regexp.cpp)
-    list(APPEND EXT_SRC src/ext-regexp/os-regexp.h)
+    find_package(PCRE)
+    if(PCRE_FOUND)
+    	include_directories(${PCRE_INCLUDE_DIR})
+    	list(APPEND EXT_SRC src/ext-regexp/os-regexp.cpp)
+    	list(APPEND EXT_SRC src/ext-regexp/os-regexp.h)
+    else()
+    	message(FATAL_ERROR "[ ERROR ]: Couldn't find the PCRE library")
+        list(APPEND DEFLIST "OS_REGEXP_DISABLED")
+    endif()
 else()
     list(APPEND DEFLIST "OS_REGEXP_DISABLED")
 endif()
@@ -250,10 +253,14 @@ endif()
 # Now its time to put stuff in place
 # First, OS-FCGI
 add_executable(os-fcgi os-fcgi.cpp ${EXT_SRC} ${GLOB_EXT_BASE} ${GLOB_EXT_HASH})
+set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(os-fcgi
     ${CMAKE_THREAD_LIBS_INIT}
+    ${CURL_LIBRARIES}
+    ${PCRE_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${SOCI_LIBRARY}
+    ${ZLIB_LIBRARY}
     ${EXT_LIBS}
     dl
     mpfd
@@ -263,9 +270,13 @@ target_link_libraries(os-fcgi
 
 # Now, standalone OS
 add_executable(os os.cpp ${EXT_SRC} ${GLOB_EXT_BASE} ${GLOB_EXT_HASH})
+set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(os
+    ${CURL_LIBRARIES}
+    ${PCRE_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${SOCI_LIBRARY}
+    ${ZLIB_LIBRARY}
     ${EXT_LIBS}
     dl
     mpfd
@@ -273,64 +284,57 @@ target_link_libraries(os
 )
 
 # Short additions:
-if(USE_ODBO)
-    if(BUILD_SOCI)
-        # SoCi doesnt properly export its paths. So we hack it together.
-        target_link_libraries(os-fcgi soci_core)
-        target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/core")
-        add_dependencies(os-fcgi soci_core)
-        target_link_libraries(os soci_core)
-        target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/core")
-        add_dependencies(os soci_core)
-
-        # Backends
-        if(MYSQL_FOUND)
-            target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
-            target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
-            target_link_libraries(os soci_mysql)
-            target_link_libraries(os-fcgi soci_mysql)
-        endif()
-
-        if(ODBC_FOUND)
-            set(SOCI_odbc_FOUND 1)
-            target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
-            target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
-            target_link_libraries(os soci_odbc)
-            target_link_libraries(os-fcgi soci_odbc)
-        else()
-            set(SOCI_odbc_FOUND 0)
-        endif()
-    endif()
-
-    if(SOCI_mysql_PLUGIN)
-        target_link_libraries(os ${SOCI_mysql_PLUGIN})
-        target_link_libraries(os-fcgi ${SOCI_mysql_PLUGIN})
-    endif()
-
-    if(SOCI_odbc_PLUGIN)
-        target_link_libraries(os ${SOCI_odbc_PLUGIN})
-        target_link_libraries(os-fcgi ${SOCI_odbc_PLUGIN})
-    endif()
+if(SOCI_mysql_PLUGIN)
+    target_link_libraries(os ${SOCI_mysql_PLUGIN})
+    target_link_libraries(os-fcgi ${SOCI_mysql_PLUGIN})
 endif()
 
-if(USE_REGEXP)
-    target_link_libraries(os pcre)
-    target_link_libraries(os-fcgi pcre)
-endif()
-
-if(USE_CURL)
-    target_link_libraries(os ${CURL_LIBRARIES})
-    target_link_libraries(os-fcgi ${CURL_LIBRARIES})
-endif()
-
-if(USE_ZLIB)
-    target_link_libraries(os ${ZLIB_LIBRARY})
-    target_link_libraries(os-fcgi ${ZLIB_LIBRARY})
+if(SOCI_odbc_PLUGIN)
+    target_link_libraries(os ${SOCI_odbc_PLUGIN})
+    target_link_libraries(os-fcgi ${SOCI_odbc_PLUGIN})
 endif()
 
 # Dont forget the defines.
 set_target_properties(os PROPERTIES COMPILE_DEFINITIONS "${DEFLIST}")
 set_target_properties(os-fcgi PROPERTIES COMPILE_DEFINITIONS "${DEFLIST}")
+
+# A SoCi build will require this
+if(BUILD_SOCI)
+    # SoCi doesnt properly export its paths. So we hack it together.
+    target_link_libraries(os-fcgi soci_core)
+    # target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/core")
+	set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/core")
+    add_dependencies(os-fcgi soci_core)
+    target_link_libraries(os soci_core)
+    # target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/core")
+	set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/core")
+    add_dependencies(os soci_core)
+
+    # Backends
+    if(MYSQL_FOUND)
+        set(SOCI_mysql_FOUND 1)
+        # target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
+		set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/backends/mysql")
+        # target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/mysql")
+		set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/backends/mysql")
+        target_link_libraries(os soci_mysql)
+        target_link_libraries(os-fcgi soci_mysql)
+    else()
+        set(SOCI_mysql_FOUND 0)
+    endif()
+
+    if(ODBC_FOUND)
+        set(SOCI_odbc_FOUND 1)
+        # target_include_directories(os PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
+		set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/backends/mysql")
+        # target_include_directories(os-fcgi PRIVATE "${SOCI_SOURCE_DIR}/backends/odbc")
+		set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES "${SOCI_SOURCE_DIR}/backends/odbc")
+        target_link_libraries(os soci_odbc)
+        target_link_libraries(os-fcgi soci_odbc)
+    else()
+        set(SOCI_odbc_FOUND 0)
+    endif()
+endif()
 
 # Finish
 configure_file (
