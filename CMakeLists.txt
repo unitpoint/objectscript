@@ -253,6 +253,7 @@ endif()
 # Now its time to put stuff in place
 # First, OS-FCGI
 add_executable(os-fcgi os-fcgi.cpp ${EXT_SRC} ${GLOB_EXT_BASE} ${GLOB_EXT_HASH})
+set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(os-fcgi
     ${CMAKE_THREAD_LIBS_INIT}
     ${CURL_LIBRARIES}
@@ -269,6 +270,7 @@ target_link_libraries(os-fcgi
 
 # Now, standalone OS
 add_executable(os os.cpp ${EXT_SRC} ${GLOB_EXT_BASE} ${GLOB_EXT_HASH})
+set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(os
     ${CURL_LIBRARIES}
     ${PCRE_LIBRARIES}
