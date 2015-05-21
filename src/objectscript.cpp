@@ -26708,7 +26708,7 @@ void OS::Core::callFT(int start_pos, int call_params, int ret_values, GCValue * 
 					cur_ret_values = 0;
 					allocator->setException(OS_TEXT("internal error"));
 				}
-	#if 0		// does store closure values back?
+	#if 0		// do save closure values?
 				if(cfunc_value->num_closure_values > 0){
 					Value * closure_values = (Value*)(cfunc_value + 1);
 					OS_MEMCPY(closure_values, stack_values.buf + start_pos + call_params, sizeof(Value)*cfunc_value->num_closure_values);
