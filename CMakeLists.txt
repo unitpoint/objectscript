@@ -352,5 +352,5 @@ include_directories("${PROJECT_BINARY_DIR}")
 # Windows users must do this on their own.
 if(UNIX)
     install(TARGETS os os-fcgi  DESTINATION bin)
-    install(DIRECTORY conf/etc/ DESTINATION etc)
+    install(DIRECTORY conf/etc/ DESTINATION /etc)
 endif()
