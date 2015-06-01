@@ -7,7 +7,7 @@
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 NAME=os-fcgi
-DAEMON=/usr/sbin/$NAME
+DAEMON="$(which $NAME)"
 DESC="ObjectScript FastCGI Process Manager"
 USER=www-data
 GROUP=www-data

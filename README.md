@@ -48,6 +48,41 @@ cd build
 
 This will update all the binaries within your build folder and make them find the library - hopefuly.
 
+Using ObjectScript in your app
+====================
+
+After installing ObjectScript, you also will get the required headers into your system to utilize ObjectScript in your app. This is especially useful to let the user do something within your app. Here is an example:
+
+app.cpp:
+```cpp
+#include <objectscript.h>
+
+using namespace ObjectScript;
+
+int main(int argc, char** argv) {
+	OS* os = OS::create();
+
+	// simulate calling "print()" with given argv
+	os->getGlobal("print");
+	os->newArray(argc);
+	for(int i=0; i<argc; i++) {
+		os->pushString(argv[i]);
+		os->addProperty(-2);
+	}
+	os->callF(1);
+}
+```
+
+Now, compile it just like this:
+
+    g++ app.cpp -o app -lobjectscript
+
+To do so on Windows, copy the resulting `libobjectscript.lib` and `src/objectscript.h` to your project, and compile as:
+
+    cl app.cpp libobjectscript.lib /I. /Fe:app
+
+The library and headers are installed globally into your installation path's `include` folder.
+
 Nginx config example (for __os-fcgi__)
 ====================
 
