@@ -17,16 +17,15 @@ project(ObjectScript)
 set(BUILD_SHARED OFF)
 
 # This is the base of ObjectScript.
-set(OSBASE_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/objectscript.cpp
+set(OSBASE_HDR
     ${CMAKE_CURRENT_SOURCE_DIR}/src/objectscript.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/os-heap.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/os-heap.h
 )
+set(OSBASE_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/os-heap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/objectscript.cpp
+)
 file(GLOB OSBASE_BINDER "${CMAKE_CURRENT_SOURCE_DIR}/src/os-binder*.h")
-add_library(osbase ${OSBASE_SRC} ${OSBASE_BINDER})
-# target_include_directories(osbase PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set_property(TARGET osbase APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Used later
 set(DEFLIST "")
@@ -250,9 +249,19 @@ else()
 endif()
 
 
+# Create a libobjectscript for other apps to link against.
+add_library(objectscript STATIC
+    ${OSBASE_SRC}
+    ${OSBASE_HDR}
+    ${OSBASE_BINDER}
+    ${EXT_SRC}
+    ${GLOB_EXT_BASE}
+    ${GLOB_EXT_HASH}
+)
+
 # Now its time to put stuff in place
 # First, OS-FCGI
-add_executable(os-fcgi os-fcgi.cpp ${EXT_SRC} ${GLOB_EXT_BASE} ${GLOB_EXT_HASH})
+add_executable(os-fcgi os-fcgi.cpp)
 set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(os-fcgi
     ${CMAKE_THREAD_LIBS_INIT}
@@ -265,11 +274,11 @@ target_link_libraries(os-fcgi
     dl
     mpfd
     fcgi
-    osbase
+    objectscript
 )
 
 # Now, standalone OS
-add_executable(os os.cpp ${EXT_SRC} ${GLOB_EXT_BASE} ${GLOB_EXT_HASH})
+add_executable(os os.cpp)
 set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(os
     ${CURL_LIBRARIES}
@@ -280,7 +289,7 @@ target_link_libraries(os
     ${EXT_LIBS}
     dl
     mpfd
-    osbase
+    objectscript
 )
 
 # Short additions:
@@ -351,6 +360,9 @@ include_directories("${PROJECT_BINARY_DIR}")
 # Install `os` and `os-fcgi`:
 # Windows users must do this on their own.
 if(UNIX)
-    install(TARGETS os os-fcgi  DESTINATION bin)
+    install(TARGETS os-fcgi  DESTINATION sbin)
+    install(TARGETS os  DESTINATION bin)
+    install(TARGETS objectscript DESTINATION lib)
+    install(FILES ${OSBASE_HDR} ${OSBASE_BINDER} DESTINATION include)
     install(DIRECTORY conf/etc/ DESTINATION /etc)
 endif()
