@@ -360,9 +360,18 @@ include_directories("${PROJECT_BINARY_DIR}")
 # Install `os` and `os-fcgi`:
 # Windows users must do this on their own.
 if(UNIX)
+    # Binaries
     install(TARGETS os-fcgi  DESTINATION sbin)
     install(TARGETS os  DESTINATION bin)
+    # Library + headers
     install(TARGETS objectscript DESTINATION lib)
     install(FILES ${OSBASE_HDR} ${OSBASE_BINDER} DESTINATION include)
-    install(DIRECTORY conf/etc/ DESTINATION /etc)
+    # Extra files and startup script
+    install(FILES conf/etc/init.d/os-fcgi
+        DESTINATION /etc/init.d
+        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+                    GROUP_EXECUTE GROUP_READ
+                    WORLD_EXECUTE WORLD_READ
+    )
+    install(DIRECTORY conf/etc/os-fcgi DESTINATION /etc)
 endif()
