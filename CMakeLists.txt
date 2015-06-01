@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8.9)
 project(ObjectScript)
 
+# Prevent CMake from stripping install paths.
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 # We want to build "as static as it gets"
 # http://stackoverflow.com/questions/3762057/cmake-how-to-produce-binaries-as-static-as-possible
 #set(OLD_FIND "${CMAKE_FIND_LIBRARY_SUFFIXES}")
