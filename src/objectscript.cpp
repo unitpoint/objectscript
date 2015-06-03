@@ -424,7 +424,7 @@ static bool parseSimpleRadix(const OS_CHAR *& p_str, T& p_val, int radix)
 		}else{
 			break;
 		}
-		if(cur > radix){
+		if(cur >= radix){
 			/* p_str = start;
 			p_val = 0;
 			return false; */
@@ -1177,9 +1177,14 @@ int OS::Core::String::getHash() const
 	return string->hash;
 }
 
-OS_NUMBER OS::Core::String::toNumber(int radix) const
+OS_NUMBER OS::Core::String::toNumber() const
 {
-	return string->toNumber(radix);
+	return string->toNumber();
+}
+
+OS_NUMBER OS::Core::String::toNumberRadix(int radix) const
+{
+	return string->toNumberRadix(radix);
 }
 
 // =====================================================================
@@ -12907,17 +12912,12 @@ OS::Core::GCStringValue * OS::Core::GCStringValue::allocAndPush(OS * allocator, 
 	return allocAndPush(allocator, 0, a->toMemory(), a->data_size, b->toMemory(), b->data_size OS_DBG_FILEPOS_PARAM);
 }
 
-bool OS::Core::GCStringValue::isNumber(int radix, OS_NUMBER* p_val) const
+bool OS::Core::GCStringValue::isNumber(OS_NUMBER* p_val) const
 {
 	const OS_CHAR * str = toChar();
 	const OS_CHAR * end = str + getLen();
 	OS_FLOAT val;
-	if(radix > 0){
-		if(Utils::parseFloat(str, val, Utils::PARSE_INT, radix) && str == end){
-			if(p_val) *p_val = (OS_NUMBER)val;
-			return true;
-		}
-	}else if(Utils::parseFloat(str, val, Utils::PARSE_FLOAT) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
+	if(Utils::parseFloat(str, val, Utils::PARSE_FLOAT) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
 		if(p_val) *p_val = (OS_NUMBER)val;
 		return true;
 	}
@@ -12925,16 +12925,36 @@ bool OS::Core::GCStringValue::isNumber(int radix, OS_NUMBER* p_val) const
 	return false;
 }
 
-OS_NUMBER OS::Core::GCStringValue::toNumber(int radix) const
+bool OS::Core::GCStringValue::isNumberRadix(int radix, OS_NUMBER* p_val) const
 {
 	const OS_CHAR * str = toChar();
 	const OS_CHAR * end = str + getLen();
 	OS_FLOAT val;
-	if(radix > 0){
-		if(Utils::parseFloat(str, val, Utils::PARSE_INT, radix) && str == end){
-			return (OS_NUMBER)val;
-		}
-	}else if(Utils::parseFloat(str, val, Utils::PARSE_FLOAT) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
+	if (Utils::parseFloat(str, val, Utils::PARSE_INT, radix) && str == end){
+		if (p_val) *p_val = (OS_NUMBER)val;
+		return true;
+	}
+	if (p_val) *p_val = 0;
+	return false;
+}
+
+OS_NUMBER OS::Core::GCStringValue::toNumber() const
+{
+	const OS_CHAR * str = toChar();
+	const OS_CHAR * end = str + getLen();
+	OS_FLOAT val;
+	if(Utils::parseFloat(str, val, Utils::PARSE_FLOAT) && (str == end || (*str==OS_TEXT('f') && str+1 == end))){
+		return (OS_NUMBER)val;
+	}
+	return 0;
+}
+
+OS_NUMBER OS::Core::GCStringValue::toNumberRadix(int radix) const
+{
+	const OS_CHAR * str = toChar();
+	const OS_CHAR * end = str + getLen();
+	OS_FLOAT val;
+	if (Utils::parseFloat(str, val, Utils::PARSE_INT, radix) && str == end){
 		return (OS_NUMBER)val;
 	}
 	return 0;
@@ -12984,7 +13004,12 @@ bool OS::Core::valueToBool(const Value& val)
 	return true;
 }
 
-OS_INT OS::Core::valueToInt(const Value& val, int radix, bool valueof_enabled)
+OS_INT OS::Core::valueToInt(const Value& val, bool valueof_enabled)
+{
+	return (OS_INT)valueToNumber(val, valueof_enabled);
+}
+
+OS_INT OS::Core::valueToIntRadix(const Value& val, int radix, bool valueof_enabled)
 {
 	return (OS_INT)valueToNumberRadix(val, radix, valueof_enabled);
 }
@@ -13001,7 +13026,7 @@ OS_NUMBER OS::Core::Compiler::Expression::toNumber()
 		return 0;
 
 	case EXP_TYPE_CONST_STRING:
-		return token->str.toNumber(0);
+		return token->str.toNumber();
 
 	case EXP_TYPE_CONST_NUMBER:
 		return (OS_NUMBER)token->getFloat();
@@ -13029,7 +13054,7 @@ OS_NUMBER OS::Core::valueToNumberRadix(const Value& val, int radix, bool valueof
 		return OS_VALUE_NUMBER(val);
 
 	case OS_VALUE_TYPE_STRING:
-		return OS_VALUE_VARIANT(val).string->toNumber(radix);
+		return OS_VALUE_VARIANT(val).string->toNumberRadix(radix);
 	}
 	if(valueof_enabled){
 		pushValueOf(val);
@@ -13052,7 +13077,7 @@ OS_NUMBER OS::Core::valueToNumber(const Value& val, bool valueof_enabled)
 		return OS_VALUE_NUMBER(val);
 
 	case OS_VALUE_TYPE_STRING:
-		return OS_VALUE_VARIANT(val).string->toNumber(0);
+		return OS_VALUE_VARIANT(val).string->toNumber();
 	}
 	if(valueof_enabled){
 		pushValueOf(val);
@@ -18207,14 +18232,12 @@ double OS::toDouble(int offs, double def, bool valueof_enabled)
 
 int OS::toInt(int offs, bool valueof_enabled)
 {
-	// return (int)core->valueToInt(core->getStackValue(offs), radix, valueof_enabled);
 	return (int)toNumber(offs, valueof_enabled);
 }
 
 int OS::toIntRadix(int offs, int radix, bool valueof_enabled)
 {
-	return (int)core->valueToInt(core->getStackValue(offs), radix, valueof_enabled);
-	// return (int)toNumber(offs, valueof_enabled);
+	return (int)core->valueToNumberRadix(core->getStackValue(offs), radix, valueof_enabled);
 }
 
 int OS::toInt(int offs, int def, bool valueof_enabled)
@@ -18225,7 +18248,7 @@ int OS::toInt(int offs, int def, bool valueof_enabled)
 int OS::toIntRadix(int offs, int def, int radix, bool valueof_enabled)
 {
 	Core::Value value = core->getStackValue(offs);
-	return value.isNull() ? def : (int)core->valueToInt(value, radix, valueof_enabled);
+	return value.isNull() ? def : (int)core->valueToNumberRadix(value, radix, valueof_enabled);
 }
 
 bool OS::isNumber(int offs, OS_NUMBER * out)
@@ -18312,7 +18335,7 @@ int OS::popInt(bool valueof_enabled)
 int OS::popIntRadix(int radix, bool valueof_enabled)
 {
 	Pop pop(this); (void)pop;
-	return toInt(-1, radix, valueof_enabled);
+	return toIntRadix(-1, radix, valueof_enabled);
 }
 
 int OS::popInt(int def, bool valueof_enabled)
@@ -22066,11 +22089,11 @@ void OS::initCoreFunctions()
 			if(params >= 3){
 				int radix = os->toInt(-params+1);
 				bool valueof_enabled = os->toBool(-params+2);
-				os->pushNumber(os->toInt(-params+0, radix, valueof_enabled));
+				os->pushNumber(os->toIntRadix(-params+0, radix, valueof_enabled));
 			}else if(params >= 2){
 				int radix = os->toInt(-params+1);
 				bool valueof_enabled = true;
-				os->pushNumber(os->toInt(-params+0, radix, valueof_enabled));
+				os->pushNumber(os->toIntRadix(-params+0, radix, valueof_enabled));
 			}else if(params >= 1){
 				bool valueof_enabled = true;
 				os->pushNumber(os->toNumber(-params+0, valueof_enabled));

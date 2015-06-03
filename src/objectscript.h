@@ -74,7 +74,7 @@ inline void operator delete(void *, void *){}
 #define OS_DEBUG_VERSION
 #endif
 
-#define OS_VERSION		OS_TEXT("2.6.4-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
+#define OS_VERSION		OS_TEXT("2.6.5-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
 #define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
@@ -886,7 +886,8 @@ namespace ObjectScript
 				int cmp(const OS_CHAR*) const;
 				int getHash() const;
 
-				OS_NUMBER toNumber(int radix) const;
+				OS_NUMBER toNumber() const;
+				OS_NUMBER toNumberRadix(int radix) const;
 			};
 
 			class Buffer: public MemStreamWriter
@@ -1289,8 +1290,11 @@ namespace ObjectScript
 				static GCStringValue * allocAndPush(OS*, int hash, const void * buf1, int len1, const void * buf2, int len2 OS_DBG_FILEPOS_DECL);
 				static GCStringValue * allocAndPush(OS*, GCStringValue * a, GCStringValue * b OS_DBG_FILEPOS_DECL);
 
-				bool isNumber(int radix, OS_NUMBER*) const;
-				OS_NUMBER toNumber(int radix) const;
+				bool isNumber(OS_NUMBER*) const;
+				bool isNumberRadix(int radix, OS_NUMBER*) const;
+				
+				OS_NUMBER toNumber() const;
+				OS_NUMBER toNumberRadix(int radix) const;
 
 				int cmp(GCStringValue*) const;
 				int cmp(const OS_CHAR*) const;
@@ -2905,7 +2909,8 @@ namespace ObjectScript
 			String getValueNameOrClassname(GCValue * val);
 
 			bool valueToBool(const Value& val);
-			OS_INT valueToInt(const Value& val, int radix = 0, bool valueof_enabled = false);
+			OS_INT valueToInt(const Value& val, bool valueof_enabled = false);
+			OS_INT valueToIntRadix(const Value& val, int radix, bool valueof_enabled = false);
 			OS_NUMBER valueToNumberRadix(const Value& val, int radix, bool valueof_enabled);
 			OS_NUMBER valueToNumber(const Value& val, bool valueof_enabled = false);
 			String valueToString(const Value& val, bool valueof_enabled = false);
