@@ -198,6 +198,14 @@ if(USE_CURL)
     #prefer_static()
     find_package(CURL)
     if(CURL_FOUND)
+        message(STATUS "CURL: ${CURL_LIBRARIES}")
+        if("${CURL_LIBRARIES}" EQUAL "")
+            message(STATUS "CURL was not at it's standard destination")
+            execute_process(
+                COMMAND curl-config --libs
+                OUTPUT_VARIABLE CURL_LIBRARIES
+            )
+        endif()
 		include_directories(${CURL_INCLUDE_DIR})
 		list(APPEND EXT_SRC src/ext-curl/os-curl.cpp)
 		list(APPEND EXT_SRC src/ext-curl/os-curl.h)
@@ -254,7 +262,6 @@ set_property(TARGET os-fcgi APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_
 target_link_libraries(os-fcgi
     ${CMAKE_THREAD_LIBS_INIT}
     ${CURL_LIBRARIES}
-    ${PCRE_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${SOCI_LIBRARY}
     ${EXT_LIBS}
@@ -269,7 +276,6 @@ add_executable(os os.cpp)
 set_property(TARGET os APPEND PROPERTY INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(os
     ${CURL_LIBRARIES}
-    ${PCRE_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${SOCI_LIBRARY}
     ${EXT_LIBS}
