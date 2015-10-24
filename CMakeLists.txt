@@ -133,15 +133,13 @@ endif()
 
 # PCRE
 if(USE_REGEXP)
-    find_package(PCRE)
-    if(PCRE_FOUND)
-    	include_directories(${PCRE_INCLUDE_DIR})
-    	list(APPEND EXT_SRC src/ext-regexp/os-regexp.cpp)
-    	list(APPEND EXT_SRC src/ext-regexp/os-regexp.h)
-    else()
-    	message(FATAL_ERROR "[ ERROR ]: Couldn't find the PCRE library")
-        list(APPEND DEFLIST "OS_REGEXP_DISABLED")
-    endif()
+    list(APPEND EXT_SRC src/ext-regexp/os-regexp.cpp)
+    list(APPEND EXT_SRC src/ext-regexp/os-regexp.h)
+    file(GLOB PCRE_SRC
+        "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/pcrelib/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/pcrelib/*.c"
+    )
+    set(EXT_SRC ${EXT_SRC} ${PCRE_SRC})
 else()
     list(APPEND DEFLIST "OS_REGEXP_DISABLED")
 endif()
