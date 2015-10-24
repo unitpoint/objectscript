@@ -162,7 +162,7 @@ endif()
 
 # SoCi
 # SoCi is required and can additionally be built.
-if(NOT BUILD_SOCI)
+if(BUILD_SOCI EQUAL OFF)
     find_package(Soci)
     if(SOCI_FOUND)
         include_directories(${SOCI_INCLUDE_DIR})
@@ -173,7 +173,8 @@ if(NOT BUILD_SOCI)
     endif()
 else()
     # Should make this better.
-    add_subdirectory(3rdparty/soci-3.2.2/)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/soci-3.2.2/)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/soci-3.2.2/core)
 endif()
 
 # Database stuff.
@@ -309,6 +310,13 @@ endif()
 # Dont forget the defines.
 set_target_properties(os PROPERTIES COMPILE_DEFINITIONS "${DEFLIST}")
 set_target_properties(os-fcgi PROPERTIES COMPILE_DEFINITIONS "${DEFLIST}")
+
+# By default, -Werror is used. We have a few warnings that we'd not like to get.
+# This only works on non-windows
+if(NOT WIN32)
+    set_target_properties(os PROPERTIES COMPILE_FLAGS "-Wswitch")
+    set_target_properties(os-fcgi PROPERTIES COMPILE_FLAGS "-Wswitch")
+endif()
 
 # A SoCi build will require this
 if(BUILD_SOCI)
