@@ -28,6 +28,15 @@ During the configuration, you may notice that a library named SoCi could not be 
 
 After that, you should be good to go.
 
+Dependencies
+-------------------
+
+If you are on an operating system like Debian or Ubuntu, you can install dependencies by typing:
+
+	aptitude install libpcre3-dev
+	aptitude install libmysqlclient-dev
+	aptitude install libcurl4-openssl-dev
+
 Special note for Apple Mac OS X builds
 -------------------
 Depending on how you have installed MySQL on your system, you may run into this error by running __os__ or __os-fcgi__ from the build directory or after you have installed it:

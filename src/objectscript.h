@@ -75,7 +75,7 @@ inline void operator delete(void *, void *){}
 #endif
 
 #define OS_VERSION		OS_TEXT("2.6.5-rc") OS_PLATFORM_BITS_VERSION OS_DEBUG_VERSION
-#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2014 by Evgeniy Golovin")
+#define OS_COPYRIGHT	OS_TEXT("OS ") OS_VERSION OS_TEXT(" Copyright (C) 2012-2015 by Evgeniy Golovin")
 #define OS_OPENSOURCE	OS_TEXT("ObjectScript is free and open source: https://github.com/unitpoint/objectscript")
 
 // select ObjectScript number type here
