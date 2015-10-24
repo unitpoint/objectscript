@@ -175,6 +175,7 @@ else()
     # Should make this better.
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/soci-3.2.2/)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/soci-3.2.2/core)
+	include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/soci/include)
 endif()
 
 # Database stuff.
@@ -228,26 +229,11 @@ endif()
 if(USE_ZLIB)
     list(APPEND EXT_SRC src/ext-zlib/os-zlib.cpp)
     list(APPEND EXT_SRC src/ext-zlib/os-zlib.h)
-    find_package(ZLIB)
-    if(ZLIB_FOUND)
-        include_directories(${ZLIB_INCLUDE_DIR})
-    else()
-        list(APPEND EXT_SRC src/ext-zlib/zlib/adler32.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/compress.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/crc32.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/deflate.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/gzclose.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/gzlib.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/gzread.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/gzwrite.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/infback.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/inffast.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/inflate.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/inftrees.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/trees.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/uncompr.c)
-        list(APPEND EXT_SRC src/ext-zlib/zlib/zutil.c)
-    endif()
+    file(GLOB ZLIB_SRC
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/ext-zlib/zlib/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/ext-zlib/zlib/*.c"
+    )
+    set(EXT_SRC ${EXT_SRC} ${ZLIB_SRC})
 else()
     list(APPEND DEFLIST "OS_ZLIB_DISABLED")
 endif()
@@ -273,7 +259,6 @@ target_link_libraries(os-fcgi
     ${PCRE_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${SOCI_LIBRARY}
-    ${ZLIB_LIBRARY}
     ${EXT_LIBS}
     dl
     mpfd
@@ -289,7 +274,6 @@ target_link_libraries(os
     ${PCRE_LIBRARIES}
     ${MYSQL_LIBRARIES}
     ${SOCI_LIBRARY}
-    ${ZLIB_LIBRARY}
     ${EXT_LIBS}
     dl
     mpfd
